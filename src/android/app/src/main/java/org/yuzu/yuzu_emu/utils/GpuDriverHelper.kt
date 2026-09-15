@@ -221,7 +221,10 @@ object GpuDriverHelper {
     fun isAdrenoGpu(): Boolean {
         return try {
             supportsCustomDriverLoading()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Catches Throwable (not just Exception): a call before the native library is
+            // fully linked throws UnsatisfiedLinkError, which is an Error and was previously
+            // escaping this uncaught.
             false
         }
     }

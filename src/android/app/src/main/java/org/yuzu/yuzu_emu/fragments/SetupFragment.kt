@@ -240,9 +240,13 @@ class SetupFragment : Fragment() {
                                         binding.root.findNavController().navigate(action)
                                     },
                                     {
-                                        if (GpuDriverHelper.installedCustomDriverData.name != null) {
-                                            ButtonState.BUTTON_ACTION_COMPLETE
-                                        } else {
+                                        try {
+                                            if (GpuDriverHelper.installedCustomDriverData.name != null) {
+                                                ButtonState.BUTTON_ACTION_COMPLETE
+                                            } else {
+                                                ButtonState.BUTTON_ACTION_INCOMPLETE
+                                            }
+                                        } catch (e: Throwable) {
                                             ButtonState.BUTTON_ACTION_INCOMPLETE
                                         }
                                     }

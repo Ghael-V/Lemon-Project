@@ -485,11 +485,11 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia isn\'t real</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
-    <string name="about_app_description">An open-source Switch emulator</string>
+    <string name="about_app_description">Android-only fork of Eden, an open-source Switch emulator</string>
     <string name="contributors">Contributors</string>
-    <string name="contributors_description">People who made Eden for Android possible</string>
+    <string name="contributors_description">Credits to Eden\'s contributors, the project this fork is built on</string>
     <string name="contributors_link" translatable="false">https://git.eden-emu.dev/eden-emu/eden/activity/contributors</string>
-    <string name="licenses_description">Projects that make Eden for Android possible</string>
+    <string name="licenses_description">Open-source projects that make this fork possible</string>
     <string name="build">Build</string>
     <string name="user_data">User data</string>
     <string name="user_data_description">Import/export all app data.\n\nWhen importing user data, all existing user data will be deleted!\n\nImporting data from Citron may cause issues. It\'s recommended to manually import all needed data.</string>
