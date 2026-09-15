@@ -26,7 +26,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Free disk space (needed for a full C++ build: ffmpeg/boost/etc.)
+      - name: "Free disk space (needed for a full C++ build: ffmpeg/boost/etc.)"
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
             /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/emulator \
