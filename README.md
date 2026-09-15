@@ -41,6 +41,20 @@ Written in C++, with builds for Windows, Linux, macOS, Android, FreeBSD and more
   <a href="#license">License</a>
 </p>
 
+## About this fork (Lemon-Project)
+
+This is a private, Android-only fork of [Eden](https://git.eden-emu.dev/eden-emu/eden), trimmed down to just the
+Android app and its build system (no Qt/desktop/CLI/dedicated-room targets, no multi-platform CI). It exists to
+run on a single Android device with no dependency on a PC build.
+
+`prod.keys` and firmware are **not** part of this repository and never will be — obtaining them from your own
+legally owned console is entirely on you. This fork does not touch key derivation, decryption, or DRM in any way;
+it only builds the emulator app.
+
+For anything not Android-specific (compatibility, general usage, most of the docs below), refer to
+[upstream Eden](https://git.eden-emu.dev/eden-emu/eden) — this fork doesn't change emulation behavior, only what
+gets built and how.
+
 ## Compatibility
 
 The emulator is capable of running most commercial games at full speed, provided you meet the necessary hardware requirements.

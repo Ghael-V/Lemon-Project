@@ -57,10 +57,19 @@ jobs:
           restore-keys: |
             cpm-${{ runner.os }}-
 
-      - name: Install host build tools (glslangValidator)
+      - name: Install host build tools (glslangValidator, ccache)
         run: |
           sudo apt-get update
-          sudo apt-get install -y glslang-tools
+          sudo apt-get install -y glslang-tools ccache
+
+      - name: Cache ccache compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref_name }}-
+            ccache-${{ runner.os }}-
 
       - name: Install Android SDK components (NDK + CMake)
         run: |
@@ -74,8 +83,12 @@ jobs:
       - name: Build APK (standard flavor, Release)
         run: |
           export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+          export CCACHE_DIR="$HOME/.cache/ccache"
+          mkdir -p "$CCACHE_DIR"
+          ccache --max-size=5G
           chmod +x .ci/android/build.sh
-          CCACHE=false .ci/android/build.sh -t standard -b Release
+          CCACHE=true .ci/android/build.sh -t standard -b Release
+          ccache --show-stats
 
       - name: Upload APK/AAB artifacts
         if: always()
