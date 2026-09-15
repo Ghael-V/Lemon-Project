@@ -56,6 +56,8 @@ class HomeSettingsFragment : Fragment() {
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val driverViewModel: DriverViewModel by activityViewModels()
 
+    private var showAdvancedSettings = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
@@ -79,63 +81,21 @@ class HomeSettingsFragment : Fragment() {
         }
         binding.toolbarHomeSettings.title = getString(R.string.preferences_settings)
 
-        val optionsList: MutableList<HomeSetting> = mutableListOf<HomeSetting>().apply {
-            add(
-                HomeSetting(
-                    R.string.advanced_settings,
-                    R.string.settings_description,
-                    R.drawable.ic_settings,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
-                            null,
-                            Settings.MenuTag.SECTION_ROOT
-                        )
-                        binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
-                    R.string.app_settings,
-                    R.string.app_settings_description,
-                    R.drawable.ic_palette,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
-                            null,
-                            Settings.MenuTag.SECTION_APP_SETTINGS
-                        )
-                        binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
-                    R.string.preferences_controls,
-                    R.string.preferences_controls_description,
-                    R.drawable.ic_controller,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
-                            null,
-                            Settings.MenuTag.SECTION_INPUT
-                        )
-                        binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
-                    R.string.profile_manager,
-                    R.string.profile_manager_description,
-                    R.drawable.ic_account_circle,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
-                            SettingsSubscreen.PROFILE_MANAGER,
-                            null
-                        )
-                        binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
+        binding.homeSettingsList.apply {
+            layoutManager =
+                GridLayoutManager(requireContext(), resources.getInteger(R.integer.grid_columns))
+            val spacing = resources.getDimensionPixelSize(R.dimen.spacing_small)
+            addItemDecoration(SpacingItemDecoration(spacing))
+        }
+        refreshOptionsList()
+
+        setInsets()
+    }
+
+    // Only the settings people actually reach for day to day. Everything else lives behind
+    // the "More options" toggle below so first-time setup isn't a wall of 17 identical cards.
+    private fun buildEssentialOptions(): MutableList<HomeSetting> =
+        mutableListOf<HomeSetting>().apply {
             add(
                 HomeSetting(
                     R.string.gpu_driver_manager,
@@ -171,6 +131,80 @@ class HomeSettingsFragment : Fragment() {
                     )
                 )
             }
+            add(
+                HomeSetting(
+                    R.string.preferences_controls,
+                    R.string.preferences_controls_description,
+                    R.drawable.ic_controller,
+                    {
+                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
+                            null,
+                            Settings.MenuTag.SECTION_INPUT
+                        )
+                        binding.root.findNavController().navigate(action)
+                    }
+                )
+            )
+            add(
+                HomeSetting(
+                    R.string.app_settings,
+                    R.string.app_settings_description,
+                    R.drawable.ic_palette,
+                    {
+                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
+                            null,
+                            Settings.MenuTag.SECTION_APP_SETTINGS
+                        )
+                        binding.root.findNavController().navigate(action)
+                    }
+                )
+            )
+            add(
+                HomeSetting(
+                    R.string.manage_game_folders,
+                    R.string.select_games_folder_description,
+                    R.drawable.ic_add,
+                    {
+                        val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
+                            SettingsSubscreen.GAME_FOLDERS,
+                            null
+                        )
+                        binding.root.findNavController().navigate(action)
+                    }
+                )
+            )
+        }
+
+    private fun buildAdvancedOptions(): MutableList<HomeSetting> =
+        mutableListOf<HomeSetting>().apply {
+            add(
+                HomeSetting(
+                    R.string.advanced_settings,
+                    R.string.settings_description,
+                    R.drawable.ic_settings,
+                    {
+                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
+                            null,
+                            Settings.MenuTag.SECTION_ROOT
+                        )
+                        binding.root.findNavController().navigate(action)
+                    }
+                )
+            )
+            add(
+                HomeSetting(
+                    R.string.profile_manager,
+                    R.string.profile_manager_description,
+                    R.drawable.ic_account_circle,
+                    {
+                        val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
+                            SettingsSubscreen.PROFILE_MANAGER,
+                            null
+                        )
+                        binding.root.findNavController().navigate(action)
+                    }
+                )
+            )
             add(
                 HomeSetting(
                     R.string.post_processing,
@@ -238,20 +272,6 @@ class HomeSettingsFragment : Fragment() {
                     {
                         val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
                             SettingsSubscreen.INSTALLABLE,
-                            null
-                        )
-                        binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
-                    R.string.manage_game_folders,
-                    R.string.select_games_folder_description,
-                    R.drawable.ic_add,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
-                            SettingsSubscreen.GAME_FOLDERS,
                             null
                         )
                         binding.root.findNavController().navigate(action)
@@ -347,19 +367,34 @@ class HomeSettingsFragment : Fragment() {
             )
         }
 
-        binding.homeSettingsList.apply {
-            layoutManager =
-                GridLayoutManager(requireContext(), resources.getInteger(R.integer.grid_columns))
-            adapter = HomeSettingAdapter(
-                requireActivity() as AppCompatActivity,
-                viewLifecycleOwner,
-                optionsList
-            )
-            val spacing = resources.getDimensionPixelSize(R.dimen.spacing_small)
-            addItemDecoration(SpacingItemDecoration(spacing))
+    private fun buildOptionsList(): MutableList<HomeSetting> {
+        val options = buildEssentialOptions()
+        options.add(
+            HomeSetting(
+                if (showAdvancedSettings) R.string.home_hide_advanced else R.string.home_show_advanced,
+                if (showAdvancedSettings) {
+                    R.string.home_hide_advanced_description
+                } else {
+                    R.string.home_show_advanced_description
+                },
+                R.drawable.ic_dropdown_arrow
+            ) {
+                showAdvancedSettings = !showAdvancedSettings
+                refreshOptionsList()
+            }
+        )
+        if (showAdvancedSettings) {
+            options.addAll(buildAdvancedOptions())
         }
+        return options
+    }
 
-        setInsets()
+    private fun refreshOptionsList() {
+        binding.homeSettingsList.adapter = HomeSettingAdapter(
+            requireActivity() as AppCompatActivity,
+            viewLifecycleOwner,
+            buildOptionsList()
+        )
     }
 
     override fun onStart() {
