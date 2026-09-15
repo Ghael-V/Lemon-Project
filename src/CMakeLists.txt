@@ -118,6 +118,6 @@ if (ENABLE_WEB_SERVICE)
 endif()
 
 add_subdirectory(android/app/src/main/jni)
-target_include_directories(yuzu-android PRIVATE android/app/src/main)
+target_include_directories(lemon-android PRIVATE android/app/src/main)
 
 include(GenerateDepHashes)
