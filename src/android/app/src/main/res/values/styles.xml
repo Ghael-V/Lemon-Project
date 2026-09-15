@@ -162,36 +162,6 @@
         <item name="rippleColor">@color/lemon_inversePrimary_pink</item>
     </style>
 
-    <!-- Lemon theme styles -->
-    <style name="LemonSlider" parent="Widget.Material3.Slider">
-        <item name="tickVisible">false</item>
-        <item name="labelBehavior">gone</item>
-        <item name="trackColorActive">?attr/colorPrimary</item>
-        <item name="trackColorInactive">?attr/colorOutline</item>
-        <item name="thumbColor">?attr/colorSecondary</item>
-        <item name="haloColor">?attr/colorSecondary</item>
-    </style>
-
-    <style name="LemonMaterialDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorPrimary">@color/lemon_primary</item>
-        <item name="colorSurface">@color/lemon_card_background</item>
-        <item name="colorSurfaceContainerHigh">@color/lemon_card_background</item>
-        <item name="colorOnSurface">@color/lemon_on_surface</item>
-        <item name="colorOnSurfaceVariant">@color/lemon_on_surface</item>
-        <item name="colorSecondary">@color/lemon_secondary</item>
-        <item name="android:textColorPrimary">@color/lemon_on_surface</item>
-        <item name="android:textColorSecondary">@color/lemon_on_surface</item>
-        <item name="android:colorBackground">@color/lemon_card_background</item>
-        <item name="buttonBarPositiveButtonStyle">@style/LemonButton.Dialog</item>
-        <item name="buttonBarNegativeButtonStyle">@style/LemonButton.Dialog</item>
-        <item name="buttonBarNeutralButtonStyle">@style/LemonButton.Dialog</item>
-    </style>
-
-    <style name="LemonButton.Dialog" parent="Widget.Material3.Button.TextButton.Dialog">
-        <item name="android:textColor">@color/lemon_primary</item>
-        <item name="rippleColor">@color/lemon_glow_pink</item>
-    </style>
-
     <style name="Widget.Lemon.TransparentTopAppBarLayout" parent="">
         <item name="android:background">@android:color/transparent</item>
         <item name="android:elevation">0dp</item>
@@ -207,9 +177,6 @@
         <item name="backgroundTint">@android:color/transparent</item>
     </style>
 
-    <style name="LemonPopupMenu" parent="Widget.Material3.PopupMenu">
-        <item name="android:popupBackground">@drawable/popup_menu_background</item>
-    </style>
     <style name="LemonPopupMenu" parent="Widget.Material3.PopupMenu">
         <item name="android:popupBackground">@drawable/popup_menu_background</item>
     </style>

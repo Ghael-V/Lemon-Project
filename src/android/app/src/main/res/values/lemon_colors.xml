@@ -257,7 +257,6 @@
     <color name="lemon_border_gradient_end">#689F38</color> <!-- Leaf green -->
 
     <!-- Status Colors -->
-    <color name="lemon_error">#D32F2F</color> <!-- Red -->
     <color name="lemon_success">#388E3C</color> <!-- Green -->
     <color name="lemon_warning">#F9A825</color> <!-- Amber -->
     <color name="lemon_info">#0288D1</color> <!-- Blue -->

@@ -27,56 +27,6 @@
         <item name="popupMenuStyle">@style/LemonPopupMenu</item>
     </style>
 
-    <style name="Theme.Lemon.Main" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary colors -->
-        <item name="colorPrimary">@color/lemon_primary</item>
-        <item name="colorOnPrimary">@color/lemon_on_primary</item>
-        <item name="colorPrimaryContainer">@color/lemon_primary_variant</item>
-        <item name="colorOnPrimaryContainer">@color/lemon_on_primary</item>
-        <!-- Secondary colors -->
-        <item name="colorSecondary">@color/lemon_secondary</item>
-        <item name="colorOnSecondary">@color/lemon_on_secondary</item>
-        <item name="colorSecondaryContainer">@color/lemon_secondary_variant</item>
-        <item name="colorOnSecondaryContainer">@color/lemon_on_secondary</item>
-        <!-- Tertiary colors -->
-        <item name="colorTertiary">@color/lemon_accent_purple</item>
-        <item name="colorOnTertiary">@color/lemon_on_primary</item>
-        <item name="colorTertiaryContainer">@color/lemon_accent_blue</item>
-        <item name="colorOnTertiaryContainer">@color/lemon_on_primary</item>
-        <!-- Background and surface -->
-        <item name="android:colorBackground">@color/lemon_background</item>
-        <item name="colorOnBackground">@color/lemon_on_background</item>
-        <item name="colorSurface">@color/lemon_surface</item>
-        <item name="colorOnSurface">@color/lemon_on_surface</item>
-        <item name="colorSurfaceVariant">@color/lemon_surface_variant</item>
-        <item name="colorOnSurfaceVariant">@color/lemon_on_surface</item>
-        <!-- Outline and borders -->
-        <item name="colorOutline">@color/lemon_border</item>
-        <item name="colorOutlineVariant">@color/lemon_border_light</item>
-        <!-- Error colors -->
-        <item name="colorError">@color/lemon_error</item>
-        <item name="colorErrorContainer">@color/lemon_error</item>
-        <item name="colorOnError">@color/lemon_on_primary</item>
-        <item name="colorOnErrorContainer">@color/lemon_on_primary</item>
-        <!-- System UI -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
-        <!-- Other theme attributes -->
-        <item name="android:shadowColor">@color/lemon_overlay</item>
-        <item name="sliderStyle">@style/LemonSlider</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:enforceStatusBarContrast">false</item>
-        <item name="android:enforceNavigationBarContrast">false</item>
-        <!-- Material dialog theme -->
-        <item name="materialAlertDialogTheme">@style/LemonMaterialDialog</item>
-        <!-- Popup menu theme -->
-        <item name="popupMenuStyle">@style/LemonPopupMenu</item>
-        <item name="android:textColorPrimary">@color/lemon_on_background</item>
-        <item name="android:itemTextAppearance">@style/TextAppearance.Material3.BodyLarge</item>
-    </style>
-
     <style name="Theme.Lemon.Main.Blue" parent="Theme.Lemon.Main">
         <!-- Blue theme colors -->
         <item name="colorPrimary">@color/lemon_primary_blue</item>

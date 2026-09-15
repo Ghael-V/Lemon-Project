@@ -246,7 +246,6 @@
     <color name="lemon_on_secondary">#0E1A06</color> <!-- Near-black on leaf green -->
 
     <!-- Status Colors -->
-    <color name="lemon_error">#EF5350</color> <!-- Red -->
     <color name="lemon_success">#66BB6A</color> <!-- Green -->
     <color name="lemon_warning">#FFB300</color> <!-- Amber -->
     <color name="lemon_info">#29B6F6</color> <!-- Blue -->
