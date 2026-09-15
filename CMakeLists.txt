@@ -108,6 +108,11 @@ if (ARCHITECTURE_arm64)
     add_compile_definitions(HAS_NCE=1)
 endif()
 
+# Android's NDK libc++ (Clang) ships std::stop_token/std::jthread as
+# experimental and gates them behind this flag.
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
+
 # Build/optimization presets
 if (CXX_GCC OR CXX_CLANG)
     if (ARCHITECTURE_x86_64)
