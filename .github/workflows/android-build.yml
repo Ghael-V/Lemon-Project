@@ -57,6 +57,11 @@ jobs:
           restore-keys: |
             cpm-${{ runner.os }}-
 
+      - name: Install host build tools (glslangValidator)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y glslang-tools
+
       - name: Install Android SDK components (NDK + CMake)
         run: |
           SDK_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
