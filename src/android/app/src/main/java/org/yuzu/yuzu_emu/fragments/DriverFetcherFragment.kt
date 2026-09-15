@@ -24,13 +24,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import android.widget.Toast
+import androidx.core.net.toUri
 import org.yuzu.yuzu_emu.R
+import org.yuzu.yuzu_emu.databinding.DialogProgressBinding
 import org.yuzu.yuzu_emu.databinding.FragmentDriverFetcherBinding
 import org.yuzu.yuzu_emu.features.fetcher.DriverGroupAdapter
 import org.yuzu.yuzu_emu.model.DriverViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
+import org.yuzu.yuzu_emu.utils.FileUtil
 import org.yuzu.yuzu_emu.utils.GpuDriverHelper
 import org.yuzu.yuzu_emu.utils.ViewUtils.updateMargins
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URL
 import java.time.Instant
@@ -88,6 +94,10 @@ class DriverFetcherFragment : Fragment() {
     private lateinit var driverGroupAdapter: DriverGroupAdapter
     private val driverViewModel: DriverViewModel by activityViewModels()
     private val homeViewModel: HomeViewModel by activityViewModels()
+
+    // Populated incrementally by fetchDrivers(); read by the "install recommended" button
+    // once every repo has responded.
+    private val fetchedDriverGroups = arrayListOf<DriverGroup>()
 
     private fun parseAdrenoModel(): Int {
         if (gpuModel == null) {
@@ -148,6 +158,9 @@ class DriverFetcherFragment : Fragment() {
         driverGroupAdapter = DriverGroupAdapter(requireActivity(), driverViewModel)
         binding.listDrivers.adapter = driverGroupAdapter
 
+        binding.buttonInstallRecommended.isEnabled = false
+        binding.buttonInstallRecommended.setOnClickListener { onInstallRecommendedClicked() }
+
         setInsets()
 
         fetchDrivers()
@@ -155,8 +168,6 @@ class DriverFetcherFragment : Fragment() {
 
     private fun fetchDrivers() {
         binding.loadingIndicator.isVisible = true
-
-        val driverGroups = arrayListOf<DriverGroup>()
 
         repoList.forEach { driver ->
             val name = driver.name
@@ -201,21 +212,162 @@ class DriverFetcherFragment : Fragment() {
                         sort
                     )
 
-                    synchronized(driverGroups) {
-                        driverGroups.add(group)
-                        driverGroups.sortBy {
+                    synchronized(fetchedDriverGroups) {
+                        fetchedDriverGroups.add(group)
+                        fetchedDriverGroups.sortBy {
                             it.sort
                         }
                     }
 
                     withContext(Dispatchers.Main) {
-                        driverGroupAdapter.updateDriverGroups(driverGroups)
+                        driverGroupAdapter.updateDriverGroups(fetchedDriverGroups)
 
-                        if (driverGroups.size >= repoList.size) {
+                        if (fetchedDriverGroups.size >= repoList.size) {
                             binding.loadingIndicator.isVisible = false
+                            binding.buttonInstallRecommended.isEnabled =
+                                findRecommendedInstall() != null
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Best-effort match of the recommendedDriver label (e.g. "Mr. Purple T23") back to a
+    // specific (release, artifact) pair: the label's prefix identifies the repo/group, and
+    // (unless it just says "Latest") the remainder should appear in that release's title/tag.
+    // Never installs silently - onInstallRecommendedClicked() always confirms with the user
+    // first, since this heuristic isn't guaranteed to be right.
+    private fun findRecommendedInstall(): Pair<Release, Artifact>? {
+        if (adrenoModel <= 0) return null
+
+        val label = recommendedDriver
+        if (label == "Unsupported") return null
+
+        val group = fetchedDriverGroups.firstOrNull { g ->
+            val keyword = g.name.removeSuffix(" Turnip").removeSuffix(" Freedreno")
+            label.startsWith(keyword)
+        } ?: return null
+
+        val keyword = group.name.removeSuffix(" Turnip").removeSuffix(" Freedreno")
+        val versionHint = label.removePrefix(keyword).trim()
+
+        val release = if (versionHint.isEmpty() || versionHint.equals("Latest", ignoreCase = true)) {
+            group.releases.firstOrNull { it.latest } ?: group.releases.firstOrNull()
+        } else {
+            group.releases.firstOrNull {
+                it.title.contains(versionHint, ignoreCase = true) ||
+                    it.tagName.contains(versionHint, ignoreCase = true)
+            } ?: group.releases.firstOrNull { it.latest } ?: group.releases.firstOrNull()
+        } ?: return null
+
+        val artifact = release.artifacts.firstOrNull() ?: return null
+        return release to artifact
+    }
+
+    private fun onInstallRecommendedClicked() {
+        val (release, artifact) = findRecommendedInstall() ?: run {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.no_recommended_driver_available),
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        if (GpuDriverHelper.isDriverZipInstalledByName(artifact.name)) {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.driver_already_installed),
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        MaterialAlertDialogBuilder(requireActivity())
+            .setTitle(getString(R.string.install_recommended_driver))
+            .setMessage("${release.title}\n${artifact.name}")
+            .setPositiveButton(getString(R.string.ok)) { dialog, _ ->
+                dialog.dismiss()
+                installArtifact(artifact)
+            }
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ -> dialog.cancel() }
+            .show()
+    }
+
+    // Mirrors ReleaseAdapter's per-button download+install flow (kept separate rather than
+    // shared, so this shortcut can't regress the manual list below it).
+    private fun installArtifact(artifact: Artifact) {
+        val context = requireContext()
+        val dialogBinding = DialogProgressBinding.inflate(LayoutInflater.from(context))
+        dialogBinding.progressBar.isIndeterminate = true
+        dialogBinding.title.text = getString(R.string.installing_driver)
+        dialogBinding.status.text = getString(R.string.downloading)
+
+        val progressDialog = MaterialAlertDialogBuilder(context)
+            .setView(dialogBinding.root)
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val request = Request.Builder()
+                    .url(artifact.url)
+                    .header("Accept", "application/octet-stream")
+                    .build()
+
+                val cacheDir = context.externalCacheDir
+                    ?: throw IOException(getString(R.string.failed_cache_dir))
+                cacheDir.mkdirs()
+                val file = File(cacheDir, artifact.name)
+
+                withContext(Dispatchers.IO) {
+                    client.newBuilder()
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .build()
+                        .newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) {
+                                throw IOException("${response.code}")
+                            }
+
+                            response.body?.byteStream()?.use { input ->
+                                FileOutputStream(file).use { output -> input.copyTo(output) }
+                            } ?: throw IOException(getString(R.string.empty_response_body))
+                        }
+                }
+
+                if (file.length() == 0L) {
+                    throw IOException(getString(R.string.driver_empty))
+                }
+
+                dialogBinding.status.text = getString(R.string.installing)
+
+                val driverData = GpuDriverHelper.getMetadataFromZip(file)
+                val driverPath =
+                    "${GpuDriverHelper.driverStoragePath}${FileUtil.getFilename(file.toUri())}"
+
+                if (GpuDriverHelper.copyDriverToInternalStorage(file.toUri())) {
+                    driverViewModel.onDriverAdded(Pair(driverPath, driverData))
+                    progressDialog.dismiss()
+                    Toast.makeText(
+                        context,
+                        getString(R.string.successfully_installed, driverData.name),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    throw IOException(
+                        getString(R.string.failed_install_driver, artifact.name)
+                    )
+                }
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                MaterialAlertDialogBuilder(context)
+                    .setTitle(getString(R.string.driver_failed_title))
+                    .setMessage(e.message)
+                    .setPositiveButton(R.string.ok) { dialog, _ -> dialog.cancel() }
+                    .show()
             }
         }
     }

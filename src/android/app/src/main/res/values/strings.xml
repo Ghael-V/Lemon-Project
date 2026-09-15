@@ -837,6 +837,8 @@
     <string name="installing">Installing…</string>
     <string name="latest">Latest</string>
     <string name="recommended_driver">Recommended Driver:</string>
+    <string name="install_recommended_driver">Install recommended driver</string>
+    <string name="no_recommended_driver_available">No recommended driver found for this GPU yet</string>
     <string name="gpu_model">GPU Model</string>
     <string name="unsupported_gpu">Unsupported GPU</string>
     <string name="unsupported_gpu_warning">Your GPU does not support driver injection. Attempting to set custom drivers is not recommended.</string>

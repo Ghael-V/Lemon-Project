@@ -8,6 +8,7 @@ import android.text.Html
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -39,6 +40,8 @@ import org.yuzu.yuzu_emu.NativeLibrary
 import org.yuzu.yuzu_emu.databinding.CardGameGridCompactBinding
 import org.yuzu.yuzu_emu.features.settings.model.BooleanSetting
 import org.yuzu.yuzu_emu.features.settings.model.Settings
+import org.yuzu.yuzu_emu.features.settings.ui.SettingsSubscreen
+import org.yuzu.yuzu_emu.utils.GpuDriverHelper
 
 class GameAdapter(private val activity: AppCompatActivity) :
     AbstractDiffAdapter<Game, GameAdapter.GameViewHolder>(exact = false) {
@@ -292,8 +295,40 @@ class GameAdapter(private val activity: AppCompatActivity) :
         }
 
         fun onLongClick(game: Game): Boolean {
-            val action = HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
-            binding.root.findNavController().navigate(action)
+            val popup = PopupMenu(activity, binding.root)
+
+            val playId = 0
+            val driverId = 1
+            val propertiesId = 2
+
+            popup.menu.add(0, playId, 0, R.string.play)
+            if (GpuDriverHelper.isAdrenoGpu()) {
+                popup.menu.add(0, driverId, 1, R.string.freedreno_per_game_title)
+            }
+            popup.menu.add(0, propertiesId, 2, R.string.per_game_settings)
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    playId -> onClick(game)
+                    driverId -> {
+                        val action = HomeNavigationDirections
+                            .actionGlobalSettingsSubscreenActivity(
+                                SettingsSubscreen.FREEDRENO_SETTINGS,
+                                game
+                            )
+                        binding.root.findNavController().navigate(action)
+                    }
+
+                    propertiesId -> {
+                        val action =
+                            HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
+                        binding.root.findNavController().navigate(action)
+                    }
+                }
+                true
+            }
+
+            popup.show()
             return true
         }
     }

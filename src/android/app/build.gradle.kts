@@ -64,7 +64,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.eden.eden_emulator"
+        applicationId = "dev.lemon.lemon_emulator"
         minSdk = 24
         targetSdk = 36
         versionName = getGitVersion()
@@ -221,7 +221,7 @@ android {
             minSdk = 29
             manifestPlaceholders += mapOf("appNameBase" to "Lemon Legacy")
             resValue("string", "app_name_suffixed", "Lemon Legacy")
-            applicationId = "dev.legacy.eden_emulator"
+            applicationId = "dev.legacy.lemon_emulator"
 
             externalNativeBuild {
                 cmake {
