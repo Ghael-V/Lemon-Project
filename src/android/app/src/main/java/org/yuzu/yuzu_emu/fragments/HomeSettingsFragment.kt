@@ -377,11 +377,12 @@ class HomeSettingsFragment : Fragment() {
                 } else {
                     R.string.home_show_advanced_description
                 },
-                R.drawable.ic_dropdown_arrow
-            ) {
-                showAdvancedSettings = !showAdvancedSettings
-                refreshOptionsList()
-            }
+                R.drawable.ic_dropdown_arrow,
+                {
+                    showAdvancedSettings = !showAdvancedSettings
+                    refreshOptionsList()
+                }
+            )
         )
         if (showAdvancedSettings) {
             options.addAll(buildAdvancedOptions())
