@@ -1,0 +1,82 @@
+name: Android build
+
+# Verifies the Android-only trim actually configures & compiles.
+# This exists because the dev sandbox that trims this repo has no
+# Android SDK/NDK/device available to test against locally.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+env:
+  NDK_VERSION: "28.2.13676358"
+  CMAKE_VERSION: "3.31.6"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Free disk space (needed for a full C++ build: ffmpeg/boost/etc.)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/emulator \
+            /usr/local/lib/android/sdk/system-images "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('src/android/**/*.gradle*', 'src/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Cache CPM dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache/cpm
+          key: cpm-${{ runner.os }}-${{ hashFiles('cpmfile.json') }}
+          restore-keys: |
+            cpm-${{ runner.os }}-
+
+      - name: Install Android SDK components (NDK + CMake)
+        run: |
+          SDK_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDK_MANAGER" --licenses > /dev/null
+          "$SDK_MANAGER" \
+            "platforms;android-36" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;${CMAKE_VERSION}"
+
+      - name: Build APK (standard flavor, Release)
+        run: |
+          export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+          chmod +x .ci/android/build.sh
+          CCACHE=false .ci/android/build.sh -t standard -b Release
+
+      - name: Upload APK/AAB artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lemon-project-standard-release
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: warn
