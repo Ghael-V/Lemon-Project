@@ -26,6 +26,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
 import org.yuzu.yuzu_emu.HomeNavigationDirections
 import org.yuzu.yuzu_emu.NativeLibrary
@@ -35,6 +36,7 @@ import org.yuzu.yuzu_emu.adapters.HomeSettingAdapter
 import org.yuzu.yuzu_emu.databinding.FragmentHomeSettingsBinding
 import org.yuzu.yuzu_emu.features.DocumentProvider
 import org.yuzu.yuzu_emu.features.fetcher.SpacingItemDecoration
+import org.yuzu.yuzu_emu.features.settings.model.IntSetting
 import org.yuzu.yuzu_emu.features.settings.model.Settings
 import org.yuzu.yuzu_emu.features.settings.ui.SettingsSubscreen
 import org.yuzu.yuzu_emu.model.DriverViewModel
@@ -45,6 +47,7 @@ import org.yuzu.yuzu_emu.utils.FileUtil
 import org.yuzu.yuzu_emu.utils.GpuDriverHelper
 import org.yuzu.yuzu_emu.utils.Log
 import org.yuzu.yuzu_emu.utils.LosslessScalingHelper
+import org.yuzu.yuzu_emu.utils.NativeConfig
 import org.yuzu.yuzu_emu.utils.ViewUtils.updateMargins
 
 class HomeSettingsFragment : Fragment() {
@@ -161,6 +164,14 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
+                    R.string.performance_preset,
+                    R.string.performance_preset_description,
+                    R.drawable.ic_frames,
+                    { showPerformancePresetDialog() }
+                )
+            )
+            add(
+                HomeSetting(
                     R.string.manage_game_folders,
                     R.string.select_games_folder_description,
                     R.drawable.ic_add,
@@ -174,6 +185,63 @@ class HomeSettingsFragment : Fragment() {
                 )
             )
         }
+
+    // Applies known-good combinations of settings a user could already reach individually via
+    // Advanced Settings > Graphics - this is a shortcut, not a new tuning behavior.
+    private enum class PerformancePreset(val titleRes: Int) {
+        BATTERY(R.string.preset_battery),
+        BALANCED(R.string.preset_balanced),
+        QUALITY(R.string.preset_quality)
+    }
+
+    private fun applyPerformancePreset(preset: PerformancePreset) {
+        when (preset) {
+            PerformancePreset.BATTERY -> {
+                IntSetting.RENDERER_RESOLUTION.setInt(1) // Res1_2X (50%)
+                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
+                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
+                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
+                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
+            }
+
+            PerformancePreset.BALANCED -> {
+                IntSetting.RENDERER_RESOLUTION.setInt(3) // Res1X (native)
+                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
+                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
+                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
+                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
+            }
+
+            PerformancePreset.QUALITY -> {
+                IntSetting.RENDERER_RESOLUTION.setInt(6) // Res2X
+                IntSetting.RENDERER_SCALING_FILTER.setInt(2) // Bicubic
+                IntSetting.RENDERER_ANTI_ALIASING.setInt(1) // Fxaa
+                IntSetting.RENDERER_ACCURACY.setInt(1) // High
+                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
+            }
+        }
+        NativeConfig.saveGlobalConfig()
+    }
+
+    private fun showPerformancePresetDialog() {
+        val presets = PerformancePreset.entries.toTypedArray()
+        val labels = presets.map { getString(it.titleRes) }.toTypedArray()
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.performance_preset)
+            .setItems(labels) { dialog, which ->
+                val preset = presets[which]
+                applyPerformancePreset(preset)
+                dialog.dismiss()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.preset_applied, getString(preset.titleRes)),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
+            .show()
+    }
 
     private fun buildAdvancedOptions(): MutableList<HomeSetting> =
         mutableListOf<HomeSetting>().apply {

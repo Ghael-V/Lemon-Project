@@ -26,6 +26,7 @@ import androidx.navigation.findNavController
 import androidx.preference.PreferenceManager
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.google.android.material.transition.MaterialFadeThrough
+import org.yuzu.yuzu_emu.HomeNavigationDirections
 import org.yuzu.yuzu_emu.NativeLibrary
 import java.io.File
 import org.yuzu.yuzu_emu.R
@@ -33,6 +34,7 @@ import org.yuzu.yuzu_emu.YuzuApplication
 import org.yuzu.yuzu_emu.adapters.SetupAdapter
 import org.yuzu.yuzu_emu.databinding.FragmentSetupBinding
 import org.yuzu.yuzu_emu.features.settings.model.Settings
+import org.yuzu.yuzu_emu.features.settings.ui.SettingsSubscreen
 import org.yuzu.yuzu_emu.model.ButtonState
 import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
@@ -42,6 +44,7 @@ import org.yuzu.yuzu_emu.model.SetupPage
 import org.yuzu.yuzu_emu.model.PageState
 import org.yuzu.yuzu_emu.ui.main.MainActivity
 import org.yuzu.yuzu_emu.utils.DirectoryInitialization
+import org.yuzu.yuzu_emu.utils.GpuDriverHelper
 import org.yuzu.yuzu_emu.utils.LosslessScalingHelper
 import org.yuzu.yuzu_emu.utils.NativeConfig
 import org.yuzu.yuzu_emu.utils.ViewUtils
@@ -221,6 +224,31 @@ class SetupFragment : Fragment() {
                                 }
                             )
                         )
+                        if (GpuDriverHelper.isAdrenoGpu()) {
+                            add(
+                                PageButton(
+                                    R.drawable.ic_build,
+                                    R.string.gpu_driver_manager,
+                                    R.string.install_gpu_driver_description,
+                                    {
+                                        pageButtonCallback = it
+                                        val action = HomeNavigationDirections
+                                            .actionGlobalSettingsSubscreenActivity(
+                                                SettingsSubscreen.DRIVER_MANAGER,
+                                                null
+                                            )
+                                        binding.root.findNavController().navigate(action)
+                                    },
+                                    {
+                                        if (GpuDriverHelper.installedCustomDriverData.name != null) {
+                                            ButtonState.BUTTON_ACTION_COMPLETE
+                                        } else {
+                                            ButtonState.BUTTON_ACTION_INCOMPLETE
+                                        }
+                                    }
+                                )
+                            )
+                        }
                         add(
                             PageButton(
                                 R.drawable.ic_controller,
@@ -393,6 +421,15 @@ class SetupFragment : Fragment() {
     }
 
 
+    override fun onResume() {
+        super.onResume()
+        // Refreshes button completion state (e.g. after returning from the driver manager,
+        // which - unlike the file-picker buttons on this screen - doesn't call back directly).
+        if (_binding != null) {
+            checkForButtonState.invoke()
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         NativeConfig.saveGlobalConfig()
@@ -411,17 +448,22 @@ class SetupFragment : Fragment() {
     }
 
     private val checkForButtonState: () -> Unit = {
-        val page = pages[binding.viewPager2.currentItem]
-        page.pageButtons?.forEach {
-            if (it.buttonState() == ButtonState.BUTTON_ACTION_COMPLETE) {
-                pageButtonCallback.onStepCompleted(
-                    it.titleId,
-                    pageFullyCompleted = false
-                )
-            }
+        // pageButtonCallback is only assigned once a button has actually been tapped; guard
+        // so this can also be called from onResume() (e.g. after returning from the driver
+        // manager) without requiring that to have happened first.
+        if (::pageButtonCallback.isInitialized) {
+            val page = pages[binding.viewPager2.currentItem]
+            page.pageButtons?.forEach {
+                if (it.buttonState() == ButtonState.BUTTON_ACTION_COMPLETE) {
+                    pageButtonCallback.onStepCompleted(
+                        it.titleId,
+                        pageFullyCompleted = false
+                    )
+                }
 
-            if (page.pageSteps() == PageState.COMPLETE) {
-                pageButtonCallback.onStepCompleted(0, pageFullyCompleted = true)
+                if (page.pageSteps() == PageState.COMPLETE) {
+                    pageButtonCallback.onStepCompleted(0, pageFullyCompleted = true)
+                }
             }
         }
     }

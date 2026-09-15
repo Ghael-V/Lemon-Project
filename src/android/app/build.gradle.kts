@@ -240,21 +240,6 @@ android {
             }
         }
 
-        create("chromeOS") {
-            dimension = "version"
-            manifestPlaceholders += mapOf("appNameBase" to "Lemon ChromeOS")
-            resValue("string", "app_name_suffixed", "Lemon ChromeOS")
-
-            ndk {
-                abiFilters += listOf("x86_64")
-            }
-
-            externalNativeBuild {
-                cmake {
-                    abiFilters("x86_64")
-                }
-            }
-        }
     }
 
     externalNativeBuild {

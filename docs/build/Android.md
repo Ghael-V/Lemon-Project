@@ -49,7 +49,7 @@ Remember to have a Java SDK installed if not already, on Debian and similar this
 A convenience script for building is provided in `.ci/android/build.sh`. On Windows, this must be run in Git Bash or MSYS2. This script provides the following options:
 
 ```txt
-Usage: build.sh [-c|--chromeos] [-t|--target FLAVOR] [-b|--build-type BUILD_TYPE]
+Usage: build.sh [-t|--target FLAVOR] [-b|--build-type BUILD_TYPE]
                 [-h|--help] [-r|--release] [extra options]
 
 Build script for Android.
@@ -58,8 +58,6 @@ and will apply both to this script and the packaging script.
 bool values are "true" or "false"
 
 Options:
-    -c, --chromeos          Build for ChromeOS (x86_64) (variable: CHROMEOS, bool)
-                            Default: false
     -r, --release           Enable update checker. If set, sets the DEVEL bool variable to false.
                             By default, DEVEL is true.
     -t, --target <FLAVOR>   Build flavor (variable: TARGET)
@@ -80,8 +78,8 @@ Examples:
   * `.ci/android/build.sh -r -t legacy`
 * Build standard release with debug info without update checker for phones:
   * `.ci/android/build.sh -b RelWithDebInfo`
-* Build optimized release with update checker for ChromeOS:
-  * `.ci/android/build.sh -c -r -t optimized`
+* Build optimized (GenshinSpoof) release with update checker:
+  * `.ci/android/build.sh -r -t optimized`
 
 ### Additional Resources
 
