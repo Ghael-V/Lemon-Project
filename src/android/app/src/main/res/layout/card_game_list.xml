@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<org.yuzu.yuzu_emu.views.GradientBorderCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<dev.lemon.lemon_emu.views.GradientBorderCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/card_game_list"
@@ -28,7 +28,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium"
-            app:strokeColor="@color/eden_card_background"
+            app:strokeColor="@color/lemon_card_background"
             app:strokeWidth="4dp"
             tools:src="@drawable/default_icon" />
 
@@ -69,4 +69,4 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</org.yuzu.yuzu_emu.views.GradientBorderCardView>
+</dev.lemon.lemon_emu.views.GradientBorderCardView>

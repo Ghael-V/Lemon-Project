@@ -77,7 +77,7 @@ std::array<f32, 4> DefaultValueOf(size_t index, const std::string& uniform) {
 
 extern "C" {
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getCatalogJson(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getCatalogJson(JNIEnv* env,
                                                                          jobject obj) {
     nlohmann::json out = nlohmann::json::array();
 
@@ -106,7 +106,7 @@ jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getCatalogJson(JNIEnv
     return Common::Android::ToJString(env, out.dump());
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getChainJson(JNIEnv* env, jobject obj) {
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getChainJson(JNIEnv* env, jobject obj) {
     nlohmann::json out = nlohmann::json::array();
 
 #ifdef HAS_RESHADE
@@ -128,7 +128,7 @@ jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getChainJson(JNIEnv* 
     return Common::Android::ToJString(env, out.dump());
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_append(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_append(JNIEnv* env, jobject obj,
                                                                jstring jfile, jstring jtechnique) {
 #ifdef HAS_RESHADE
     VideoCore::FxChain::Instance().Append(Common::Android::GetJString(env, jfile),
@@ -136,7 +136,7 @@ void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_append(JNIEnv* env, jobj
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_replace(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_replace(JNIEnv* env, jobject obj,
                                                                 jint index, jstring jfile,
                                                                 jstring jtechnique) {
 #ifdef HAS_RESHADE
@@ -146,28 +146,28 @@ void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_replace(JNIEnv* env, job
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_remove(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_remove(JNIEnv* env, jobject obj,
                                                                jint index) {
 #ifdef HAS_RESHADE
     VideoCore::FxChain::Instance().Remove(static_cast<size_t>(index));
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_move(JNIEnv* env, jobject obj, jint index,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_move(JNIEnv* env, jobject obj, jint index,
                                                              jint delta) {
 #ifdef HAS_RESHADE
     VideoCore::FxChain::Instance().Move(static_cast<size_t>(index), delta);
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_resetValues(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_resetValues(JNIEnv* env, jobject obj,
                                                                     jint index) {
 #ifdef HAS_RESHADE
     VideoCore::FxChain::Instance().ResetValues(static_cast<size_t>(index));
 #endif
 }
 
-jfloat Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getValue(JNIEnv* env, jobject obj,
+jfloat Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getValue(JNIEnv* env, jobject obj,
                                                                    jint index, jstring juniform,
                                                                    jint component) {
 #ifdef HAS_RESHADE
@@ -182,7 +182,7 @@ jfloat Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getValue(JNIEnv* env, 
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_hasValue(JNIEnv* env, jobject obj,
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_hasValue(JNIEnv* env, jobject obj,
                                                                      jint index,
                                                                      jstring juniform) {
 #ifdef HAS_RESHADE
@@ -193,7 +193,7 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_hasValue(JNIEnv* env
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_setValue(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_setValue(JNIEnv* env, jobject obj,
                                                                   jint index, jstring juniform,
                                                                   jint component, jfloat value) {
 #ifdef HAS_RESHADE
@@ -214,14 +214,14 @@ void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_setValue(JNIEnv* env, jo
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_store(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_store(JNIEnv* env, jobject obj) {
 #ifdef HAS_RESHADE
     BeginFxEdit();
     VideoCore::FxChain::Instance().StoreToSettings();
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_reload(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_reload(JNIEnv* env, jobject obj) {
 #ifdef HAS_RESHADE
     if (!EditingPerGame()) {
         VideoCore::UseGlobalFxSettings();
@@ -230,13 +230,13 @@ void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_reload(JNIEnv* env, jobj
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_clearChain(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_clearChain(JNIEnv* env, jobject obj) {
 #ifdef HAS_RESHADE
     VideoCore::FxChain::Instance().Clear();
 #endif
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getShaderDirectory(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getShaderDirectory(JNIEnv* env,
                                                                               jobject obj) {
 #ifdef HAS_RESHADE
     return Common::Android::ToJString(env, VideoCore::GetFxRootDirectory().string());
@@ -245,7 +245,7 @@ jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getShaderDirectory(JN
 #endif
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getPresetsJson(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getPresetsJson(JNIEnv* env,
                                                                           jobject obj) {
     nlohmann::json out = nlohmann::json::array();
 #ifdef HAS_RESHADE
@@ -262,7 +262,7 @@ jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getPresetsJson(JNIEnv
     return Common::Android::ToJString(env, out.dump());
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getActivePreset(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getActivePreset(JNIEnv* env,
                                                                            jobject obj) {
 #ifdef HAS_RESHADE
     return Common::Android::ToJString(env, VideoCore::GetActiveFxPreset());
@@ -271,7 +271,7 @@ jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getActivePreset(JNIEn
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_isPresetModified(JNIEnv* env,
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_isPresetModified(JNIEnv* env,
                                                                              jobject obj) {
 #ifdef HAS_RESHADE
     return static_cast<jboolean>(VideoCore::IsActiveFxPresetModified());
@@ -280,7 +280,7 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_isPresetModified(JNI
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_applyPreset(JNIEnv* env, jobject obj,
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_applyPreset(JNIEnv* env, jobject obj,
                                                                         jstring jname) {
 #ifdef HAS_RESHADE
     BeginFxEdit();
@@ -291,7 +291,7 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_applyPreset(JNIEnv* 
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_savePreset(JNIEnv* env, jobject obj,
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_savePreset(JNIEnv* env, jobject obj,
                                                                        jstring jname,
                                                                        jstring jdescription) {
 #ifdef HAS_RESHADE
@@ -304,7 +304,7 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_savePreset(JNIEnv* e
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_deletePreset(JNIEnv* env, jobject obj,
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_deletePreset(JNIEnv* env, jobject obj,
                                                                          jstring jname) {
 #ifdef HAS_RESHADE
     BeginFxEdit();
@@ -315,14 +315,14 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_deletePreset(JNIEnv*
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_clearPreset(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_clearPreset(JNIEnv* env, jobject obj) {
 #ifdef HAS_RESHADE
     BeginFxEdit();
     VideoCore::SetActiveFxPreset(std::string_view());
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_isEnabled(JNIEnv* env, jobject obj) {
+jboolean Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_isEnabled(JNIEnv* env, jobject obj) {
 #ifdef HAS_RESHADE
     return static_cast<jboolean>(Settings::values.post_shader_enabled.GetValue());
 #else
@@ -330,7 +330,7 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_isEnabled(JNIEnv* en
 #endif
 }
 
-void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_setEnabled(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_setEnabled(JNIEnv* env, jobject obj,
                                                                    jboolean enabled) {
 #ifdef HAS_RESHADE
     BeginFxEdit();
@@ -338,7 +338,7 @@ void Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_setEnabled(JNIEnv* env, 
 #endif
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_NativePostProcessing_getPresetDirectory(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_utils_NativePostProcessing_getPresetDirectory(JNIEnv* env,
                                                                               jobject obj) {
 #ifdef HAS_RESHADE
     return Common::Android::ToJString(env, VideoCore::GetFxPresetDirectory().string());

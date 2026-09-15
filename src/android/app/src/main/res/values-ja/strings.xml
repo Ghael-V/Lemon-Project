@@ -246,8 +246,8 @@
     <string name="install_game_content_success_install">%1$d のインストールに成功しました</string>
     <string name="install_game_content_success_overwrite">%1$d の上書きに成功しました</string>
     <string name="custom_driver_not_supported">カスタムドライバはサポートされていません</string>
-    <string name="manage_yuzu_data">Eden データを管理</string>
-    <string name="manage_yuzu_data_description">ファームウェア、キー、ユーザデータなどのインポート・エクスポート</string>
+    <string name="manage_lemon_data">Eden データを管理</string>
+    <string name="manage_lemon_data_description">ファームウェア、キー、ユーザデータなどのインポート・エクスポート</string>
     <string name="game_folders">ゲームフォルダ</string>
     <string name="deep_scan">詳細スキャン</string>
     <string name="add_game_folder">ゲームフォルダを追加</string>
@@ -305,7 +305,7 @@
     <string name="user_data">ユーザデータ</string>
     <string name="exporting_user_data">ユーザデータをエクスポート中...</string>
     <string name="importing_user_data">ユーザデータをインポート中...</string>
-    <string name="invalid_yuzu_backup">Edenのバックアップは無効</string>
+    <string name="invalid_lemon_backup">Edenのバックアップは無効</string>
     <string name="user_data_export_success">ユーザデータのエクスポートに成功しました</string>
     <string name="user_data_import_success">ユーザデータのインポートに成功しました</string>
     <string name="user_data_export_cancelled">エクスポートをキャンセルしました</string>

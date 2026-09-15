@@ -400,8 +400,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Пользовательские драйверы не поддерживаются</string>
     <string name="custom_driver_not_supported_description">Загрузка пользовательского драйвера в настоящее время не поддерживается для этого устройства.\nПроверьте этот параметр в будущем чтобы узнать была ли добавлена ​​поддержка!</string>
-    <string name="manage_yuzu_data">Управление данными Eden</string>
-    <string name="manage_yuzu_data_description">Импортируйте/экспортируйте прошивку, ключи, пользовательские данные и многое другое!</string>
+    <string name="manage_lemon_data">Управление данными Eden</string>
+    <string name="manage_lemon_data_description">Импортируйте/экспортируйте прошивку, ключи, пользовательские данные и многое другое!</string>
     <string name="game_folders">Папки с играми</string>
     <string name="deep_scan">Глубокий анализ</string>
     <string name="add_game_folder">Добавить папку с игрой</string>
@@ -471,7 +471,7 @@
     <string name="user_data_description">Импорт/экспорт всех данных\n\nПри импорте все текущие данные будут удалены!\n\nИмпорт из Citron может вызвать ошибки. Рекомендуется ручной перенос.</string>
     <string name="exporting_user_data">Экспорт пользовательских данных…</string>
     <string name="importing_user_data">Импорт пользовательских данных…</string>
-    <string name="invalid_yuzu_backup">Неверная резервная копия Eden</string>
+    <string name="invalid_lemon_backup">Неверная резервная копия Eden</string>
     <string name="user_data_export_success">Пользовательские данные успешно экспортированы</string>
     <string name="user_data_import_success">Пользовательские данные успешно импортированы</string>
     <string name="user_data_export_cancelled">Экспорт отменен</string>
@@ -1172,7 +1172,7 @@
     <string name="app_language_system">Следовать системе</string>
     <!-- Static Themes -->
     <string name="static_theme_color">Цвет темы</string>
-    <string name="eden_theme">Eden</string>
+    <string name="lemon_theme">Eden</string>
     <string name="violet">Фиолетовый </string>
     <string name="blue">Синий</string>
     <string name="cyan">Циановый</string>

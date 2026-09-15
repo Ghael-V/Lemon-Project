@@ -331,8 +331,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Pilotes personnalisés non supporté</string>
     <string name="custom_driver_not_supported_description">Le chargement de pilotes personnalisés n\'est actuellement pas pris en charge pour cet appareil.\nVérifiez à nouveau cette option ultérieurement pour voir si la prise en charge a été ajoutée !</string>
-    <string name="manage_yuzu_data">Gérer les données de Eden</string>
-    <string name="manage_yuzu_data_description">Importer/exporter le firmware, les clés, les données utilisateur, et bien plus encore !</string>
+    <string name="manage_lemon_data">Gérer les données de Eden</string>
+    <string name="manage_lemon_data_description">Importer/exporter le firmware, les clés, les données utilisateur, et bien plus encore !</string>
     <string name="game_folders">Dossiers de jeux</string>
     <string name="deep_scan">Analyse approfondie</string>
     <string name="add_game_folder">Ajouter un dossier de jeu</string>
@@ -400,7 +400,7 @@
     <string name="user_data_description">Importer/exporter toutes les données de l\'application\n\nLors de l\'importation des données utilisateur, toutes les données déjà existantes seront supprimé !\n\nImporter les données depuis Citron peut poser des problèmes. Il est recommandé de faire l\'importation manuellement de toutes les données nécessaire.</string>
     <string name="exporting_user_data">Exportation des données utilisateur...</string>
     <string name="importing_user_data">Importation des données utilisateur...</string>
-    <string name="invalid_yuzu_backup">Backup Eden invalide</string>
+    <string name="invalid_lemon_backup">Backup Eden invalide</string>
     <string name="user_data_export_success">Les données utilisateur ont été exportés avec succès</string>
     <string name="user_data_import_success">Les données utilisateur ont été importées avec succès</string>
     <string name="user_data_export_cancelled">Exportation annulée</string>
@@ -1015,7 +1015,7 @@
     <string name="app_language_system">Suivre le système</string>
     <!-- Static Themes -->
     <string name="static_theme_color">Couleur du thème</string>
-    <string name="eden_theme">Eden</string>
+    <string name="lemon_theme">Eden</string>
     <string name="violet">Violet (Par défaut)</string>
     <string name="blue">Bleu</string>
     <string name="cyan">Cyan</string>

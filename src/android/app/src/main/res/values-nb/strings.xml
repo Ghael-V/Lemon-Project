@@ -233,8 +233,8 @@
     <string name="install_game_content_success_install">%1$d installert</string>
     <string name="install_game_content_success_overwrite">%1$d overskrevet</string>
     <string name="custom_driver_not_supported">Egendefinert driver støttes ikke</string>
-    <string name="manage_yuzu_data">Administrer eden-data</string>
-    <string name="manage_yuzu_data_description">Importer/eksporter firmware, nøkler osv.</string>
+    <string name="manage_lemon_data">Administrer eden-data</string>
+    <string name="manage_lemon_data_description">Importer/eksporter firmware, nøkler osv.</string>
     <string name="game_folders">Spillmapper</string>
     <string name="deep_scan">Dyp skanning</string>
     <string name="add_game_folder">Legg til spillmappe</string>

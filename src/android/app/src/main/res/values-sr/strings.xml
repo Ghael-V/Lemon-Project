@@ -242,8 +242,8 @@
     <string name="install_game_content_success_install">%1$d инсталирано успешно</string>
     <string name="install_game_content_success_overwrite">%1$d преписано успешно</string>
     <string name="custom_driver_not_supported">Прилагођени управљачки програми нису подржани</string>
-    <string name="manage_yuzu_data">Управљајте подацима ЕДЕН-а</string>
-    <string name="manage_yuzu_data_description">Увоз / извозни софтвер, кључеви, кориснички подаци и још много тога!</string>
+    <string name="manage_lemon_data">Управљајте подацима ЕДЕН-а</string>
+    <string name="manage_lemon_data_description">Увоз / извозни софтвер, кључеви, кориснички подаци и још много тога!</string>
     <string name="game_folders">Мапе игре</string>
     <string name="deep_scan">Дубоко скенирање</string>
     <string name="add_game_folder">Додајте мапу игара</string>
@@ -305,7 +305,7 @@
     <string name="user_data">Кориснички подаци</string>
     <string name="exporting_user_data">Извоз података корисника ...</string>
     <string name="importing_user_data">Увоз података корисника ...</string>
-    <string name="invalid_yuzu_backup">Неважећа резервна копија ЕДЕН-а</string>
+    <string name="invalid_lemon_backup">Неважећа резервна копија ЕДЕН-а</string>
     <string name="user_data_export_success">Кориснички подаци су успешно извезени</string>
     <string name="user_data_import_success">Корисничке податке увезене успешно</string>
     <string name="user_data_export_cancelled">Извоз је отказан</string>

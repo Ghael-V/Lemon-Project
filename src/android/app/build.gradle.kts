@@ -29,11 +29,11 @@ plugins {
  */
 val autoVersion = (((System.currentTimeMillis() / 1000) - 1451606400) / 10).toInt()
 
-val edenDir = project(":Eden").projectDir
+val coreDir = project(":Lemon").projectDir
 
 @Suppress("UnstableApiUsage")
 android {
-    namespace = "org.yuzu.yuzu_emu"
+    namespace = "dev.lemon.lemon_emu"
 
     compileSdkVersion = "android-36"
     ndkVersion = "28.2.13676358"
@@ -182,7 +182,7 @@ android {
     }
 
     // appNameBase is used for the primary identifier
-    // this should be "Eden <flavorName>"
+    // this should be "Lemon <flavorName>"
     flavorDimensions.add("version")
     productFlavors {
         create("mainline") {
@@ -245,7 +245,7 @@ android {
     externalNativeBuild {
         cmake {
             version = "3.31.6"
-            path = file("${edenDir}/CMakeLists.txt")
+            path = file("${coreDir}/CMakeLists.txt")
         }
     }
 
@@ -260,8 +260,8 @@ android {
 
     sourceSets {
         named("main") {
-            java.srcDir("${edenDir}/externals/generated/sdl/java")
-            kotlin.srcDir("${edenDir}/externals/generated/sdl/java")
+            java.srcDir("${coreDir}/externals/generated/sdl/java")
+            kotlin.srcDir("${coreDir}/externals/generated/sdl/java")
         }
     }
 }
@@ -269,10 +269,10 @@ android {
 idea {
     module {
         // Inclusion to exclude build/ dir from non-Android
-        excludeDirs.add(file("${edenDir}/build"))
+        excludeDirs.add(file("${coreDir}/build"))
 
         // also exclude CPM cache from automatic indexing
-        excludeDirs.add(file("${edenDir}/.cache"))
+        excludeDirs.add(file("${coreDir}/.cache"))
     }
 }
 
@@ -375,7 +375,7 @@ fun getGitVersion(): String {
 }
 
 afterEvaluate {
-    val artifactsDir = layout.projectDirectory.dir("${edenDir}/artifacts")
+    val artifactsDir = layout.projectDirectory.dir("${coreDir}/artifacts")
     val outputsDir = layout.buildDirectory.dir("outputs").get()
 
     android.applicationVariants.forEach { variant ->

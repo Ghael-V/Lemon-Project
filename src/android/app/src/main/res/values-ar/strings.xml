@@ -416,8 +416,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">برامج التشغيل المخصصة غير مدعومة</string>
     <string name="custom_driver_not_supported_description">لا يتم دعم تحميل برنامج التشغيل المخصص حاليًا لهذا الجهاز.\nتحقق من هذا الخيار مرة أخرى في المستقبل لمعرفة ما إذا تمت إضافة الدعم!</string>
-    <string name="manage_yuzu_data">إدارة بيانات Eden</string>
-    <string name="manage_yuzu_data_description">استيراد/تصدير فيرموير والمفاتيح وبيانات المستخدم والمزيد</string>
+    <string name="manage_lemon_data">إدارة بيانات Eden</string>
+    <string name="manage_lemon_data_description">استيراد/تصدير فيرموير والمفاتيح وبيانات المستخدم والمزيد</string>
     <string name="game_folders">مجلدات اللعبة</string>
     <string name="deep_scan">فحص عميق</string>
     <string name="add_game_folder">إضافة مجلد اللعبة</string>
@@ -491,7 +491,7 @@
     <string name="user_data_description">استيراد/تصدير جميع بيانات التطبيق.\nعند استيراد بيانات المستخدم، سيتم حذف جميع بيانات المستخدم الموجودة!\nقد يُسبب استيراد البيانات من Citron بعض المشاكل. يُنصح باستيراد جميع البيانات المطلوبة يدويًا.</string>
     <string name="exporting_user_data">جارٍ تصدير بيانات المستخدم...</string>
     <string name="importing_user_data">جارٍ استيراد بيانات المستخدم...</string>
-    <string name="invalid_yuzu_backup">نسخة احتياطية Eden غير صالحة</string>
+    <string name="invalid_lemon_backup">نسخة احتياطية Eden غير صالحة</string>
     <string name="user_data_export_success">تم تصدير بيانات المستخدم بنجاح</string>
     <string name="user_data_import_success">تم استيراد بيانات المستخدم بنجاح</string>
     <string name="user_data_export_cancelled">تم إلغاء التصدير</string>
@@ -1192,7 +1192,7 @@
     <string name="app_language_system">اتبع النظام</string>
     <!-- Static Themes -->
     <string name="static_theme_color">لون السمة</string>
-    <string name="eden_theme">إيدن</string>
+    <string name="lemon_theme">إيدن</string>
     <string name="violet">بنفسجي</string>
     <string name="blue">أزرق</string>
     <string name="cyan">سماوي</string>

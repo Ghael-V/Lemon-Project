@@ -242,8 +242,8 @@
     <string name="install_game_content_success_install">%1$d sikeresen telepítve</string>
     <string name="install_game_content_success_overwrite">%1$d sikeresen felülírva</string>
     <string name="custom_driver_not_supported">Egyéni illesztőprogramok nem támogatottak</string>
-    <string name="manage_yuzu_data">Eden adatok kezelése</string>
-    <string name="manage_yuzu_data_description">Firmware, kulcsok, felhasználói adatok és egyebek importálása/exportálása</string>
+    <string name="manage_lemon_data">Eden adatok kezelése</string>
+    <string name="manage_lemon_data_description">Firmware, kulcsok, felhasználói adatok és egyebek importálása/exportálása</string>
     <string name="game_folders">Játékmappák</string>
     <string name="deep_scan">Mély szkennelés</string>
     <string name="add_game_folder">Játékmappa hozzáadása</string>
@@ -302,7 +302,7 @@
     <string name="user_data">Felhasználói adatok</string>
     <string name="exporting_user_data">Felhasználói adatok exportálása...</string>
     <string name="importing_user_data">Felhasználói adatok importálása...</string>
-    <string name="invalid_yuzu_backup">Érvénytelen Eden biztonsági másolat</string>
+    <string name="invalid_lemon_backup">Érvénytelen Eden biztonsági másolat</string>
     <string name="user_data_export_success">Felhasználói adatok sikeresen exportálva</string>
     <string name="user_data_import_success">Felhasználói adatok sikeresen importálva</string>
     <string name="user_data_export_cancelled">Exportálás megszakítva</string>

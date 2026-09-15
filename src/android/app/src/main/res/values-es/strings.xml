@@ -368,8 +368,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Controladores personalizados no soportados</string>
     <string name="custom_driver_not_supported_description">La carga de controladores personalizados no está disponible para este dispositivo.\n¡Compruebe más adelante si se añadió el soporte a esta opción!</string>
-    <string name="manage_yuzu_data">Gestionar datos de Eden</string>
-    <string name="manage_yuzu_data_description">Importar/exportar el firmware, las claves, los datos de usuario, ¡y más!</string>
+    <string name="manage_lemon_data">Gestionar datos de Eden</string>
+    <string name="manage_lemon_data_description">Importar/exportar el firmware, las claves, los datos de usuario, ¡y más!</string>
     <string name="game_folders">Carpetas de juegos</string>
     <string name="deep_scan">Escaneo recursivo </string>
     <string name="add_game_folder">Añadir carpeta con juegos</string>
@@ -437,7 +437,7 @@
     <string name="user_data_description">Importar/exportar todos los datos de la app.\n\nCuando se importa datos de usuario, todos los datos de usuario existentes serán eliminados!\n\nImportando datos de Citron puede causar problemas. Es recomendado manualmente importar todos los datos necesarios.</string>
     <string name="exporting_user_data">Exportando datos de usuario...</string>
     <string name="importing_user_data">Importando datos de usuario...</string>
-    <string name="invalid_yuzu_backup">Copia de seguridad de Eden inválida</string>
+    <string name="invalid_lemon_backup">Copia de seguridad de Eden inválida</string>
     <string name="user_data_export_success">Datos de usuario exportados con éxito</string>
     <string name="user_data_import_success">Datos de usuario importados con éxito</string>
     <string name="user_data_export_cancelled">Exportación cancelada</string>
@@ -1130,7 +1130,7 @@
     <string name="app_language_system">Igual al del sistema</string>
     <!-- Static Themes -->
     <string name="static_theme_color">Color del tema</string>
-    <string name="eden_theme">Eden</string>
+    <string name="lemon_theme">Eden</string>
     <string name="violet">Violeta</string>
     <string name="blue">Azul</string>
     <string name="cyan">Cian</string>

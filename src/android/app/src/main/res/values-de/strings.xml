@@ -362,8 +362,8 @@ Wirklich fortfahren?</string>
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Benutzerdefinierte Treiber werden nicht unterstützt</string>
     <string name="custom_driver_not_supported_description">Das Laden von benutzerdefinierten Treibern wird für dieses Gerät momentan nicht unterstützt.\nSchau später einfach nochmal nach, ob die Unterstützung hinzugefügt wurde!</string>
-    <string name="manage_yuzu_data">Eden-Daten verwalten</string>
-    <string name="manage_yuzu_data_description">Importieren/Exportieren Sie Firmware, Schlüssel, Benutzerdaten und mehr!</string>
+    <string name="manage_lemon_data">Eden-Daten verwalten</string>
+    <string name="manage_lemon_data_description">Importieren/Exportieren Sie Firmware, Schlüssel, Benutzerdaten und mehr!</string>
     <string name="game_folders">Spielordner</string>
     <string name="deep_scan">Tiefer Scan</string>
     <string name="add_game_folder">Spielordner hinzufügen</string>
@@ -428,7 +428,7 @@ Wirklich fortfahren?</string>
     <string name="user_data_description">Alle App-Daten importieren/exportieren\n\nBeim Importieren von Nutzerdaten werden alle existierenden Nutzerdaten gelöscht!\n\nDaten aus Citron zu importieren kann Probleme verursachen. Es wird empfohlen, alle benötigten Daten manuell zu importieren.</string>
     <string name="exporting_user_data">Benutzerdaten werden exportiert…</string>
     <string name="importing_user_data">Importiere Nutzerdaten...</string>
-    <string name="invalid_yuzu_backup">Ungültiges Eden-Backup</string>
+    <string name="invalid_lemon_backup">Ungültiges Eden-Backup</string>
     <string name="user_data_export_success">Nutzerdaten erfolgreich exportiert</string>
     <string name="user_data_import_success">Nutzerdaten erfolgreich importiert</string>
     <string name="user_data_export_cancelled">Export abgebrochen</string>
@@ -1055,7 +1055,7 @@ Wirklich fortfahren?</string>
     <string name="app_language_system">System folgen</string>
     <!-- Static Themes -->
     <string name="static_theme_color">Designfarbe</string>
-    <string name="eden_theme">Eden</string>
+    <string name="lemon_theme">Eden</string>
     <string name="violet">Violett </string>
     <string name="blue">Blau</string>
     <string name="cyan">Cyan</string>

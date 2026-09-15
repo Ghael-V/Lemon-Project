@@ -271,8 +271,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Driver kustom tidak didukung</string>
     <string name="custom_driver_not_supported_description">Pemuatan driver kustom tidak didukung oleh perangkat ini.\nPeriksa lagi opsi ini di masa mendatang untuk melihat apakah dukungan telah ditambahkan!</string>
-    <string name="manage_yuzu_data">Kelola data Eden.</string>
-    <string name="manage_yuzu_data_description">Impor/expor firmware, key, data pengguna, dan sebagainya!</string>
+    <string name="manage_lemon_data">Kelola data Eden.</string>
+    <string name="manage_lemon_data_description">Impor/expor firmware, key, data pengguna, dan sebagainya!</string>
     <string name="game_folders">Folder Game</string>
     <string name="deep_scan">Pemindaian mendalam</string>
     <string name="add_game_folder">Pilih folder game</string>
@@ -333,7 +333,7 @@
     <string name="user_data_description">Impor/Ekspor semua data aplikasi\n\nketika mengimpor data user, semua data user yang tersedia akan dihapus!\n\nMengimpor data dari Citron dapat menyebabkan masalah. Direkomendasikan untuk melakukan impor manual semua data yang dibutuhkan.</string>
     <string name="exporting_user_data">Mengekspor data pengguna</string>
     <string name="importing_user_data">Mengimpor data pengguna</string>
-    <string name="invalid_yuzu_backup">cadangan Eden tidak valid</string>
+    <string name="invalid_lemon_backup">cadangan Eden tidak valid</string>
     <string name="user_data_export_success">berhasil mengekspor data pengguna</string>
     <string name="user_data_import_success">Berhasil mengimpor data pengguna</string>
     <string name="user_data_export_cancelled">Ekspor Dibatalkan</string>

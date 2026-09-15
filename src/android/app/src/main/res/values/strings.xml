@@ -9,7 +9,7 @@
     <string name="notice_notification_channel_description">Shows notifications when something goes wrong.</string>
     <string name="notification_permission_not_granted">Notification permission not granted!</string>
     <string name="app_notification_channel_name" translatable="false">Lemon</string>
-    <string name="app_notification_channel_id" translatable="false">Eden</string>
+    <string name="app_notification_channel_id" translatable="false">Lemon</string>
     <string name="app_notification_channel_description">Lemon Switch emulator notifications</string>
     <string name="app_notification_running">Lemon is Running</string>
     <string name="seconds">Seconds</string>
@@ -427,8 +427,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Custom drivers not supported</string>
     <string name="custom_driver_not_supported_description">Custom driver loading isn\'t currently supported for this device.\nCheck this option again in the future to see if support was added!</string>
-    <string name="manage_yuzu_data">Manage Lemon data</string>
-    <string name="manage_yuzu_data_description">Import/export firmware, keys, user data, and more!</string>
+    <string name="manage_lemon_data">Manage Lemon data</string>
+    <string name="manage_lemon_data_description">Import/export firmware, keys, user data, and more!</string>
     <string name="game_folders">Game folders</string>
     <string name="deep_scan">Deep scan</string>
     <string name="add_game_folder">Add game folder</string>
@@ -495,7 +495,7 @@
     <string name="user_data_description">Import/export all app data.\n\nWhen importing user data, all existing user data will be deleted!\n\nImporting data from Citron may cause issues. It\'s recommended to manually import all needed data.</string>
     <string name="exporting_user_data">Exporting user data…</string>
     <string name="importing_user_data">Importing user data…</string>
-    <string name="invalid_yuzu_backup">Invalid Eden backup</string>
+    <string name="invalid_lemon_backup">Invalid Lemon backup</string>
     <string name="user_data_export_success">User data exported successfully</string>
     <string name="user_data_import_success">User data imported successfully</string>
     <string name="user_data_export_cancelled">Export cancelled</string>
@@ -1325,7 +1325,7 @@
 
     <!-- Static Themes -->
     <string name="static_theme_color">Theme Color</string>
-    <string name="eden_theme">Lemon</string>
+    <string name="lemon_theme">Lemon</string>
     <string name="violet">Violet</string>
     <string name="blue">Blue</string>
     <string name="cyan">Cyan</string>

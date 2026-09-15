@@ -317,8 +317,8 @@
     <string name="install_game_content_success_overwrite">%1$dبا موفقیت بازنویسی شد</string>
     <string name="custom_driver_not_supported">درایورهای سفارشی پشتیبانی نمی‌شوند</string>
     <string name="custom_driver_not_supported_description">بارگیری درایور سفارشی در حال حاضر برای این دستگاه پشتیبانی نمی‌شود.\nاین گزینه را دوباره در آینده بررسی کنید تا ببینید آیا پشتیبانی اضافه شده است یا خیر!</string>
-    <string name="manage_yuzu_data">مدیریت داده‌های Eden</string>
-    <string name="manage_yuzu_data_description">وارد کردن/صادر کردن ثابت‌افزار، کلیدها، داده‌های کاربر، و موارد دیگر!</string>
+    <string name="manage_lemon_data">مدیریت داده‌های Eden</string>
+    <string name="manage_lemon_data_description">وارد کردن/صادر کردن ثابت‌افزار، کلیدها، داده‌های کاربر، و موارد دیگر!</string>
     <string name="game_folders">پوشه‌های بازی</string>
     <string name="deep_scan">بررسی عمیق</string>
     <string name="add_game_folder">افزودن پوشه بازی</string>
@@ -375,7 +375,7 @@
     <string name="user_data_description">همه داده‌های برنامه را وارد/صادر کنید.\n\nهنگام وارد کردن داده‌های کاربر، همه داده‌های کاربر موجود حذف خواهند شد!</string>
     <string name="exporting_user_data">در حال صادر کردن داده‌های کاربر...</string>
     <string name="importing_user_data">در حال وارد کردن داده‌های کاربر...</string>
-    <string name="invalid_yuzu_backup">پشتیبان نامعتبر Eden</string>
+    <string name="invalid_lemon_backup">پشتیبان نامعتبر Eden</string>
     <string name="user_data_export_success">داده‌های کاربر با موفقیت صادر شد</string>
     <string name="user_data_import_success">داده‌های کاربر با موفقیت وارد شد</string>
     <string name="user_data_export_cancelled">صدور لغو شد</string>

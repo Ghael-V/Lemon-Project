@@ -243,8 +243,8 @@
     <string name="install_game_content_success_install">%1$d instalado com sucesso</string>
     <string name="install_game_content_success_overwrite">%1$d substituída com êxito</string>
     <string name="custom_driver_not_supported">Drivers personalizados não suportados</string>
-    <string name="manage_yuzu_data">Administrar dados Eden</string>
-    <string name="manage_yuzu_data_description">Importa/exporta firmware, chaves, dados do usuário e mais!</string>
+    <string name="manage_lemon_data">Administrar dados Eden</string>
+    <string name="manage_lemon_data_description">Importa/exporta firmware, chaves, dados do usuário e mais!</string>
     <string name="game_folders">Pastas de jogos</string>
     <string name="deep_scan">Varredura profunda</string>
     <string name="add_game_folder">Adicionar pasta de jogo</string>
@@ -306,7 +306,7 @@
     <string name="user_data">Dado de utilizados</string>
     <string name="exporting_user_data">A exportar dados de utilizados...</string>
     <string name="importing_user_data">A importar dados de utilizador...</string>
-    <string name="invalid_yuzu_backup">Backup Eden inválido</string>
+    <string name="invalid_lemon_backup">Backup Eden inválido</string>
     <string name="user_data_export_success">Dados de utilizados exportados com sucesso</string>
     <string name="user_data_import_success">Dados de utilizador importado com sucesso</string>
     <string name="user_data_export_cancelled">Exportação cancelada</string>

@@ -321,8 +321,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Vlastní ovladače nejsou podporovány</string>
     <string name="custom_driver_not_supported_description">Na tomto zařízení není momentálně podporováno nahrání vlastních ovladačů.\nZkuste to znovu později, podpora může být přidána v budoucnu!</string>
-    <string name="manage_yuzu_data">Spravovat data aplikace Eden</string>
-    <string name="manage_yuzu_data_description">Import/export firmware, klíčů, uživatelských dat a další!</string>
+    <string name="manage_lemon_data">Spravovat data aplikace Eden</string>
+    <string name="manage_lemon_data_description">Import/export firmware, klíčů, uživatelských dat a další!</string>
     <string name="game_folders">Složky s hrami</string>
     <string name="deep_scan">Hloubkový sken</string>
     <string name="add_game_folder">Přidat složku s hrami</string>
@@ -389,7 +389,7 @@
     <string name="user_data_description">Import/export všech dat aplikace.\n\nPři importu uživatelských dat budou všechna stávající uživatelská data smazána!\n\nImport dat z emulátoru Citron může způsobit potíže. Doporučujeme potřebná data zkopírovat ručně.</string>
     <string name="exporting_user_data">Exportují se uživatelská data…</string>
     <string name="importing_user_data">Importují se uživatelská data…</string>
-    <string name="invalid_yuzu_backup">Neplatná záloha aplikace Eden</string>
+    <string name="invalid_lemon_backup">Neplatná záloha aplikace Eden</string>
     <string name="user_data_export_success">Uživatelská data byla úspěšně exportována.</string>
     <string name="user_data_import_success">Uživatelská data byla úspěšně importována.</string>
     <string name="user_data_export_cancelled">Export zrušen</string>

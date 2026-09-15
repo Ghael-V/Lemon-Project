@@ -34,7 +34,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <application
-        android:name="org.yuzu.yuzu_emu.YuzuApplication"
+        android:name="dev.lemon.lemon_emu.LemonApplication"
         android:label="${appNameBase}${appNameSuffix}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -56,9 +56,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <meta-data android:name="android.game_mode_config" android:resource="@xml/game_mode_config" />
 
         <activity
-            android:name="org.yuzu.yuzu_emu.ui.main.MainActivity"
+            android:name="dev.lemon.lemon_emu.ui.main.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Yuzu.Splash.Main">
+            android:theme="@style/Theme.Lemon.Splash.Main">
             <intent-filter>
                 <action android:name="com.miui.gamecenter.GAME_BOOSTER_LAUNCH"/>
                 <action android:name="android.intent.action.MAIN" />
@@ -69,18 +69,18 @@ SPDX-License-Identifier: GPL-3.0-or-later
         </activity>
 
         <activity
-            android:name="org.yuzu.yuzu_emu.features.settings.ui.SettingsActivity"
-            android:theme="@style/Theme.Yuzu.Main"
+            android:name="dev.lemon.lemon_emu.features.settings.ui.SettingsActivity"
+            android:theme="@style/Theme.Lemon.Main"
             android:label="@string/preferences_settings"/>
 
         <activity
-            android:name="org.yuzu.yuzu_emu.features.settings.ui.SettingsSubscreenActivity"
-            android:theme="@style/Theme.Yuzu.Main"
+            android:name="dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreenActivity"
+            android:theme="@style/Theme.Lemon.Main"
             android:label="@string/preferences_settings"/>
 
         <activity
-            android:name="org.yuzu.yuzu_emu.activities.EmulationActivity"
-            android:theme="@style/Theme.Yuzu.Main"
+            android:name="dev.lemon.lemon_emu.activities.EmulationActivity"
+            android:theme="@style/Theme.Lemon.Main"
             android:launchMode="singleTop"
             android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode"
@@ -102,7 +102,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <meta-data android:name="android.nfc.action.TECH_DISCOVERED" android:resource="@xml/nfc_tech_filter" />
         </activity>
 
-        <service android:name="org.yuzu.yuzu_emu.utils.ForegroundService" android:foregroundServiceType="specialUse">
+        <service android:name="dev.lemon.lemon_emu.utils.ForegroundService" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Keep emulation running in background"/>
         </service>
 

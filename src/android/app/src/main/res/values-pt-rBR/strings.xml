@@ -315,8 +315,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">Drivers personalizados não suportado</string>
     <string name="custom_driver_not_supported_description">Carregamento de drivers personalizados não suportado para este dispositivo no momento.\nVerifique essa opção novamente no futuro para ver se o suporte foi adicionado!</string>
-    <string name="manage_yuzu_data">Administrar Dados do Eden</string>
-    <string name="manage_yuzu_data_description">Importar/exportar firmware, chaves, dados do usuário e mais!</string>
+    <string name="manage_lemon_data">Administrar Dados do Eden</string>
+    <string name="manage_lemon_data_description">Importar/exportar firmware, chaves, dados do usuário e mais!</string>
     <string name="game_folders">Pastas de jogos</string>
     <string name="deep_scan">Varredura profunda</string>
     <string name="add_game_folder">Adicionar pasta de jogo</string>
@@ -381,7 +381,7 @@
     <string name="user_data_description">Importar/exportar todos os dados do aplicativo.\n\nAo importar, todos os dados existentes serão excluídos!\n\nImportar dados do Citron pode causar problemas. Recomenda-se importar manualmente apenas o necessário.</string>
     <string name="exporting_user_data">Exportando dados do usuário...</string>
     <string name="importing_user_data">Importando dados do usuário...</string>
-    <string name="invalid_yuzu_backup">Backup do Eden inválido</string>
+    <string name="invalid_lemon_backup">Backup do Eden inválido</string>
     <string name="user_data_export_success">Dados de usuário exportados com sucesso</string>
     <string name="user_data_import_success">Dados de usuário importados com sucesso</string>
     <string name="user_data_export_cancelled">Exportação cancelada</string>

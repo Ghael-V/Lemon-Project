@@ -233,8 +233,8 @@
     <string name="install_game_content_success_install">%1$d cài thành công</string>
     <string name="install_game_content_success_overwrite">%1$d ghi đè thành công</string>
     <string name="custom_driver_not_supported">Không hỗ trợ driver tùy chỉnh</string>
-    <string name="manage_yuzu_data">Quản lý dữ liệu</string>
-    <string name="manage_yuzu_data_description">Nhập/xuất firmware, keys, dữ liệu</string>
+    <string name="manage_lemon_data">Quản lý dữ liệu</string>
+    <string name="manage_lemon_data_description">Nhập/xuất firmware, keys, dữ liệu</string>
     <string name="game_folders">Thư mục game</string>
     <string name="deep_scan">Quét sâu</string>
     <string name="add_game_folder">Thêm thư mục</string>

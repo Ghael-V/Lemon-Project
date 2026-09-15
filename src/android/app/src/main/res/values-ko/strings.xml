@@ -243,8 +243,8 @@
     <string name="install_game_content_success_install">%1$d개를 설치했습니다.</string>
     <string name="install_game_content_success_overwrite">%1$d개를 덮어씌웠습니다.</string>
     <string name="custom_driver_not_supported">사용자 지정 드라이버는 지원하지 않습니다.</string>
-    <string name="manage_yuzu_data">Eden 데이터 관리</string>
-    <string name="manage_yuzu_data_description">펌웨어, 키 값, 유저 데이터 등을 가져오기 또는 내보내기</string>
+    <string name="manage_lemon_data">Eden 데이터 관리</string>
+    <string name="manage_lemon_data_description">펌웨어, 키 값, 유저 데이터 등을 가져오기 또는 내보내기</string>
     <string name="game_folders">게임 폴더</string>
     <string name="deep_scan">딥 스캔(하위 폴더 탐색)</string>
     <string name="add_game_folder">게임 폴더 추가</string>
@@ -302,7 +302,7 @@
     <string name="user_data">유저 데이터</string>
     <string name="exporting_user_data">유저 데이터 내보내는 중...</string>
     <string name="importing_user_data">유저 데이터 가져오는 중...</string>
-    <string name="invalid_yuzu_backup">올바르지 않은 Eden 백업 파일</string>
+    <string name="invalid_lemon_backup">올바르지 않은 Eden 백업 파일</string>
     <string name="user_data_export_success">유저 데이터를 내보냈습니다.</string>
     <string name="user_data_import_success">유저 데이터를 가져왔습니다.</string>
     <string name="user_data_export_cancelled">내보내기 취소됨</string>

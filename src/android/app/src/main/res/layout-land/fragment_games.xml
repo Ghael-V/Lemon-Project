@@ -41,7 +41,7 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/search_background"
-                style="@style/EdenCard"
+                style="@style/LemonCard"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:background="@android:color/transparent"
@@ -105,7 +105,7 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/view_button"
-            style="@style/EdenCard"
+            style="@style/LemonCard"
             android:layout_width="42dp"
             android:layout_height="42dp"
             android:background="@android:color/transparent"
@@ -134,7 +134,7 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/filter_button"
-            style="@style/EdenCard"
+            style="@style/LemonCard"
             android:layout_width="42dp"
             android:layout_height="42dp"
             android:background="@android:color/transparent"
@@ -163,7 +163,7 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/settings_button"
-            style="@style/EdenCard"
+            style="@style/LemonCard"
             android:layout_width="42dp"
             android:layout_height="42dp"
             android:background="@android:color/transparent"
@@ -187,7 +187,7 @@
 
     </LinearLayout>
 
-    <org.yuzu.yuzu_emu.ui.MidScreenSwipeRefreshLayout
+    <dev.lemon.lemon_emu.ui.MidScreenSwipeRefreshLayout
         android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -212,7 +212,7 @@
                 android:visibility="gone"
                 />
 
-            <org.yuzu.yuzu_emu.ui.CarouselRecyclerView
+            <dev.lemon.lemon_emu.ui.CarouselRecyclerView
                 android:id="@+id/grid_games"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -225,7 +225,7 @@
 
         </RelativeLayout>
 
-    </org.yuzu.yuzu_emu.ui.MidScreenSwipeRefreshLayout>
+    </dev.lemon.lemon_emu.ui.MidScreenSwipeRefreshLayout>
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/add_directory"

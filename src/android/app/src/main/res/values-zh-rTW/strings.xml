@@ -407,8 +407,8 @@
     <string name="install_game_content_help_link">https://yuzu-mirror.github.io/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">您的裝置不支援自訂驅動程式</string>
     <string name="custom_driver_not_supported_description">此裝置不支援注入自訂驅動程式。\n請以後再來查看是否已新增支援！</string>
-    <string name="manage_yuzu_data">管理 Eden 資料</string>
-    <string name="manage_yuzu_data_description">安裝韌體、金鑰，導入/導出使用者資料及安裝其它項目！</string>
+    <string name="manage_lemon_data">管理 Eden 資料</string>
+    <string name="manage_lemon_data_description">安裝韌體、金鑰，導入/導出使用者資料及安裝其它項目！</string>
     <string name="game_folders">遊戲資料夾</string>
     <string name="deep_scan">深度掃描</string>
     <string name="add_game_folder">新增遊戲資料夾</string>
@@ -472,7 +472,7 @@
     <string name="user_data_description">導入/導出所有應用程式資料。\n\n導入使用者資料時，現有的使用者資料將被取代！\n\n直接從 Citron 導入使用者資料可能會出現問題，建議手動導入所有所需資料。</string>
     <string name="exporting_user_data">正在導出使用者資料…</string>
     <string name="importing_user_data">正在導入使用者資料…</string>
-    <string name="invalid_yuzu_backup">無效的 Eden 備份</string>
+    <string name="invalid_lemon_backup">無效的 Eden 備份</string>
     <string name="user_data_export_success">使用者資料導出成功</string>
     <string name="user_data_import_success">使用者資料導入成功</string>
     <string name="user_data_export_cancelled">導出已取消</string>

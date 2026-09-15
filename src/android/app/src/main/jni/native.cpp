@@ -749,25 +749,25 @@ jint InitFFmpegOnLoad(JavaVM* vm) {
 
 extern "C" {
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_surfaceChanged(JNIEnv* env, jobject instance,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_surfaceChanged(JNIEnv* env, jobject instance,
                                                           [[maybe_unused]] jobject surf) {
     EmulationSession::GetInstance().SetNativeWindow(ANativeWindow_fromSurface(env, surf));
     EmulationSession::GetInstance().SurfaceChanged();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_surfaceDestroyed(JNIEnv* env, jobject instance) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_surfaceDestroyed(JNIEnv* env, jobject instance) {
     if (auto* native_window = EmulationSession::GetInstance().NativeWindow(); native_window) {
         ANativeWindow_release(native_window);
     }
     EmulationSession::GetInstance().SetNativeWindow(nullptr);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setAppDirectory(JNIEnv* env, jobject instance,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setAppDirectory(JNIEnv* env, jobject instance,
                                                            [[maybe_unused]] jstring j_directory) {
     Common::FS::SetAppDirectory(Common::Android::GetJString(env, j_directory));
 }
 
-int Java_org_yuzu_yuzu_1emu_NativeLibrary_installFileToNand(JNIEnv* env, jobject instance,
+int Java_dev_lemon_lemon_1emu_NativeLibrary_installFileToNand(JNIEnv* env, jobject instance,
                                                             jstring j_file, jobject jcallback) {
     auto jlambdaClass = env->GetObjectClass(jcallback);
     auto jlambdaInvokeMethod = env->GetMethodID(
@@ -785,7 +785,7 @@ int Java_org_yuzu_yuzu_1emu_NativeLibrary_installFileToNand(JNIEnv* env, jobject
                                    Common::Android::GetJString(env, j_file), callback));
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_doesUpdateMatchProgram(JNIEnv* env, jobject jobj,
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_doesUpdateMatchProgram(JNIEnv* env, jobject jobj,
                                                                       jstring jprogramId,
                                                                       jstring jupdatePath) {
     u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
@@ -806,7 +806,7 @@ jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_doesUpdateMatchProgram(JNIEnv* en
     return false;
 }
 
-void JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeGpuDriver(JNIEnv* env,
+void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_initializeGpuDriver(JNIEnv* env,
                                                                        [[maybe_unused]] jclass clazz,
                                                                        jstring hook_lib_dir,
                                                                        jstring custom_driver_dir,
@@ -845,7 +845,7 @@ void JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeGpuDriver(JNIEnv* e
     return android_get_device_api_level() >= 28 && CheckKgslPresent();
 }
 
-jboolean JNICALL Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_supportsCustomDriverLoading(
+jboolean JNICALL Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_supportsCustomDriverLoading(
     JNIEnv* env, jobject instance) {
 #ifdef ARCHITECTURE_arm64
     // If the KGSL device exists custom drivers can be loaded using adrenotools
@@ -855,7 +855,7 @@ jboolean JNICALL Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_supportsCustomDri
 #endif
 }
 
-jobjectArray Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_getSystemDriverInfo(
+jobjectArray Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_getSystemDriverInfo(
     JNIEnv* env, jobject j_obj, jobject j_surf, jstring j_hook_lib_dir) {
 #ifdef ARCHITECTURE_arm64
     const char* file_redirect_dir_{};
@@ -891,7 +891,7 @@ jobjectArray Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_getSystemDriverInfo(
     return j_driver_info;
 }
 
-jstring Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_getGpuModel(JNIEnv *env, jobject j_obj, jobject j_surf, jstring j_hook_lib_dir) {
+jstring Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_getGpuModel(JNIEnv *env, jobject j_obj, jobject j_surf, jstring j_hook_lib_dir) {
 #ifdef ARCHITECTURE_arm64
     const char* file_redirect_dir_{};
     int featureFlags{};
@@ -921,32 +921,32 @@ jstring Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_getGpuModel(JNIEnv *env, j
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_reloadKeys(JNIEnv* env, jclass clazz) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_reloadKeys(JNIEnv* env, jclass clazz) {
     Core::Crypto::KeyManager::Instance().ReloadKeys();
     return static_cast<jboolean>(Core::Crypto::KeyManager::Instance().AreKeysLoaded());
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_unpauseEmulation(JNIEnv* env, jclass clazz) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_unpauseEmulation(JNIEnv* env, jclass clazz) {
     EmulationSession::GetInstance().UnPauseEmulation();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_pauseEmulation(JNIEnv* env, jclass clazz) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_pauseEmulation(JNIEnv* env, jclass clazz) {
     EmulationSession::GetInstance().PauseEmulation();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_stopEmulation(JNIEnv* env, jclass clazz) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_stopEmulation(JNIEnv* env, jclass clazz) {
     EmulationSession::GetInstance().HaltEmulation();
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isRunning(JNIEnv* env, jclass clazz) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isRunning(JNIEnv* env, jclass clazz) {
     return static_cast<jboolean>(EmulationSession::GetInstance().IsRunning());
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isPaused(JNIEnv* env, jclass clazz) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isPaused(JNIEnv* env, jclass clazz) {
     return static_cast<jboolean>(EmulationSession::GetInstance().IsPaused());
 }
 
-jbyteArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletCaptureBuffer(JNIEnv* env, jclass clazz) {
+jbyteArray Java_dev_lemon_lemon_1emu_NativeLibrary_getAppletCaptureBuffer(JNIEnv* env, jclass clazz) {
     using namespace VideoCore::Capture;
 
     if (!EmulationSession::GetInstance().IsRunning()) {
@@ -972,15 +972,15 @@ jbyteArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletCaptureBuffer(JNIEnv* 
     return buffer;
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletCaptureWidth(JNIEnv* env, jclass clazz) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_getAppletCaptureWidth(JNIEnv* env, jclass clazz) {
     return static_cast<jint>(VideoCore::Capture::LinearWidth);
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletCaptureHeight(JNIEnv* env, jclass clazz) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_getAppletCaptureHeight(JNIEnv* env, jclass clazz) {
     return static_cast<jint>(VideoCore::Capture::LinearHeight);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeSystem(JNIEnv* env, jclass clazz,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_initializeSystem(JNIEnv* env, jclass clazz,
                                                             jboolean reload) {
     // Initialize the emulated system.
     if (!reload) {
@@ -989,7 +989,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeSystem(JNIEnv* env, jclass 
     EmulationSession::GetInstance().InitializeSystem(reload);
 }
 
-jdoubleArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getPerfStats(JNIEnv* env, jclass clazz) {
+jdoubleArray Java_dev_lemon_lemon_1emu_NativeLibrary_getPerfStats(JNIEnv* env, jclass clazz) {
     jdoubleArray j_stats = env->NewDoubleArray(4);
 
     if (EmulationSession::GetInstance().IsRunning()) {
@@ -1005,7 +1005,7 @@ jdoubleArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getPerfStats(JNIEnv* env, jcl
     return j_stats;
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getShadersBuilding(JNIEnv* env, jclass clazz) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_getShadersBuilding(JNIEnv* env, jclass clazz) {
     jint j_shaders = 0;
 
     if (EmulationSession::GetInstance().IsRunning()) {
@@ -1015,7 +1015,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getShadersBuilding(JNIEnv* env, jclas
     return j_shaders;
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuBackend(JNIEnv* env, jclass clazz) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getCpuBackend(JNIEnv* env, jclass clazz) {
     if (Settings::IsNceEnabled()) {
         return Common::Android::ToJString(env, "NCE");
     }
@@ -1023,12 +1023,12 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuBackend(JNIEnv* env, jclass 
     return Common::Android::ToJString(env, "JIT");
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getGpuDriver(JNIEnv* env, jobject jobj) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getGpuDriver(JNIEnv* env, jobject jobj) {
     return Common::Android::ToJString(
         env, EmulationSession::GetInstance().System().GPU().Renderer().GetDeviceVendor());
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuSummary(JNIEnv* env, jobject /*jobj*/) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getCpuSummary(JNIEnv* env, jobject /*jobj*/) {
     get_arm_cpu_name();
     constexpr const char* CPUINFO_PATH = "/proc/cpuinfo";
 
@@ -1201,7 +1201,7 @@ bool GetFrameGenerationSupport() {
 }
 } // namespace
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanDriverVersion(JNIEnv* env, jobject jobj) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getVulkanDriverVersion(JNIEnv* env, jobject jobj) {
     try {
         const auto props = GetVulkanDeviceProperties();
         if (props.deviceID == 0) {
@@ -1250,7 +1250,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanDriverVersion(JNIEnv* env
     }
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanApiVersion(JNIEnv* env, jobject jobj) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getVulkanApiVersion(JNIEnv* env, jobject jobj) {
     try {
         const auto props = GetVulkanDeviceProperties();
         if (props.deviceID == 0) {
@@ -1274,7 +1274,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanApiVersion(JNIEnv* env, j
     }
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_supportsFrameGeneration(JNIEnv* env, jobject jobj) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_supportsFrameGeneration(JNIEnv* env, jobject jobj) {
     try {
         return static_cast<jboolean>(GetFrameGenerationSupport());
     } catch (...) {
@@ -1282,7 +1282,7 @@ jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_supportsFrameGeneration(JNIEnv* e
     }
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getGpuModel(JNIEnv* env, jobject jobj) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getGpuModel(JNIEnv* env, jobject jobj) {
     const auto props = GetVulkanDeviceProperties();
     if (props.deviceID == 0) {
         return Common::Android::ToJString(env, "Unknown");
@@ -1291,24 +1291,24 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getGpuModel(JNIEnv* env, jobject j
     return Common::Android::ToJString(env, props.deviceName);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_applySettings(JNIEnv* env, jobject jobj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_applySettings(JNIEnv* env, jobject jobj) {
     EmulationSession::GetInstance().System().ApplySettings();
     EmulationSession::GetInstance().System().HIDCore().ReloadInputDevices();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_logSettings(JNIEnv* env, jobject jobj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_logSettings(JNIEnv* env, jobject jobj) {
     Settings::LogSettings();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_refreshThreadPolicies(JNIEnv* env, jobject jobj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_refreshThreadPolicies(JNIEnv* env, jobject jobj) {
     Common::RefreshThreadPolicies();
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_GetDebugKnobAt(JNIEnv* env, jobject jobj, jint index) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_GetDebugKnobAt(JNIEnv* env, jobject jobj, jint index) {
     return static_cast<jboolean>(Settings::GetDebugKnobAt(static_cast<u8>(index)));
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setTurboSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setTurboSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
     if (enabled) {
         Settings::values.use_speed_limit.SetValue(true);
         Settings::SetSpeedMode(Settings::SpeedMode::Turbo);
@@ -1317,7 +1317,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_setTurboSpeedLimit(JNIEnv *env, jobje
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setSlowSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setSlowSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
     if (enabled) {
         Settings::values.use_speed_limit.SetValue(true);
         Settings::SetSpeedMode(Settings::SpeedMode::Slow);
@@ -1326,22 +1326,22 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_setSlowSpeedLimit(JNIEnv *env, jobjec
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setStandardSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setStandardSpeedLimit(JNIEnv *env, jobject jobj, jboolean enabled) {
     Settings::values.use_speed_limit.SetValue(enabled);
     if (enabled) {
         Settings::SetSpeedMode(Settings::SpeedMode::Standard);
     }
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isTurboMode(JNIEnv *env, jobject jobj) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isTurboMode(JNIEnv *env, jobject jobj) {
     return Settings::values.current_speed_mode.GetValue() == Settings::SpeedMode::Turbo;
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isSlowMode(JNIEnv *env, jobject jobj) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isSlowMode(JNIEnv *env, jobject jobj) {
     return Settings::values.current_speed_mode.GetValue() == Settings::SpeedMode::Slow;
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstring j_path,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstring j_path,
                                                jint j_program_index,
                                                jboolean j_frontend_initiated) {
     const std::string path = Common::Android::GetJString(env, j_path);
@@ -1355,23 +1355,23 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstrin
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_logDeviceInfo(JNIEnv* env, jclass clazz) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_logDeviceInfo(JNIEnv* env, jclass clazz) {
     LOG_INFO(Frontend, "eden Version: {}-{}", Common::g_scm_branch, Common::g_scm_desc);
     LOG_INFO(Frontend, "Host OS: Android API level {}", android_get_device_api_level());
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_submitInlineKeyboardText(JNIEnv* env, jclass clazz,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_submitInlineKeyboardText(JNIEnv* env, jclass clazz,
                                                                     jstring j_text) {
     const std::u16string input = Common::UTF8ToUTF16(Common::Android::GetJString(env, j_text));
     EmulationSession::GetInstance().SoftwareKeyboard()->SubmitInlineKeyboardText(input);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_submitInlineKeyboardInput(JNIEnv* env, jclass clazz,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_submitInlineKeyboardInput(JNIEnv* env, jclass clazz,
                                                                      jint j_key_code) {
     EmulationSession::GetInstance().SoftwareKeyboard()->SubmitInlineKeyboardInput(j_key_code);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeEmptyUserDirectory(JNIEnv* env,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_initializeEmptyUserDirectory(JNIEnv* env,
                                                                         jobject instance) {
     const auto nand_dir = Common::FS::GetEdenPath(Common::FS::EdenPath::NANDDir);
     auto vfs_nand_dir = EmulationSession::GetInstance().System().GetFilesystem()->OpenDirectory(
@@ -1391,7 +1391,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_initializeEmptyUserDirectory(JNIEnv* 
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerInit(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerInit(JNIEnv* env, jobject obj) {
     // for some reason the full user directory isnt initialized in Android, so we need to create it
     const auto play_time_dir = Common::FS::GetEdenPath(Common::FS::EdenPath::PlayTimeDir);
     if (!Common::FS::IsDir(play_time_dir) && !Common::FS::CreateDir(play_time_dir))
@@ -1400,19 +1400,19 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerInit(JNIEnv* env, jobj
     play_time_manager = std::make_unique<PlayTime::PlayTimeManager>();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerStart(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerStart(JNIEnv* env, jobject obj) {
     if (play_time_manager) {
         play_time_manager->SetProgramId(EmulationSession::GetInstance().System().GetApplicationProcessProgramID());
         play_time_manager->Start();
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerStop(JNIEnv* env, jobject obj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerStop(JNIEnv* env, jobject obj) {
     if (play_time_manager)
         play_time_manager->Stop();
 }
 
-jlong Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerGetPlayTime(JNIEnv* env, jobject obj, jstring jprogramId) {
+jlong Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerGetPlayTime(JNIEnv* env, jobject obj, jstring jprogramId) {
     if (play_time_manager) {
         u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
         return play_time_manager->GetPlayTime(program_id);
@@ -1420,12 +1420,12 @@ jlong Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerGetPlayTime(JNIEnv* e
     return 0UL;
 }
 
-jlong Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerGetCurrentTitleId(JNIEnv* env,
+jlong Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerGetCurrentTitleId(JNIEnv* env,
                                                                              jobject obj) {
     return EmulationSession::GetInstance().System().GetApplicationProcessProgramID();
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerResetProgramPlayTime(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerResetProgramPlayTime(JNIEnv* env, jobject obj,
                                                                 jstring jprogramId) {
     if (play_time_manager) {
         u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
@@ -1433,7 +1433,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerResetProgramPlayTime(J
     }
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerSetPlayTime(JNIEnv* env, jobject obj,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerSetPlayTime(JNIEnv* env, jobject obj,
                                                                 jstring jprogramId, jlong playTimeSeconds) {
     if (play_time_manager) {
         u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
@@ -1441,7 +1441,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_playTimeManagerSetPlayTime(JNIEnv* en
     }
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletLaunchPath(JNIEnv* env, jclass clazz,
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getAppletLaunchPath(JNIEnv* env, jclass clazz,
                                                                   jlong jid) {
     auto bis_system =
         EmulationSession::GetInstance().System().GetFileSystemController().GetSystemNANDContents();
@@ -1458,12 +1458,12 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getAppletLaunchPath(JNIEnv* env, j
     return Common::Android::ToJString(env, applet_nca->GetFullPath());
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setCurrentAppletId(JNIEnv* env, jclass clazz,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setCurrentAppletId(JNIEnv* env, jclass clazz,
                                                               jint jappletId) {
     EmulationSession::GetInstance().SetAppletId(jappletId);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_setCabinetMode(JNIEnv* env, jclass clazz,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setCabinetMode(JNIEnv* env, jclass clazz,
                                                           jint jcabinetMode) {
     EmulationSession::GetInstance().System().GetFrontendAppletHolder().SetCabinetMode(
         static_cast<Service::NFP::CabinetMode>(jcabinetMode));
@@ -1473,11 +1473,11 @@ bool isFirmwarePresent() {
     return FirmwareManager::CheckFirmwarePresence(EmulationSession::GetInstance().System());
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isFirmwareAvailable(JNIEnv* env, jclass clazz) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isFirmwareAvailable(JNIEnv* env, jclass clazz) {
     return isFirmwarePresent();
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_firmwareVersion(JNIEnv* env, jclass clazz) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_firmwareVersion(JNIEnv* env, jclass clazz) {
     const auto pair = FirmwareManager::GetFirmwareVersion(EmulationSession::GetInstance().System());
     const auto firmware_data = pair.first;
     const auto result = pair.second;
@@ -1494,20 +1494,20 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_firmwareVersion(JNIEnv* env, jclas
     return Common::Android::ToJString(env, display_version);
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_gameRequiresFirmware(JNIEnv* env, jclass clazz, jstring jprogramId) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_gameRequiresFirmware(JNIEnv* env, jclass clazz, jstring jprogramId) {
     auto program_id = EmulationSession::GetProgramId(env, jprogramId);
 
     return FirmwareManager::GameRequiresFirmware(program_id);
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_installKeys(JNIEnv* env, jclass clazz, jstring jpath, jstring jext) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_installKeys(JNIEnv* env, jclass clazz, jstring jpath, jstring jext) {
     const auto path = Common::Android::GetJString(env, jpath);
     const auto ext = Common::Android::GetJString(env, jext);
 
     return static_cast<int>(FirmwareManager::InstallKeys(path, ext));
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getLosslessDllPath(JNIEnv* env, jclass clazz) {
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getLosslessDllPath(JNIEnv* env, jclass clazz) {
 #ifdef HAS_LSFG
     const auto path = VideoCore::FrameGen::GetLosslessDllPath();
     return Common::Android::ToJString(env, Common::FS::PathToUTF8String(path));
@@ -1516,7 +1516,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getLosslessDllPath(JNIEnv* env, jc
 #endif
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_validateLosslessDll(JNIEnv* env, jclass clazz) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_validateLosslessDll(JNIEnv* env, jclass clazz) {
 #ifdef HAS_LSFG
     return static_cast<jint>(VideoCore::FrameGen::GetInstalledLosslessStatus());
 #else
@@ -1524,7 +1524,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_validateLosslessDll(JNIEnv* env, jcla
 #endif
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_prepareLosslessDll(JNIEnv* env, jclass clazz) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_prepareLosslessDll(JNIEnv* env, jclass clazz) {
 #ifdef HAS_LSFG
     return static_cast<jint>(VideoCore::FrameGen::BuildShaderCache());
 #else
@@ -1532,7 +1532,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_prepareLosslessDll(JNIEnv* env, jclas
 #endif
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_removeLosslessDll(JNIEnv* env, jclass clazz) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_removeLosslessDll(JNIEnv* env, jclass clazz) {
 #ifdef HAS_LSFG
     return static_cast<jboolean>(VideoCore::FrameGen::RemoveInstalledLosslessDll());
 #else
@@ -1540,7 +1540,7 @@ jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_removeLosslessDll(JNIEnv* env, jc
 #endif
 }
 
-jobjectArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getPatchesForFile(JNIEnv* env, jobject jobj,
+jobjectArray Java_dev_lemon_lemon_1emu_NativeLibrary_getPatchesForFile(JNIEnv* env, jobject jobj,
                                                                      jstring jpath,
                                                                      jstring jprogramId) {
     const auto path = Common::Android::GetJString(env, jpath);
@@ -1577,27 +1577,27 @@ jobjectArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getPatchesForFile(JNIEnv* env
     return jpatchArray;
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_removeUpdate(JNIEnv* env, jobject jobj,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_removeUpdate(JNIEnv* env, jobject jobj,
                                                         jstring jprogramId) {
     auto program_id = EmulationSession::GetProgramId(env, jprogramId);
     ContentManager::RemoveUpdate(EmulationSession::GetInstance().System().GetFileSystemController(),
                                  program_id);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_removeDLC(JNIEnv* env, jobject jobj,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_removeDLC(JNIEnv* env, jobject jobj,
                                                      jstring jprogramId) {
     auto program_id = EmulationSession::GetProgramId(env, jprogramId);
     ContentManager::RemoveAllDLC(EmulationSession::GetInstance().System(), program_id);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_removeMod(JNIEnv* env, jobject jobj, jstring jprogramId,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_removeMod(JNIEnv* env, jobject jobj, jstring jprogramId,
                                                      jstring jname) {
     auto program_id = EmulationSession::GetProgramId(env, jprogramId);
     ContentManager::RemoveMod(EmulationSession::GetInstance().System().GetFileSystemController(),
                               program_id, Common::Android::GetJString(env, jname));
 }
 
-jobjectArray Java_org_yuzu_yuzu_1emu_NativeLibrary_verifyInstalledContents(JNIEnv* env,
+jobjectArray Java_dev_lemon_lemon_1emu_NativeLibrary_verifyInstalledContents(JNIEnv* env,
                                                                            jobject jobj,
                                                                            jobject jcallback) {
     auto jlambdaClass = env->GetObjectClass(jcallback);
@@ -1621,7 +1621,7 @@ jobjectArray Java_org_yuzu_yuzu_1emu_NativeLibrary_verifyInstalledContents(JNIEn
     return jresult;
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_verifyGameContents(JNIEnv* env, jobject jobj,
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_verifyGameContents(JNIEnv* env, jobject jobj,
                                                               jstring jpath, jobject jcallback) {
     auto jlambdaClass = env->GetObjectClass(jcallback);
     auto jlambdaInvokeMethod = env->GetMethodID(
@@ -1637,7 +1637,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_verifyGameContents(JNIEnv* env, jobje
         session.System(), Common::Android::GetJString(env, jpath), callback));
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getSavePath(JNIEnv* env, jobject jobj,
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getSavePath(JNIEnv* env, jobject jobj,
                                                           jstring jprogramId) {
     auto program_id = EmulationSession::GetProgramId(env, jprogramId);
     if (program_id == 0) {
@@ -1661,7 +1661,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getSavePath(JNIEnv* env, jobject j
     return Common::Android::ToJString(env, user_save_data_path);
 }
 
-jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getDefaultProfileSaveDataRoot(JNIEnv* env,
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getDefaultProfileSaveDataRoot(JNIEnv* env,
                                                                             jobject jobj,
                                                                             jboolean jfuture) {
     Service::Account::ProfileManager manager;
@@ -1674,29 +1674,29 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getDefaultProfileSaveDataRoot(JNIE
     return Common::Android::ToJString(env, user_save_data_root);
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_addFileToFilesystemProvider(JNIEnv* env, jobject jobj,
+void Java_dev_lemon_lemon_1emu_NativeLibrary_addFileToFilesystemProvider(JNIEnv* env, jobject jobj,
                                                                        jstring jpath) {
     EmulationSession::GetInstance().ConfigureFilesystemProvider(
         Common::Android::GetJString(env, jpath));
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_addGameFolderFileToFilesystemProvider(
+void Java_dev_lemon_lemon_1emu_NativeLibrary_addGameFolderFileToFilesystemProvider(
     JNIEnv* env, jobject jobj, jstring jpath) {
     EmulationSession::GetInstance().ConfigureFilesystemProviderFromGameFolder(
         Common::Android::GetJString(env, jpath));
 }
 
-void Java_org_yuzu_yuzu_1emu_NativeLibrary_clearFilesystemProvider(JNIEnv* env, jobject jobj) {
+void Java_dev_lemon_lemon_1emu_NativeLibrary_clearFilesystemProvider(JNIEnv* env, jobject jobj) {
     EmulationSession::GetInstance().GetContentProvider()->ClearAllEntries();
 }
 
-jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_areKeysPresent(JNIEnv* env, jobject jobj) {
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_areKeysPresent(JNIEnv* env, jobject jobj) {
     auto& system = EmulationSession::GetInstance().System();
     system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
     return ContentManager::AreKeysPresent();
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getVirtualAmiiboState(JNIEnv* env, jobject jobj) {
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_getVirtualAmiiboState(JNIEnv* env, jobject jobj) {
     if (!EmulationSession::GetInstance().IsRunning()) {
         return static_cast<jint>(InputCommon::VirtualAmiibo::State::Disabled);
     }
@@ -1710,7 +1710,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getVirtualAmiiboState(JNIEnv* env, jo
     return static_cast<jint>(virtual_amiibo->GetCurrentState());
 }
 
-jint Java_org_yuzu_yuzu_1emu_NativeLibrary_loadAmiibo(JNIEnv* env, jobject jobj,
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_loadAmiibo(JNIEnv* env, jobject jobj,
                                                       jbyteArray jdata) {
     if (!EmulationSession::GetInstance().IsRunning() || jdata == nullptr) {
         return static_cast<jint>(InputCommon::VirtualAmiibo::Info::WrongDeviceState);
@@ -1735,7 +1735,7 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_loadAmiibo(JNIEnv* env, jobject jobj,
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_yuzu_yuzu_1emu_NativeLibrary_initJvm(JNIEnv *env, jclass clazz) {
+Java_dev_lemon_lemon_1emu_NativeLibrary_initJvm(JNIEnv *env, jclass clazz) {
     JavaVM *vm;
     if (env->GetJavaVM(&vm) != JNI_OK)
         return;
@@ -1744,7 +1744,7 @@ Java_org_yuzu_yuzu_1emu_NativeLibrary_initJvm(JNIEnv *env, jclass clazz) {
 }
 
 JNIEXPORT void JNICALL
-Java_org_yuzu_yuzu_1emu_NativeLibrary_initMultiplayer(
+Java_dev_lemon_lemon_1emu_NativeLibrary_initMultiplayer(
         JNIEnv* env, [[maybe_unused]] jobject obj) {
     if (multiplayer) {
         return;
@@ -1757,12 +1757,12 @@ Java_org_yuzu_yuzu_1emu_NativeLibrary_initMultiplayer(
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayGetPublicRooms(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayGetPublicRooms(
         JNIEnv *env, [[maybe_unused]] jobject obj) {
     return Common::Android::ToJStringArray(env, multiplayer->NetPlayGetPublicRooms());
 }
 
-JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayCreateRoom(
+JNIEXPORT jint JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayCreateRoom(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring ipaddress, jint port,
         jstring username, jstring preferredGameName, jlong preferredGameId, jstring password,
         jstring room_name, jint max_players, jboolean isPublic) {
@@ -1773,7 +1773,7 @@ JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayCre
                               Common::Android::GetJString(env, room_name), max_players, isPublic));
 }
 
-JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayJoinRoom(
+JNIEXPORT jint JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayJoinRoom(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring ipaddress, jint port,
         jstring username, jstring password) {
     return static_cast<jint>(
@@ -1782,62 +1782,62 @@ JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayJoi
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayRoomInfo(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayRoomInfo(
         JNIEnv* env, [[maybe_unused]] jobject obj) {
     return Common::Android::ToJStringArray(env, multiplayer->NetPlayRoomInfo());
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayIsJoined(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayIsJoined(
         [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
     return multiplayer->NetPlayIsJoined();
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayIsHostedRoom(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayIsHostedRoom(
         [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
     return multiplayer->NetPlayIsHostedRoom();
 }
 
 JNIEXPORT void JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlaySendMessage(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlaySendMessage(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring msg) {
     multiplayer->NetPlaySendMessage(Common::Android::GetJString(env, msg));
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayKickUser(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayKickUser(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
     multiplayer->NetPlayKickUser(Common::Android::GetJString(env, username));
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayLeaveRoom(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayLeaveRoom(
         [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
     multiplayer->NetPlayLeaveRoom();
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayIsModerator(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayIsModerator(
         [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
     return multiplayer->NetPlayIsModerator();
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayGetBanList(
+Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayGetBanList(
         JNIEnv* env, [[maybe_unused]] jobject obj) {
     return Common::Android::ToJStringArray(env, multiplayer->NetPlayGetBanList());
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayBanUser(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayBanUser(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
     multiplayer->NetPlayBanUser(Common::Android::GetJString(env, username));
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_network_NetPlayManager_netPlayUnbanUser(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_network_NetPlayManager_netPlayUnbanUser(
         JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
     multiplayer->NetPlayUnbanUser(Common::Android::GetJString(env, username));
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_updatePowerState(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_updatePowerState(
         JNIEnv* env,
         jobject,
         jint percentage,
@@ -1849,7 +1849,7 @@ JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_updatePowerState(
     g_has_battery.store(hasBattery, std::memory_order_relaxed);
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_isUpdateCheckerEnabled(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_isUpdateCheckerEnabled(
         JNIEnv* env,
         jobject obj) {
 #ifdef ENABLE_UPDATE_CHECKER
@@ -1859,7 +1859,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_isUpdateChecker
 #endif
     }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_isNightlyBuild(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_isNightlyBuild(
     JNIEnv* env,
     jobject obj) {
 #ifdef NIGHTLY_BUILD
@@ -1872,7 +1872,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_isNightlyBuild(
 #ifdef ENABLE_UPDATE_CHECKER
 
 
-JNIEXPORT jobject JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_checkForUpdate(
+JNIEXPORT jobject JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_checkForUpdate(
         JNIEnv* env,
         jobject obj) {
     std::optional<Common::Net::Release> release = UpdateChecker::GetUpdate();
@@ -1887,7 +1887,7 @@ JNIEXPORT jobject JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_checkForUpdate(
     // If not, something has gone wrong, but the Kotlin side can handle it.
     const auto assets = release->GetPlatformAssets();
 
-    jclass updateResultClass = env->FindClass("org/yuzu/yuzu_emu/NativeLibrary$UpdateResult");
+    jclass updateResultClass = env->FindClass("dev/lemon/lemon_emu/NativeLibrary$UpdateResult");
     if (!updateResultClass) {
         LOG_ERROR(Frontend, "Could not find UpdateResult class");
         return nullptr;
@@ -1944,13 +1944,13 @@ JNIEXPORT jobject JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_checkForUpdate(
 
 #endif
 
-JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getBuildVersion(
+JNIEXPORT jstring JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getBuildVersion(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     return env->NewStringUTF(Common::g_build_version);
 }
 
-JNIEXPORT jobjectArray JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getAllUsers(
+JNIEXPORT jobjectArray JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getAllUsers(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     auto& manager = EmulationSession::GetInstance().System().GetProfileManager();
@@ -1995,7 +1995,7 @@ JNIEXPORT jobjectArray JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getAllUsers
     return result;
 }
 
-JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserUsername(
+JNIEXPORT jstring JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getUserUsername(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid) {
@@ -2015,21 +2015,21 @@ JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserUsername(
     return result ? result : env->NewStringUTF("");
 }
 
-JNIEXPORT jlong JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserCount(
+JNIEXPORT jlong JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getUserCount(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     auto& manager = EmulationSession::GetInstance().System().GetProfileManager();
     return static_cast<jlong>(manager.GetUserCount());
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_canCreateUser(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_canCreateUser(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     auto& manager = EmulationSession::GetInstance().System().GetProfileManager();
     return manager.CanSystemRegisterUser();
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_createUser(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_createUser(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid,
@@ -2047,7 +2047,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_createUser(
     return false;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_updateUserUsername(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_updateUserUsername(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid,
@@ -2072,7 +2072,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_updateUserUsern
     return false;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_removeUser(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_removeUser(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid) {
@@ -2097,7 +2097,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_removeUser(
     return false;
 }
 
-JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getCurrentUser(
+JNIEXPORT jstring JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getCurrentUser(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     auto& manager = EmulationSession::GetInstance().System().GetProfileManager();
@@ -2110,7 +2110,7 @@ JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getCurrentUser(
     return result ? result : env->NewStringUTF("");
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_setCurrentUser(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_setCurrentUser(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid) {
@@ -2126,7 +2126,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_setCurrentUser(
     return false;
 }
 
-JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserImagePath(
+JNIEXPORT jstring JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getUserImagePath(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid) {
@@ -2140,7 +2140,7 @@ JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserImagePath
     return result ? result : env->NewStringUTF("");
 }
 
-JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_saveUserImage(
+JNIEXPORT jboolean JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_saveUserImage(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jstring juuid,
@@ -2167,7 +2167,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_saveUserImage(
     }
 }
 
-JNIEXPORT void JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_reloadProfiles(
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_reloadProfiles(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     auto& manager = EmulationSession::GetInstance().System().GetProfileManager();
@@ -2272,7 +2272,7 @@ static FileSys::VirtualDir GetFirmwareAvatarDirectory() {
     return extracted->GetSubdirectory("chara");
 }
 
-JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getFirmwareAvatarCount(
+JNIEXPORT jint JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getFirmwareAvatarCount(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     const auto chara_dir = GetFirmwareAvatarDirectory();
@@ -2289,7 +2289,7 @@ JNIEXPORT jint JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getFirmwareAvatarCo
     return count;
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getFirmwareAvatarImage(
+JNIEXPORT jbyteArray JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getFirmwareAvatarImage(
         JNIEnv* env,
         [[maybe_unused]] jobject obj,
         jint index) {
@@ -2323,7 +2323,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getFirmwareAv
     return nullptr;
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getDefaultAccountBackupJpeg(
+JNIEXPORT jbyteArray JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getDefaultAccountBackupJpeg(
         JNIEnv* env,
         [[maybe_unused]] jobject obj) {
     jbyteArray result = env->NewByteArray(Core::Constants::ACCOUNT_BACKUP_JPEG.size());

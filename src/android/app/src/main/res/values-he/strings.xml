@@ -250,8 +250,8 @@
     <string name="install_game_content_success_install">%1$d הותקן בהצלחה</string>
     <string name="install_game_content_success_overwrite">%1$d נדרס/נכתב מעל בהצלחה</string>
     <string name="custom_driver_not_supported">דרייברים מותאמים אישית לא נתמכים</string>
-    <string name="manage_yuzu_data">נהל את המידע של Eden</string>
-    <string name="manage_yuzu_data_description">יבא/יצא firmware, keys, מידע של משתמש ועוד!</string>
+    <string name="manage_lemon_data">נהל את המידע של Eden</string>
+    <string name="manage_lemon_data_description">יבא/יצא firmware, keys, מידע של משתמש ועוד!</string>
     <string name="game_folders">תיקיית משחקים</string>
     <string name="deep_scan">סריקה עמוקה</string>
     <string name="add_game_folder">הוסף תיקיית משחקים</string>
@@ -313,7 +313,7 @@
     <string name="user_data">נתוני משתמש</string>
     <string name="exporting_user_data">מייצא נתוני משתמש...</string>
     <string name="importing_user_data">מייבא נתוני משתמש...</string>
-    <string name="invalid_yuzu_backup">גיבוי Eden לא חוקי</string>
+    <string name="invalid_lemon_backup">גיבוי Eden לא חוקי</string>
     <string name="user_data_export_success">נתוני משתמש יוצאו בהצלחה</string>
     <string name="user_data_import_success">נתוני משתמש יובאו בהצלחה</string>
     <string name="user_data_export_cancelled">ייצוא בוטל</string>
