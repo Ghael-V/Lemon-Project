@@ -12,7 +12,7 @@ static jmethodID s_open_external_url = nullptr;
 namespace Common::Android::WebBrowser {
 
 void InitJNI(JNIEnv* env) {
-    const jclass local = env->FindClass("org/yuzu/yuzu_emu/NativeLibrary");
+    const jclass local = env->FindClass("dev/lemon/lemon_emu/NativeLibrary");
     s_native_library_class = static_cast<jclass>(env->NewGlobalRef(local));
     env->DeleteLocalRef(local);
     s_open_external_url = env->GetStaticMethodID(s_native_library_class, "openExternalUrl", "(Ljava/lang/String;)V");
