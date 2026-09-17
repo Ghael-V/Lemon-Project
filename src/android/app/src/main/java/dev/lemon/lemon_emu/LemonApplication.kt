@@ -25,6 +25,8 @@ import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.Log
 import dev.lemon.lemon_emu.utils.PowerStateUpdater
 import dev.lemon.lemon_emu.utils.ControllerNavigationGlobalHook
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 fun Context.getPublicFilesDir(): File = getExternalFilesDir(null) ?: filesDir
@@ -57,8 +59,27 @@ class LemonApplication : Application() {
         notificationManager.createNotificationChannel(foregroundService)
     }
 
+    private fun installCrashLogger() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val logFile = File(getExternalFilesDir(null), "crash_log.txt")
+                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                FileOutputStream(logFile, true).bufferedWriter().use { writer ->
+                    writer.appendLine("=== Crash at $timestamp on thread ${thread.name} ===")
+                    writer.appendLine(throwable.stackTraceToString())
+                    writer.appendLine()
+                }
+            } catch (_: Throwable) {
+                // Best-effort only; never let the logger itself block the crash from propagating.
+            }
+            previousHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
+        installCrashLogger()
         application = this
         documentsTree = DocumentsTree()
         DirectoryInitialization.start()
