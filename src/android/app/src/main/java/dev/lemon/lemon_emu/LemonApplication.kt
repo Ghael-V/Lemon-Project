@@ -63,7 +63,13 @@ class LemonApplication : Application() {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val logFile = File(getExternalFilesDir(null), "crash_log.txt")
+                val logDir = File(getExternalFilesDir(null), "log").apply { mkdirs() }
+                val logFile = File(logDir, "crash_log.txt")
+                // Cap unbounded growth across repeated crashes in the wild instead of
+                // rotating: this file is for the next report, not a full crash history.
+                if (logFile.length() > MAX_CRASH_LOG_BYTES) {
+                    logFile.delete()
+                }
                 val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
                 FileOutputStream(logFile, true).bufferedWriter().use { writer ->
                     writer.appendLine("=== Crash at $timestamp on thread ${thread.name} ===")
@@ -100,6 +106,8 @@ class LemonApplication : Application() {
     }
 
     companion object {
+        private const val MAX_CRASH_LOG_BYTES = 256 * 1024
+
         var documentsTree: DocumentsTree? = null
         lateinit var application: LemonApplication
 

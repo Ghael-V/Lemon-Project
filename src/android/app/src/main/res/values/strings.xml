@@ -414,6 +414,9 @@
     <string name="share_gpu_log">Share GPU logs</string>
     <string name="share_gpu_log_description">Share Lemon\'s GPU log file to debug graphics issues</string>
     <string name="share_gpu_log_missing">No GPU log file found</string>
+    <string name="share_crash_log">Share crash log</string>
+    <string name="share_crash_log_description">Share the last crash Lemon recorded to help report a bug</string>
+    <string name="share_crash_log_missing">No crash log found</string>
     <string name="install_game_content">Install game content</string>
     <string name="install_game_content_description">Install game updates or DLC</string>
     <string name="installing_game_content">Installing content…</string>

@@ -402,6 +402,14 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
+                    R.string.share_crash_log,
+                    R.string.share_crash_log_description,
+                    R.drawable.ic_log,
+                    { shareCrashLog() }
+                )
+            )
+            add(
+                HomeSetting(
                     R.string.open_user_folder,
                     R.string.open_user_folder_description,
                     R.drawable.ic_folder_open,
@@ -634,6 +642,32 @@ class HomeSettingsFragment : Fragment() {
             Toast.makeText(
                 requireContext(),
                 getText(R.string.share_gpu_log_missing),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    // Shares the on-device crash_log.txt (written by LemonApplication's uncaught
+    // exception handler) so a user can report a crash without needing adb.
+    private fun shareCrashLog() {
+        val crashLog = DocumentFile.fromSingleUri(
+            mainActivity,
+            DocumentsContract.buildDocumentUri(
+                DocumentProvider.AUTHORITY,
+                "${DocumentProvider.ROOT_ID}/log/crash_log.txt"
+            )
+        )!!
+
+        if (crashLog.exists()) {
+            val intent = Intent(Intent.ACTION_SEND)
+                .setDataAndType(crashLog.uri, FileUtil.TEXT_PLAIN)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(Intent.EXTRA_STREAM, crashLog.uri)
+            startActivity(Intent.createChooser(intent, getText(R.string.share_crash_log)))
+        } else {
+            Toast.makeText(
+                requireContext(),
+                getText(R.string.share_crash_log_missing),
                 Toast.LENGTH_SHORT
             ).show()
         }
