@@ -1,4 +1,7 @@
 <!--
+# SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # SPDX-FileCopyrightText: Copyright 2025 Eden Emulator Project
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -9,89 +12,56 @@
 
 <h1 align="center">
   <br>
-  <a href="https://git.eden-emu.dev/eden-emu/eden"><img src="./src/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="Lemon" width="200"></a>
+  <img src="./src/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="Lemon" width="200">
   <br>
-  <b>Eden</b>
+  <b>Lemon</b>
   <br>
 </h1>
 
-<h4 align="center"><b>Eden</b> is a free and open-source (FOSS) Switch 1 emulator started by developer Camille LaVey.
-<br>
-Written in C++, with builds for Windows, Linux, macOS, Android, FreeBSD and more.
-</h4>
+<h4 align="center">A private, Android-only Nintendo Switch emulator built for Adreno GPUs.</h4>
 
 <p align="center">
-    </a>
-    <a href="https://discord.gg/HstXbPch7X">
-        <img src="https://img.shields.io/discord/1367654015269339267?color=5865F2&label=Eden&logo=discord&logoColor=white"
-            alt="Discord">
-    </a>
-    <a href="https://stt.gg/qKgFEAbH">
-        <img src="https://img.shields.io/revolt/invite/qKgFEAbH?color=d61f3a&label=Stoat"
-            alt="Stoat">
-    </a>
-</p>
-
-<p align="center">
-  <a href="#compatibility">Compatibility</a> |
-  <a href="#development">Development</a> |
+  <a href="#about">About</a> |
+  <a href="#scope">Scope</a> |
   <a href="#building">Building</a> |
-  <a href="#download">Download</a> |
-  <a href="#support">Support</a> |
   <a href="#license">License</a>
 </p>
 
-## About this fork (Lemon-Project)
+## About
 
-This is a private, Android-only fork of [Eden](https://git.eden-emu.dev/eden-emu/eden), trimmed down to just the
-Android app and its build system (no Qt/desktop/CLI/dedicated-room targets, no multi-platform CI). It exists to
-run on a single Android device with no dependency on a PC build.
+Lemon is a fork of [Eden](https://git.eden-emu.dev/eden-emu/eden), an open-source Switch emulator, trimmed down to
+just the Android app and stripped of everything that isn't needed to build and run it on a single Adreno-equipped
+Android device: no Qt/desktop/CLI targets, no multi-platform CI, no Mali/PowerVR-specific code paths.
 
-`prod.keys` and firmware are **not** part of this repository and never will be — obtaining them from your own
-legally owned console is entirely on you. This fork does not touch key derivation, decryption, or DRM in any way;
-it only builds the emulator app.
+This is a **private** project, not a public distribution — there's no download page, no community Discord, and no
+open call for contributions. It exists to run on the maintainer's own device(s).
 
-For anything not Android-specific (compatibility, general usage, most of the docs below), refer to
-[upstream Eden](https://git.eden-emu.dev/eden-emu/eden) — this fork doesn't change emulation behavior, only what
-gets built and how.
+Emulation behavior itself is unchanged from upstream Eden; this fork only changes what gets built, how, and the
+Android app's branding/UX around it.
 
-## Compatibility
+## Scope
 
-The emulator is capable of running most commercial games at full speed, provided you meet the necessary hardware requirements.
-
-A list of supported games will be available in future. Please be patient.
-
-Check out our [website](https://eden-emu.dev) for the latest news on exciting features, monthly progress reports, and more!
-
-[![Packaging status](https://repology.org/badge/vertical-allrepos/eden-emulator.svg)](https://repology.org/project/eden-emulator/versions)
-
-## Contribute
-
-To contribute to Eden; be it financially, code, bug reports, or otherwise, see our [Contributing guidelines](./CONTRIBUTING.md).
-
-## Documentation
-
-We have a user manual! See our [User Handbook](./docs/user/README.md).
+- **Android only.** Every desktop/CLI build target from upstream has been removed.
+- **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested.
+- **No keys, no firmware.** `prod.keys` and Switch firmware are not part of this repository and never will be —
+  sourcing them from your own legally owned console is entirely on you. This fork does not touch key derivation,
+  decryption, or DRM in any way; it only builds the emulator app.
 
 ## Building
 
-See the [General Build Guide](docs/Build.md)
-
-For information on provided development tooling, see the [Tools directory](./tools)
-
-## Download
-
-You can download the latest releases from [our release page](https://git.eden-emu.dev/eden-emu/eden/releases).
-
-Save us some bandwidth! We have [mirrors available](./docs/user/ThirdParty.md#mirrors) as well.
+See the [Android build guide](docs/build/Android.md) for dependencies and setup (some of it still describes
+upstream Eden's multi-platform workflow, since this fork hasn't rewritten it end to end). In practice, every push
+to `main` builds automatically via [GitHub Actions](.github/workflows/android-build.yml), so a local Android Studio
+setup usually isn't necessary just to get an APK.
 
 ## License
 
-Eden is licensed under the GPLv3 (or any later version). Refer to the [LICENSE.txt](https://git.eden-emu.dev/eden-emu/eden/src/branch/master/LICENSE.txt) file.
+Lemon, like Eden, is licensed under the GPLv3 (or any later version). Refer to [LICENSE.txt](./LICENSE.txt).
 
 ## Special thanks
 
-Super special thanks to Cloudflare for preventing the git server from blowing up.
+This project stands on the work of Eden and, before it, yuzu — and the broader community of Switch emulator forks
+that came out of yuzu's shutdown:
 
 - Yuzu
 - Ryujinx
@@ -101,4 +71,4 @@ Super special thanks to Cloudflare for preventing the git server from blowing up
 - Suyu
 - Ryubing
 
-And everyone who continues or had contributed to the project! <3
+And everyone who continues or has contributed to any of them. <3
