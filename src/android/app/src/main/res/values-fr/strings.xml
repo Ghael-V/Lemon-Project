@@ -391,7 +391,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia n\'est pas réel</string>
     <string name="copied_to_clipboard">Copié dans le presse-papier</string>
-    <string name="about_app_description">Un émulateur Switch open source</string>
+    <string name="about_app_description">Un émulateur Nintendo Switch privé, exclusivement pour Android, conçu pour les GPU Adreno</string>
     <string name="contributors">Contributeurs</string>
     <string name="contributors_description">Les gens qui ont rendu possible Eden pour Android</string>
     <string name="licenses_description">Des projets qui rendent possible Lemon pour Android</string>

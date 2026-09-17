@@ -366,7 +366,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia isn\'t real</string>
     <string name="copied_to_clipboard">در کلیپ‌بورد کپی شد</string>
-    <string name="about_app_description">یک شبیه‌ساز سوئیچ منبع باز</string>
+    <string name="about_app_description">یک شبیه‌ساز خصوصی Nintendo Switch، مخصوص اندروید، ساخته‌شده برای پردازنده‌های گرافیکی Adreno</string>
     <string name="contributors">مشارکت کنندگان</string>
     <string name="contributors_description">Made with \u2764 from the Eden team</string>
     <string name="licenses_description">پروژه‌هایی که Lemon را برای اندروید ممکن می‌سازند</string>

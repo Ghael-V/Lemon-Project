@@ -306,7 +306,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia לא אמיתית</string>
     <string name="copied_to_clipboard">הועתק ללוח</string>
-    <string name="about_app_description">אמולטור Switch עם קוד פתוח</string>
+    <string name="about_app_description">מדמה Nintendo Switch פרטי, ייעודי לאנדרואיד בלבד, בנוי עבור מעבדי גרפיקה מסוג Adreno</string>
     <string name="contributors">תורמים</string>
     <string name="licenses_description">פרוייקטים שהופכים את Lemon ל Android אפשרי</string>
     <string name="build">גרסה</string>

@@ -296,7 +296,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia nem valódi</string>
     <string name="copied_to_clipboard">Másolva a vágólapra</string>
-    <string name="about_app_description">Egy nyílt forráskódú Switch emulátor</string>
+    <string name="about_app_description">Privát, kizárólag Androidra készült Nintendo Switch emulátor Adreno GPU-khoz</string>
     <string name="contributors">Hozzájárulók</string>
     <string name="licenses_description">Projektek, amik nélkül a Lemon nem jöhetett volna létre Androidra</string>
     <string name="user_data">Felhasználói adatok</string>

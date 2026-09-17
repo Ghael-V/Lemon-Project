@@ -381,7 +381,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia není skutečná</string>
     <string name="copied_to_clipboard">Zkopírováno do schránky</string>
-    <string name="about_app_description">Open-source emulátor konzole Switch</string>
+    <string name="about_app_description">Soukromý emulátor Nintendo Switch pouze pro Android, vytvořený pro grafické čipy Adreno</string>
     <string name="contributors">Přispěvatelé</string>
     <string name="licenses_description">Lemon pro Android bylo možné zrealizovat díky těmto projektům</string>
     <string name="build">Číslo sestavení</string>

@@ -298,7 +298,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">ガイアは実在しない</string>
     <string name="copied_to_clipboard">クリップボードにコピーしました</string>
-    <string name="about_app_description">オープンソースのSwitchエミュレータ</string>
+    <string name="about_app_description">Adreno GPU向けに作られた、Android専用のプライベートなNintendo Switchエミュレーター</string>
     <string name="contributors">貢献者</string>
     <string name="licenses_description">Lemon for Androidの作成を可能にしたプロジェクト</string>
     <string name="build">ビルド</string>

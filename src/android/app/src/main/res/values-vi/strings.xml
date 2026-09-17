@@ -285,7 +285,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia không có thật</string>
     <string name="copied_to_clipboard">Đã sao chép vào bộ nhớ tạm</string>
-    <string name="about_app_description">Một giả lập Switch mã nguồn mở</string>
+    <string name="about_app_description">Trình giả lập Nintendo Switch riêng tư, chỉ dành cho Android, được xây dựng cho GPU Adreno</string>
     <string name="contributors">Người đóng góp</string>
     <string name="licenses_description">Các dự án làm cho Lemon trên Android trở thành điều có thể</string>
     <string name="build">Dựng</string>

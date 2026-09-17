@@ -295,7 +295,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">가이아는 진짜가 아님</string>
     <string name="copied_to_clipboard">클립보드에 복사되었습니다.</string>
-    <string name="about_app_description">오픈 소스 Switch 에뮬레이터</string>
+    <string name="about_app_description">Adreno GPU를 위해 만들어진 비공개 Android 전용 Nintendo Switch 에뮬레이터</string>
     <string name="contributors">기여자</string>
     <string name="licenses_description">Android용 Lemon를 가능하게 하는 프로젝트</string>
     <string name="build">빌드</string>

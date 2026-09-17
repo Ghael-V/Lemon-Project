@@ -462,7 +462,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia не существует</string>
     <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
-    <string name="about_app_description">Эмулятор Switch с открытым исходным кодом</string>
+    <string name="about_app_description">Приватный эмулятор Nintendo Switch только для Android, созданный для GPU Adreno</string>
     <string name="contributors">Контрибьюторы</string>
     <string name="contributors_description">Люди, благодаря которым появился Eden для Android</string>
     <string name="licenses_description">Проекты, которые сделали Lemon для Android возможным</string>

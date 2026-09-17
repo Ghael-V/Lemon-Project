@@ -482,7 +482,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia غير حقيقي</string>
     <string name="copied_to_clipboard">نسخ إلى الحافظة</string>
-    <string name="about_app_description">محاكي Switch مفتوح المصدر</string>
+    <string name="about_app_description">محاكي Nintendo Switch خاص وحصري لأجهزة أندرويد، مصمم لمعالجات Adreno الرسومية</string>
     <string name="contributors">المساهمين</string>
     <string name="contributors_description">الأشخاص الذين جعلوا تطبيق Eden لنظام Android ممكنًا</string>
     <string name="licenses_description">المشاريع التي تجعل Lemon لأجهزة Android ممكنة</string>

@@ -325,7 +325,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia tidak nyata</string>
     <string name="copied_to_clipboard">Salin ke papan klip</string>
-    <string name="about_app_description">Emulator Switch Open-Source</string>
+    <string name="about_app_description">Emulator Nintendo Switch pribadi, khusus Android, dibuat untuk GPU Adreno</string>
     <string name="contributors">Kontributor</string>
     <string name="licenses_description">Proyek yang memungkinkan Lemon untuk Android</string>
     <string name="build">Versi</string>

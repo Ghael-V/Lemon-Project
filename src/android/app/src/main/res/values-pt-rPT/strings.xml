@@ -299,7 +299,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia não é real</string>
     <string name="copied_to_clipboard">Copiado para a área de transferência</string>
-    <string name="about_app_description">Um emulador Switch de código aberto</string>
+    <string name="about_app_description">Um emulador privado de Nintendo Switch, exclusivo para Android, feito para GPUs Adreno</string>
     <string name="contributors">Contribuidores</string>
     <string name="licenses_description">Projetos que tornam o Lemon para Android possível</string>
     <string name="build">Versão</string>

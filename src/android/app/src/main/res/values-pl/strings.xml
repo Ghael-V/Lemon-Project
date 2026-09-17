@@ -381,7 +381,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia isn\'t real</string>
     <string name="copied_to_clipboard">Skopiowano do schowka</string>
-    <string name="about_app_description">Otwarto-źródłowy emulator konsoli Switch</string>
+    <string name="about_app_description">Prywatny emulator Nintendo Switch tylko na Androida, stworzony z myślą o GPU Adreno</string>
     <string name="contributors">Współtwórcy</string>
     <string name="licenses_description">Projekty dzięki którym Lemon mógł zostać stworzony</string>
     <string name="build">Wersja</string>
