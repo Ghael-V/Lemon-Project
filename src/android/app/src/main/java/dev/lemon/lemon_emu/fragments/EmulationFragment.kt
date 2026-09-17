@@ -6,14 +6,17 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.AlertDialog
+import android.app.PendingIntent
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
@@ -94,7 +97,11 @@ import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.InputHandler
 import dev.lemon.lemon_emu.utils.Log
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.preference.PreferenceManager
+import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.NativeConfig
 import dev.lemon.lemon_emu.utils.PerformancePresets
 import dev.lemon.lemon_emu.utils.NativeFreedrenoConfig
@@ -161,7 +168,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private val quickSettings = QuickSettings(this)
 
     private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
-    private var thermalDowngradeApplied = false
+    private var perfWatchdogRunnable: Runnable? = null
+    private var perfWatchdogBadStreak = 0
+    private var adaptivePerformanceDowngradeApplied = false
+
+    private enum class AdaptiveDowngradeReason { THERMAL, PERFORMANCE }
 
     private val loadAmiiboLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -686,6 +697,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         buildId = buildVersion.split("-").getOrNull(0) ?: ""
         driverInUse = driverViewModel.selectedDriverVersion.value
         registerThermalListener()
+        registerPerformanceWatchdog()
 
         updateQuickOverlayMenuEntry(BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean())
         onPhysicalControllerStateChanged(InputHandler.androidControllers.isNotEmpty())
@@ -1489,27 +1501,32 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         _binding = null
         isAmiiboPickerOpen = false
         unregisterThermalListener()
+        unregisterPerformanceWatchdog()
     }
 
-    // Opt-in (off by default): if the device gets dangerously hot mid-session, drop to the
-    // Battery preset once. Devices with active cooling (handhelds, etc.) may not want this at
-    // all, hence the toggle in Settings rather than always-on behavior.
+    private fun adaptivePerformanceEnabled(): Boolean {
+        val context = context ?: return false
+        return PreferenceManager.getDefaultSharedPreferences(context)
+            .getBoolean(PerformancePresets.PREF_ADAPTIVE_PERFORMANCE, true)
+    }
+
+    // On by default: a device with its own active cooling simply won't hit the thermal trigger,
+    // and either trigger firing posts a notification pointing back at the Settings toggle for
+    // anyone who'd rather manage performance themselves.
     private fun registerThermalListener() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || thermalListener != null) {
             return
         }
         val context = context ?: return
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        if (!prefs.getBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, false)) {
+        if (!adaptivePerformanceEnabled()) {
             return
         }
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             ?: return
-        thermalDowngradeApplied = false
         val listener = PowerManager.OnThermalStatusChangedListener { status ->
             if (status >= PowerManager.THERMAL_STATUS_SEVERE) {
-                handler.post { downgradePerformancePresetForThermal() }
+                handler.post { applyAdaptiveDowngrade(AdaptiveDowngradeReason.THERMAL) }
             }
         }
         thermalListener = listener
@@ -1527,11 +1544,52 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         powerManager.removeThermalStatusListener(listener)
     }
 
-    private fun downgradePerformancePresetForThermal() {
-        if (thermalDowngradeApplied || _binding == null) {
+    // Polls the same NativeLibrary.getPerfStats() the on-screen overlay uses, independently of
+    // whether that overlay is shown. Index 3 is emulation_speed - a ratio of emulated time to
+    // real time (1.0 = real-time), which is what "can't keep up" actually means regardless of
+    // whether a given game targets 30 or 60fps. Requires several consecutive bad samples before
+    // acting so a loading screen or one rough cutscene doesn't trigger it.
+    private fun registerPerformanceWatchdog() {
+        if (perfWatchdogRunnable != null || !adaptivePerformanceEnabled()) {
             return
         }
-        thermalDowngradeApplied = true
+        perfWatchdogBadStreak = 0
+        val runnable = object : Runnable {
+            override fun run() {
+                if (_binding == null) {
+                    return
+                }
+                if (emulationViewModel.emulationStarted.value &&
+                    !emulationViewModel.isEmulationStopping.value &&
+                    !adaptivePerformanceDowngradeApplied
+                ) {
+                    val speed = NativeLibrary.getPerfStats().getOrElse(3) { 1.0 }
+                    if (speed < PERF_WATCHDOG_SPEED_THRESHOLD) {
+                        perfWatchdogBadStreak++
+                        if (perfWatchdogBadStreak >= PERF_WATCHDOG_BAD_SAMPLES_NEEDED) {
+                            applyAdaptiveDowngrade(AdaptiveDowngradeReason.PERFORMANCE)
+                        }
+                    } else {
+                        perfWatchdogBadStreak = 0
+                    }
+                }
+                handler.postDelayed(this, PERF_WATCHDOG_INTERVAL_MS)
+            }
+        }
+        perfWatchdogRunnable = runnable
+        handler.postDelayed(runnable, PERF_WATCHDOG_INTERVAL_MS)
+    }
+
+    private fun unregisterPerformanceWatchdog() {
+        perfWatchdogRunnable?.let { handler.removeCallbacks(it) }
+        perfWatchdogRunnable = null
+    }
+
+    private fun applyAdaptiveDowngrade(reason: AdaptiveDowngradeReason) {
+        if (adaptivePerformanceDowngradeApplied || _binding == null) {
+            return
+        }
+        adaptivePerformanceDowngradeApplied = true
 
         PerformancePresets.apply(PerformancePresets.Preset.BATTERY)
         if (shouldUseCustom) {
@@ -1540,8 +1598,53 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             NativeConfig.saveGlobalConfig()
         }
 
-        Toast.makeText(requireContext(), R.string.thermal_throttle_applied, Toast.LENGTH_LONG)
-            .show()
+        val toastRes = when (reason) {
+            AdaptiveDowngradeReason.THERMAL -> R.string.thermal_throttle_applied
+            AdaptiveDowngradeReason.PERFORMANCE -> R.string.perf_throttle_applied
+        }
+        Toast.makeText(requireContext(), toastRes, Toast.LENGTH_LONG).show()
+        postAdaptivePerformanceNotification(reason)
+    }
+
+    private fun postAdaptivePerformanceNotification(reason: AdaptiveDowngradeReason) {
+        val context = context ?: return
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val textRes = when (reason) {
+            AdaptiveDowngradeReason.THERMAL -> R.string.adaptive_performance_notif_thermal_text
+            AdaptiveDowngradeReason.PERFORMANCE -> R.string.adaptive_performance_notif_perf_text
+        }
+
+        val openAppIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(
+            context,
+            getString(R.string.notice_notification_channel_id)
+        )
+            .setSmallIcon(R.drawable.ic_stat_notification_logo)
+            .setContentTitle(getString(R.string.adaptive_performance_notif_title))
+            .setContentText(getString(textRes))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(getString(textRes)))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(openAppIntent)
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(
+            ADAPTIVE_PERFORMANCE_NOTIFICATION_ID,
+            notification
+        )
     }
 
     override fun onDetach() {
@@ -2545,6 +2648,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             arrayOf("application/octet-stream", "application/x-binary", "*/*")
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
         private val socUpdateHandler = Handler(Looper.myLooper()!!)
+
+        private const val PERF_WATCHDOG_INTERVAL_MS = 1000L
+        private const val PERF_WATCHDOG_SPEED_THRESHOLD = 0.7
+        private const val PERF_WATCHDOG_BAD_SAMPLES_NEEDED = 8 // ~8s sustained, not a one-off dip
+        private const val ADAPTIVE_PERFORMANCE_NOTIFICATION_ID = 4242
     }
 
     private fun startOverlayAutoHideTimer(seconds: Int) {

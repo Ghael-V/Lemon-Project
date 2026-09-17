@@ -174,10 +174,10 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
-                    R.string.thermal_auto_throttle,
-                    R.string.thermal_auto_throttle_description,
+                    R.string.adaptive_performance,
+                    R.string.adaptive_performance_description,
                     R.drawable.ic_frames,
-                    { showThermalAutoThrottleDialog() }
+                    { showAdaptivePerformanceDialog() }
                 )
             )
             add(
@@ -217,18 +217,18 @@ class HomeSettingsFragment : Fragment() {
             .show()
     }
 
-    private fun showThermalAutoThrottleDialog() {
+    private fun showAdaptivePerformanceDialog() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val labels = arrayOf(getString(R.string.enabled), getString(R.string.disabled))
         val currentIndex =
-            if (prefs.getBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, false)) 0 else 1
+            if (prefs.getBoolean(PerformancePresets.PREF_ADAPTIVE_PERFORMANCE, true)) 0 else 1
 
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.thermal_auto_throttle)
-            .setMessage(R.string.thermal_auto_throttle_description)
+            .setTitle(R.string.adaptive_performance)
+            .setMessage(R.string.adaptive_performance_description)
             .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
                 prefs.edit {
-                    putBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, which == 0)
+                    putBoolean(PerformancePresets.PREF_ADAPTIVE_PERFORMANCE, which == 0)
                 }
                 dialog.dismiss()
             }

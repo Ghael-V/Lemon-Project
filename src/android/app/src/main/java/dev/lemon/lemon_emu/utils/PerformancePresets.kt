@@ -11,9 +11,10 @@ import dev.lemon.lemon_emu.features.settings.model.IntSetting
 // Shared between the global preset (HomeSettingsFragment) and the per-game override
 // (GameAdapter's quick menu) so both write the exact same values.
 object PerformancePresets {
-    // Shared preference key for the opt-in thermal auto-throttle toggle (off by default -
-    // devices with active cooling, e.g. gaming handhelds, may not want this at all).
-    const val PREF_THERMAL_AUTO_THROTTLE = "thermal_auto_throttle_enabled"
+    // Shared preference key for the adaptive-performance toggle (on by default - a device with
+    // its own active cooling simply won't hit the thermal trigger, and the notification posted
+    // when either trigger fires always points back to this toggle for anyone who wants it off).
+    const val PREF_ADAPTIVE_PERFORMANCE = "adaptive_performance_enabled"
 
     enum class Preset(val titleRes: Int) {
         BATTERY(R.string.preset_battery),
