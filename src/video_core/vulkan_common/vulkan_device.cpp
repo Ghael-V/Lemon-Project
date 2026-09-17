@@ -547,12 +547,11 @@ Device::Device(VkInstance instance_, vk::PhysicalDevice physical_, VkSurfaceKHR 
         const int api_level = android_get_device_api_level();
 
         bool should_patch_bcn = api_level >= 28;
-        const bool bcn_debug_override = Settings::values.patch_old_qcom_drivers.GetValue();
-        if (bcn_debug_override != should_patch_bcn) {
+        if (Settings::values.patch_old_qcom_drivers.GetValue()) {
             LOG_WARNING(Render_Vulkan,
-                "BCn patch debug override active: {} (auto-detected: {})",
-                bcn_debug_override, should_patch_bcn);
-            should_patch_bcn = bcn_debug_override;
+                "BCn patch debug override active: forcing patch enabled (auto-detected: {})",
+                should_patch_bcn);
+            should_patch_bcn = true;
         }
 
         if (patch_status == ADRENOTOOLS_BCN_PATCH) {
