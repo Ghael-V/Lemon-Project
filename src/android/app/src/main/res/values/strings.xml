@@ -844,10 +844,15 @@
     <string name="no_recommended_driver_available">No recommended driver found for this GPU yet</string>
     <string name="performance_preset">Performance preset</string>
     <string name="performance_preset_description">Quickly switch between battery life and visual quality</string>
+    <string name="thermal_auto_throttle">Auto-adjust for temperature</string>
+    <string name="thermal_auto_throttle_description">If the device gets too hot during play, automatically drop to the Battery preset. Off by default - leave disabled if your device already has active cooling.</string>
+    <string name="thermal_throttle_applied">Device is running hot - switched to Battery preset</string>
+    <string name="enabled">Enabled</string>
     <string name="preset_battery">Battery saver</string>
     <string name="preset_balanced">Balanced</string>
     <string name="preset_quality">Best quality</string>
     <string name="preset_applied">%1$s preset applied</string>
+    <string name="preset_applied_per_game">%1$s preset applied for this game</string>
     <string name="gpu_model">GPU Model</string>
     <string name="unsupported_gpu">Unsupported GPU</string>
     <string name="unsupported_gpu_warning">Your GPU does not support driver injection. Attempting to set custom drivers is not recommended.</string>

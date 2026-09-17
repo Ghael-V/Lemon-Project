@@ -31,6 +31,9 @@ import dev.lemon.lemon_emu.databinding.CardGameCarouselBinding
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.utils.GameIconUtils
+import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.utils.PerformancePresets
+import dev.lemon.lemon_emu.features.settings.utils.SettingsFile
 import dev.lemon.lemon_emu.utils.ViewUtils.marquee
 import dev.lemon.lemon_emu.viewholder.AbstractViewHolder
 import androidx.core.net.toUri
@@ -300,12 +303,14 @@ class GameAdapter(private val activity: AppCompatActivity) :
             val playId = 0
             val driverId = 1
             val propertiesId = 2
+            val performanceId = 3
 
             popup.menu.add(0, playId, 0, R.string.play)
             if (GpuDriverHelper.isAdrenoGpu()) {
                 popup.menu.add(0, driverId, 1, R.string.freedreno_per_game_title)
             }
             popup.menu.add(0, propertiesId, 2, R.string.per_game_settings)
+            popup.menu.add(0, performanceId, 3, R.string.performance_preset)
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -324,12 +329,40 @@ class GameAdapter(private val activity: AppCompatActivity) :
                             HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
                         binding.root.findNavController().navigate(action)
                     }
+
+                    performanceId -> showPerformancePresetDialog(game)
                 }
                 true
             }
 
             popup.show()
             return true
+        }
+
+        private fun showPerformancePresetDialog(game: Game) {
+            val presets = PerformancePresets.Preset.entries.toTypedArray()
+            val labels = presets.map { activity.getString(it.titleRes) }.toTypedArray()
+
+            MaterialAlertDialogBuilder(activity)
+                .setTitle(R.string.performance_preset)
+                .setItems(labels) { dialog, which ->
+                    val preset = presets[which]
+                    SettingsFile.loadCustomConfig(game)
+                    PerformancePresets.apply(preset)
+                    NativeConfig.savePerGameConfig()
+                    NativeConfig.unloadPerGameConfig()
+                    dialog.dismiss()
+                    Toast.makeText(
+                        activity,
+                        activity.getString(
+                            R.string.preset_applied_per_game,
+                            activity.getString(preset.titleRes)
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
+                .show()
         }
     }
 }

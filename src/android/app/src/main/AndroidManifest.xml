@@ -106,6 +106,17 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Keep emulation running in background"/>
         </service>
 
+        <service
+            android:name="dev.lemon.lemon_emu.utils.PerformanceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_graphics"
+            android:label="@string/performance_preset"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name=".features.DocumentProvider"
             android:authorities="${applicationId}.user"

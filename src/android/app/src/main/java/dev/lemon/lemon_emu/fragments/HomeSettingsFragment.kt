@@ -23,8 +23,10 @@ import androidx.core.view.updatePadding
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.core.content.edit
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
@@ -36,7 +38,6 @@ import dev.lemon.lemon_emu.adapters.HomeSettingAdapter
 import dev.lemon.lemon_emu.databinding.FragmentHomeSettingsBinding
 import dev.lemon.lemon_emu.features.DocumentProvider
 import dev.lemon.lemon_emu.features.fetcher.SpacingItemDecoration
-import dev.lemon.lemon_emu.features.settings.model.IntSetting
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
 import dev.lemon.lemon_emu.model.DriverViewModel
@@ -48,6 +49,7 @@ import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.Log
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.utils.PerformancePresets
 import dev.lemon.lemon_emu.utils.ViewUtils.updateMargins
 
 class HomeSettingsFragment : Fragment() {
@@ -172,6 +174,14 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
+                    R.string.thermal_auto_throttle,
+                    R.string.thermal_auto_throttle_description,
+                    R.drawable.ic_frames,
+                    { showThermalAutoThrottleDialog() }
+                )
+            )
+            add(
+                HomeSetting(
                     R.string.manage_game_folders,
                     R.string.select_games_folder_description,
                     R.drawable.ic_add,
@@ -186,58 +196,41 @@ class HomeSettingsFragment : Fragment() {
             )
         }
 
-    // Applies known-good combinations of settings a user could already reach individually via
-    // Advanced Settings > Graphics - this is a shortcut, not a new tuning behavior.
-    private enum class PerformancePreset(val titleRes: Int) {
-        BATTERY(R.string.preset_battery),
-        BALANCED(R.string.preset_balanced),
-        QUALITY(R.string.preset_quality)
-    }
-
-    private fun applyPerformancePreset(preset: PerformancePreset) {
-        when (preset) {
-            PerformancePreset.BATTERY -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(1) // Res1_2X (50%)
-                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
-                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
-
-            PerformancePreset.BALANCED -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(3) // Res1X (native)
-                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
-                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
-
-            PerformancePreset.QUALITY -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(6) // Res2X
-                IntSetting.RENDERER_SCALING_FILTER.setInt(2) // Bicubic
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(1) // Fxaa
-                IntSetting.RENDERER_ACCURACY.setInt(1) // High
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
-        }
-        NativeConfig.saveGlobalConfig()
-    }
-
     private fun showPerformancePresetDialog() {
-        val presets = PerformancePreset.entries.toTypedArray()
+        val presets = PerformancePresets.Preset.entries.toTypedArray()
         val labels = presets.map { getString(it.titleRes) }.toTypedArray()
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.performance_preset)
             .setItems(labels) { dialog, which ->
                 val preset = presets[which]
-                applyPerformancePreset(preset)
+                PerformancePresets.apply(preset)
+                NativeConfig.saveGlobalConfig()
                 dialog.dismiss()
                 Toast.makeText(
                     requireContext(),
                     getString(R.string.preset_applied, getString(preset.titleRes)),
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
+            .show()
+    }
+
+    private fun showThermalAutoThrottleDialog() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val labels = arrayOf(getString(R.string.enabled), getString(R.string.disabled))
+        val currentIndex =
+            if (prefs.getBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, false)) 0 else 1
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.thermal_auto_throttle)
+            .setMessage(R.string.thermal_auto_throttle_description)
+            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                prefs.edit {
+                    putBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, which == 0)
+                }
+                dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
             .show()

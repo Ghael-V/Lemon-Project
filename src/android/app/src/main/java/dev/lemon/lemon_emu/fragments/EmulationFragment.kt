@@ -23,6 +23,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Rational
 import android.view.Gravity
@@ -93,7 +94,9 @@ import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.InputHandler
 import dev.lemon.lemon_emu.utils.Log
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
+import androidx.preference.PreferenceManager
 import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.utils.PerformancePresets
 import dev.lemon.lemon_emu.utils.NativeFreedrenoConfig
 import dev.lemon.lemon_emu.utils.NativePostProcessing
 import dev.lemon.lemon_emu.utils.ViewUtils
@@ -156,6 +159,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     var shouldUseCustom = false
     private var isQuickSettingsMenuOpen = false
     private val quickSettings = QuickSettings(this)
+
+    private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
+    private var thermalDowngradeApplied = false
 
     private val loadAmiiboLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -679,6 +685,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val buildVersion = NativeLibrary.getBuildVersion()
         buildId = buildVersion.split("-").getOrNull(0) ?: ""
         driverInUse = driverViewModel.selectedDriverVersion.value
+        registerThermalListener()
 
         updateQuickOverlayMenuEntry(BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean())
         onPhysicalControllerStateChanged(InputHandler.androidControllers.isNotEmpty())
@@ -1481,6 +1488,60 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         _binding?.surfaceInputOverlay?.touchEventListener = null
         _binding = null
         isAmiiboPickerOpen = false
+        unregisterThermalListener()
+    }
+
+    // Opt-in (off by default): if the device gets dangerously hot mid-session, drop to the
+    // Battery preset once. Devices with active cooling (handhelds, etc.) may not want this at
+    // all, hence the toggle in Settings rather than always-on behavior.
+    private fun registerThermalListener() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || thermalListener != null) {
+            return
+        }
+        val context = context ?: return
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        if (!prefs.getBoolean(PerformancePresets.PREF_THERMAL_AUTO_THROTTLE, false)) {
+            return
+        }
+
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            ?: return
+        thermalDowngradeApplied = false
+        val listener = PowerManager.OnThermalStatusChangedListener { status ->
+            if (status >= PowerManager.THERMAL_STATUS_SEVERE) {
+                handler.post { downgradePerformancePresetForThermal() }
+            }
+        }
+        thermalListener = listener
+        powerManager.addThermalStatusListener(listener)
+    }
+
+    private fun unregisterThermalListener() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return
+        }
+        val listener = thermalListener ?: return
+        thermalListener = null
+        val powerManager =
+            context?.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        powerManager.removeThermalStatusListener(listener)
+    }
+
+    private fun downgradePerformancePresetForThermal() {
+        if (thermalDowngradeApplied || _binding == null) {
+            return
+        }
+        thermalDowngradeApplied = true
+
+        PerformancePresets.apply(PerformancePresets.Preset.BATTERY)
+        if (shouldUseCustom) {
+            NativeConfig.savePerGameConfig()
+        } else {
+            NativeConfig.saveGlobalConfig()
+        }
+
+        Toast.makeText(requireContext(), R.string.thermal_throttle_applied, Toast.LENGTH_LONG)
+            .show()
     }
 
     override fun onDetach() {
