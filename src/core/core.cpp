@@ -437,21 +437,40 @@ struct System::Impl {
         LOG_INFO(Core, "ShutdownMainProcess: entering SuspendEmulation(true)");
         kernel.SuspendEmulation(true);
         LOG_INFO(Core, "ShutdownMainProcess: SuspendEmulation(true) returned");
+        // DIAGNOSTIC (experimental branch, savestate investigation): bracketing every teardown
+        // step below to find which one hangs after SuspendEmulation(true) returns - see notes
+        // above and in KernelCore::SuspendEmulation.
+        LOG_INFO(Core, "ShutdownMainProcess: entering kernel.CloseServices()");
         kernel.CloseServices();
+        LOG_INFO(Core, "ShutdownMainProcess: entering kernel.ShutdownCores()");
         kernel.ShutdownCores();
+        LOG_INFO(Core, "ShutdownMainProcess: entering services.reset()");
         services.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering service_manager.reset()");
         service_manager.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering fs_controller.Reset()");
         fs_controller.Reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering cheat_engine.reset()");
         cheat_engine.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering core_timing.ClearPendingEvents()");
         core_timing.ClearPendingEvents();
+        LOG_INFO(Core, "ShutdownMainProcess: entering app_loader.reset()");
         app_loader.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering audio_core.reset()");
         audio_core.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering gpu_core.reset()");
         gpu_core.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering host1x_core.reset()");
         host1x_core.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering perf_stats.reset()");
         perf_stats.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering cpu_manager.Shutdown()");
         cpu_manager.Shutdown();
+        LOG_INFO(Core, "ShutdownMainProcess: entering debugger.reset()");
         debugger.reset();
+        LOG_INFO(Core, "ShutdownMainProcess: entering kernel.Shutdown()");
         kernel.Shutdown();
+        LOG_INFO(Core, "ShutdownMainProcess: all teardown steps returned");
         stop_event = {};
         Network::RestartSocketOperations();
 
