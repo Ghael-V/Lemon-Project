@@ -32,29 +32,6 @@ Files: externals/FidelityFX-FSR/*
 Copyright: 2021 Advanced Micro Devices, Inc.
 License: MIT
 
-Files: src/yuzu/*.ui
-Copyright: 2018-2022 yuzu Emulator Project
-License: GPL-2.0-or-later
-
-Files: src/yuzu/loading_screen.ui
-Copyright: 2019 James Rowe <jroweboy@gmail.com>
-License: GPL-2.0-or-later
-
-Files: src/yuzu/applets/aboutdialog.ui
-       src/yuzu/applets/qt_software_keyboard.ui
-       src/yuzu/util/overlay_dialog.ui
-Copyright: 2020-2021 Its-Rei <kupfel@gmail.com>
-           2020-2021 yuzu Emulator Project
-License: GPL-2.0-or-later
-
-Files: .github/ISSUE_TEMPLATE/*
-Copyright: 2022 yuzu Emulator Project
-License: GPL-2.0-or-later
-
-Files: src/android/app/src/ea/res/*
-Copyright: 2023 yuzu Emulator Project
-License: GPL-3.0-or-later
-
 Files: src/android/app/src/main/res/*
 Copyright: 2023 yuzu Emulator Project
 License: GPL-3.0-or-later
@@ -86,7 +63,6 @@ Files: CMakeModules/CPMUtil.cmake
        tools/cpm/*
        tools/update-cpm.sh
        tools/shellcheck.sh
-       docs/CPMUtil.md
        **cpmfile.json
 Copyright: 2025 crueter <crueter@crueter.xyz>
 License: GPL-3.0-or-later

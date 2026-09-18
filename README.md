@@ -49,10 +49,27 @@ Android app's branding/UX around it.
 
 ## Building
 
-See the [Android build guide](docs/build/Android.md) for dependencies and setup (some of it still describes
-upstream Eden's multi-platform workflow, since this fork hasn't rewritten it end to end). In practice, every push
-to `main` builds automatically via [GitHub Actions](.github/workflows/android-build.yml), so a local Android Studio
-setup usually isn't necessary just to get an APK.
+Every push to `main` builds automatically via [GitHub Actions](.github/workflows/android-build.yml), so a local
+Android Studio setup usually isn't necessary just to get an APK. To build locally:
+
+**Dependencies:** [Android Studio](https://developer.android.com/studio), NDK 27+ and CMake 3.22.1 (installable
+from Android Studio's SDK Manager), and Git.
+
+```sh
+git clone --recursive https://github.com/Ghael-V/Lemon-Project.git
+```
+
+Then either open `Lemon-Project/src/android` in Android Studio and use `Run > Run 'app'`, or from a terminal:
+
+```sh
+export ANDROID_SDK_ROOT=path/to/sdk
+export ANDROID_NDK_ROOT=path/to/ndk
+cd Lemon-Project/src/android
+./gradlew assembleMainlineRelWithDebInfo
+```
+
+`.ci/android/build.sh` (used by CI) wraps the same Gradle build with a friendlier flavor/build-type flag interface —
+run it with `--help` for details.
 
 ## License
 
