@@ -99,8 +99,19 @@ ServerManager::~ServerManager() {
     m_stop_source.request_stop();
     m_wakeup_event->Signal(m_system.Kernel());
 
+    // DIAGNOSTIC (experimental branch, savestate investigation): CloseServices() clears the
+    // vector holding these, so this destructor's own m_stopped.Wait() is the exact call that
+    // round-3 logging traced the hang into. This should identify which service's worker thread
+    // never notices the stop request. Temporary, meant to come back out once root-caused.
+    LOG_INFO(Service, "ServerManager::~ServerManager for '{}': waiting for m_stopped",
+             m_debug_label.empty() ? "?" : m_debug_label);
+
     // Wait for processing to stop.
     m_stopped.Wait();
+
+    LOG_INFO(Service, "ServerManager::~ServerManager for '{}': m_stopped signaled",
+             m_debug_label.empty() ? "?" : m_debug_label);
+
     m_threads.clear();
 
     // Clean up ports.
@@ -153,6 +164,12 @@ Result ServerManager::RegisterSession(Kernel::KServerSession* server_session,
 Result ServerManager::RegisterNamedService(const std::string& service_name,
                                            SessionRequestHandlerFactory&& handler_factory,
                                            u32 max_sessions) {
+    // DIAGNOSTIC (experimental branch, savestate investigation): see the note in
+    // ~ServerManager(). Temporary.
+    if (m_debug_label.empty()) {
+        m_debug_label = service_name;
+    }
+
     // Add the new server to sm: and get the moved server port.
     Kernel::KServerPort* server_port{};
     R_ASSERT(m_system.ServiceManager().RegisterService(std::addressof(server_port), service_name,
@@ -186,6 +203,12 @@ Result ServerManager::RegisterNamedService(const std::string& service_name,
 Result ServerManager::ManageNamedPort(const std::string& service_name,
                                       SessionRequestHandlerFactory&& handler_factory,
                                       u32 max_sessions) {
+    // DIAGNOSTIC (experimental branch, savestate investigation): see the note in
+    // ~ServerManager(). Temporary.
+    if (m_debug_label.empty()) {
+        m_debug_label = service_name;
+    }
+
     // Create a new port.
     auto* port = Kernel::KPort::Create(m_system.Kernel());
     port->Initialize(m_system.Kernel(), max_sessions, false, 0);
