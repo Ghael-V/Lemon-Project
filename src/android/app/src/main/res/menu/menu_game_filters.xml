@@ -10,5 +10,8 @@
         <item
             android:id="@+id/filter_recently_added"
             android:title="@string/search_recently_added" />
+        <item
+            android:id="@+id/filter_favorites"
+            android:title="@string/filter_favorites" />
     </group>
 </menu>

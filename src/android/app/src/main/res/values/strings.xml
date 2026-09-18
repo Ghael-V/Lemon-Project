@@ -387,6 +387,7 @@
     <string name="home_hide_advanced_description">Hide the less commonly used options</string>
     <string name="search_recently_played">Recently played</string>
     <string name="search_recently_added">Recently added</string>
+    <string name="filter_favorites">Favorites</string>
     <string name="open_user_folder">Open Lemon folder</string>
     <string name="open_user_folder_description">Manage Lemon\'s internal files</string>
     <string name="app_settings_description">Modify the behavior and look of the app</string>
@@ -900,6 +901,12 @@
     <string name="info">Info</string>
     <string name="info_description">Program ID, developer, version</string>
     <string name="per_game_settings">Per-game settings</string>
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="add_to_home_screen">Add to Home Screen</string>
+    <string name="widget_description">Launch your most recently played game</string>
+    <string name="widget_no_recent_game">Open Lemon</string>
+    <string name="widget_game_icon_desc">Game icon</string>
     <string name="per_game_settings_description">Edit settings specific to this game</string>
     <string name="launch_options">Launch config</string>
     <string name="path">Path</string>

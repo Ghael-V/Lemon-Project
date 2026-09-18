@@ -45,6 +45,7 @@ import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
 import dev.lemon.lemon_emu.utils.GpuDriverHelper
+import dev.lemon.lemon_emu.widget.GameLauncherWidgetProvider
 
 class GameAdapter(private val activity: AppCompatActivity) :
     AbstractDiffAdapter<Game, GameAdapter.GameViewHolder>(exact = false) {
@@ -271,6 +272,11 @@ class GameAdapter(private val activity: AppCompatActivity) :
                             LemonApplication.appContext,
                             shortcut
                         )
+                        GameLauncherWidgetProvider.setLastPlayedGame(
+                            LemonApplication.appContext,
+                            game.path,
+                            game.title
+                        )
                     }
                 }
 
@@ -304,6 +310,11 @@ class GameAdapter(private val activity: AppCompatActivity) :
             val driverId = 1
             val propertiesId = 2
             val performanceId = 3
+            val favoriteId = 4
+            val shortcutId = 5
+
+            val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
+            val isFavorite = preferences.getBoolean(game.keyIsFavorite, false)
 
             popup.menu.add(0, playId, 0, R.string.play)
             if (GpuDriverHelper.isAdrenoGpu()) {
@@ -311,6 +322,13 @@ class GameAdapter(private val activity: AppCompatActivity) :
             }
             popup.menu.add(0, propertiesId, 2, R.string.per_game_settings)
             popup.menu.add(0, performanceId, 3, R.string.performance_preset)
+            popup.menu.add(
+                0, favoriteId, 4,
+                if (isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites
+            )
+            if (ShortcutManagerCompat.isRequestPinShortcutSupported(activity)) {
+                popup.menu.add(0, shortcutId, 5, R.string.add_to_home_screen)
+            }
 
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -331,12 +349,29 @@ class GameAdapter(private val activity: AppCompatActivity) :
                     }
 
                     performanceId -> showPerformancePresetDialog(game)
+                    favoriteId -> {
+                        preferences.edit { putBoolean(game.keyIsFavorite, !isFavorite) }
+                    }
+                    shortcutId -> requestPinShortcut(game)
                 }
                 true
             }
 
             popup.show()
             return true
+        }
+
+        private fun requestPinShortcut(game: Game) {
+            activity.lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    val shortcut = ShortcutInfoCompat.Builder(activity, "pin_${game.path}")
+                        .setShortLabel(game.title)
+                        .setIcon(GameIconUtils.getShortcutIcon(activity, game))
+                        .setIntent(game.launchIntent)
+                        .build()
+                    ShortcutManagerCompat.requestPinShortcut(activity, shortcut, null)
+                }
+            }
         }
 
         private fun showPerformancePresetDialog(game: Game) {

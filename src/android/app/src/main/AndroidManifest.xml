@@ -117,6 +117,17 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".widget.GameLauncherWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/game_widget_info" />
+        </receiver>
+
         <provider
             android:name=".features.DocumentProvider"
             android:authorities="${applicationId}.user"

@@ -407,6 +407,8 @@ class GamesFragment : Fragment() {
 
             R.id.filter_recently_added -> popup.menu.findItem(R.id.filter_recently_added).isChecked =
                 true
+
+            R.id.filter_favorites -> popup.menu.findItem(R.id.filter_favorites).isChecked = true
         }
 
         popup.setOnMenuItemClickListener { item ->
@@ -436,6 +438,10 @@ class GamesFragment : Fragment() {
                     val addedTime = preferences.getLong(it.keyAddedToLibraryTime, 0L)
                     addedTime > (System.currentTimeMillis() - 24 * 60 * 60 * 1000)
                 }.sortedByDescending { preferences.getLong(it.keyAddedToLibraryTime, 0L) }
+            }
+            R.id.filter_favorites -> {
+                baseList.filter { preferences.getBoolean(it.keyIsFavorite, false) }
+                    .sortedBy { it.title }
             }
             else -> baseList
         }
