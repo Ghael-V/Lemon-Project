@@ -842,7 +842,7 @@
     <string name="performance_preset">Performance preset</string>
     <string name="performance_preset_description">Quickly switch between battery life and visual quality</string>
     <string name="adaptive_performance">Adaptive performance</string>
-    <string name="adaptive_performance_description">Automatically drops to the Battery preset once if the device overheats or can\'t keep up with a game, and lets you know so you can turn it off here. Enabled by default - turn off if you\'d rather manage performance yourself (e.g. devices with active cooling).</string>
+    <string name="adaptive_performance_description">Automatically lowers graphics settings if the device overheats or can\'t keep up, and notifies you when it does</string>
     <string name="thermal_throttle_applied">Device is running hot - switched to Battery preset</string>
     <string name="perf_throttle_applied">Performance is low - switched to Battery preset</string>
     <string name="adaptive_performance_notif_title">Lemon reduced graphics settings</string>

@@ -225,7 +225,6 @@ class HomeSettingsFragment : Fragment() {
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.adaptive_performance)
-            .setMessage(R.string.adaptive_performance_description)
             .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
                 prefs.edit {
                     putBoolean(PerformancePresets.PREF_ADAPTIVE_PERFORMANCE, which == 0)
