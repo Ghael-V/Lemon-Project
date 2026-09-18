@@ -13,7 +13,7 @@ RETURN=0
 usage() {
     cat <<EOF
 Usage: $0 [-t|--target FLAVOR] [-b|--build-type BUILD_TYPE]
-       [-h|--help] [-r|--release] [extra options]
+       [-h|--help] [-r|--release] [-n|--nightly] [-e|--experimental] [extra options]
 
 Build script for Android.
 Associated variables can be set outside the script,
@@ -30,6 +30,8 @@ Options:
                           	Valid values are: Release, RelWithDebInfo, Debug
                           	Default: Debug
     -n, --nightly           Create a nightly build.
+    -e, --experimental      Create an experimental build (own applicationId, coexists with
+                            nightly/mainline on the same device).
 
 Extra arguments are passed to CMake (e.g. -DCMAKE_OPTION_NAME=VALUE)
 Set the CCACHE variable to "true" to enable build caching.
@@ -63,6 +65,7 @@ while true; do
 		-t|--target) target "$2"; shift ;;
 		-b|--build-type) type "$2"; shift ;;
         -n|--nightly) NIGHTLY=true ;;
+        -e|--experimental) EXPERIMENTAL=true ;;
 		-h|--help) usage ;;
 		*) break ;;
 	esac
@@ -107,6 +110,10 @@ nightly() {
     [ "$NIGHTLY" = "true" ]
 }
 
+experimental() {
+    [ "$EXPERIMENTAL" = "true" ]
+}
+
 if nightly || [ "$DEVEL" != "true" ]; then
     set -- "$@" -DENABLE_UPDATE_CHECKER=ON
 fi
@@ -117,6 +124,12 @@ else
     NIGHTLY=false
 fi
 
+if experimental; then
+    EXPERIMENTAL=true
+else
+    EXPERIMENTAL=false
+fi
+
 echo "-- building..."
 
 ./gradlew "copy${FLAVOR}${TYPE}Outputs" \
@@ -125,6 +138,7 @@ echo "-- building..."
     -Dorg.gradle.workers.max="${NUM_JOBS}" \
     -PYUZU_ANDROID_ARGS="$*" \
     -Pnightly="$NIGHTLY" \
+    -Pexperimental="$EXPERIMENTAL" \
     --info
 
 if [ -n "${ANDROID_KEYSTORE_B64}" ]; then

@@ -40,6 +40,8 @@ android {
 
     val isNightly =
         providers.gradleProperty("nightly").orNull?.toBooleanStrictOrNull() ?: false
+    val isExperimental =
+        providers.gradleProperty("experimental").orNull?.toBooleanStrictOrNull() ?: false
 
     buildFeatures {
         viewBinding = true
@@ -135,7 +137,10 @@ android {
                 signingConfigs.getByName("default")
             }
 
-            if (isNightly) {
+            if (isExperimental) {
+                applicationIdSuffix = ".experimental"
+                manifestPlaceholders += mapOf("appNameSuffix" to " Experimental")
+            } else if (isNightly) {
                 applicationIdSuffix = ".nightly"
                 manifestPlaceholders += mapOf("appNameSuffix" to " Nightly")
             } else {
@@ -251,9 +256,9 @@ android {
 
     productFlavors.all {
         val currentName = manifestPlaceholders["appNameBase"] as? String ?: "Lemon"
-        val suffix = if (isNightly) " Nightly" else ""
+        val suffix = if (isExperimental) " Experimental" else if (isNightly) " Nightly" else ""
 
-        // apply nightly suffix I/A
+        // apply nightly/experimental suffix I/A
         resValue("string", "app_name_suffixed", "$currentName$suffix")
         resValue("string", "app_name", "Lemon$suffix")
     }
