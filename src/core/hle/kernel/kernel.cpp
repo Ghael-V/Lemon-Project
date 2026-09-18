@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include <bitset>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <thread>
@@ -1249,8 +1250,21 @@ void KernelCore::SuspendEmulation(bool suspended) {
         return true;
     };
 
+    // DIAGNOSTIC (experimental branch, savestate investigation): this loop has no visibility
+    // at all today - if it never returns, nothing in the log says so. Log once if it's still
+    // waiting after 500ms, then every second after that, so a hang here is unmistakable in
+    // logcat instead of just silently never finishing.
+    const auto wait_start = std::chrono::steady_clock::now();
+    auto next_warning = wait_start + std::chrono::milliseconds(500);
     while (!TryWait()) {
-        // ...
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= next_warning) {
+            const auto elapsed_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - wait_start).count();
+            LOG_WARNING(Kernel, "SuspendEmulation still waiting for threads to stop after {}ms",
+                        elapsed_ms);
+            next_warning = now + std::chrono::seconds(1);
+        }
     }
 }
 

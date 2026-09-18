@@ -226,8 +226,12 @@ struct System::Impl {
     void Pause() {
         std::unique_lock<std::mutex> lk(suspend_guard);
 
+        // DIAGNOSTIC (experimental branch, savestate investigation): see the matching note in
+        // KernelCore::SuspendEmulation.
+        LOG_INFO(Core, "Pause: entering SuspendEmulation(true)");
         core_timing.SyncPause(true);
         kernel.SuspendEmulation(true);
+        LOG_INFO(Core, "Pause: SuspendEmulation(true) returned");
         is_paused.store(true, std::memory_order_relaxed);
     }
 
@@ -412,6 +416,9 @@ struct System::Impl {
     }
 
     void ShutdownMainProcess() {
+        // DIAGNOSTIC (experimental branch, savestate investigation): see the matching note in
+        // KernelCore::SuspendEmulation.
+        LOG_INFO(Core, "ShutdownMainProcess: starting");
         SetShuttingDown(true);
         Common::ADPF::Shutdown();
 
@@ -427,7 +434,9 @@ struct System::Impl {
         stop_event.request_stop();
         core_timing.SyncPause(false);
         Network::CancelPendingSocketOperations();
+        LOG_INFO(Core, "ShutdownMainProcess: entering SuspendEmulation(true)");
         kernel.SuspendEmulation(true);
+        LOG_INFO(Core, "ShutdownMainProcess: SuspendEmulation(true) returned");
         kernel.CloseServices();
         kernel.ShutdownCores();
         services.reset();

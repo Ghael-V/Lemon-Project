@@ -398,6 +398,9 @@ void EmulationSession::UnPauseEmulation() {
 }
 
 void EmulationSession::HaltEmulation() {
+    // DIAGNOSTIC (experimental branch, savestate investigation): confirms whether this is
+    // reached at all, and when, relative to the SuspendEmulation/ShutdownMainProcess logs.
+    LOG_INFO(Frontend, "HaltEmulation called");
     std::scoped_lock lock(m_mutex);
     m_is_running = false;
     m_cv.notify_one();
