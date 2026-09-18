@@ -5,10 +5,6 @@ name: Build savestate test homebrew
 # toolchain (network policy), so this is the only way to verify it actually builds.
 
 on:
-  push:
-    paths:
-      - "tools/savestate-test-homebrew/**"
-      - ".github/workflows/build-test-homebrew.yml"
   workflow_dispatch:
 
 jobs:
