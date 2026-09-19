@@ -1035,6 +1035,12 @@
     <string name="emulation_snap_to_grid">Snap to grid</string>
     <string name="emulation_pause">Pause emulation</string>
     <string name="emulation_unpause">Unpause emulation</string>
+    <string name="emulation_quick_save_state">Quick save state</string>
+    <string name="emulation_quick_load_state">Quick load state</string>
+    <string name="emulation_quick_save_state_success">State saved</string>
+    <string name="emulation_quick_save_state_failure">Failed to save state</string>
+    <string name="emulation_quick_load_state_success">State loaded</string>
+    <string name="emulation_quick_load_state_failure">Failed to load state</string>
     <string name="emulation_input_overlay">Overlay options</string>
     <string name="load_amiibo">Load Amiibo</string>
     <string name="touchscreen">Touchscreen</string>

@@ -183,6 +183,18 @@ object NativeLibrary {
     external fun pauseEmulation()
 
     /**
+     * Captures CPU register state and process memory to a single quicksave slot.
+     * Same-session only - does not survive closing the game. Returns true on success.
+     */
+    external fun quickSaveState(): Boolean
+
+    /**
+     * Restores CPU register state and process memory from the quicksave slot.
+     * Fails (returns false) without changing anything if no compatible quicksave exists.
+     */
+    external fun quickLoadState(): Boolean
+
+    /**
      * Stops emulation.
      */
     external fun stopEmulation()

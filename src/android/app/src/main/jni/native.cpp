@@ -82,6 +82,7 @@ extern "C" {
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/set/system_settings_server.h"
 #include "core/loader/loader.h"
+#include "core/savestate.h"
 #include "frontend_common/config.h"
 #include "frontend_common/firmware_manager.h"
 #ifdef ENABLE_UPDATE_CHECKER
@@ -395,6 +396,44 @@ void EmulationSession::UnPauseEmulation() {
     std::scoped_lock lock(m_mutex);
     m_system.Run();
     m_is_paused = false;
+}
+
+namespace {
+std::string GetQuickSavePath() {
+    const auto dir = Common::FS::GetEdenPath(Common::FS::EdenPath::SaveStateDir);
+    void(Common::FS::CreateDirs(dir));
+    return (dir / "quicksave.bin").string();
+}
+} // namespace
+
+bool EmulationSession::QuickSaveState() {
+    std::scoped_lock lock(m_mutex);
+    const bool was_paused = m_is_paused;
+    if (!was_paused) {
+        m_system.Pause();
+    }
+
+    const bool ok = Core::SaveState::Capture(m_system, GetQuickSavePath());
+
+    if (!was_paused) {
+        m_system.Run();
+    }
+    return ok;
+}
+
+bool EmulationSession::QuickLoadState() {
+    std::scoped_lock lock(m_mutex);
+    const bool was_paused = m_is_paused;
+    if (!was_paused) {
+        m_system.Pause();
+    }
+
+    const bool ok = Core::SaveState::Restore(m_system, GetQuickSavePath());
+
+    if (!was_paused) {
+        m_system.Run();
+    }
+    return ok;
 }
 
 void EmulationSession::HaltEmulation() {
@@ -932,6 +971,14 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_unpauseEmulation(JNIEnv* env, jclas
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_pauseEmulation(JNIEnv* env, jclass clazz) {
     EmulationSession::GetInstance().PauseEmulation();
+}
+
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveState(JNIEnv* env, jclass clazz) {
+    return static_cast<jboolean>(EmulationSession::GetInstance().QuickSaveState());
+}
+
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_quickLoadState(JNIEnv* env, jclass clazz) {
+    return static_cast<jboolean>(EmulationSession::GetInstance().QuickLoadState());
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_stopEmulation(JNIEnv* env, jclass clazz) {

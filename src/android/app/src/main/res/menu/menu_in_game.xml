@@ -9,6 +9,16 @@
         android:title="@string/emulation_pause" />
 
     <item
+        android:id="@+id/menu_quick_save_state"
+        android:icon="@drawable/ic_save"
+        android:title="@string/emulation_quick_save_state" />
+
+    <item
+        android:id="@+id/menu_quick_load_state"
+        android:icon="@drawable/ic_restore"
+        android:title="@string/emulation_quick_load_state" />
+
+    <item
         android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"
         android:title="@string/emulation_show_overlay"/>
