@@ -93,11 +93,6 @@ private:
     Common::Event m_stopped{};
     std::vector<std::jthread> m_threads{};
     std::stop_source m_stop_source{};
-
-    // DIAGNOSTIC (experimental branch, savestate investigation): name of the first service
-    // registered on this manager, purely so ~ServerManager()'s teardown log can say which
-    // manager it is - temporary, meant to come back out once the hang is root-caused.
-    std::string m_debug_label{};
 };
 
 } // namespace Service

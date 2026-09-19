@@ -1250,10 +1250,7 @@ void KernelCore::SuspendEmulation(bool suspended) {
         return true;
     };
 
-    // DIAGNOSTIC (experimental branch, savestate investigation): this loop has no visibility
-    // at all today - if it never returns, nothing in the log says so. Log once if it's still
-    // waiting after 500ms, then every second after that, so a hang here is unmistakable in
-    // logcat instead of just silently never finishing.
+    // Warn periodically if this is taking unusually long, instead of hanging silently.
     const auto wait_start = std::chrono::steady_clock::now();
     auto next_warning = wait_start + std::chrono::milliseconds(500);
     while (!TryWait()) {

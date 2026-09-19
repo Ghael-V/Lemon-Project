@@ -356,14 +356,7 @@ Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string
 }
 
 void EmulationSession::ShutdownEmulation() {
-    // DIAGNOSTIC (experimental branch, savestate investigation): HaltEmulation() takes this
-    // same m_mutex just to flip a bool - if a caller on the Android main thread ever blocks on
-    // that lock while this function is still inside it, that's an instant ANR regardless of
-    // whether it's a true deadlock. These log calls bracket every step in here so a hang shows
-    // exactly which one it's stuck in.
-    LOG_INFO(Frontend, "ShutdownEmulation: waiting for m_mutex");
     std::scoped_lock lock(m_mutex);
-    LOG_INFO(Frontend, "ShutdownEmulation: acquired m_mutex");
 
     if (m_next_program_index != -1) {
         ChangeProgram(m_next_program_index);
@@ -383,11 +376,8 @@ void EmulationSession::ShutdownEmulation() {
         m_system.DetachDebugger();
         m_system.ShutdownMainProcess();
         m_load_result = Core::SystemResultStatus::ErrorNotInitialized;
-        LOG_INFO(Frontend, "ShutdownEmulation: resetting m_window");
         m_window.reset();
-        LOG_INFO(Frontend, "ShutdownEmulation: m_window reset, calling OnEmulationStopped");
         OnEmulationStopped(Core::SystemResultStatus::Success);
-        LOG_INFO(Frontend, "ShutdownEmulation: OnEmulationStopped returned, releasing m_mutex");
         return;
     }
 
@@ -408,12 +398,7 @@ void EmulationSession::UnPauseEmulation() {
 }
 
 void EmulationSession::HaltEmulation() {
-    // DIAGNOSTIC (experimental branch, savestate investigation): confirms whether this is
-    // reached at all, and separately, whether it then blocks trying to acquire m_mutex - see
-    // the matching note in ShutdownEmulation().
-    LOG_INFO(Frontend, "HaltEmulation called, waiting for m_mutex");
     std::scoped_lock lock(m_mutex);
-    LOG_INFO(Frontend, "HaltEmulation acquired m_mutex");
     m_is_running = false;
     m_cv.notify_one();
 }
