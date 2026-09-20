@@ -54,25 +54,52 @@
                     android:layout_height="match_parent"
                     android:background="@drawable/gradient_overlay_bottom" />
 
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/text_game_title_compact"
-                    style="@style/SynthwaveText.Body"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom"
                     android:layout_margin="6dp"
-                    android:requiresFadingEdge="horizontal"
-                    android:textAlignment="center"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="@android:color/white"
-                    android:shadowColor="@android:color/black"
-                    android:shadowDx="1"
-                    android:shadowDy="1"
-                    android:shadowRadius="2"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    tools:text="The Legend of Zelda: Skyward Sword" />
+                    android:orientation="vertical">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/text_game_stats_compact"
+                        style="@style/SynthwaveText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:requiresFadingEdge="horizontal"
+                        android:textAlignment="center"
+                        android:textSize="9sp"
+                        android:textColor="@android:color/white"
+                        android:alpha="0.8"
+                        android:shadowColor="@android:color/black"
+                        android:shadowDx="1"
+                        android:shadowDy="1"
+                        android:shadowRadius="2"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:visibility="gone"
+                        tools:text="3h 20m"
+                        tools:visibility="visible" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/text_game_title_compact"
+                        style="@style/SynthwaveText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:requiresFadingEdge="horizontal"
+                        android:textAlignment="center"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        android:shadowColor="@android:color/black"
+                        android:shadowDx="1"
+                        android:shadowDy="1"
+                        android:shadowRadius="2"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        tools:text="The Legend of Zelda: Skyward Sword" />
+
+                </LinearLayout>
 
             </FrameLayout>
 

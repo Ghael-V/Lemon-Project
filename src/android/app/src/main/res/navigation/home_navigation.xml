@@ -43,6 +43,14 @@
         android:name="dev.lemon.lemon_emu.fragments.LicensesFragment"
         android:label="LicensesFragment" />
 
+    <fragment
+        android:id="@+id/statisticsFragment"
+        android:name="dev.lemon.lemon_emu.fragments.StatisticsFragment"
+        android:label="StatisticsFragment" />
+    <action
+        android:id="@+id/action_global_statisticsFragment"
+        app:destination="@id/statisticsFragment" />
+
     <activity
         android:id="@+id/emulationActivity"
         android:name="dev.lemon.lemon_emu.activities.EmulationActivity"

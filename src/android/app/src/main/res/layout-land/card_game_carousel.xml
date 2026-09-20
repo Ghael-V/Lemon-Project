@@ -1,6 +1,7 @@
 <dev.lemon.lemon_emu.views.GradientBorderCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/card_game_carousel"
     android:layout_width="wrap_content"
     android:layout_height="match_parent"
@@ -31,6 +32,41 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toTopOf="@+id/text_game_title"
             />
+
+        <View
+            android:id="@+id/overlay_game_stats_background"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/gradient_overlay_bottom"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/image_game_screen"
+            app:layout_constraintEnd_toEndOf="@+id/image_game_screen"
+            app:layout_constraintHeight_percent="0.25"
+            app:layout_constraintStart_toStartOf="@+id/image_game_screen"
+            tools:visibility="visible" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/text_game_stats"
+            style="@style/SynthwaveText.Body"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginBottom="8dp"
+            android:requiresFadingEdge="horizontal"
+            android:textAlignment="viewStart"
+            android:textSize="12sp"
+            android:textColor="@android:color/white"
+            android:alpha="0.85"
+            android:shadowColor="@android:color/black"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="2"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/image_game_screen"
+            app:layout_constraintEnd_toEndOf="@+id/image_game_screen"
+            app:layout_constraintStart_toStartOf="@+id/image_game_screen"
+            tools:text="1h 12m · Hace 5 minutos · 2 partidas"
+            tools:visibility="visible" />
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/text_game_title"

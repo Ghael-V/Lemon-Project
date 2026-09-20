@@ -91,9 +91,18 @@
                 style="?attr/textAppearanceBodyMedium"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
                 android:textAlignment="center"
                 tools:text="Game Playtime" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/game_usage_stats"
+                style="?attr/textAppearanceBodySmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textAlignment="center"
+                android:alpha="0.7"
+                tools:text="Last played 2 days ago · 5 sessions" />
 
 
             <androidx.recyclerview.widget.RecyclerView

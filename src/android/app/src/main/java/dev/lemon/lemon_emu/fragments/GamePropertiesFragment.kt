@@ -8,6 +8,7 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,8 +50,10 @@ import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.GameHelper
 import dev.lemon.lemon_emu.utils.GameIconUtils
+import dev.lemon.lemon_emu.utils.GameStatsUtils
 import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.MemoryUtil
+import dev.lemon.lemon_emu.utils.PlayTimeUtils
 import dev.lemon.lemon_emu.utils.ViewUtils.marquee
 import dev.lemon.lemon_emu.utils.ViewUtils.updateMargins
 import dev.lemon.lemon_emu.utils.collect
@@ -115,6 +118,7 @@ class GamePropertiesFragment : Fragment() {
         binding.title.marquee()
 
         getPlayTime()
+        getUsageStats()
 
         binding.buttonStart.setOnClickListener {
             LaunchGameDialogFragment.newInstance(args.game)
@@ -158,24 +162,33 @@ class GamePropertiesFragment : Fragment() {
     }
 
     private fun getPlayTime() {
-        binding.playtime.text = buildString {
-            val playTimeSeconds = NativeLibrary.playTimeManagerGetPlayTime(args.game.programId)
-
-            val hours = playTimeSeconds / 3600
-            val minutes = (playTimeSeconds % 3600) / 60
-            val seconds = playTimeSeconds % 60
-
-            val readablePlayTime = when {
-            hours > 0 -> "$hours${getString(R.string.hours_abbr)} $minutes${getString(R.string.minutes_abbr)} $seconds${getString(R.string.seconds_abbr)}"
-            minutes > 0 -> "$minutes${getString(R.string.minutes_abbr)} $seconds${getString(R.string.seconds_abbr)}"
-            else -> "$seconds${getString(R.string.seconds_abbr)}"
-}
-
-            append(getString(R.string.playtime) + " " + readablePlayTime)
-        }
+        val playTimeSeconds = NativeLibrary.playTimeManagerGetPlayTime(args.game.programId)
+        val readablePlayTime = PlayTimeUtils.formatReadable(requireContext(), playTimeSeconds)
+        binding.playtime.text = getString(R.string.playtime) + " " + readablePlayTime
 
         binding.playtime.setOnClickListener {
             showEditPlaytimeDialog()
+        }
+    }
+
+    private fun getUsageStats() {
+        val lastPlayedMillis = GameStatsUtils.getLastPlayedMillis(requireContext(), args.game)
+
+        binding.gameUsageStats.text = if (lastPlayedMillis <= 0L) {
+            getString(R.string.game_never_played)
+        } else {
+            val sessionCount = GameStatsUtils.getSessionCount(requireContext(), args.game)
+            val lastPlayedRelative = DateUtils.getRelativeTimeSpanString(
+                lastPlayedMillis,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS
+            )
+            getString(R.string.game_last_played, lastPlayedRelative) + " · " +
+                resources.getQuantityString(
+                    R.plurals.game_sessions_count,
+                    sessionCount,
+                    sessionCount
+                )
         }
     }
 
@@ -550,6 +563,7 @@ class GamePropertiesFragment : Fragment() {
         super.onResume()
         driverViewModel.updateDriverNameForGame(args.game)
         getPlayTime()
+        getUsageStats()
         reloadList()
     }
 

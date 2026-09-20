@@ -329,11 +329,19 @@ class GamesFragment : Fragment() {
 
         // Setup settings button
         binding.settingsButton.setOnClickListener { navigateToSettings() }
+
+        // Setup statistics button
+        binding.statisticsButton.setOnClickListener { navigateToStatistics() }
     }
 
     private fun navigateToSettings() {
         val navController = findNavController()
         navController.navigate(R.id.action_gamesFragment_to_homeSettingsFragment)
+    }
+
+    private fun navigateToStatistics() {
+        val navController = findNavController()
+        navController.navigate(R.id.action_global_statisticsFragment)
     }
 
     private fun showViewMenu(anchor: View) {
