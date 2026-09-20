@@ -5,12 +5,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <optional>
+#include <span>
+#include <vector>
 
 #include <android/native_window_jni.h>
 #include "common/android/applets/software_keyboard.h"
 #include "core/core.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/hle/service/acc/profile_manager.h"
+#include "core/memory_search.h"
 #include "core/perf_stats.h"
 #include "frontend_common/content_manager.h"
 #include "jni/emu_window/emu_window.h"
@@ -45,6 +48,15 @@ public:
     void UnPauseEmulation();
     bool QuickSaveState();
     bool QuickLoadState();
+    std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value);
+    void CheatTakeSnapshot();
+    std::vector<Core::MemorySearch::Match> CheatCompareSnapshot(
+        Core::MemorySearch::Comparison comparison);
+    std::vector<Core::MemorySearch::Match> CheatRefine(
+        std::span<const Core::MemorySearch::Match> candidates,
+        std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value);
+    bool CheatRead(u64 address, std::span<u8> out);
+    bool CheatWrite(u64 address, std::span<const u8> value);
     void HaltEmulation();
     void RunEmulation();
     void ShutdownEmulation();

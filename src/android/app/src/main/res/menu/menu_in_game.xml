@@ -19,6 +19,11 @@
         android:title="@string/emulation_quick_load_state" />
 
     <item
+        android:id="@+id/menu_lemon_cheater"
+        android:icon="@drawable/ic_search"
+        android:title="@string/lemon_cheater" />
+
+    <item
         android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"
         android:title="@string/emulation_show_overlay"/>

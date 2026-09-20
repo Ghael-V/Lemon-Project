@@ -817,6 +817,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_lemon_cheater -> {
+                    binding.cheatOverlay.visibility =
+                        if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                            View.GONE
+                        } else {
+                            View.VISIBLE
+                        }
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
                 R.id.menu_quick_overlay -> {
                     val newState = !BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
                     toggleOverlay(newState)
