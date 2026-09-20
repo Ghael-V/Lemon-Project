@@ -2159,7 +2159,7 @@ JNIEXPORT jobjectArray JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getAllUse
     manager.ResetUserSaveFile();
 
     if (manager.GetUserCount() == 0) {
-        manager.CreateNewUser(Common::UUID::MakeRandom(), "Eden");
+        manager.CreateNewUser(Common::UUID::MakeRandom(), "Lemon");
         manager.WriteUserSaveFile();
     }
 
@@ -2376,7 +2376,7 @@ JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_reloadProfiles(
 
     // create a default user if non exist
     if (manager.GetUserCount() == 0) {
-        manager.CreateNewUser(Common::UUID::MakeRandom(), "Eden");
+        manager.CreateNewUser(Common::UUID::MakeRandom(), "Lemon");
         manager.WriteUserSaveFile();
     }
 
