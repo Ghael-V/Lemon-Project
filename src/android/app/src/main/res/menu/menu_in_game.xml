@@ -29,6 +29,11 @@
         android:title="@string/lemon_cheater" />
 
     <item
+        android:id="@+id/menu_lemon_macro"
+        android:icon="@drawable/ic_record"
+        android:title="@string/lemon_macro" />
+
+    <item
         android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"
         android:title="@string/emulation_show_overlay"/>

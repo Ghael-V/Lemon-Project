@@ -99,6 +99,10 @@ android {
                         "-DENABLE_UPDATE_CHECKER=ON",
                         "-DNIGHTLY_BUILD=ON",
                     ))
+                } else {
+                    // The mainline/standard build is what actually gets published to GitHub
+                    // Releases - it needs the update checker too, not just nightly.
+                    arguments.add("-DENABLE_UPDATE_CHECKER=ON")
                 }
 
                 abiFilters("arm64-v8a")

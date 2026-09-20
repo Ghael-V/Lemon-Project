@@ -225,6 +225,9 @@ std::optional<std::string> MakeRequest(const std::string& url, const std::string
         httplib::Request request{
             .method = "GET",
             .path = path,
+            // GitHub's REST API rejects any request without a User-Agent header with a 403,
+            // regardless of any other headers - required for BUILD_AUTO_UPDATE_API et al.
+            .headers = {{"User-Agent", "Lemon-Updater"}},
         };
 
         client->set_follow_location(true);

@@ -155,6 +155,35 @@
                     android:layout_marginTop="8dp"
                     tools:text="34 result(s)" />
 
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/cheat_view_toggle_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/cheat_view_results_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:checked="true"
+                        android:text="@string/lemon_cheater_view_results"
+                        android:textSize="11sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/cheat_view_frozen_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="11sp"
+                        tools:text="Frozen (2)" />
+
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/cheat_results_list"
                     android:layout_width="match_parent"

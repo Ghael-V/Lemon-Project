@@ -19,6 +19,11 @@ object GameStatsUtils {
     fun getSessionCount(context: Context, game: Game): Int =
         PreferenceManager.getDefaultSharedPreferences(context).getInt(game.keySessionCount, 0)
 
+    /** The most recently played game in [games], or null if none of them have been played yet. */
+    fun findLastPlayed(context: Context, games: List<Game>): Game? =
+        games.maxByOrNull { getLastPlayedMillis(context, it) }
+            ?.takeIf { getLastPlayedMillis(context, it) > 0L }
+
     /**
      * Formats a "playtime · last played · sessions" summary from already-known values (e.g.
      * a precomputed [dev.lemon.lemon_emu.model.GameStatEntry]), avoiding redundant native/prefs

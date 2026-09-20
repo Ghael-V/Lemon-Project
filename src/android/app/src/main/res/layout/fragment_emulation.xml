@@ -203,6 +203,13 @@
             android:layout_height="match_parent"
             android:visibility="gone" />
 
+        <!-- Input macro recorder/player, same floating-panel treatment as the Cheater -->
+        <dev.lemon.lemon_emu.overlay.MacroOverlay
+            android:id="@+id/macro_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <com.google.android.material.navigation.NavigationView

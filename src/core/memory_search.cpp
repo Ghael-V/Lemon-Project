@@ -5,9 +5,15 @@
 #include <array>
 #include <chrono>
 #include <cstring>
+#include <map>
+#include <mutex>
 #include <optional>
+#include <thread>
+#include <tuple>
 
 #include "common/logging.h"
+#include "common/polyfill_thread.h"
+#include "common/thread.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_memory_block.h"
 #include "core/hle/kernel/k_process.h"
@@ -50,6 +56,31 @@ struct SnapshotRegion {
     std::vector<u8> data;
 };
 std::vector<SnapshotRegion> g_snapshot;
+
+// Freeze list + background rewrite thread. Needs its own mutex (unlike g_snapshot above) -
+// the freeze thread reads g_frozen from its own thread while SetFrozen()/ClearFrozen() can be
+// called concurrently from whatever thread JNI dispatches on.
+std::mutex g_freeze_mutex;
+std::map<u64, s32> g_frozen;
+std::jthread g_freeze_thread;
+
+void FreezeLoop(std::stop_token stop_token, Core::System* system) {
+    Common::SetCurrentThreadName("CheatFreeze");
+
+    using namespace std::literals::chrono_literals;
+    while (!stop_token.stop_requested()) {
+        {
+            std::scoped_lock lock(g_freeze_mutex);
+            for (const auto& [address, value] : g_frozen) {
+                const auto bytes = EncodeValue(value);
+                // Best-effort: a single missed tick (e.g. the address is momentarily
+                // unreadable/unmapped) isn't worth logging every ~100ms - the next tick retries.
+                std::ignore = Write(*system, address, bytes);
+            }
+        }
+        Common::StoppableTimedWait(stop_token, 100ms);
+    }
+}
 
 } // namespace
 
@@ -272,6 +303,43 @@ bool Write(Core::System& system, u64 address, std::span<const u8> value) {
     // Same reasoning as Read(): WriteBlock() calls HandleRasterizerWrite() and syncs with the
     // GPU cache, which is unwanted overhead/disruption for editing a plain game-logic value.
     return system.ApplicationMemory().WriteBlockUnsafe(address, value.data(), value.size());
+}
+
+void SetFrozen(Core::System& system, u64 address, s32 value) {
+    std::scoped_lock lock(g_freeze_mutex);
+    g_frozen[address] = value;
+
+    if (!g_freeze_thread.joinable()) {
+        g_freeze_thread = std::jthread(
+            [&system](std::stop_token stop_token) { FreezeLoop(stop_token, &system); });
+    }
+}
+
+void ClearFrozen(u64 address) {
+    std::scoped_lock lock(g_freeze_mutex);
+    g_frozen.erase(address);
+
+    if (g_frozen.empty()) {
+        // Assigning over a joinable jthread requests a stop and joins it - same idiom as
+        // PlayTimeManager::Stop() in frontend_common/play_time_manager.cpp.
+        g_freeze_thread = {};
+    }
+}
+
+void ClearAllFrozen() {
+    std::scoped_lock lock(g_freeze_mutex);
+    g_frozen.clear();
+    g_freeze_thread = {};
+}
+
+std::vector<Match> GetFrozen() {
+    std::scoped_lock lock(g_freeze_mutex);
+    std::vector<Match> results;
+    results.reserve(g_frozen.size());
+    for (const auto& [address, value] : g_frozen) {
+        results.push_back({.address = address, .value = value});
+    }
+    return results;
 }
 
 } // namespace Core::MemorySearch

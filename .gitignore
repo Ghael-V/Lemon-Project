@@ -20,6 +20,13 @@ log.txt
 src/common/scm_rev.cpp
 dist/english_plurals/generated_en.ts
 
+# Build-time version markers read by CMakeModules/GetSCMRev.cmake (see .ci/android/build.sh) -
+# never meant to be committed, only ever present transiently during a release build.
+/GIT-TAG
+/GIT-REFSPEC
+/GIT-COMMIT
+/GIT-RELEASE
+
 # Project/editor files
 *.swp
 .idea/

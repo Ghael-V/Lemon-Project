@@ -57,6 +57,9 @@ public:
         std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value);
     bool CheatRead(u64 address, std::span<u8> out);
     bool CheatWrite(u64 address, std::span<const u8> value);
+    void CheatSetFrozen(u64 address, s32 value);
+    void CheatClearFrozen(u64 address);
+    std::vector<Core::MemorySearch::Match> CheatGetFrozen();
     void HaltEmulation();
     void RunEmulation();
     void ShutdownEmulation();

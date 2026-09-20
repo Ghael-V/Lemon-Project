@@ -360,6 +360,11 @@ Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string
 void EmulationSession::ShutdownEmulation() {
     std::scoped_lock lock(m_mutex);
 
+    // Frozen Cheater addresses are only meaningful for the process they were found in - clear
+    // them (and stop the background rewrite thread) before anything else here, so they can
+    // never bleed into whatever game loads next.
+    Core::MemorySearch::ClearAllFrozen();
+
     if (m_next_program_index != -1) {
         ChangeProgram(m_next_program_index);
         m_next_program_index = -1;
@@ -468,6 +473,21 @@ bool EmulationSession::CheatRead(u64 address, std::span<u8> out) {
 bool EmulationSession::CheatWrite(u64 address, std::span<const u8> value) {
     std::scoped_lock lock(m_mutex);
     return Core::MemorySearch::Write(m_system, address, value);
+}
+
+void EmulationSession::CheatSetFrozen(u64 address, s32 value) {
+    std::scoped_lock lock(m_mutex);
+    Core::MemorySearch::SetFrozen(m_system, address, value);
+}
+
+void EmulationSession::CheatClearFrozen(u64 address) {
+    std::scoped_lock lock(m_mutex);
+    Core::MemorySearch::ClearFrozen(address);
+}
+
+std::vector<Core::MemorySearch::Match> EmulationSession::CheatGetFrozen() {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::GetFrozen();
 }
 
 void EmulationSession::HaltEmulation() {
@@ -1133,6 +1153,22 @@ jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_cheatWrite(JNIEnv* env, jclass 
     const auto value = JByteArrayToBytes(env, jvalue);
     return static_cast<jboolean>(
         EmulationSession::GetInstance().CheatWrite(static_cast<u64>(jaddress), value));
+}
+
+void Java_dev_lemon_lemon_1emu_NativeLibrary_cheatSetFrozen(JNIEnv* env, jclass clazz,
+                                                            jlong jaddress, jint jvalue) {
+    EmulationSession::GetInstance().CheatSetFrozen(static_cast<u64>(jaddress),
+                                                   static_cast<s32>(jvalue));
+}
+
+void Java_dev_lemon_lemon_1emu_NativeLibrary_cheatClearFrozen(JNIEnv* env, jclass clazz,
+                                                              jlong jaddress) {
+    EmulationSession::GetInstance().CheatClearFrozen(static_cast<u64>(jaddress));
+}
+
+jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatGetFrozen(JNIEnv* env, jclass clazz) {
+    const auto results = EmulationSession::GetInstance().CheatGetFrozen();
+    return MatchVectorToJLongArray(env, results);
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_stopEmulation(JNIEnv* env, jclass clazz) {

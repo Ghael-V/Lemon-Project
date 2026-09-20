@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -32,6 +33,9 @@ class StatisticsFragment : Fragment() {
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val gamesViewModel: GamesViewModel by activityViewModels()
 
+    private var entries: List<GameStatEntry> = emptyList()
+    private var currentSortType: Int = R.id.sort_playtime
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enterTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
@@ -55,14 +59,14 @@ class StatisticsFragment : Fragment() {
         }
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val entries = gamesViewModel.games.value.map { game ->
+        entries = gamesViewModel.games.value.map { game ->
             GameStatEntry(
                 game = game,
                 playTimeSeconds = NativeLibrary.playTimeManagerGetPlayTime(game.programId),
                 lastPlayedMillis = prefs.getLong(game.keyLastPlayedTime, 0L),
                 sessionCount = prefs.getInt(game.keySessionCount, 0)
             )
-        }.sortedByDescending { it.playTimeSeconds }
+        }
 
         binding.textSummaryGames.text =
             getString(R.string.statistics_summary_games, entries.size)
@@ -74,10 +78,32 @@ class StatisticsFragment : Fragment() {
 
         binding.listStatistics.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = StatisticsAdapter(entries)
+            adapter = StatisticsAdapter(sortedEntries())
         }
 
+        binding.sortButton.setOnClickListener { showSortMenu(it) }
+
         setInsets()
+    }
+
+    private fun sortedEntries(): List<GameStatEntry> = when (currentSortType) {
+        R.id.sort_last_played -> entries.sortedByDescending { it.lastPlayedMillis }
+        R.id.sort_sessions -> entries.sortedByDescending { it.sessionCount }
+        else -> entries.sortedByDescending { it.playTimeSeconds }
+    }
+
+    private fun showSortMenu(anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menuInflater.inflate(R.menu.menu_statistics_sort, popup.menu)
+        popup.menu.findItem(currentSortType)?.isChecked = true
+
+        popup.setOnMenuItemClickListener { item ->
+            currentSortType = item.itemId
+            (binding.listStatistics.adapter as? StatisticsAdapter)?.replaceList(sortedEntries())
+            true
+        }
+
+        popup.show()
     }
 
     private fun setInsets() =

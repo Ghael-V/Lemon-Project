@@ -77,6 +77,18 @@ done
 : "${TYPE:=Release}"
 : "${DEVEL:=true}"
 
+# GetSCMRev.cmake only uses the clean git tag (e.g. "v0.2.3") as the build version when a
+# GIT-RELEASE marker file exists at the repo root when CMake configures - otherwise it falls
+# back to a "<commit-hash>-<branch>" string, which would never match a GitHub release tag and
+# would make the update checker think every launch has a new version available. CI presumably
+# creates this itself; our manual -r builds need to create (and clean up) it ourselves.
+if [ "$DEVEL" != "true" ] && [ ! -e GIT-RELEASE ]; then
+    echo "release" > GIT-RELEASE
+    # Absolute path: the trap fires wherever CWD happens to be by then, and the script cd's
+    # into src/android further down - a relative path here would silently clean up nothing.
+    trap "rm -f '$PWD/GIT-RELEASE'" EXIT
+fi
+
 TARGET_LOWER=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
 
 case "$TARGET_LOWER" in
