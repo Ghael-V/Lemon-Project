@@ -18,10 +18,11 @@
   <br>
 </h1>
 
-<h4 align="center">A private, Android-only Nintendo Switch emulator built for Adreno GPUs.</h4>
+<h4 align="center">An Android-only Nintendo Switch emulator built for Adreno GPUs.</h4>
 
 <p align="center">
   <a href="#about">About</a> |
+  <a href="#features">Features</a> |
   <a href="#scope">Scope</a> |
   <a href="#building">Building</a> |
   <a href="#license">License</a>
@@ -33,11 +34,32 @@ Lemon is a fork of [Eden](https://git.eden-emu.dev/eden-emu/eden), an open-sourc
 just the Android app and stripped of everything that isn't needed to build and run it on a single Adreno-equipped
 Android device: no Qt/desktop/CLI targets, no multi-platform CI, no Mali/PowerVR-specific code paths.
 
-This is a **private** project, not a public distribution — there's no download page, no community Discord, and no
-open call for contributions. It exists to run on the maintainer's own device(s).
+Started as a personal build for the maintainer's own device(s); builds are now published on the
+[Releases page](https://github.com/Ghael-V/Lemon-Project/releases) and the app checks for new ones on launch. It's
+still a small, personal-scale project rather than a community one — there's no Discord and it isn't actively
+looking for external contributions, but the source and releases are public under the GPL.
 
-Emulation behavior itself is unchanged from upstream Eden; this fork only changes what gets built, how, and the
-Android app's branding/UX around it.
+Core emulation behavior is unchanged from upstream Eden; this fork's own additions are Android-side features layered
+on top (see [Features](#features)) plus changes to what gets built, how, and the app's branding/UX.
+
+## Features
+
+Everything below is specific to Lemon, on top of the Switch emulation it inherits from Eden/yuzu:
+
+- **Lemon Cheater** — a live memory search/edit tool built into the in-game menu, Cheat-Engine style: exact-value
+  and blind (unknown-value) searches, refine by increased/decreased/unchanged across passes, direct value editing,
+  and freezing a found address so it stays fixed (infinite HP/ammo/etc.) via a background rewrite thread, without
+  needing a premade cheat code.
+- **Input macros** — record a sequence of on-screen controller presses with their timing and play it back, looped
+  or once, for repetitive farming/grinding or practicing a sequence.
+- **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
+  "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
+- **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.
+- **In-app updates** — checks this repository's GitHub Releases on launch and can download/install the new APK
+  directly, with no path (missing release, no connection) that crashes the app.
+- **Adreno GPU driver manager** — install alternate Adreno graphics drivers per game, plus per-game performance
+  presets, frame generation and post-processing options.
+- Save data import/export, Amiibo loading, and ad-hoc multiplayer, same as upstream Eden.
 
 ## Scope
 
@@ -49,8 +71,10 @@ Android app's branding/UX around it.
 
 ## Building
 
-Every push to `main` builds automatically via [GitHub Actions](.github/workflows/android-build.yml), so a local
-Android Studio setup usually isn't necessary just to get an APK. To build locally:
+Releases are built and published manually (see the [Releases page](https://github.com/Ghael-V/Lemon-Project/releases)
+for prebuilt APKs). A [GitHub Actions workflow](.github/workflows/android-build.yml) exists to verify the build
+still compiles, but it's manually triggered (`workflow_dispatch`), not run automatically on every push. To build
+locally:
 
 **Dependencies:** [Android Studio](https://developer.android.com/studio), NDK 27+ and CMake 3.22.1 (installable
 from Android Studio's SDK Manager), and Git.
