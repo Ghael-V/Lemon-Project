@@ -6,7 +6,10 @@ package dev.lemon.lemon_emu.adapters
 import android.content.DialogInterface
 import android.text.Html
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -154,6 +157,10 @@ class GameAdapter(private val activity: AppCompatActivity) :
         private val viewType: Int
     ) : AbstractViewHolder<Game>(binding) {
 
+        // Raw screen touch point, tracked only for carousel cards - see onLongClick.
+        private var lastTouchX = 0f
+        private var lastTouchY = 0f
+
         override fun bind(model: Game) {
             when (viewType) {
                 VIEW_TYPE_LIST -> bindListView(model)
@@ -225,6 +232,13 @@ class GameAdapter(private val activity: AppCompatActivity) :
             carouselBinding.textGameTitle.marquee()
             carouselBinding.cardGameCarousel.setOnClickListener { onClick(model) }
             carouselBinding.cardGameCarousel.setOnLongClickListener { onLongClick(model) }
+            carouselBinding.cardGameCarousel.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    lastTouchX = event.rawX
+                    lastTouchY = event.rawY
+                }
+                false
+            }
 
             carouselBinding.imageGameScreen.contentDescription =
                 binding.root.context.getString(R.string.game_image_desc, model.title)
@@ -303,8 +317,11 @@ class GameAdapter(private val activity: AppCompatActivity) :
             }
         }
 
-        fun onLongClick(game: Game): Boolean {
-            val popup = PopupMenu(activity, binding.root)
+        private fun buildAndShowPopup(game: Game, anchor: View, onDismiss: (() -> Unit)? = null) {
+            val popup = PopupMenu(activity, anchor)
+            if (onDismiss != null) {
+                popup.setOnDismissListener { onDismiss() }
+            }
 
             val playId = 0
             val driverId = 1
@@ -358,6 +375,37 @@ class GameAdapter(private val activity: AppCompatActivity) :
             }
 
             popup.show()
+        }
+
+        fun onLongClick(game: Game): Boolean {
+            // In carousel mode, cards are positioned via translationX/scaleX/scaleY
+            // (see CarouselRecyclerView) rather than real layout bounds, so neither the
+            // card's own bounds nor its parent's bounds (both used by PopupMenu's
+            // automatic anchoring via View#getLocationOnScreen, which ignores render
+            // transforms) reflect where the card actually appears on screen. Anchor to
+            // a 1x1 proxy view positioned via real layout params (margins) at the touch
+            // point instead, and wait for a genuine layout pass (.post) before showing -
+            // a manually-forced layout() has the coordinates right but PopupMenu's
+            // internal positioning still misbehaves without a real traversal.
+            val decorView = activity.window.decorView as? ViewGroup
+            if (viewType == VIEW_TYPE_CAROUSEL && decorView != null) {
+                val decorLocation = IntArray(2)
+                decorView.getLocationOnScreen(decorLocation)
+                val localX = (lastTouchX - decorLocation[0]).toInt().coerceAtLeast(0)
+                val localY = (lastTouchY - decorLocation[1]).toInt().coerceAtLeast(0)
+
+                val proxy = View(activity)
+                val lp = FrameLayout.LayoutParams(1, 1)
+                lp.leftMargin = localX
+                lp.topMargin = localY
+                decorView.addView(proxy, lp)
+
+                proxy.post {
+                    buildAndShowPopup(game, proxy) { decorView.removeView(proxy) }
+                }
+            } else {
+                buildAndShowPopup(game, binding.root)
+            }
             return true
         }
 
