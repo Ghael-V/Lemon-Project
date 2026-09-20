@@ -41,6 +41,9 @@ import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.ui.main.MainActivity
+import dev.lemon.lemon_emu.utils.GameIconUtils
+import dev.lemon.lemon_emu.utils.GameLaunchUtils
+import dev.lemon.lemon_emu.utils.GameStatsUtils
 import dev.lemon.lemon_emu.utils.ViewUtils.setVisible
 import dev.lemon.lemon_emu.utils.collect
 import info.debatty.java.stringsimilarity.Jaccard
@@ -155,6 +158,7 @@ class GamesFragment : Fragment() {
             if (it.isNotEmpty()) {
                 setAdapter(it)
             }
+            updateContinuePlayingCard(it)
         }
         gamesViewModel.shouldSwapData.collect(
             viewLifecycleOwner,
@@ -342,6 +346,23 @@ class GamesFragment : Fragment() {
     private fun navigateToStatistics() {
         val navController = findNavController()
         navController.navigate(R.id.action_global_statisticsFragment)
+    }
+
+    private fun updateContinuePlayingCard(games: List<Game>) {
+        if (_binding == null) return
+        val lastPlayed = GameStatsUtils.findLastPlayed(requireContext(), games)
+
+        if (lastPlayed == null) {
+            binding.cardContinuePlaying.setVisible(false)
+            return
+        }
+
+        GameIconUtils.loadGameIcon(lastPlayed, binding.imageContinuePlaying)
+        binding.textContinueTitle.text = lastPlayed.title
+        binding.cardContinuePlaying.setOnClickListener {
+            GameLaunchUtils.launchGame(requireActivity() as AppCompatActivity, lastPlayed, findNavController())
+        }
+        binding.cardContinuePlaying.setVisible(true)
     }
 
     private fun showViewMenu(anchor: View) {

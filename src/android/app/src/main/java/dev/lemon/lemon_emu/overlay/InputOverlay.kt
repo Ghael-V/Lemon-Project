@@ -242,7 +242,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             if (!button.updateStatus(event)) {
                 continue
             }
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 button.button,
                 button.status
@@ -255,22 +255,22 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             if (!dpad.updateStatus(event, BooleanSetting.DPAD_SLIDE.getBoolean())) {
                 continue
             }
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 dpad.up,
                 dpad.upStatus
             )
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 dpad.down,
                 dpad.downStatus
             )
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 dpad.left,
                 dpad.leftStatus
             )
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 dpad.right,
                 dpad.rightStatus
@@ -283,13 +283,13 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             if (!joystick.updateStatus(event)) {
                 continue
             }
-            NativeInput.onOverlayJoystickEvent(
+            sendJoystickEvent(
                 playerIndex,
                 joystick.joystick,
                 joystick.xAxis,
                 joystick.realYAxis
             )
-            NativeInput.onOverlayButtonEvent(
+            sendButtonEvent(
                 playerIndex,
                 joystick.button,
                 joystick.buttonStatus
@@ -336,6 +336,20 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
 
         return true
+    }
+
+    /** Forwards to [NativeInput.onOverlayButtonEvent], also feeding [MacroRecorder] when a
+     *  macro is being recorded - the single chokepoint every button/dpad/stick-click event in
+     *  this class goes through. */
+    private fun sendButtonEvent(port: Int, button: NativeButton, action: Int) {
+        MacroRecorder.recordButtonEvent(port, button, action)
+        NativeInput.onOverlayButtonEvent(port, button, action)
+    }
+
+    /** Same as [sendButtonEvent], for [NativeInput.onOverlayJoystickEvent]. */
+    private fun sendJoystickEvent(port: Int, stick: NativeAnalog, x: Float, y: Float) {
+        MacroRecorder.recordJoystickEvent(port, stick, x, y)
+        NativeInput.onOverlayJoystickEvent(port, stick, x, y)
     }
 
     private fun playHaptics(event: MotionEvent) {

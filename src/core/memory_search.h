@@ -96,4 +96,22 @@ enum class Comparison {
 // whatever it's replacing, or it will overwrite unrelated adjacent memory.
 [[nodiscard]] bool Write(Core::System& system, u64 address, std::span<const u8> value);
 
+// Freeze: keeps re-writing `value` at `address` (roughly every 100ms, via a background
+// thread that starts on the first frozen address and stops itself once none remain) so the
+// game can't change it without a matching cheat code - infinite HP/ammo/etc. Calling this
+// again for an already-frozen address just updates the value being held.
+void SetFrozen(Core::System& system, u64 address, s32 value);
+
+// Unfreezes a single address. No-op if it wasn't frozen.
+void ClearFrozen(u64 address);
+
+// Unfreezes everything and stops the background thread. Must be called when a game session
+// ends (EmulationSession::ShutdownEmulation) - frozen addresses are only meaningful for the
+// process they were found in, and would otherwise keep getting written into whatever game
+// loads next.
+void ClearAllFrozen();
+
+// The current frozen (address, value) set, for the UI to display/manage.
+[[nodiscard]] std::vector<Match> GetFrozen();
+
 } // namespace Core::MemorySearch

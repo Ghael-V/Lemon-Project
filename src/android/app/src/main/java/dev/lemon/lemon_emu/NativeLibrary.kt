@@ -239,6 +239,20 @@ object NativeLibrary {
     external fun cheatWrite(address: Long, value: ByteArray): Boolean
 
     /**
+     * Freezes [address] to [value]: a native background thread keeps rewriting it (roughly
+     * every 100ms) until [cheatClearFrozen] is called, so the game can't change it without a
+     * matching cheat code. Calling this again for an already-frozen address just updates the
+     * value being held.
+     */
+    external fun cheatSetFrozen(address: Long, value: Int)
+
+    /** Unfreezes [address]. No-op if it wasn't frozen. */
+    external fun cheatClearFrozen(address: Long)
+
+    /** The current frozen (address, value) set, interleaved like [cheatSearch]'s return. */
+    external fun cheatGetFrozen(): LongArray
+
+    /**
      * Stops emulation.
      */
     external fun stopEmulation()

@@ -2,6 +2,7 @@
 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
@@ -221,12 +222,87 @@
 
     </FrameLayout>
 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_continue_playing"
+        style="@style/LemonCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="@android:color/transparent"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeColor="?attr/colorOutline"
+        app:strokeWidth="1dp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/frame_search"
+        tools:visibility="visible">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/image_continue_playing"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:scaleType="centerCrop"
+                app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:src="@drawable/default_icon" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/text_continue_label"
+                style="?attr/textAppearanceLabelSmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:alpha="0.7"
+                android:text="@string/continue_playing"
+                app:layout_constraintEnd_toStartOf="@id/icon_continue_play"
+                app:layout_constraintStart_toEndOf="@id/image_continue_playing"
+                app:layout_constraintTop_toTopOf="@id/image_continue_playing" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/text_continue_title"
+                style="?attr/textAppearanceTitleSmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                app:layout_constraintBottom_toBottomOf="@id/image_continue_playing"
+                app:layout_constraintEnd_toStartOf="@id/icon_continue_play"
+                app:layout_constraintStart_toEndOf="@id/image_continue_playing"
+                app:layout_constraintTop_toBottomOf="@id/text_continue_label"
+                tools:text="The Legend of Zelda: Breath of the Wild" />
+
+            <ImageView
+                android:id="@+id/icon_continue_play"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_play"
+                app:tint="?attr/colorPrimary"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/frame_search"
+        app:layout_constraintTop_toBottomOf="@id/card_continue_playing"
         app:layout_constraintBottom_toBottomOf="parent"
         >
 

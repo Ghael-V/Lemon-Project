@@ -43,9 +43,21 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private data class Match(val address: Long, val value: Int)
 
     private val binding: OverlayCheatPanelBinding
-    private val adapter = CheatResultAdapter { address, value -> showWriteDialog(address, value) }
+    private val adapter = CheatResultAdapter(
+        onRowClicked = { address, value -> showWriteDialog(address, value) },
+        onFreezeToggled = { address, value, currentlyFrozen -> onFreezeToggled(address, value, currentlyFrozen) }
+    )
 
     private var lastMatches: List<Match> = emptyList()
+
+    // Address -> value currently being held by the native freeze thread. Doubles as the "is
+    // this address frozen" check (frozenValues.containsKey(...)) for both the results view
+    // (so an already-frozen address still shows a locked icon there) and the dedicated
+    // "Frozen" view below.
+    private var frozenValues: MutableMap<Long, Int> = mutableMapOf()
+
+    // Which list cheat_results_list is currently showing - toggled by cheat_view_toggle_group.
+    private var viewingFrozen = false
 
     // Set by the blind-search button, cleared by the first Increased/Decreased tap after it.
     // While true, Increased/Decreased compares live memory against the native-side snapshot
@@ -84,8 +96,22 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         binding.cheatValueInput.doOnTextChanged { _, _, _, _ ->
             binding.cheatValueInputLayout.error = null
         }
+        binding.cheatViewToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            viewingFrozen = checkedId == R.id.cheat_view_frozen_button
+            if (viewingFrozen) {
+                reloadFrozenThenDisplay()
+            } else {
+                updateDisplay()
+            }
+        }
 
         setupDragHandle()
+
+        // Picks up any address still frozen from before this panel instance existed (e.g. the
+        // activity/overlay was recreated while a game kept running), so its row shows a locked
+        // icon immediately instead of only after the user visits the Frozen tab once.
+        reloadFrozenThenDisplay()
     }
 
     override fun onDetachedFromWindow() {
@@ -151,7 +177,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             val results = withContext(Dispatchers.Default) { NativeLibrary.cheatSearch(value) }
             awaitingBlindCompare = false
             lastMatches = decodeMatches(results)
-            refreshResults()
+            showResultsView()
         }
     }
 
@@ -164,7 +190,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
                 NativeLibrary.cheatRefine(candidates, EXACT_COMPARISON, value)
             }
             lastMatches = decodeMatches(results)
-            refreshResults()
+            showResultsView()
         }
     }
 
@@ -174,7 +200,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             withContext(Dispatchers.Default) { NativeLibrary.cheatTakeSnapshot() }
             awaitingBlindCompare = true
             lastMatches = emptyList()
-            adapter.submitResults(emptyList())
+            showResultsView()
             binding.cheatStatusText.text = context.getString(R.string.lemon_cheater_snapshot_taken)
         }
     }
@@ -191,8 +217,15 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             }
             awaitingBlindCompare = false
             lastMatches = decodeMatches(results)
-            refreshResults()
+            showResultsView()
         }
+    }
+
+    /** Switches back to the "Results" view (e.g. after a new search/refine) and redisplays. */
+    private fun showResultsView() {
+        viewingFrozen = false
+        binding.cheatViewToggleGroup.check(R.id.cheat_view_results_button)
+        updateDisplay()
     }
 
     /** Runs [block] with every action button disabled and a "working..." status. */
@@ -221,21 +254,66 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         binding.cheatUnchangedButton.isEnabled = hasCandidates
     }
 
-    /** Updates the results list and status text from [lastMatches] - no native calls needed,
-     *  every path that sets [lastMatches] already returns each match's current value. */
-    private fun refreshResults() {
-        val total = lastMatches.size
-        val rows = lastMatches.take(DISPLAY_LIMIT).map { it.address to it.value }
-        adapter.submitResults(rows)
+    /** Updates the results list and status text from whichever of [lastMatches]/[frozenValues]
+     *  is currently selected (see [viewingFrozen]) - no native calls needed, every path that
+     *  sets those already has each address' current value on hand. Also keeps the "Frozen (N)"
+     *  tab label in sync. */
+    private fun updateDisplay() {
+        val rows = if (viewingFrozen) {
+            frozenValues.entries.sortedBy { it.key }.map { it.key to it.value }
+        } else {
+            lastMatches.take(DISPLAY_LIMIT).map { it.address to it.value }
+        }
+        adapter.submitResults(rows, frozenValues.keys)
 
-        binding.cheatStatusText.text = when {
-            total == 0 -> context.getString(R.string.lemon_cheater_no_results)
-            total > DISPLAY_LIMIT -> context.getString(
-                R.string.lemon_cheater_showing_subset,
-                rows.size,
-                total
-            )
-            else -> context.getString(R.string.lemon_cheater_results_count, total)
+        binding.cheatViewFrozenButton.text =
+            context.getString(R.string.lemon_cheater_view_frozen, frozenValues.size)
+
+        binding.cheatStatusText.text = if (viewingFrozen) {
+            if (rows.isEmpty()) {
+                context.getString(R.string.lemon_cheater_no_frozen)
+            } else {
+                context.getString(R.string.lemon_cheater_results_count, rows.size)
+            }
+        } else {
+            val total = lastMatches.size
+            when {
+                total == 0 -> context.getString(R.string.lemon_cheater_no_results)
+                total > DISPLAY_LIMIT -> context.getString(
+                    R.string.lemon_cheater_showing_subset,
+                    rows.size,
+                    total
+                )
+                else -> context.getString(R.string.lemon_cheater_results_count, total)
+            }
+        }
+    }
+
+    /** Re-fetches the frozen address set from native, then redisplays whichever view is
+     *  currently selected (icons on the Results view also depend on [frozenValues]). */
+    private fun reloadFrozenThenDisplay() {
+        scope.launch {
+            val raw = withContext(Dispatchers.Default) { NativeLibrary.cheatGetFrozen() }
+            frozenValues = decodeMatches(raw).associate { it.address to it.value }.toMutableMap()
+            updateDisplay()
+        }
+    }
+
+    private fun onFreezeToggled(address: Long, value: Int, currentlyFrozen: Boolean) {
+        scope.launch {
+            withContext(Dispatchers.Default) {
+                if (currentlyFrozen) {
+                    NativeLibrary.cheatClearFrozen(address)
+                } else {
+                    NativeLibrary.cheatSetFrozen(address, value)
+                }
+            }
+            if (currentlyFrozen) {
+                frozenValues.remove(address)
+            } else {
+                frozenValues[address] = value
+            }
+            updateDisplay()
         }
     }
 
@@ -253,11 +331,24 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
                 if (newValue == null) {
                     return@setPositiveButton
                 }
+                val isFrozen = frozenValues.containsKey(address)
                 runBusy {
+                    // A frozen address gets rewritten by the native freeze thread roughly every
+                    // 100ms - writing through cheatWrite() here would just get silently
+                    // overwritten by the OLD frozen value on the next tick. Update the frozen
+                    // target itself instead, so this edit is what stays held.
                     val ok = withContext(Dispatchers.Default) {
-                        NativeLibrary.cheatWrite(address, intToLeBytes(newValue))
+                        if (isFrozen) {
+                            NativeLibrary.cheatSetFrozen(address, newValue)
+                            true
+                        } else {
+                            NativeLibrary.cheatWrite(address, intToLeBytes(newValue))
+                        }
                     }
                     if (ok) {
+                        if (isFrozen) {
+                            frozenValues[address] = newValue
+                        }
                         // We just wrote this value ourselves - update it in place instead of
                         // re-reading, so the row reflects it immediately.
                         lastMatches = lastMatches.map {
@@ -270,7 +361,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-                    refreshResults()
+                    updateDisplay()
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)

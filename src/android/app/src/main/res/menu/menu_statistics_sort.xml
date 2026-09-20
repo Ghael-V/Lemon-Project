@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/sort_playtime"
+            android:title="@string/statistics_sort_playtime"
+            android:checked="true" />
+        <item
+            android:id="@+id/sort_last_played"
+            android:title="@string/statistics_sort_last_played" />
+        <item
+            android:id="@+id/sort_sessions"
+            android:title="@string/statistics_sort_sessions" />
+    </group>
+</menu>

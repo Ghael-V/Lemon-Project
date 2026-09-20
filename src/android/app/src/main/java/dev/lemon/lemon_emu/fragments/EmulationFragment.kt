@@ -781,6 +781,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             )
         }
 
+        binding.macroOverlay.onShowOverlayRequested = { toggleOverlay(true) }
+
         binding.inGameMenu.setNavigationItemSelectedListener {
             when (it.itemId) {
                 R.id.menu_pause_emulation -> {
@@ -820,6 +822,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 R.id.menu_lemon_cheater -> {
                     binding.cheatOverlay.visibility =
                         if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                            View.GONE
+                        } else {
+                            View.VISIBLE
+                        }
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
+                R.id.menu_lemon_macro -> {
+                    binding.macroOverlay.visibility =
+                        if (binding.macroOverlay.visibility == View.VISIBLE) {
                             View.GONE
                         } else {
                             View.VISIBLE

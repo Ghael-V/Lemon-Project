@@ -242,6 +242,7 @@
     <string name="add_games_warning_description">Los juegos no se mostrarán en la lista de juegos si no se selecciona una carpeta.</string>
     <string name="add_games_warning_help">https://yuzu-mirror.github.io/help/quickstart/#dumping-games</string>
     <string name="home_search_games">Buscar juegos</string>
+    <string name="continue_playing">Continuar jugando</string>
     <string name="search_settings">Buscar ajustes</string>
     <string name="install_prod_keys">Instalar prod.keys</string>
     <string name="install_prod_keys_description">Requerido para descifrar juegos minoristas</string>
@@ -837,6 +838,10 @@
     <string name="statistics">Estadísticas</string>
     <string name="statistics_summary_games">%d juegos en tu biblioteca</string>
     <string name="statistics_summary_playtime">%s jugadas en total</string>
+    <string name="statistics_sort_by">Ordenar por</string>
+    <string name="statistics_sort_playtime">Tiempo jugado</string>
+    <string name="statistics_sort_last_played">Última vez jugado</string>
+    <string name="statistics_sort_sessions">Partidas jugadas</string>
     <string name="clear_shader_cache">Limpiar la caché de sombreadores</string>
     <string name="clear_shader_cache_description">Elimina todos los sombreadores construidos mientras se juega al juego</string>
     <string name="clear_shader_cache_warning_description">Experimentará más tirones mientras se regenera la caché de los sombreadores</string>
