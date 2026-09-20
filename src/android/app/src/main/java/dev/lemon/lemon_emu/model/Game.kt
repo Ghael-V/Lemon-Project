@@ -35,6 +35,7 @@ class Game(
     val keyAddedToLibraryTime get() = "${path}_AddedToLibraryTime"
     val keyLastPlayedTime get() = "${path}_LastPlayed"
     val keyIsFavorite get() = "${path}_Favorite"
+    val keySessionCount get() = "${path}_SessionCount"
 
     val settingsName: String
         get() {

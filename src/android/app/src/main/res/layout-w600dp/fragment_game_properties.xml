@@ -38,7 +38,7 @@
 
     <LinearLayout
         android:id="@+id/icon_layout"
-        android:layout_width="wrap_content"
+        android:layout_width="207dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         app:layout_constraintStart_toStartOf="parent"
@@ -111,9 +111,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
-            android:layout_marginBottom="8dp"
             android:textAlignment="center"
             tools:text="Game Playtime" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/game_usage_stats"
+            style="?attr/textAppearanceBodySmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="8dp"
+            android:textAlignment="center"
+            android:alpha="0.7"
+            tools:text="Last played 2 days ago · 5 sessions" />
 
     </LinearLayout>
 

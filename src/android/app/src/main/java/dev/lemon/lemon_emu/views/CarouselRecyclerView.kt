@@ -201,9 +201,13 @@ class CarouselRecyclerView @JvmOverloads constructor(
     }
 
     fun updateChildScalesAndAlpha() {
+        val centerPosition = getClosestChildPosition()
         for (i in 0 until childCount) {
             val child = getChildAt(i) ?: continue
             updateChildScaleAndAlphaForPosition(child)
+
+            val holder = getChildViewHolder(child) as? GameAdapter.GameViewHolder ?: continue
+            holder.setCarouselCenterState(holder.bindingAdapterPosition == centerPosition)
         }
     }
 

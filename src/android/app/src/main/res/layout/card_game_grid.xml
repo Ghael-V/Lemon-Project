@@ -62,6 +62,24 @@
                 app:layout_constraintTop_toBottomOf="@+id/image_game_screen"
                 tools:text="The Legend of Zelda: Skyward Sword" />
 
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/text_game_stats"
+                style="?attr/textAppearanceBodySmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:alpha="0.7"
+                android:gravity="center"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textAlignment="center"
+                android:textSize="11sp"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="@+id/image_game_screen"
+                app:layout_constraintStart_toStartOf="@+id/image_game_screen"
+                app:layout_constraintTop_toBottomOf="@+id/text_game_title"
+                tools:text="3h 20m"
+                tools:visibility="visible" />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </dev.lemon.lemon_emu.views.GradientBorderCardView>

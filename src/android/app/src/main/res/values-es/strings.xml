@@ -828,6 +828,15 @@
     <string name="minutes_must_be_between_0_and_59">Los minutos deben estar entre 0 y 59</string>
     <string name="seconds_must_be_between_0_and_59">Los segundos deben estar entre 0 y 59</string>
     <string name="playtime_updated_successfully">Tiempo de juego actualizado exitosamente</string>
+    <string name="game_never_played">Nunca jugado</string>
+    <string name="game_last_played">Última vez jugado %1$s</string>
+    <plurals name="game_sessions_count">
+        <item quantity="one">%d partida</item>
+        <item quantity="other">%d partidas</item>
+    </plurals>
+    <string name="statistics">Estadísticas</string>
+    <string name="statistics_summary_games">%d juegos en tu biblioteca</string>
+    <string name="statistics_summary_playtime">%s jugadas en total</string>
     <string name="clear_shader_cache">Limpiar la caché de sombreadores</string>
     <string name="clear_shader_cache_description">Elimina todos los sombreadores construidos mientras se juega al juego</string>
     <string name="clear_shader_cache_warning_description">Experimentará más tirones mientras se regenera la caché de los sombreadores</string>

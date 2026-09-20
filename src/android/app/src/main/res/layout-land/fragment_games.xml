@@ -162,6 +162,36 @@
             />
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/statistics_button"
+            style="@style/LemonCard"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@android:color/transparent"
+            app:cardCornerRadius="21dp"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutline"
+            app:strokeWidth="1dp"
+            android:padding="8dp"
+            android:contentDescription="@string/statistics"
+            >
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_bar_chart"
+                app:tint="?attr/colorPrimary"
+                />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <Space
+            android:layout_width="15dp"
+            android:layout_height="wrap_content"
+            />
+
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/settings_button"
             style="@style/LemonCard"
             android:layout_width="42dp"

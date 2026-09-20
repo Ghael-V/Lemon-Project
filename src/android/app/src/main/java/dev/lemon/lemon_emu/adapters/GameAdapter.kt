@@ -34,6 +34,7 @@ import dev.lemon.lemon_emu.databinding.CardGameCarouselBinding
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.utils.GameIconUtils
+import dev.lemon.lemon_emu.utils.GameStatsUtils
 import dev.lemon.lemon_emu.utils.NativeConfig
 import dev.lemon.lemon_emu.utils.PerformancePresets
 import dev.lemon.lemon_emu.features.settings.utils.SettingsFile
@@ -161,7 +162,12 @@ class GameAdapter(private val activity: AppCompatActivity) :
         private var lastTouchX = 0f
         private var lastTouchY = 0f
 
+        // Currently bound game, used by setCarouselCenterState (called from
+        // CarouselRecyclerView, outside the normal bind() flow) to know what to show.
+        private var boundGame: Game? = null
+
         override fun bind(model: Game) {
+            boundGame = model
             when (viewType) {
                 VIEW_TYPE_LIST -> bindListView(model)
                 VIEW_TYPE_GRID -> bindGridView(model)
@@ -177,7 +183,12 @@ class GameAdapter(private val activity: AppCompatActivity) :
             GameIconUtils.loadGameIcon(model, listBinding.imageGameScreen)
 
             listBinding.textGameTitle.text = model.title.replace("[\\t\\n\\r]+".toRegex(), " ")
-            listBinding.textGameDeveloper.text = model.developer
+            val abbreviatedStats = GameStatsUtils.buildAbbreviated(activity, model)
+            listBinding.textGameDeveloper.text = if (abbreviatedStats != null) {
+                "${model.developer} · $abbreviatedStats"
+            } else {
+                model.developer
+            }
 
             listBinding.textGameTitle.marquee()
             listBinding.cardGameList.setOnClickListener { onClick(model) }
@@ -195,6 +206,9 @@ class GameAdapter(private val activity: AppCompatActivity) :
             GameIconUtils.loadGameIcon(model, gridBinding.imageGameScreen)
 
             gridBinding.textGameTitle.text = model.title.replace("[\\t\\n\\r]+".toRegex(), " ")
+            val abbreviatedStats = GameStatsUtils.buildAbbreviated(activity, model)
+            gridBinding.textGameStats.text = abbreviatedStats
+            gridBinding.textGameStats.visibility = if (abbreviatedStats != null) View.VISIBLE else View.GONE
 
             gridBinding.textGameTitle.marquee()
             gridBinding.cardGameGrid.setOnClickListener { onClick(model) }
@@ -212,6 +226,10 @@ class GameAdapter(private val activity: AppCompatActivity) :
             GameIconUtils.loadGameIcon(model, gridCompactBinding.imageGameScreenCompact)
 
             gridCompactBinding.textGameTitleCompact.text = model.title.replace("[\\t\\n\\r]+".toRegex(), " ")
+            val abbreviatedStats = GameStatsUtils.buildAbbreviated(activity, model)
+            gridCompactBinding.textGameStatsCompact.text = abbreviatedStats
+            gridCompactBinding.textGameStatsCompact.visibility =
+                if (abbreviatedStats != null) View.VISIBLE else View.GONE
 
             gridCompactBinding.textGameTitleCompact.marquee()
             gridCompactBinding.cardGameGridCompact.setOnClickListener { onClick(model) }
@@ -245,6 +263,38 @@ class GameAdapter(private val activity: AppCompatActivity) :
 
             // Ensure zero-heighted-full-width cards for carousel
             carouselBinding.root.layoutParams.width = cardSize
+
+            // Reset to hidden on (re)bind - a recycled holder may have been left showing
+            // stats for a previous game as it scrolled out of the center position.
+            carouselBinding.textGameStats.visibility = View.GONE
+            carouselBinding.overlayGameStatsBackground.visibility = View.GONE
+            carouselBinding.textGameStats.isSelected = false
+        }
+
+        /**
+         * Shows or hides the carousel card's stats overlay + marquee. Only meant to be called
+         * for the single centered card at a time (see CarouselRecyclerView), so at most one
+         * marquee animates on screen. Cheap to call every scroll frame - it no-ops unless the
+         * center state actually changed.
+         */
+        fun setCarouselCenterState(isCenter: Boolean) {
+            if (viewType != VIEW_TYPE_CAROUSEL) return
+            val carouselBinding = binding as CardGameCarouselBinding
+            val game = boundGame ?: return
+
+            if (isCenter) {
+                if (carouselBinding.textGameStats.visibility == View.VISIBLE) return
+                val summary = GameStatsUtils.buildFullSummary(activity, game) ?: return
+                carouselBinding.textGameStats.text = summary
+                carouselBinding.textGameStats.visibility = View.VISIBLE
+                carouselBinding.overlayGameStatsBackground.visibility = View.VISIBLE
+                carouselBinding.textGameStats.marquee()
+            } else {
+                if (carouselBinding.textGameStats.visibility != View.VISIBLE) return
+                carouselBinding.textGameStats.visibility = View.GONE
+                carouselBinding.overlayGameStatsBackground.visibility = View.GONE
+                carouselBinding.textGameStats.isSelected = false
+            }
         }
 
         fun onClick(game: Game) {

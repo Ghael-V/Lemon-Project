@@ -931,6 +931,15 @@
     <string name="minutes_must_be_between_0_and_59">Minutes must be between 0 and 59</string>
     <string name="seconds_must_be_between_0_and_59">Seconds must be between 0 and 59</string>
     <string name="playtime_updated_successfully">Playtime updated successfully</string>
+    <string name="game_never_played">Never played</string>
+    <string name="game_last_played">Last played %1$s</string>
+    <plurals name="game_sessions_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
+    <string name="statistics">Statistics</string>
+    <string name="statistics_summary_games">%d games in your library</string>
+    <string name="statistics_summary_playtime">%s played in total</string>
     <string name="clear_shader_cache">Clear shader cache</string>
     <string name="clear_shader_cache_description">Removes all shaders built while playing this game</string>
     <string name="clear_shader_cache_warning_description">You will experience more stuttering as the shader cache regenerates</string>

@@ -40,6 +40,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -781,6 +782,10 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
         emulationViewModel.setEmulationStopped(false)
         NativeLibrary.playTimeManagerStart()
 
+        processSessionGame?.let { game ->
+            val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+            prefs.edit { putInt(game.keySessionCount, prefs.getInt(game.keySessionCount, 0) + 1) }
+        }
     }
 
     fun onEmulationStopped(status: Int) {
