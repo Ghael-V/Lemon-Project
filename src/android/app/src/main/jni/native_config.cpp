@@ -59,11 +59,23 @@ void Java_dev_lemon_lemon_1emu_utils_NativeConfig_unloadGlobalConfig(JNIEnv* env
 }
 
 void Java_dev_lemon_lemon_1emu_utils_NativeConfig_reloadGlobalConfig(JNIEnv* env, jobject obj) {
+    if (!global_config) {
+        LOG_ERROR(Frontend, "[Android Native] reloadGlobalConfig: global_config not loaded");
+        return;
+    }
     global_config->AndroidConfig::ReloadAllValues();
     ResetFxChainToGlobal();
 }
 
 void Java_dev_lemon_lemon_1emu_utils_NativeConfig_saveGlobalConfig(JNIEnv* env, jobject obj) {
+    // global_config is null before initializeGlobalConfig()/after unloadGlobalConfig() - callers
+    // that can fire asynchronously relative to the config lifecycle (e.g. the thermal-triggered
+    // adaptive downgrade in EmulationFragment, posted via Handler.post and not cancelled if the
+    // session tears down first) can land here with nothing loaded. Fail safe instead of crashing.
+    if (!global_config) {
+        LOG_ERROR(Frontend, "[Android Native] saveGlobalConfig: global_config not loaded");
+        return;
+    }
     global_config->AndroidConfig::SaveAllValues();
 }
 
@@ -83,6 +95,11 @@ jboolean Java_dev_lemon_lemon_1emu_utils_NativeConfig_isPerGameConfigLoaded(JNIE
 }
 
 void Java_dev_lemon_lemon_1emu_utils_NativeConfig_savePerGameConfig(JNIEnv* env, jobject obj) {
+    // See saveGlobalConfig() above - same race, same fail-safe treatment.
+    if (!per_game_config) {
+        LOG_ERROR(Frontend, "[Android Native] savePerGameConfig: per_game_config not loaded");
+        return;
+    }
     per_game_config->AndroidConfig::SaveAllValues();
 }
 
@@ -572,6 +589,11 @@ void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setInputSettings(JNIEnv* env, 
 }
 
 void Java_dev_lemon_lemon_1emu_utils_NativeConfig_saveControlPlayerValues(JNIEnv* env, jobject obj) {
+    if (!per_game_config) {
+        LOG_ERROR(Frontend, "[Android Native] saveControlPlayerValues: per_game_config not loaded");
+        return;
+    }
+
     Settings::values.players.SetGlobal(false);
 
     // Clear all controls from the config in case the user reverted back to globals

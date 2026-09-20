@@ -269,6 +269,15 @@ android {
             kotlin.srcDir("${coreDir}/externals/generated/sdl/java")
         }
     }
+
+    lint {
+        // "Instantiatable" false-positives on every AndroidX/Material widget and every
+        // Activity in the manifest (NavigationView, MaterialCardView, MainActivity, etc.) -
+        // lint can't see through the full classpath during the release lintVital pass to
+        // confirm they extend View/Activity, even though they obviously do. Android's own
+        // lint explanation for this check suggests disabling it when hitting this pattern.
+        disable += "Instantiatable"
+    }
 }
 
 idea {

@@ -8,6 +8,26 @@
         android:icon="@drawable/ic_pause"
         android:title="@string/emulation_pause" />
 
+    <!-- Hidden for now: savestate is a same-session-only MVP, confirmed unreliable for real
+         multi-threaded games (see src/core/savestate.h). The underlying code stays in place,
+         just unreachable from the UI. -->
+    <item
+        android:id="@+id/menu_quick_save_state"
+        android:icon="@drawable/ic_save"
+        android:title="@string/emulation_quick_save_state"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/menu_quick_load_state"
+        android:icon="@drawable/ic_restore"
+        android:title="@string/emulation_quick_load_state"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/menu_lemon_cheater"
+        android:icon="@drawable/ic_search"
+        android:title="@string/lemon_cheater" />
+
     <item
         android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"

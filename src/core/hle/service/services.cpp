@@ -95,8 +95,10 @@ Services::Services(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system
         {"nvservices", &Nvidia::LoopProcess},
         {"bsdsocket",  &Sockets::LoopProcess},
     })
-        kernel.RunOnHostCoreProcess(std::string(e.first), [&system, f = e.second] { f(system); }).detach();
-    kernel.RunOnHostCoreProcess("vi",         [&, token] { VI::LoopProcess(system, token); }).detach();
+        m_service_threads.push_back(
+            kernel.RunOnHostCoreProcess(std::string(e.first), [&system, f = e.second] { f(system); }));
+    m_service_threads.push_back(
+        kernel.RunOnHostCoreProcess("vi", [&, token] { VI::LoopProcess(system, token); }));
     // Avoid cold clones of lambdas -- succintly
     for (auto const& e : std::vector<std::pair<std::string_view, void (*)(Core::System&)>>{
         {"sm",         &SM::LoopProcess},
@@ -152,9 +154,19 @@ Services::Services(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system
         {"tma",        &TMA::LoopProcess},
         {"usb",        &USB::LoopProcess},
         {"i2c",        &I2C::LoopProcess},
-        {"gpio",        &GPIO::LoopProcess},
+        {"gpio",       &GPIO::LoopProcess},
     })
-        kernel.RunOnGuestCoreProcess(std::string(e.first), [&system, f = e.second] { f(system); });
+        // These used to run via RunOnGuestCoreProcess, pinning each worker thread to a
+        // guest-scheduled KThread that never gets rescheduled once idle long enough to miss
+        // kernel.CloseServices()'s stop signal - a guaranteed hang on shutdown for whichever
+        // service had gone quietest (always 'gpio' in practice). None of these execute guest
+        // CPU instructions, so nothing needs the guest scheduling in the first place.
+        // Detaching them isn't safe either: post-RunServer cleanup (e.g. AM::LoopProcess
+        // destructing its EventObserver) can still be unwinding when kernel.Shutdown() tears
+        // down the kernel objects it touches. Owning the jthread in m_service_threads makes
+        // ~Services() join every one of them before that happens.
+        m_service_threads.push_back(
+            kernel.RunOnHostCoreProcess(std::string(e.first), [&system, f = e.second] { f(system); }));
 }
 
 } // namespace Service
