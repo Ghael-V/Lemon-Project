@@ -196,6 +196,13 @@
 
         </FrameLayout>
 
+        <!-- Lemon Cheater: live memory search/edit panel, floats above everything else -->
+        <dev.lemon.lemon_emu.overlay.CheatOverlay
+            android:id="@+id/cheat_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <com.google.android.material.navigation.NavigationView

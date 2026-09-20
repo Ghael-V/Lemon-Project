@@ -183,6 +183,62 @@ object NativeLibrary {
     external fun pauseEmulation()
 
     /**
+     * Captures CPU register state and process memory to a single quicksave slot.
+     * Same-session only - does not survive closing the game. Returns true on success.
+     */
+    external fun quickSaveState(): Boolean
+
+    /**
+     * Restores CPU register state and process memory from the quicksave slot.
+     * Fails (returns false) without changing anything if no compatible quicksave exists.
+     */
+    external fun quickLoadState(): Boolean
+
+    /**
+     * Scans all live guest process memory for an exact match of the 4-byte signed [needleValue].
+     * Returns matches interleaved as [addr0, value0, addr1, value1, ...] (capped internally to
+     * a sane limit) - decode with CheatOverlay's decodeMatches().
+     */
+    external fun cheatSearch(needleValue: Int): LongArray
+
+    /**
+     * "Blind search" step 1: snapshots current guest memory for a later [cheatCompareSnapshot]
+     * call, for when the caller doesn't know an exact value to search for yet.
+     */
+    external fun cheatTakeSnapshot()
+
+    /**
+     * "Blind search" step 2: compares live memory against the snapshot taken by
+     * [cheatTakeSnapshot] and returns every address whose value satisfies [comparison]
+     * (0 = increased, 1 = decreased, 2 = unchanged) relative to the snapshotted value there.
+     * Interleaved like [cheatSearch]. Consumes the snapshot - only callable once per
+     * [cheatTakeSnapshot].
+     */
+    external fun cheatCompareSnapshot(comparison: Int): LongArray
+
+    /**
+     * Narrows [candidates] (interleaved like [cheatSearch]'s return) down to just the ones
+     * that still qualify - the "next scan" step. If [comparison] is -1, keeps addresses whose
+     * current value equals [needleValue] (exact-match refine). Otherwise [needleValue] is
+     * ignored and each candidate's current value is compared against its OWN previous value
+     * (0 = increased, 1 = decreased, 2 = unchanged) - this is what lets these refines chain
+     * across multiple passes, not just once right after a blind search.
+     */
+    external fun cheatRefine(candidates: LongArray, comparison: Int, needleValue: Int): LongArray
+
+    /**
+     * Reads [length] bytes of live guest process memory at [address].
+     * Returns an empty array on failure.
+     */
+    external fun cheatRead(address: Long, length: Int): ByteArray
+
+    /**
+     * Writes [value] into live guest process memory at [address]. [value] must be the same
+     * length as whatever it's replacing - this does not shift or resize anything.
+     */
+    external fun cheatWrite(address: Long, value: ByteArray): Boolean
+
+    /**
      * Stops emulation.
      */
     external fun stopEmulation()

@@ -61,7 +61,9 @@ private:
     MultiWait m_multi_wait;
     MultiWait m_deferred_wait_list;
 
-    // Processing thread.
+    // Processing thread. Started via RunOnHostCoreProcess (not a bare std::jthread) so it
+    // registers a KThread with the kernel, same as every other background service thread.
+    std::stop_source m_stop_source{};
     std::jthread m_thread{};
 };
 

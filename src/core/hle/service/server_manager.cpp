@@ -101,6 +101,7 @@ ServerManager::~ServerManager() {
 
     // Wait for processing to stop.
     m_stopped.Wait();
+
     m_threads.clear();
 
     // Clean up ports.

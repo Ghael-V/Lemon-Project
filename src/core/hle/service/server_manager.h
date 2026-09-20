@@ -6,6 +6,7 @@
 #include <list>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "common/polyfill_thread.h"

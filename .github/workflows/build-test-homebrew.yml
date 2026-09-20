@@ -1,0 +1,31 @@
+name: Build savestate test homebrew
+
+# Compiles tools/savestate-test-homebrew/ into a .nro via devkitPro's own Docker image.
+# This exists because the sandbox that develops this repo has no access to the devkitPro
+# toolchain (network policy), so this is the only way to verify it actually builds.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        working-directory: tools/savestate-test-homebrew
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build .nro
+        run: make
+
+      - name: Upload .nro artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lemon-savestate-test-homebrew
+          path: tools/savestate-test-homebrew/*.nro
+          retention-days: 30
+          if-no-files-found: error

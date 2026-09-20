@@ -82,6 +82,8 @@ extern "C" {
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/set/system_settings_server.h"
 #include "core/loader/loader.h"
+#include "core/memory_search.h"
+#include "core/savestate.h"
 #include "frontend_common/config.h"
 #include "frontend_common/firmware_manager.h"
 #ifdef ENABLE_UPDATE_CHECKER
@@ -395,6 +397,77 @@ void EmulationSession::UnPauseEmulation() {
     std::scoped_lock lock(m_mutex);
     m_system.Run();
     m_is_paused = false;
+}
+
+namespace {
+std::string GetQuickSavePath() {
+    const auto dir = Common::FS::GetEdenPath(Common::FS::EdenPath::SaveStateDir);
+    void(Common::FS::CreateDirs(dir));
+    return (dir / "quicksave.bin").string();
+}
+} // namespace
+
+bool EmulationSession::QuickSaveState() {
+    std::scoped_lock lock(m_mutex);
+    const bool was_paused = m_is_paused;
+    if (!was_paused) {
+        m_system.Pause();
+    }
+
+    const bool ok = Core::SaveState::Capture(m_system, GetQuickSavePath());
+
+    if (!was_paused) {
+        m_system.Run();
+    }
+    return ok;
+}
+
+bool EmulationSession::QuickLoadState() {
+    std::scoped_lock lock(m_mutex);
+    const bool was_paused = m_is_paused;
+    if (!was_paused) {
+        m_system.Pause();
+    }
+
+    const bool ok = Core::SaveState::Restore(m_system, GetQuickSavePath());
+
+    if (!was_paused) {
+        m_system.Run();
+    }
+    return ok;
+}
+
+std::vector<Core::MemorySearch::Match> EmulationSession::CheatSearch(s32 needle_value) {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::Search(m_system, needle_value);
+}
+
+void EmulationSession::CheatTakeSnapshot() {
+    std::scoped_lock lock(m_mutex);
+    Core::MemorySearch::TakeSnapshot(m_system);
+}
+
+std::vector<Core::MemorySearch::Match> EmulationSession::CheatCompareSnapshot(
+    Core::MemorySearch::Comparison comparison) {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::CompareSnapshot(m_system, comparison);
+}
+
+std::vector<Core::MemorySearch::Match> EmulationSession::CheatRefine(
+    std::span<const Core::MemorySearch::Match> candidates,
+    std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value) {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::Refine(m_system, candidates, comparison, needle_value);
+}
+
+bool EmulationSession::CheatRead(u64 address, std::span<u8> out) {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::Read(m_system, address, out);
+}
+
+bool EmulationSession::CheatWrite(u64 address, std::span<const u8> value) {
+    std::scoped_lock lock(m_mutex);
+    return Core::MemorySearch::Write(m_system, address, value);
 }
 
 void EmulationSession::HaltEmulation() {
@@ -932,6 +1005,134 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_unpauseEmulation(JNIEnv* env, jclas
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_pauseEmulation(JNIEnv* env, jclass clazz) {
     EmulationSession::GetInstance().PauseEmulation();
+}
+
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveState(JNIEnv* env, jclass clazz) {
+    return static_cast<jboolean>(EmulationSession::GetInstance().QuickSaveState());
+}
+
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_quickLoadState(JNIEnv* env, jclass clazz) {
+    return static_cast<jboolean>(EmulationSession::GetInstance().QuickLoadState());
+}
+
+} // extern "C"
+
+namespace {
+// These have real C++ linkage (std::vector return types), so they can't live inside the
+// surrounding extern "C" block - it's closed above and reopened below just for this group.
+std::vector<u8> JByteArrayToBytes(JNIEnv* env, jbyteArray array) {
+    std::vector<u8> bytes;
+    if (array == nullptr) {
+        return bytes;
+    }
+    const jsize length = env->GetArrayLength(array);
+    bytes.resize(static_cast<std::size_t>(length));
+    if (length > 0) {
+        env->GetByteArrayRegion(array, 0, length, reinterpret_cast<jbyte*>(bytes.data()));
+    }
+    return bytes;
+}
+
+// Matches are marshalled to/from Kotlin as a single interleaved long[]: [addr0, value0,
+// addr1, value1, ...]. A custom object type would be cleaner, but this keeps the JNI surface
+// to plain arrays like the rest of this file, at the cost of the caller having to decode
+// pairs - see CheatOverlay.kt's decodeMatches()/encodeMatches().
+jlongArray MatchVectorToJLongArray(JNIEnv* env, const std::vector<Core::MemorySearch::Match>& matches) {
+    std::vector<jlong> interleaved(matches.size() * 2);
+    for (size_t i = 0; i < matches.size(); i++) {
+        interleaved[i * 2] = static_cast<jlong>(matches[i].address);
+        interleaved[i * 2 + 1] = static_cast<jlong>(matches[i].value);
+    }
+
+    jlongArray array = env->NewLongArray(static_cast<jsize>(interleaved.size()));
+    if (array != nullptr && !interleaved.empty()) {
+        env->SetLongArrayRegion(array, 0, static_cast<jsize>(interleaved.size()),
+                                interleaved.data());
+    }
+    return array;
+}
+
+std::vector<Core::MemorySearch::Match> JLongArrayToMatchVector(JNIEnv* env, jlongArray array) {
+    std::vector<Core::MemorySearch::Match> matches;
+    if (array == nullptr) {
+        return matches;
+    }
+
+    const jsize length = env->GetArrayLength(array);
+    if (length <= 0 || length % 2 != 0) {
+        return matches;
+    }
+
+    std::vector<jlong> interleaved(static_cast<std::size_t>(length));
+    env->GetLongArrayRegion(array, 0, length, interleaved.data());
+
+    matches.reserve(static_cast<std::size_t>(length) / 2);
+    for (jsize i = 0; i < length; i += 2) {
+        matches.push_back({.address = static_cast<u64>(interleaved[i]),
+                           .value = static_cast<s32>(interleaved[i + 1])});
+    }
+    return matches;
+}
+} // namespace
+
+extern "C" {
+
+jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatSearch(JNIEnv* env, jclass clazz,
+                                                              jint jneedleValue) {
+    const auto results = EmulationSession::GetInstance().CheatSearch(static_cast<s32>(jneedleValue));
+    return MatchVectorToJLongArray(env, results);
+}
+
+void Java_dev_lemon_lemon_1emu_NativeLibrary_cheatTakeSnapshot(JNIEnv* env, jclass clazz) {
+    EmulationSession::GetInstance().CheatTakeSnapshot();
+}
+
+jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatCompareSnapshot(JNIEnv* env, jclass clazz,
+                                                                       jint jcomparison) {
+    const auto comparison = static_cast<Core::MemorySearch::Comparison>(jcomparison);
+    const auto results = EmulationSession::GetInstance().CheatCompareSnapshot(comparison);
+    return MatchVectorToJLongArray(env, results);
+}
+
+// jcomparison: -1 means an exact-value refine using jneedleValue, 0/1 map to
+// Core::MemorySearch::Comparison (Increased/Decreased) and ignore jneedleValue.
+jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatRefine(JNIEnv* env, jclass clazz,
+                                                              jlongArray jcandidates,
+                                                              jint jcomparison,
+                                                              jint jneedleValue) {
+    const auto candidates = JLongArrayToMatchVector(env, jcandidates);
+    const std::optional<Core::MemorySearch::Comparison> comparison =
+        jcomparison < 0 ? std::nullopt
+                        : std::make_optional(static_cast<Core::MemorySearch::Comparison>(jcomparison));
+    const auto results = EmulationSession::GetInstance().CheatRefine(
+        candidates, comparison, static_cast<s32>(jneedleValue));
+    return MatchVectorToJLongArray(env, results);
+}
+
+jbyteArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatRead(JNIEnv* env, jclass clazz,
+                                                            jlong jaddress, jint jlength) {
+    if (jlength <= 0) {
+        return env->NewByteArray(0);
+    }
+
+    std::vector<u8> buffer(static_cast<std::size_t>(jlength));
+    if (!EmulationSession::GetInstance().CheatRead(static_cast<u64>(jaddress), buffer)) {
+        return env->NewByteArray(0);
+    }
+
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(buffer.size()));
+    if (result != nullptr) {
+        env->SetByteArrayRegion(result, 0, static_cast<jsize>(buffer.size()),
+                                reinterpret_cast<const jbyte*>(buffer.data()));
+    }
+    return result;
+}
+
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_cheatWrite(JNIEnv* env, jclass clazz,
+                                                            jlong jaddress, jbyteArray jvalue) {
+    const auto value = JByteArrayToBytes(env, jvalue);
+    return static_cast<jboolean>(
+        EmulationSession::GetInstance().CheatWrite(static_cast<u64>(jaddress), value));
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_stopEmulation(JNIEnv* env, jclass clazz) {
@@ -1958,7 +2159,7 @@ JNIEXPORT jobjectArray JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_getAllUse
     manager.ResetUserSaveFile();
 
     if (manager.GetUserCount() == 0) {
-        manager.CreateNewUser(Common::UUID::MakeRandom(), "Eden");
+        manager.CreateNewUser(Common::UUID::MakeRandom(), "Lemon");
         manager.WriteUserSaveFile();
     }
 
@@ -2175,7 +2376,7 @@ JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_reloadProfiles(
 
     // create a default user if non exist
     if (manager.GetUserCount() == 0) {
-        manager.CreateNewUser(Common::UUID::MakeRandom(), "Eden");
+        manager.CreateNewUser(Common::UUID::MakeRandom(), "Lemon");
         manager.WriteUserSaveFile();
     }
 

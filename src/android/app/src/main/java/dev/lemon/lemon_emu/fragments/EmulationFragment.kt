@@ -793,6 +793,41 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_quick_save_state -> {
+                    val ok = NativeLibrary.quickSaveState()
+                    Toast.makeText(
+                        requireContext(),
+                        if (ok) R.string.emulation_quick_save_state_success
+                        else R.string.emulation_quick_save_state_failure,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
+                R.id.menu_quick_load_state -> {
+                    val ok = NativeLibrary.quickLoadState()
+                    Toast.makeText(
+                        requireContext(),
+                        if (ok) R.string.emulation_quick_load_state_success
+                        else R.string.emulation_quick_load_state_failure,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
+                R.id.menu_lemon_cheater -> {
+                    binding.cheatOverlay.visibility =
+                        if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                            View.GONE
+                        } else {
+                            View.VISIBLE
+                        }
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
                 R.id.menu_quick_overlay -> {
                     val newState = !BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
                     toggleOverlay(newState)
