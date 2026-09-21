@@ -70,7 +70,14 @@ bool Capture(Core::System& system, const std::string& path) {
         ok = ok && file.WriteObject(region.size);
 
         buffer.resize(region.size);
-        if (!memory.ReadBlock(region.address, buffer.data(), region.size)) {
+        // ReadBlockUnsafe(), not ReadBlock() - the regular path calls
+        // HandleRasterizerDownload() per chunk to sync with the GPU emulation's cache, and
+        // a savestate capture reads the whole multi-GB scannable footprint in one pass. The
+        // Lemon Cheater hit this exact issue first (see memory_search.cpp): forcing that
+        // much cache invalidation in one go visibly wrecks the game's own rendering
+        // performance in a way that persists until the game is reloaded, even though the
+        // capture itself never writes anything.
+        if (!memory.ReadBlockUnsafe(region.address, buffer.data(), region.size)) {
             LOG_ERROR(Core, "SaveState::Capture: failed to read {} bytes at {:#x}", region.size,
                        region.address);
             ok = false;
@@ -165,8 +172,39 @@ bool Restore(Core::System& system, const std::string& path) {
         return false;
     }
 
+    // A thread still asleep in a kernel wait (condvar/IPC/WaitSynchronization/address
+    // arbiter/sleep) right now, at restore time, is parked inside a live host fiber
+    // (KThread::GetHostContext()) - its real "where do I resume" state lives on that
+    // fiber's own C++ call stack, not in Svc::ThreadContext, and that call stack expects
+    // its own guest stack memory to still hold whatever it was holding when it parked.
+    // Blitting captured bytes over it - or overwriting a Svc::ThreadContext that no
+    // longer matches which wait it's actually sitting in - is exactly what made real
+    // games self-terminate via svcBreak on restore (see savestate.h). A thread whose
+    // GetWaitReasonForDebugging() == None was genuinely executing and got stopped
+    // cleanly at a scheduler dispatch boundary by the caller's Pause(): that suspend
+    // path (SuspendType::System, KernelCore::SuspendEmulation) never touches this field,
+    // so checking it here still reflects each thread's state as of this restore.
+    std::vector<u64> sleeping_stack_tops;
+    for (auto* thread : live_threads) {
+        if (thread->GetWaitReasonForDebugging() != Kernel::ThreadWaitReasonForDebugging::None) {
+            sleeping_stack_tops.push_back(thread->GetUserStackTop().GetValue());
+        }
+    }
+
+    // A sleeping thread's own stack is a single region whose address range contains its
+    // stack top - matching on that (rather than persisting KMemoryState in the file, or
+    // re-querying it) is enough since capture/restore only ever targets the current
+    // process' own live layout.
+    const auto is_excluded_stack = [&](u64 address, u64 size) {
+        return std::any_of(sleeping_stack_tops.begin(), sleeping_stack_tops.end(),
+                            [&](u64 stack_top) {
+                                return stack_top > address && stack_top <= address + size;
+                            });
+    };
+
     auto& memory = system.ApplicationMemory();
     std::vector<u8> buffer;
+    u32 skipped_regions = 0;
     for (u32 i = 0; i < region_count; i++) {
         u64 address = 0;
         u64 size = 0;
@@ -181,7 +219,19 @@ bool Restore(Core::System& system, const std::string& path) {
             return false;
         }
 
-        if (!memory.WriteBlock(address, buffer.data(), size)) {
+        if (is_excluded_stack(address, size)) {
+            LOG_DEBUG(Core,
+                       "SaveState::Restore: leaving {} byte(s) at {:#x} untouched - owned by a "
+                       "thread still asleep in a kernel wait",
+                       size, address);
+            skipped_regions++;
+            continue;
+        }
+
+        // WriteBlockUnsafe(), not WriteBlock() - same reasoning as Capture()'s read: skip
+        // the per-chunk GPU rasterizer cache sync so restoring several GB in one pass
+        // doesn't wreck rendering performance for the rest of the session.
+        if (!memory.WriteBlockUnsafe(address, buffer.data(), size)) {
             LOG_ERROR(Core, "SaveState::Restore: failed to write {} bytes at {:#x}", size,
                        address);
             return false;
@@ -189,13 +239,21 @@ bool Restore(Core::System& system, const std::string& path) {
     }
 
     // Everything was read and validated successfully - only now overwrite CPU state,
-    // so a truncated/corrupt file never leaves the guest half-restored.
+    // so a truncated/corrupt file never leaves the guest half-restored. Same exclusion
+    // as above: a still-sleeping thread's context is left exactly as its live fiber
+    // expects to find it.
     for (size_t i = 0; i < live_threads.size(); i++) {
+        if (live_threads[i]->GetWaitReasonForDebugging() !=
+            Kernel::ThreadWaitReasonForDebugging::None) {
+            continue;
+        }
         live_threads[i]->GetContext() = thread_contexts[i];
     }
 
-    LOG_INFO(Core, "SaveState::Restore: loaded {} thread(s), {} region(s) from '{}'",
-              thread_count, region_count, path);
+    LOG_INFO(Core,
+              "SaveState::Restore: loaded {} thread(s), {} region(s) from '{}' ({} region(s), {} "
+              "thread(s) left untouched - still asleep in a kernel wait)",
+              thread_count, region_count, path, skipped_regions, sleeping_stack_tops.size());
     return true;
 }
 
