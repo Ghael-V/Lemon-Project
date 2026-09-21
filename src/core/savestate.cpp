@@ -257,4 +257,20 @@ bool Restore(Core::System& system, const std::string& path) {
     return true;
 }
 
+bool HasRiskyPendingWaits(Core::System& system) {
+    auto* process = system.ApplicationProcess();
+    if (process == nullptr) {
+        return false;
+    }
+
+    for (auto& thread : process->GetThreadList()) {
+        const auto reason = thread.GetWaitReasonForDebugging();
+        if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
+            reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace Core::SaveState
