@@ -307,11 +307,9 @@ size_t GetTotalPipelineWorkers() {
         std::max<size_t>(static_cast<size_t>(std::thread::hardware_concurrency()), 2ULL) - 1ULL;
 #ifdef __ANDROID__
     const int configured = AndroidSettings::values.pipeline_worker_count.GetValue();
+    // Already clamped to [2, 8], so `desired` can never be 0 here.
     const int clamped = std::clamp(configured, 2, 8);
     const size_t desired = static_cast<size_t>(clamped);
-    if (desired == 0) {
-        return 1ULL;
-    }
     return std::min(max_core_threads, desired);
 #else
     return max_core_threads;
@@ -582,11 +580,10 @@ ComputePipeline* PipelineCache::CurrentComputePipeline() {
     };
     const auto [pair, is_new]{compute_cache.try_emplace(key)};
     auto& pipeline{pair->second};
-    if (!is_new) {
-        return pipeline.get();
+    if (is_new) {
+        pipeline = CreateComputePipeline(key, shader);
     }
-    pipeline = CreateComputePipeline(key, shader);
-    return pipeline.get();
+    return BuiltComputePipeline(pipeline.get());
 }
 
 void PipelineCache::LoadDiskResources(u64 title_id, std::stop_token stop_loading,
@@ -782,6 +779,24 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     if (draw_state.index_buffer.count <= 6 || draw_state.vertex_buffer.count <= 6) {
         return pipeline;
     }
+    return nullptr;
+}
+
+ComputePipeline* PipelineCache::BuiltComputePipeline(ComputePipeline* pipeline) const noexcept {
+    if (!pipeline || pipeline->IsBuilt()) {
+        return pipeline;
+    }
+    if (!use_asynchronous_shaders) {
+        return pipeline;
+    }
+    // Mirrors BuiltPipeline() above, but there's no equivalent to the small index/vertex count
+    // heuristic to preserve here: a compute dispatch has no "this is probably a one-shot
+    // fullscreen-quad shader" signal to fall back on, so any compute pipeline still compiling
+    // in the background is simply skipped for this dispatch while async shaders is enabled -
+    // DispatchCompute() (vk_rasterizer.cpp) already treats a null pipeline as "skip this
+    // dispatch", same as it does for a shaderless draw.
+    LOG_DEBUG(Render_Vulkan,
+              "Skipping compute dispatch, pipeline still compiling asynchronously");
     return nullptr;
 }
 
