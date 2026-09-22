@@ -968,64 +968,91 @@ jboolean JNICALL Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_supportsCustomD
 jobjectArray Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_getSystemDriverInfo(
     JNIEnv* env, jobject j_obj, jobject j_surf, jstring j_hook_lib_dir) {
 #ifdef ARCHITECTURE_arm64
-    const char* file_redirect_dir_{};
-    int featureFlags{};
-    std::string hook_lib_dir = Common::Android::GetJString(env, j_hook_lib_dir);
-    auto handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
-                                             nullptr, nullptr, file_redirect_dir_, nullptr);
-    auto driver_library = std::make_shared<Common::DynamicLibrary>(handle);
-    InputCommon::InputSubsystem input_subsystem;
-    auto window =
-        std::make_unique<EmuWindow_Android>(ANativeWindow_fromSurface(env, j_surf), driver_library);
+    // This is a throwaway probe purely to read a driver name/version string for the driver
+    // manager UI - deliberately always opens the SYSTEM driver (nullptr custom_driver_dir/name
+    // below), regardless of what the user has installed, so it can show a real comparison. It
+    // still does a *full* Vulkan device creation (CreateDevice, which runs the same suitability
+    // check the real renderer does), which on a system driver that's missing required features
+    // (confirmed on one device: multiViewport absent, maxViewports=1) can throw - previously
+    // uncaught here, unlike the sibling getVulkanDriverVersion()/getVulkanApiVersion() below,
+    // taking the whole app down just to populate an info label. Mirrors their try/catch.
+    try {
+        const char* file_redirect_dir_{};
+        int featureFlags{};
+        std::string hook_lib_dir = Common::Android::GetJString(env, j_hook_lib_dir);
+        auto handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
+                                                 nullptr, nullptr, file_redirect_dir_, nullptr);
+        auto driver_library = std::make_shared<Common::DynamicLibrary>(handle);
+        InputCommon::InputSubsystem input_subsystem;
+        auto window = std::make_unique<EmuWindow_Android>(ANativeWindow_fromSurface(env, j_surf),
+                                                           driver_library);
 
-    Vulkan::vk::InstanceDispatch dld;
-    Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
-        *driver_library, dld, VK_API_VERSION_1_1, Core::Frontend::WindowSystemType::Android);
+        Vulkan::vk::InstanceDispatch dld;
+        Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
+            *driver_library, dld, VK_API_VERSION_1_1, Core::Frontend::WindowSystemType::Android);
 
-    auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
+        auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
 
-    auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
+        auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
 
-    auto driver_version = device.GetDriverVersion();
-    auto version_string =
-        fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(driver_version),
-                    VK_API_VERSION_MINOR(driver_version), VK_API_VERSION_PATCH(driver_version));
-    auto driver_name = device.GetDriverName();
+        auto driver_version = device.GetDriverVersion();
+        auto version_string = fmt::format(
+            "{}.{}.{}", VK_API_VERSION_MAJOR(driver_version), VK_API_VERSION_MINOR(driver_version),
+            VK_API_VERSION_PATCH(driver_version));
+        auto driver_name = device.GetDriverName();
+
+        jobjectArray j_driver_info = env->NewObjectArray(
+            2, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
+        env->SetObjectArrayElement(j_driver_info, 1, Common::Android::ToJString(env, driver_name));
+        return j_driver_info;
+    } catch (const std::exception& exception) {
+        LOG_ERROR(Frontend, "getSystemDriverInfo: failed to probe system driver: {}",
+                  exception.what());
+        jobjectArray j_driver_info = env->NewObjectArray(
+            2, Common::Android::GetStringClass(), Common::Android::ToJString(env, "N/A"));
+        env->SetObjectArrayElement(j_driver_info, 1, Common::Android::ToJString(env, "N/A"));
+        return j_driver_info;
+    }
 #else
-    auto driver_version = "1.0.0";
-    auto version_string = "1.1.0"; //Assume lowest Vulkan level
-    auto driver_name = "generic";
-#endif
-    jobjectArray j_driver_info = env->NewObjectArray(2, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
-    env->SetObjectArrayElement(j_driver_info, 1, Common::Android::ToJString(env, driver_name));
+    jobjectArray j_driver_info = env->NewObjectArray(
+        2, Common::Android::GetStringClass(), Common::Android::ToJString(env, "1.1.0"));
+    env->SetObjectArrayElement(j_driver_info, 1, Common::Android::ToJString(env, "generic"));
     return j_driver_info;
+#endif
 }
 
 jstring Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_getGpuModel(JNIEnv *env, jobject j_obj, jobject j_surf, jstring j_hook_lib_dir) {
 #ifdef ARCHITECTURE_arm64
-    const char* file_redirect_dir_{};
-    int featureFlags{};
-    std::string hook_lib_dir = Common::Android::GetJString(env, j_hook_lib_dir);
-    auto handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
-                                             nullptr, nullptr, file_redirect_dir_, nullptr);
-    auto driver_library = std::make_shared<Common::DynamicLibrary>(handle);
-    InputCommon::InputSubsystem input_subsystem;
-    auto window =
-            std::make_unique<EmuWindow_Android>(ANativeWindow_fromSurface(env, j_surf), driver_library);
+    // Same reasoning as getSystemDriverInfo() above - full device creation against the system
+    // driver, purely for a UI label, previously with no try/catch.
+    try {
+        const char* file_redirect_dir_{};
+        int featureFlags{};
+        std::string hook_lib_dir = Common::Android::GetJString(env, j_hook_lib_dir);
+        auto handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
+                                                 nullptr, nullptr, file_redirect_dir_, nullptr);
+        auto driver_library = std::make_shared<Common::DynamicLibrary>(handle);
+        InputCommon::InputSubsystem input_subsystem;
+        auto window = std::make_unique<EmuWindow_Android>(ANativeWindow_fromSurface(env, j_surf),
+                                                           driver_library);
 
-    Vulkan::vk::InstanceDispatch dld;
-    Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
+        Vulkan::vk::InstanceDispatch dld;
+        Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
             *driver_library, dld, VK_API_VERSION_1_1, Core::Frontend::WindowSystemType::Android);
 
-    auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
+        auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
 
-    auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
+        auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
 
-    const std::string model_name{device.GetModelName()};
+        const std::string model_name{device.GetModelName()};
 
-    window.release();
+        window.release();
 
-    return Common::Android::ToJString(env, model_name);
+        return Common::Android::ToJString(env, model_name);
+    } catch (const std::exception& exception) {
+        LOG_ERROR(Frontend, "getGpuModel: failed to probe system driver: {}", exception.what());
+        return Common::Android::ToJString(env, "Unknown");
+    }
 #else
     return Common::Android::ToJString(env, "no-info");
 #endif
