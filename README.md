@@ -39,8 +39,10 @@ Started as a personal build for the maintainer's own device(s); builds are now p
 still a small, personal-scale project rather than a community one — there's no Discord and it isn't actively
 looking for external contributions, but the source and releases are public under the GPL.
 
-Core emulation behavior is unchanged from upstream Eden; this fork's own additions are Android-side features layered
-on top (see [Features](#features)) plus changes to what gets built, how, and the app's branding/UX.
+Most of Lemon's additions are Android-side features layered on top of unchanged core emulation, plus changes to
+what gets built, how, and the app's branding/UX. The one exception is savestate: making Quick Save/Quick Load work
+reliably on real games required real changes to the emulated kernel itself (how a thread parked mid-syscall is
+captured and restored) — see [Features](#features) below.
 
 ## Features
 
@@ -52,6 +54,14 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   needing a premade cheat code.
 - **Input macros** — record a sequence of on-screen controller presses with their timing and play it back, looped
   or once, for repetitive farming/grinding or practicing a sequence.
+- **Quick Save / Quick Load (experimental)** — same-session savestate. Required a real fix in the emulated kernel
+  itself: a guest thread parked mid-syscall (waiting on a condvar, an IPC reply, a timer...) lives inside a host
+  fiber whose true resume point isn't in the register/memory snapshot a savestate captures, so a naive restore left
+  it resuming into a world that no longer matched what it expected and the game aborted. Restore now leaves any
+  still-waiting thread's own context and stack untouched, and retries around waits that depend on another guest
+  thread instead of forcing them. Verified working repeatedly on real, demanding titles, but still not 100%
+  reliable in every game/moment — currently only in the
+  [experimental prerelease build](https://github.com/Ghael-V/Lemon-Project/releases), not yet in mainline.
 - **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
   "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
 - **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.

@@ -7,6 +7,7 @@
 #define VMA_IMPLEMENTATION
 #include "video_core/vulkan_common/vma.h"
 
+#include <chrono>
 #include <codecvt>
 #include <cstdio>
 #include <cstring>
@@ -430,7 +431,23 @@ bool EmulationSession::QuickSaveState() {
 bool EmulationSession::QuickLoadState() {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
-    if (!was_paused) {
+
+    // Give the live game a short window to move past any condvar/address-arbiter wait
+    // before committing to a restore - that's the one wait kind that depends on another
+    // guest thread signalling it, so a restore happening right now can leave it parked on
+    // a signal that will never come again (see savestate.h). The check is free (no file
+    // I/O, just reads live thread state), so it costs nothing when things are already
+    // clean - which is the common case for the other wait reasons (Sleep/IPC). This never
+    // forces anything; it only waits for a naturally better moment or gives up and
+    // restores anyway after a short budget.
+    static constexpr int MaxAttempts = 10;
+    static constexpr auto RetryDelay = std::chrono::milliseconds(30);
+    m_system.Pause();
+    for (int attempt = 0;
+         attempt < MaxAttempts - 1 && Core::SaveState::HasRiskyPendingWaits(m_system);
+         attempt++) {
+        m_system.Run();
+        std::this_thread::sleep_for(RetryDelay);
         m_system.Pause();
     }
 
