@@ -60,8 +60,8 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   it resuming into a world that no longer matched what it expected and the game aborted. Restore now leaves any
   still-waiting thread's own context and stack untouched, and retries around waits that depend on another guest
   thread instead of forcing them. Verified working repeatedly on real, demanding titles, but still not 100%
-  reliable in every game/moment — currently only in the
-  [experimental prerelease build](https://github.com/Ghael-V/Lemon-Project/releases), not yet in mainline.
+  reliable in every game/moment — available in the [Nightly and Experimental prerelease
+  builds](https://github.com/Ghael-V/Lemon-Project/releases), not yet in mainline.
 - **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
   "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
 - **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.
