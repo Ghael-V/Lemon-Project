@@ -21,8 +21,27 @@
 <h4 align="center">An Android-only Nintendo Switch emulator built for Adreno GPUs.</h4>
 
 <p align="center">
+  <a href="https://github.com/Ghael-V/Lemon-Project/stargazers">
+    <img src="https://img.shields.io/github/stars/Ghael-V/Lemon-Project?style=flat&color=yellow" alt="GitHub stars">
+  </a>
+  <a href="https://github.com/Ghael-V/Lemon-Project/releases">
+    <img src="https://img.shields.io/github/downloads/Ghael-V/Lemon-Project/total?color=blue" alt="Total downloads">
+  </a>
+  <a href="https://github.com/Ghael-V/Lemon-Project/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Ghael-V/Lemon-Project?label=stable&color=success" alt="Latest stable release">
+  </a>
+  <a href="https://github.com/Ghael-V/Lemon-Project/releases">
+    <img src="https://img.shields.io/github/v/release/Ghael-V/Lemon-Project?include_prereleases&label=latest%20(any%20channel)&color=orange" alt="Latest release, any channel">
+  </a>
+  <a href="https://github.com/Ghael-V">
+    <img src="https://img.shields.io/badge/dev-Ghael--V-blueviolet" alt="Developer">
+  </a>
+</p>
+
+<p align="center">
   <a href="#about">About</a> |
   <a href="#features">Features</a> |
+  <a href="#changelog">Changelog</a> |
   <a href="#scope">Scope</a> |
   <a href="#building">Building</a> |
   <a href="#license">License</a>
@@ -36,8 +55,9 @@ Android device: no Qt/desktop/CLI targets, no multi-platform CI, no Mali/PowerVR
 
 Started as a personal build for the maintainer's own device(s); builds are now published on the
 [Releases page](https://github.com/Ghael-V/Lemon-Project/releases) and the app checks for new ones on launch. It's
-still a small, personal-scale project rather than a community one — there's no Discord and it isn't actively
-looking for external contributions, but the source and releases are public under the GPL.
+still a small, personal-scale project rather than a community one — there's a [Discord](https://discord.com/invite/PEE7Q5TVM5)
+for feedback and support, but it isn't actively looking for external contributions; the source and releases are
+public under the GPL.
 
 Core emulation behavior is unchanged from upstream Eden; this fork's own additions are Android-side features layered
 on top (see [Features](#features)) plus changes to what gets built, how, and the app's branding/UX.
@@ -52,6 +72,17 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   needing a premade cheat code.
 - **Input macros** — record a sequence of on-screen controller presses with their timing and play it back, looped
   or once, for repetitive farming/grinding or practicing a sequence.
+- **Quick Save / Quick Load (experimental)** — same-session savestate. Required a real fix in the emulated kernel
+  itself: a guest thread parked mid-syscall (waiting on a condvar, an IPC reply, a timer...) lives inside a host
+  fiber whose true resume point isn't in the register/memory snapshot a savestate captures, so a naive restore left
+  it resuming into a world that no longer matched what it expected and the game aborted. Restore now leaves any
+  still-waiting thread's own context and stack untouched, and retries around waits that depend on another guest
+  thread instead of forcing them. Verified working repeatedly on real, demanding titles, but still not 100%
+  reliable in every game/moment — available in the [Nightly and Experimental prerelease
+  builds](https://github.com/Ghael-V/Lemon-Project/releases), not yet in mainline.
+- **Controller layout presets** — a "Diseño del mando" entry in the pause menu with one-tap presets (default, big
+  buttons, swapped D-pad/stick) plus quick access to the existing drag-and-resize edit mode, which used to be
+  buried two menus deep with no indication it existed.
 - **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
   "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
 - **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.
@@ -60,6 +91,34 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
 - **Adreno GPU driver manager** — install alternate Adreno graphics drivers per game, plus per-game performance
   presets, frame generation and post-processing options.
 - Save data import/export, Amiibo loading, and ad-hoc multiplayer, same as upstream Eden.
+
+## Changelog
+
+Full release notes (including Nightly/Experimental prereleases) are on the
+[Releases page](https://github.com/Ghael-V/Lemon-Project/releases). Highlights:
+
+**Stable (mainline)**
+
+- **v0.2.3** — "Continue playing" card and playtime/last-played/session sorting on the Statistics screen; Lemon
+  Cheater freeze/unfreeze with a dedicated "Frozen" view; input macro recorder/player; auto-updater pointed at
+  this repository instead of upstream Eden's.
+- **v0.2.2** — Game usage statistics (playtime, last played, session count), a new Statistics screen, and per-card
+  usage badges on the games list.
+- **v0.2.1** — Fixed the Lemon Cheater's context menu appearing behind game cards in Carousel view.
+- **v0.2** — Added the Lemon Cheater live memory editor, plus assorted bug fixes.
+- **v0.1** — Initial release.
+
+**Nightly / Experimental (not yet in mainline)**
+
+- **v0.2.6** — Fixed a missing Vulkan synchronization barrier between compute-shader dispatches and the draws that
+  consume their output, causing intermittent black rendering artifacts (confirmed on Zelda: Tears of the Kingdom's
+  procedural grass and shadows, ~80-90% improvement); deferred Vulkan driver loading off the app's cold-start path
+  to first emulation start; hardened the GPU driver-info diagnostics against an unhandled exception that could
+  crash the app on launch on some devices (reported on Snapdragon 888/Adreno 660).
+- **v0.2.5** — Brought Nightly to full feature parity with Experimental.
+- **v0.2.4** — First working same-session Quick Save/Quick Load on real, multi-threaded games; savestate files
+  shrunk ~3x by sparse-encoding zero-filled memory pages; asynchronous shader compilation extended to cover
+  compute pipelines (previously graphics-only).
 
 ## Scope
 
