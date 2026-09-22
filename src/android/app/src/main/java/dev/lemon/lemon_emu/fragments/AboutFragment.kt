@@ -101,6 +101,10 @@ class AboutFragment : Fragment() {
         }
 
         binding.buttonGithub.setOnClickListener { openLink(getString(R.string.github_link)) }
+        binding.buttonDiscord.setOnClickListener { openLink(getString(R.string.discord_link)) }
+        binding.buttonBuymeacoffee.setOnClickListener {
+            openLink(getString(R.string.buymeacoffee_link))
+        }
 
         setInsets()
     }

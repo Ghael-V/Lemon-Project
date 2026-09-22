@@ -941,6 +941,11 @@
     <string name="emulation_control_opacity">Opacidad</string>
     <string name="emulation_touch_overlay_reset">Reiniciar superposición</string>
     <string name="emulation_touch_overlay_edit">Editar superposición</string>
+    <string name="emulation_overlay_layout">Diseño del mando</string>
+    <string name="emulation_touch_overlay_edit_hint">Arrastra para mover. Mantén pulsado para redimensionar.</string>
+    <string name="overlay_preset_default">Por defecto</string>
+    <string name="overlay_preset_big">Botones grandes</string>
+    <string name="overlay_preset_swapped">Cruceta/stick intercambiados</string>
     <string name="emulation_snap_to_grid">Ajustar a la cuadrícula</string>
     <string name="emulation_pause">Pausar emulación</string>
     <string name="emulation_unpause">Despausar emulación</string>

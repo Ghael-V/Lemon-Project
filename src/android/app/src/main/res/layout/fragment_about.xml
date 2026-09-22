@@ -194,9 +194,37 @@
                 android:layout_height="56dp"
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="12dp"
-                android:layout_marginBottom="16dp"
                 android:text="@string/github_link_button"
                 app:icon="@drawable/ic_github"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_discord"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/discord_link_button"
+                app:icon="@drawable/ic_discord"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_buymeacoffee"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="16dp"
+                android:text="@string/buymeacoffee_link_button"
+                app:icon="@drawable/ic_coffee"
                 app:iconSize="24dp"
                 app:iconGravity="textStart"
                 app:strokeColor="?attr/colorOutline"
