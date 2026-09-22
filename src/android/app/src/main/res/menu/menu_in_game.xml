@@ -39,6 +39,11 @@
         android:title="@string/emulation_show_overlay"/>
 
     <item
+        android:id="@+id/menu_overlay_layout"
+        android:icon="@drawable/ic_overlay"
+        android:title="@string/emulation_overlay_layout" />
+
+    <item
         android:id="@+id/menu_settings"
         android:icon="@drawable/ic_settings"
         android:title="@string/preferences_settings" />

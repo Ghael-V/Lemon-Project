@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/menu_preset_default"
+        android:title="@string/overlay_preset_default" />
+
+    <item
+        android:id="@+id/menu_preset_big"
+        android:title="@string/overlay_preset_big" />
+
+    <item
+        android:id="@+id/menu_preset_swapped"
+        android:title="@string/overlay_preset_swapped" />
+
+    <item
+        android:id="@+id/menu_edit_overlay"
+        android:title="@string/emulation_touch_overlay_edit" />
+
+</menu>

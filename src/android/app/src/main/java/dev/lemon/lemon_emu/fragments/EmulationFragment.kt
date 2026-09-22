@@ -89,6 +89,7 @@ import dev.lemon.lemon_emu.model.EmulationViewModel
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.overlay.model.OverlayControl
 import dev.lemon.lemon_emu.overlay.model.OverlayLayout
+import dev.lemon.lemon_emu.overlay.model.OverlayPreset
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.GameHelper
@@ -661,7 +662,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             finishOverlayGamelessEditMode()
         }
 
-        binding.doneControlConfig.visibility = View.VISIBLE
+        binding.controlConfigHintContainer.visibility = View.VISIBLE
         binding.surfaceInputOverlay.setIsInEditMode(true)
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         binding.surfaceInputOverlay.visibility = View.VISIBLE
@@ -895,6 +896,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
                 R.id.menu_overlay_controls -> {
                     showOverlayOptions()
+                    true
+                }
+
+                R.id.menu_overlay_layout -> {
+                    showOverlayLayoutOptions()
                     true
                 }
 
@@ -2264,13 +2270,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_edit_overlay -> {
-                    binding.drawerLayout.close()
-                    binding.surfaceInputOverlay.requestFocus()
-                    startConfiguringControls()
-                    true
-                }
-
                 R.id.menu_snap_to_grid -> {
                     it.isChecked = !it.isChecked
                     BooleanSetting.OVERLAY_SNAP_TO_GRID.setBoolean(it.isChecked)
@@ -2367,6 +2366,47 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         popup.show()
     }
 
+    private fun showOverlayLayoutOptions() {
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout)
+        val popup = PopupMenu(requireContext(), anchor)
+
+        popup.menuInflater.inflate(R.menu.menu_overlay_layout, popup.menu)
+
+        popup.setOnDismissListener { NativeConfig.saveGlobalConfig() }
+        popup.setOnMenuItemClickListener {
+            when (it.itemId) {
+                R.id.menu_preset_default -> {
+                    toggleOverlay(true)
+                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Default)
+                    true
+                }
+
+                R.id.menu_preset_big -> {
+                    toggleOverlay(true)
+                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Big)
+                    true
+                }
+
+                R.id.menu_preset_swapped -> {
+                    toggleOverlay(true)
+                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Swapped)
+                    true
+                }
+
+                R.id.menu_edit_overlay -> {
+                    binding.drawerLayout.close()
+                    binding.surfaceInputOverlay.requestFocus()
+                    startConfiguringControls()
+                    true
+                }
+
+                else -> true
+            }
+        }
+
+        popup.show()
+    }
+
     @SuppressLint("SourceLockedOrientationActivity")
     private fun startConfiguringControls() {
         // Lock the current orientation to prevent editing inconsistencies
@@ -2380,12 +2420,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     }
             }
         }
-        binding.doneControlConfig.setVisible(true)
+        toggleOverlay(true)
+        binding.controlConfigHintContainer.setVisible(true)
         binding.surfaceInputOverlay.setIsInEditMode(true)
     }
 
     private fun stopConfiguringControls() {
-        binding.doneControlConfig.setVisible(false)
+        binding.controlConfigHintContainer.setVisible(false)
         binding.surfaceInputOverlay.setIsInEditMode(false)
         // Unlock the orientation if it was locked for editing
         if (IntSetting.RENDERER_SCREEN_LAYOUT.getInt() == EmulationOrientation.Unspecified.int) {

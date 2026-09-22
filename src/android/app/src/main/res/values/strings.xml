@@ -507,6 +507,10 @@
     <string name="user_data_import_failed_description">Make sure the user data folders are at the root of the zip folder and contain a config file at config/config.ini and try again.</string>
     <string name="github_link" translatable="false">https://github.com/Ghael-V/Lemon-Project</string>
     <string name="github_link_button">GitHub</string>
+    <string name="discord_link" translatable="false">https://discord.com/invite/PEE7Q5TVM5</string>
+    <string name="discord_link_button">Discord</string>
+    <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
+    <string name="buymeacoffee_link_button">Buy me a coffee</string>
 
     <!-- General settings strings -->
     <string name="frame_limit_enable">Limit speed</string>
@@ -1034,6 +1038,7 @@
     <!-- Emulation Menu -->
     <string name="emulation_exit">Exit emulation</string>
     <string name="emulation_done">Done</string>
+    <string name="emulation_touch_overlay_edit_hint">Drag to move. Long-press to resize.</string>
     <string name="emulation_toggle_controls">Toggle controls</string>
     <string name="emulation_rel_stick_center">Relative stick center</string>
     <string name="emulation_dpad_slide">D-pad slide</string>
@@ -1046,6 +1051,10 @@
     <string name="emulation_control_opacity">Opacity</string>
     <string name="emulation_touch_overlay_reset">Reset overlay</string>
     <string name="emulation_touch_overlay_edit">Edit overlay</string>
+    <string name="emulation_overlay_layout">Controller layout</string>
+    <string name="overlay_preset_default">Default</string>
+    <string name="overlay_preset_big">Big buttons</string>
+    <string name="overlay_preset_swapped">Swapped D-pad/stick</string>
     <string name="emulation_snap_to_grid">Snap to grid</string>
     <string name="emulation_pause">Pause emulation</string>
     <string name="emulation_unpause">Unpause emulation</string>

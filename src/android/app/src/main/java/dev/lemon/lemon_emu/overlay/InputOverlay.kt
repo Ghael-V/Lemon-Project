@@ -44,6 +44,7 @@ import dev.lemon.lemon_emu.features.settings.model.IntSetting
 import dev.lemon.lemon_emu.overlay.model.OverlayControl
 import dev.lemon.lemon_emu.overlay.model.OverlayControlData
 import dev.lemon.lemon_emu.overlay.model.OverlayLayout
+import dev.lemon.lemon_emu.overlay.model.OverlayPreset
 import dev.lemon.lemon_emu.utils.NativeConfig
 
 /**
@@ -997,6 +998,49 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         refreshControls()
     }
 
+    // Presets are just starting points, not a persisted "mode" - applying one is a one-shot
+    // action (like Reset already is), and the result stays fully editable afterward via the
+    // normal edit mode. Each preset is built from the same per-control defaults edit mode
+    // itself resets to (OverlayControl), so it can't produce a layout edit mode wouldn't
+    // already consider valid.
+    fun applyPreset(preset: OverlayPreset) {
+        resetLayoutVisibilityAndPlacement()
+        resetIndividualControlScale()
+
+        when (preset) {
+            OverlayPreset.Default -> {
+                // Already handled by the reset calls above.
+            }
+
+            OverlayPreset.Big -> {
+                val overlayControlData = NativeConfig.getOverlayControlData()
+                overlayControlData.forEach { it.individualScale = BIG_PRESET_SCALE }
+                NativeConfig.setOverlayControlData(overlayControlData)
+            }
+
+            OverlayPreset.Swapped -> {
+                val overlayControlData = NativeConfig.getOverlayControlData()
+                val dpad = overlayControlData.firstOrNull { it.id == OverlayControl.COMBINED_DPAD.id }
+                val stickL = overlayControlData.firstOrNull { it.id == OverlayControl.STICK_L.id }
+                if (dpad != null && stickL != null) {
+                    val dpadLandscape = dpad.landscapePosition
+                    val dpadPortrait = dpad.portraitPosition
+                    val dpadFoldable = dpad.foldablePosition
+                    dpad.landscapePosition = stickL.landscapePosition
+                    dpad.portraitPosition = stickL.portraitPosition
+                    dpad.foldablePosition = stickL.foldablePosition
+                    stickL.landscapePosition = dpadLandscape
+                    stickL.portraitPosition = dpadPortrait
+                    stickL.foldablePosition = dpadFoldable
+                }
+                NativeConfig.setOverlayControlData(overlayControlData)
+            }
+        }
+
+        NativeConfig.saveGlobalConfig()
+        refreshControls()
+    }
+
     private fun defaultOverlayPositionByLayout(layout: OverlayLayout) {
         val overlayControlData = NativeConfig.getOverlayControlData()
         for (data in overlayControlData) {
@@ -1019,6 +1063,8 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
         // Increase this number every time there is a breaking change to every overlay layout
         const val OVERLAY_VERSION = 1
+
+        private const val BIG_PRESET_SCALE = 1.4f
 
         // Increase the corresponding layout version number whenever that layout has a breaking change
         private const val LANDSCAPE_OVERLAY_VERSION = 1
