@@ -597,6 +597,28 @@ void RasterizerVulkan::DispatchCompute() {
     }
 
     const auto& qmd{kepler_compute->launch_description};
+
+    // Closes the Dispatch -> Draw gap: READ_BARRIER above only protects this dispatch's own
+    // reads from earlier writes. Nothing downstream previously protected a later draw (or
+    // another dispatch) from THIS dispatch's own writes - storage buffers a compute shader
+    // writes (e.g. a GPU-driven instance/culling buffer) could still be mid-write, not yet
+    // visible, when a subsequent vkCmdDraw*/vkCmdDrawIndirect* reads them. Unlike a shader
+    // translation bug this produces no log output at all - just a timing-dependent race,
+    // consistent with reports of geometry (e.g. procedurally placed grass) flickering in and
+    // out at random instead of being consistently wrong. Mirrors the existing broad
+    // READ_BARRIER/WRITE_BARRIER idiom already used around buffer copies in
+    // vk_buffer_cache.cpp rather than inventing a new, narrower one.
+    static constexpr VkMemoryBarrier WRITE_BARRIER{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+    };
+    const auto record_write_barrier = [](vk::CommandBuffer cmdbuf) {
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                               vk::PIPELINE_STAGE_GRAPHICS_COMPUTE, 0, WRITE_BARRIER);
+    };
+
     auto indirect_address = kepler_compute->GetIndirectComputeAddress();
     if (indirect_address) {
         // DispatchIndirect
@@ -612,6 +634,7 @@ void RasterizerVulkan::DispatchCompute() {
             }
             cmdbuf.DispatchIndirect(indirect_buffer, indirect_offset);
         });
+        scheduler.Record(record_write_barrier);
         return;
     }
     const std::array<u32, 3> dim{qmd.grid_dim_x, qmd.grid_dim_y, qmd.grid_dim_z};
@@ -634,6 +657,7 @@ void RasterizerVulkan::DispatchCompute() {
         }
         cmdbuf.Dispatch(dim[0], dim[1], dim[2]);
     });
+    scheduler.Record(record_write_barrier);
 
     // Log compute dispatch
     if (GPU::Logging::IsActive() &&
