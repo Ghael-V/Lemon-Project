@@ -2682,6 +2682,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
             when (state) {
                 State.STOPPED -> {
+                    // Opens the Vulkan driver (adrenotools) on first use rather than at app
+                    // cold start - see GpuDriverHelper.ensureGpuDriverLoaded() for why. No-op
+                    // after the first call in this process.
+                    GpuDriverHelper.ensureGpuDriverLoaded()
                     NativeLibrary.surfaceChanged(currentSurface)
                     emulationThread = Thread({
                         Log.debug("[EmulationFragment] Starting emulation thread.")

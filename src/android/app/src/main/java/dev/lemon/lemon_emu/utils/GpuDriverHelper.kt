@@ -33,6 +33,9 @@ object GpuDriverHelper {
         NativeFreedrenoConfig.reloadFreedrenoConfig()
     }
 
+    @Volatile
+    private var gpuDriverLoaded = false
+
     fun initializeDriverParameters() {
         try {
             // Initialize the file redirection directory.
@@ -50,13 +53,36 @@ object GpuDriverHelper {
         hookLibPath = LemonApplication.appContext.applicationInfo.nativeLibraryDir + "/"
         NativeFreedrenoConfig.reloadFreedrenoConfig()
 
-        // Initialize GPU driver.
-        NativeLibrary.initializeGpuDriver(
-            hookLibPath,
-            driverInstallationPath,
-            installedCustomDriverData.libraryName,
-            fileRedirectionPath
-        )
+        // The actual adrenotools_open_libvulkan() call used to happen right here, at every
+        // app cold start, before any UI is shown - reported to crash repeatedly (no ANR, no
+        // log output, self-resolves after a few attempts) on a Snapdragon 888/Adreno 660
+        // device. That pattern points at a driver-load race that's orthogonal to device
+        // performance, not something waiting helps with - just something that shouldn't be
+        // gating app startup for every single launch when no game is even running yet. Moved
+        // to ensureGpuDriverLoaded(), called once lazily right before emulation actually
+        // starts (see EmulationFragment.runWithValidSurface()).
+    }
+
+    // Actually opens the Vulkan driver via adrenotools - the one call in this file that can
+    // crash on flaky driver/KGSL combinations. Guarded to run at most once per process: by
+    // design this only needs to happen before the first game starts, not on every launch of a
+    // new game within the same app session.
+    fun ensureGpuDriverLoaded() {
+        if (gpuDriverLoaded) {
+            return
+        }
+        synchronized(this) {
+            if (gpuDriverLoaded) {
+                return
+            }
+            NativeLibrary.initializeGpuDriver(
+                hookLibPath,
+                driverInstallationPath,
+                installedCustomDriverData.libraryName,
+                fileRedirectionPath
+            )
+            gpuDriverLoaded = true
+        }
     }
 
     fun getDrivers(): MutableList<Pair<String, GpuDriverMetadata>> {
