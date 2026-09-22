@@ -75,14 +75,24 @@ object GpuDriverHelper {
             if (gpuDriverLoaded) {
                 return
             }
-            NativeLibrary.initializeGpuDriver(
-                hookLibPath,
-                driverInstallationPath,
-                installedCustomDriverData.libraryName,
-                fileRedirectionPath
-            )
-            gpuDriverLoaded = true
+            reloadGpuDriver()
         }
+    }
+
+    // Unconditionally (re)opens the Vulkan driver. Unlike ensureGpuDriverLoaded(), this is
+    // meant to be called from installDefaultDriver()/installCustomDriver() - a deliberate,
+    // infrequent, user-initiated action in the driver manager UI, not app cold start - so if
+    // the driver was already loaded once this session (the user is switching drivers mid-
+    // session, after already having played), the new selection needs to take effect right
+    // away instead of silently waiting for the next app restart.
+    private fun reloadGpuDriver() {
+        NativeLibrary.initializeGpuDriver(
+            hookLibPath,
+            driverInstallationPath,
+            installedCustomDriverData.libraryName,
+            fileRedirectionPath
+        )
+        gpuDriverLoaded = true
     }
 
     fun getDrivers(): MutableList<Pair<String, GpuDriverMetadata>> {
@@ -103,6 +113,7 @@ object GpuDriverHelper {
         // Removing the installed driver will result in the backend using the default system driver.
         File(driverInstallationPath!!).deleteRecursively()
         initializeDriverParameters()
+        reloadGpuDriver()
     }
 
     fun copyDriverToInternalStorage(driverUri: Uri): Boolean {
@@ -166,6 +177,7 @@ object GpuDriverHelper {
 
         // Initialize the driver parameters.
         initializeDriverParameters()
+        reloadGpuDriver()
 
         return true
     }
@@ -199,6 +211,7 @@ object GpuDriverHelper {
 
         // Initialize the driver parameters.
         initializeDriverParameters()
+        reloadGpuDriver()
 
         return true
     }
