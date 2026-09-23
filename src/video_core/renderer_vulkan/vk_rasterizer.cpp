@@ -614,9 +614,13 @@ void RasterizerVulkan::DispatchCompute() {
         .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
         .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
     };
+    // dst stage must also cover TRANSFER: buffer_cache can serve this dispatch's output to a
+    // later consumer via vkCmdCopyBuffer (e.g. buffer_cache growth/rebase, or a download for
+    // CPU readback) rather than a direct shader read - GRAPHICS_COMPUTE alone left that path
+    // unsynchronized.
     const auto record_write_barrier = [](vk::CommandBuffer cmdbuf) {
         cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                               vk::PIPELINE_STAGE_GRAPHICS_COMPUTE, 0, WRITE_BARRIER);
+                               vk::PIPELINE_STAGE_GRAPHICS_COMPUTE_TRANSFER, 0, WRITE_BARRIER);
     };
 
     auto indirect_address = kepler_compute->GetIndirectComputeAddress();
