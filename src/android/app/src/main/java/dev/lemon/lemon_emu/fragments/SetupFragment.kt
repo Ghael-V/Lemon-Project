@@ -441,8 +441,13 @@ class SetupFragment : Fragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(KEY_NEXT_VISIBILITY, binding.buttonNext.isVisible)
-        outState.putBoolean(KEY_BACK_VISIBILITY, binding.buttonBack.isVisible)
+        // onSaveInstanceState() can fire after onDestroyView() has already cleared _binding
+        // (the fragment instance can outlive its view, e.g. while sitting inactive in another
+        // fragment's back stack) - same guard already used in onResume() above.
+        if (_binding != null) {
+            outState.putBoolean(KEY_NEXT_VISIBILITY, binding.buttonNext.isVisible)
+            outState.putBoolean(KEY_BACK_VISIBILITY, binding.buttonBack.isVisible)
+        }
         outState.putBooleanArray(KEY_HAS_BEEN_WARNED, hasBeenWarned)
     }
 
