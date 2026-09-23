@@ -90,6 +90,16 @@ android {
                         "-DBUILD_TESTING=OFF",
                         "-DYUZU_TESTS=OFF",
                         "-DDYNARMIC_TESTS=OFF",
+                        // Unused by CMake itself - GenerateSCMRev.cmake queries git directly.
+                        // This exists purely so this argument LIST changes whenever HEAD moves,
+                        // which forces AGP to treat the CMake configure step as out-of-date and
+                        // rerun it (regenerating scm_rev.cpp) on every build with a new commit.
+                        // Without it, AGP's own up-to-date check for the native configure task
+                        // has no way to know the git commit changed (git state isn't a tracked
+                        // Gradle task input), so it silently reuses a stale cached configure -
+                        // this is exactly why About screen / g_build_version was found frozen at
+                        // an old commit across several "Release"-type builds.
+                        "-DYUZU_GIT_COMMIT_HASH=${getGitCommitHash()}",
                         *extraCMakeArgs.toTypedArray()
                     )
                 )
@@ -157,6 +167,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Without this, AGP has no way to tell this variant's native CMake
+            // configuration apart from "relWithDebInfo" below - neither block set an
+            // explicit CMAKE_BUILD_TYPE, so both silently hashed to the same .cxx
+            // configure slot and shared one compiled .so (confirmed via matching
+            // SHA256). That meant "Release" builds were never actually built with
+            // Release-level optimization/NDEBUG, and their embedded scm_rev.cpp
+            // (build version/branch) went stale whenever a relWithDebInfo build was
+            // the last one to trigger a real reconfigure.
+            externalNativeBuild {
+                cmake {
+                    arguments.add("-DCMAKE_BUILD_TYPE=Release")
+                }
+            }
         }
 
         // builds a release build that doesn't need signing
@@ -373,6 +397,11 @@ fun runGitCommand(command: List<String>): String {
         logger.error("Cannot find git")
         ""
     }
+}
+
+fun getGitCommitHash(): String {
+    val hash = runGitCommand(listOf("git", "rev-parse", "HEAD"))
+    return hash.ifEmpty { "unknown" }
 }
 
 fun getGitVersion(): String {
