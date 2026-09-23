@@ -33,6 +33,9 @@ object GpuDriverHelper {
         NativeFreedrenoConfig.reloadFreedrenoConfig()
     }
 
+    @Volatile
+    private var gpuDriverLoaded = false
+
     fun initializeDriverParameters() {
         try {
             // Initialize the file redirection directory.
@@ -50,13 +53,46 @@ object GpuDriverHelper {
         hookLibPath = LemonApplication.appContext.applicationInfo.nativeLibraryDir + "/"
         NativeFreedrenoConfig.reloadFreedrenoConfig()
 
-        // Initialize GPU driver.
+        // The actual adrenotools_open_libvulkan() call used to happen right here, at every
+        // app cold start, before any UI is shown - reported to crash repeatedly (no ANR, no
+        // log output, self-resolves after a few attempts) on a Snapdragon 888/Adreno 660
+        // device. That pattern points at a driver-load race that's orthogonal to device
+        // performance, not something waiting helps with - just something that shouldn't be
+        // gating app startup for every single launch when no game is even running yet. Moved
+        // to ensureGpuDriverLoaded(), called once lazily right before emulation actually
+        // starts (see EmulationFragment.runWithValidSurface()).
+    }
+
+    // Actually opens the Vulkan driver via adrenotools - the one call in this file that can
+    // crash on flaky driver/KGSL combinations. Guarded to run at most once per process: by
+    // design this only needs to happen before the first game starts, not on every launch of a
+    // new game within the same app session.
+    fun ensureGpuDriverLoaded() {
+        if (gpuDriverLoaded) {
+            return
+        }
+        synchronized(this) {
+            if (gpuDriverLoaded) {
+                return
+            }
+            reloadGpuDriver()
+        }
+    }
+
+    // Unconditionally (re)opens the Vulkan driver. Unlike ensureGpuDriverLoaded(), this is
+    // meant to be called from installDefaultDriver()/installCustomDriver() - a deliberate,
+    // infrequent, user-initiated action in the driver manager UI, not app cold start - so if
+    // the driver was already loaded once this session (the user is switching drivers mid-
+    // session, after already having played), the new selection needs to take effect right
+    // away instead of silently waiting for the next app restart.
+    private fun reloadGpuDriver() {
         NativeLibrary.initializeGpuDriver(
             hookLibPath,
             driverInstallationPath,
             installedCustomDriverData.libraryName,
             fileRedirectionPath
         )
+        gpuDriverLoaded = true
     }
 
     fun getDrivers(): MutableList<Pair<String, GpuDriverMetadata>> {
@@ -77,6 +113,7 @@ object GpuDriverHelper {
         // Removing the installed driver will result in the backend using the default system driver.
         File(driverInstallationPath!!).deleteRecursively()
         initializeDriverParameters()
+        reloadGpuDriver()
     }
 
     fun copyDriverToInternalStorage(driverUri: Uri): Boolean {
@@ -140,6 +177,7 @@ object GpuDriverHelper {
 
         // Initialize the driver parameters.
         initializeDriverParameters()
+        reloadGpuDriver()
 
         return true
     }
@@ -173,6 +211,7 @@ object GpuDriverHelper {
 
         // Initialize the driver parameters.
         initializeDriverParameters()
+        reloadGpuDriver()
 
         return true
     }
