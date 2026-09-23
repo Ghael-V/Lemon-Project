@@ -767,7 +767,21 @@ void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap)
 #if !(defined(__OPENORBIS__) || defined(__managarm__))
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
-    ASSERT(virtual_offset + length <= virtual_size);
+    if (virtual_offset + length > virtual_size) {
+        // Seen in the wild during process shutdown (a caller-side bounds bug not yet root-
+        // caused). This ASSERT alone is soft and does not stop the out-of-range mmap(MAP_FIXED,
+        // PROT_NONE) below from actually executing - on POSIX, Impl::Unmap only re-clamps the
+        // range itself when virtual_base is null, which is not the case here, so an unclamped
+        // overshoot can remap host pages past the end of this HostMemory's own reservation.
+        // DeviceMemory (and this HostMemory) can be reused across game sessions when settings
+        // haven't changed (see Core::System::Impl::ReinitializeIfNecessary), so corruption here
+        // wouldn't necessarily surface until the NEXT game loads. Clamp defensively instead of
+        // trusting the caller.
+        LOG_ERROR(Common_Memory,
+                  "Unmap out of range: virtual_offset={:#x} length={:#x} virtual_size={:#x} - clamping",
+                  virtual_offset, length, virtual_size);
+        length = virtual_offset < virtual_size ? virtual_size - virtual_offset : 0;
+    }
     if (length == 0 || !virtual_base || !impl) {
         return;
     }
