@@ -102,6 +102,11 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3.1** — Fixed the auto-updater: `enable_update_checks` defaulted to `false`, so the update check never ran for
+  anyone who hadn't manually found and flipped a Settings toggle they had no reason to know existed (now on by
+  default); a separate tag-comparison bug meant Nightly-flavored builds' check silently bailed out even once
+  enabled. Renamed remaining "Eden" leftovers to "Lemon" (device/system nickname in Settings > Advanced, plus a
+  few lower-visibility internal identifiers).
 - **v0.3** — Channel consolidation: Nightly and Experimental are merged into `main` and retired; a single build
   going forward. Quick Save/Quick Load now excludes threads asleep on a kernel wait from the restore instead of
   corrupting their stack/context, making it reliable on real multi-threaded games (previously same-session only,
