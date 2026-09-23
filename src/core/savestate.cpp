@@ -229,11 +229,24 @@ bool Restore(Core::System& system, const std::string& path) {
     // path (SuspendType::System, KernelCore::SuspendEmulation) never touches this field,
     // so checking it here still reflects each thread's state as of this restore.
     std::vector<u64> sleeping_stack_tops;
+    // Diagnostic only - which specific wait each excluded thread is parked in. A high count
+    // by itself isn't necessarily a problem (e.g. an idle worker pool sitting in ConditionVar
+    // between jobs is normal and harmless to leave untouched); what matters for a frozen
+    // restore is whether something CRITICAL to game-loop progress is among them.
+    std::array<u32, 7> wait_reason_counts{};
     for (auto* thread : live_threads) {
-        if (thread->GetWaitReasonForDebugging() != Kernel::ThreadWaitReasonForDebugging::None) {
+        const auto reason = thread->GetWaitReasonForDebugging();
+        if (reason != Kernel::ThreadWaitReasonForDebugging::None) {
             sleeping_stack_tops.push_back(thread->GetUserStackTop().GetValue());
+            wait_reason_counts[static_cast<size_t>(reason)]++;
         }
     }
+    LOG_INFO(Core,
+              "SaveState::Restore: {} thread(s) asleep at restore time - None excluded, "
+              "Sleep={} IPC={} Synchronization={} ConditionVar={} Arbitration={} Suspended={}",
+              sleeping_stack_tops.size(), wait_reason_counts[1], wait_reason_counts[2],
+              wait_reason_counts[3], wait_reason_counts[4], wait_reason_counts[5],
+              wait_reason_counts[6]);
 
     // A sleeping thread's own stack is a single region whose address range contains its
     // stack top - matching on that (rather than persisting KMemoryState in the file, or
@@ -251,7 +264,8 @@ bool Restore(Core::System& system, const std::string& path) {
     // Read back with a single ReadSpan() per region - same reasoning as Capture()'s encoded
     // buffer, avoids one small fread() per 4K chunk.
     std::vector<u8> encoded;
-    u32 skipped_regions = 0;
+    u32 sleeping_stack_regions = 0;
+    u32 unmapped_regions = 0;
     for (u32 i = 0; i < region_count; i++) {
         u64 address = 0;
         u64 size = 0;
@@ -295,17 +309,31 @@ bool Restore(Core::System& system, const std::string& path) {
                        "SaveState::Restore: leaving {} byte(s) at {:#x} untouched - owned by a "
                        "thread still asleep in a kernel wait",
                        size, address);
-            skipped_regions++;
+            sleeping_stack_regions++;
             continue;
         }
 
         // WriteBlockUnsafe(), not WriteBlock() - same reasoning as Capture()'s read: skip
         // the per-chunk GPU rasterizer cache sync so restoring several GB in one pass
         // doesn't wreck rendering performance for the rest of the session.
+        //
+        // A false return here means part of this region is no longer mapped - a legitimate
+        // runtime memory-layout change between capture and restore (e.g. a heap allocation
+        // freed by whatever the guest did in between, confirmed via a real repro: dying in
+        // Super Mario 3D World between Quick Save and Quick Load unmaps part of a captured
+        // region every time), not file corruption. WalkBlock() already wrote every page in
+        // this region that IS still mapped; only the unmapped pages within it were skipped.
+        // Treating this the same as a truncated/corrupt file - aborting the whole restore -
+        // left the rest of memory partially reverted and thread contexts completely
+        // untouched (that loop only runs after this one finishes). Skip this region like an
+        // excluded sleeping-thread stack instead and keep going.
         if (!memory.WriteBlockUnsafe(address, buffer.data(), size)) {
-            LOG_ERROR(Core, "SaveState::Restore: failed to write {} bytes at {:#x}", size,
-                       address);
-            return false;
+            LOG_WARNING(Core,
+                       "SaveState::Restore: {} byte(s) at {:#x} are no longer fully mapped - "
+                       "skipping (already-mapped pages within this region were still written)",
+                       size, address);
+            unmapped_regions++;
+            continue;
         }
     }
 
@@ -322,9 +350,11 @@ bool Restore(Core::System& system, const std::string& path) {
     }
 
     LOG_INFO(Core,
-              "SaveState::Restore: loaded {} thread(s), {} region(s) from '{}' ({} region(s), {} "
-              "thread(s) left untouched - still asleep in a kernel wait)",
-              thread_count, region_count, path, skipped_regions, sleeping_stack_tops.size());
+              "SaveState::Restore: loaded {} thread(s), {} region(s) from '{}' ({} region(s) left "
+              "untouched - {} thread(s) still asleep in a kernel wait, {} region(s) skipped - no "
+              "longer mapped)",
+              thread_count, region_count, path, sleeping_stack_regions + unmapped_regions,
+              sleeping_stack_tops.size(), unmapped_regions);
     return true;
 }
 
