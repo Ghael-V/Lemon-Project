@@ -5,11 +5,6 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#ifdef NIGHTLY_BUILD
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#endif
-
 #include <fmt/format.h>
 #include "common/net/net.h"
 #include "common/scm_rev.h"
@@ -23,24 +18,13 @@ std::optional<Common::Net::Release> UpdateChecker::GetUpdate() {
 
     LOG_INFO(Frontend, "Received update {}", latest->title);
 
-#ifdef NIGHTLY_BUILD
-    std::vector<std::string> result;
-
-    boost::split(result, latest->tag, boost::is_any_of("."));
-    if (result.size() != 2)
-        return std::nullopt;
-
-    const std::string tag = result[1];
-
-    boost::split(result, std::string{Common::g_build_version}, boost::is_any_of("-"));
-    if (result.empty())
-        return std::nullopt;
-
-    const std::string build = result[0];
-#else
+    // Previously, nightly builds compared versions by splitting the tag on "." and requiring
+    // exactly two segments - a scheme borrowed from upstream (Citra/Azahar) that doesn't fit
+    // Lemon's own tags (e.g. "v0.2.6-experimental.2", "v0.3" split into 3 and 2 segments
+    // respectively), so that comparison silently bailed out and never reported an update.
+    // Compare the tag and build strings directly instead.
     const std::string tag = latest->tag;
     const std::string build = Common::g_build_version;
-#endif
 
     if (tag != build)
         return latest;
