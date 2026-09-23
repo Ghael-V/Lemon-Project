@@ -179,9 +179,22 @@ void EmulationSession::InitializeGpuDriver(const std::string& hook_lib_dir,
 
     // Try to load a custom driver.
     if (custom_driver_name.size()) {
-        handle = adrenotools_open_libvulkan(
-            RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, nullptr, hook_lib_dir.c_str(),
-            custom_driver_dir.c_str(), custom_driver_name.c_str(), file_redirect_dir_, nullptr);
+        // Confirmed via a real device log (Samsung S21+/Snapdragon 888): the first 1-2 calls
+        // here returned null (falling through to the system driver below, which then failed
+        // emulation almost immediately - "Unsuitable driver" - each time) before a later call
+        // finally succeeded and ran the game fine for 40+ seconds. The system driver fallback
+        // is not a safe first response on this device class, so retry the custom driver briefly
+        // instead of giving up after one attempt.
+        static constexpr int MaxAttempts = 3;
+        static constexpr auto RetryDelay = std::chrono::milliseconds(50);
+        for (int attempt = 0; attempt < MaxAttempts && !handle; ++attempt) {
+            if (attempt > 0) {
+                std::this_thread::sleep_for(RetryDelay);
+            }
+            handle = adrenotools_open_libvulkan(
+                RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, nullptr, hook_lib_dir.c_str(),
+                custom_driver_dir.c_str(), custom_driver_name.c_str(), file_redirect_dir_, nullptr);
+        }
     }
 
     // Try to load the system driver.
