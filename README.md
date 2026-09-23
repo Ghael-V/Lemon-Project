@@ -99,8 +99,22 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
 Full release notes (including Nightly/Experimental prereleases) are on the
 [Releases page](https://github.com/Ghael-V/Lemon-Project/releases). Highlights:
 
-**Stable (mainline)**
+As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
+consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3** — Channel consolidation: Nightly and Experimental are merged into `main` and retired; a single build
+  going forward. Quick Save/Quick Load now excludes threads asleep on a kernel wait from the restore instead of
+  corrupting their stack/context, making it reliable on real multi-threaded games (previously same-session only,
+  MVP-quality); savestate files shrunk ~3x via sparse-encoding zero-filled memory pages. Fixed a missing Vulkan
+  synchronization barrier between compute-shader dispatches and the draws/copies that consume their output,
+  causing intermittent black rendering artifacts (confirmed on Zelda: Tears of the Kingdom's procedural grass and
+  shadows). Retry custom GPU driver loading instead of falling back to the (on some devices, unstable) system
+  driver after a single attempt, fixing a repeated crash-on-launch pattern confirmed on Snapdragon 888/Adreno 660.
+  Fixed a native out-of-bounds memory-unmap during shutdown that could corrupt state carried over into the next
+  game session. Fixed a crash opening Settings after exiting emulation. Fixed Release builds silently sharing a
+  stale build configuration with the debug-adjacent RelWithDebInfo build type (wrong reported version, unoptimized
+  binary). Controller layout presets (Default/Big/Swapped D-pad↔stick) with one-tap apply from a new in-game menu.
+  Discord and Buy Me a Coffee links on the About screen.
 - **v0.2.3** — "Continue playing" card and playtime/last-played/session sorting on the Statistics screen; Lemon
   Cheater freeze/unfreeze with a dedicated "Frozen" view; input macro recorder/player; auto-updater pointed at
   this repository instead of upstream Eden's.
@@ -109,18 +123,6 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 - **v0.2.1** — Fixed the Lemon Cheater's context menu appearing behind game cards in Carousel view.
 - **v0.2** — Added the Lemon Cheater live memory editor, plus assorted bug fixes.
 - **v0.1** — Initial release.
-
-**Nightly / Experimental (not yet in mainline)**
-
-- **v0.2.6** — Fixed a missing Vulkan synchronization barrier between compute-shader dispatches and the draws that
-  consume their output, causing intermittent black rendering artifacts (confirmed on Zelda: Tears of the Kingdom's
-  procedural grass and shadows, ~80-90% improvement); deferred Vulkan driver loading off the app's cold-start path
-  to first emulation start; hardened the GPU driver-info diagnostics against an unhandled exception that could
-  crash the app on launch on some devices (reported on Snapdragon 888/Adreno 660).
-- **v0.2.5** — Brought Nightly to full feature parity with Experimental.
-- **v0.2.4** — First working same-session Quick Save/Quick Load on real, multi-threaded games; savestate files
-  shrunk ~3x by sparse-encoding zero-filled memory pages; asynchronous shader compilation extended to cover
-  compute pipelines (previously graphics-only).
 
 ## Scope
 
