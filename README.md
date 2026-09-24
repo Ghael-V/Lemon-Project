@@ -183,3 +183,6 @@ that came out of yuzu's shutdown:
 And everyone who continues or has contributed to any of them. <3
 
 <a href="https://buymeacoffee.com/ghael">Si te ha gustado mi trabajo puedes invitarme a un café</a>
+
+<a href"https://ko-fi.com/LemonProject">O si lo prefieres, un Ko-Fi... Gracias!</a>
+
