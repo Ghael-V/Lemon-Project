@@ -102,6 +102,13 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3.2-nightly.1** — Prerelease. Quick Save/Quick Load no longer aborts a restore over a memory region that's
+  legitimately (not corruptly) become partially unmapped since the save; that region is now skipped instead, like an
+  excluded sleeping-thread stack. Fixed a crash on some older Adreno/KGSL devices (confirmed on Snapdragon 888 and
+  865) importing a custom GPU driver from your own file instead of the in-app downloader — two driver-manager UI
+  labels were each building a full throwaway Vulkan device just to read two strings, and that churn stacked with a
+  real driver reload into several rapid GPU-driver open/close cycles. New app icon and branding (launcher icon,
+  default profile picture), plus a Ko-fi link on the About screen.
 - **v0.3.1** — Fixed the auto-updater: `enable_update_checks` defaulted to `false`, so the update check never ran for
   anyone who hadn't manually found and flipped a Settings toggle they had no reason to know existed (now on by
   default); a separate tag-comparison bug meant Nightly-flavored builds' check silently bailed out even once
