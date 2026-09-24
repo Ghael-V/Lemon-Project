@@ -105,6 +105,9 @@ class AboutFragment : Fragment() {
         binding.buttonBuymeacoffee.setOnClickListener {
             openLink(getString(R.string.buymeacoffee_link))
         }
+        binding.buttonKofi.setOnClickListener {
+            openLink(getString(R.string.kofi_link))
+        }
 
         setInsets()
     }

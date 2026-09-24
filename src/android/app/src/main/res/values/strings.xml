@@ -511,6 +511,8 @@
     <string name="discord_link_button">Discord</string>
     <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
     <string name="buymeacoffee_link_button">Buy me a coffee</string>
+    <string name="kofi_link" translatable="false">https://ko-fi.com/LemonProject</string>
+    <string name="kofi_link_button">Ko-fi</string>
 
     <!-- General settings strings -->
     <string name="frame_limit_enable">Limit speed</string>

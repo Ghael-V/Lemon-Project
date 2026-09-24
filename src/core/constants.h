@@ -15,6 +15,6 @@
 namespace Core::Constants {
 
 // ACC Service - A Lemon Profile Picture JPEG used as user icon in absentia of real one.
-extern const std::array<u8, 3958> ACCOUNT_BACKUP_JPEG;
+extern const std::array<u8, 9583> ACCOUNT_BACKUP_JPEG;
 
 } // namespace Core::Constants
