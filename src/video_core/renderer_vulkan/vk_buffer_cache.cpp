@@ -383,6 +383,19 @@ StagingBufferRef BufferCacheRuntime::DownloadStagingBuffer(size_t size, bool def
 }
 
 VkFormat BufferCacheRuntime::TexelBufferFormat(VideoCore::Surface::PixelFormat format) const {
+    if (format == VideoCore::Surface::PixelFormat::Invalid) {
+        // Confirmed via a real crash: a shader-declared texture buffer descriptor can resolve to
+        // an image view with no real format (a dead/unused descriptor slot in practice). Unlike
+        // BindBuffer()'s VK_NULL_HANDLE case just above, we can't simply skip this call and leave
+        // the slot unwritten - the descriptor update template still expects exactly one entry per
+        // slot in order, so skipping one desyncs every later binding in the same dispatch/draw
+        // (confirmed: doing that first turned this into a driver-side crash in
+        // vkUpdateDescriptorSetWithTemplate instead). MaxwellToVK::SurfaceFormat has no case for
+        // "no format" and aborts, so substitute any small, universally-supported format here -
+        // the shader doesn't actually read through a dead slot, only the format needs to be
+        // valid enough for the driver to build the descriptor.
+        return VK_FORMAT_R8_UINT;
+    }
     return MaxwellToVK::SurfaceFormat(device, FormatType::Buffer, false, format).format;
 }
 

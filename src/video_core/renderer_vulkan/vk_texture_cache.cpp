@@ -2380,6 +2380,14 @@ bool Image::ScaleUp(bool ignore) {
 }
 
 bool Image::ScaleDown(bool ignore) {
+    if (!runtime) {
+        // Confirmed via a real crash: FillImageViews() can call this on an Image slot that
+        // resolved from a shader-declared image descriptor with no real backing image (never
+        // properly constructed, runtime left null) - same root cause as the texture-buffer
+        // PixelFormat::Invalid case just fixed in BufferCache. Nothing to rescale for an image
+        // that was never actually created.
+        return false;
+    }
     const auto& resolution = runtime->resolution;
     if (!resolution.active) {
         return false;
