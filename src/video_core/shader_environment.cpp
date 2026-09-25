@@ -662,6 +662,20 @@ void LoadPipelines(
         }
         u32 num_envs{};
         file.read(reinterpret_cast<char*>(&num_envs), sizeof(num_envs));
+        if (num_envs == 0) {
+            // Confirmed via a real crash (tombstone, SIGSEGV null deref in envs.front() below)
+            // on a truncated/interrupted cache write: same recovery as the bad magic number /
+            // version mismatch case above - the file is corrupt, not the format wrong, but the
+            // fix is the same either way.
+            file.close();
+            LOG_ERROR(Common_Filesystem, "Corrupt pipeline cache entry (0 shaders)");
+            if (!Common::FS::RemoveFile(filename)) {
+                LOG_ERROR(Common_Filesystem,
+                          "Corrupt pipeline cache file and failed to delete it in \"{}\"",
+                          Common::FS::PathToUTF8String(filename));
+            }
+            return;
+        }
         std::vector<FileEnvironment> envs(num_envs);
         for (FileEnvironment& env : envs) {
             env.Deserialize(file);
