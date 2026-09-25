@@ -169,6 +169,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private val quickSettings = QuickSettings(this)
 
     private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
+    private var firstFrameWatcherRunnable: Runnable? = null
     private var perfWatchdogRunnable: Runnable? = null
     private var perfWatchdogBadStreak = 0
     private var adaptivePerformanceDowngradeApplied = false
@@ -1031,7 +1032,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             if (it) {
                 binding.drawerLayout.setDrawerLockMode(IntSetting.LOCK_DRAWER.getInt())
                 ViewUtils.showView(binding.surfaceInputOverlay)
-                ViewUtils.hideView(binding.loadingIndicator)
+                startFirstFrameWatcher()
 
                 emulationState.updateSurface()
 
@@ -1060,6 +1061,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         emulationViewModel.isEmulationStopping.collect(viewLifecycleOwner) {
             if (it) {
+                stopFirstFrameWatcher()
                 binding.loadingText.setText(R.string.shutting_down)
                 ViewUtils.showView(binding.loadingIndicator)
                 ViewUtils.hideView(binding.inputContainer)
@@ -1637,6 +1639,46 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private fun unregisterPerformanceWatchdog() {
         perfWatchdogRunnable?.let { handler.removeCallbacks(it) }
         perfWatchdogRunnable = null
+    }
+
+    // emulationStarted fires right after Core::System::Load() succeeds and the CPU/GPU threads
+    // spin up - well before the guest has run any of its own code, let alone presented a frame.
+    // Hiding the loading screen right there (as this used to do) left a dead black surface for
+    // however long the guest takes to boot and the renderer takes to compile its first pipelines,
+    // which reads as "frozen" to anyone unfamiliar with cold-shader-cache load times. Keep the
+    // loading UI up until NativeLibrary.getPerfStats()'s FPS entry (the same one the stats
+    // overlay reads) is first >0 instead.
+    private fun startFirstFrameWatcher() {
+        if (firstFrameWatcherRunnable != null) {
+            return
+        }
+        val runnable = object : Runnable {
+            override fun run() {
+                if (_binding == null) {
+                    return
+                }
+                if (!emulationViewModel.emulationStarted.value ||
+                    emulationViewModel.isEmulationStopping.value
+                ) {
+                    firstFrameWatcherRunnable = null
+                    return
+                }
+                val fps = NativeLibrary.getPerfStats().getOrElse(1) { 0.0 }
+                if (fps > 0.0) {
+                    ViewUtils.hideView(binding.loadingIndicator)
+                    firstFrameWatcherRunnable = null
+                    return
+                }
+                handler.postDelayed(this, FIRST_FRAME_POLL_INTERVAL_MS)
+            }
+        }
+        firstFrameWatcherRunnable = runnable
+        handler.postDelayed(runnable, FIRST_FRAME_POLL_INTERVAL_MS)
+    }
+
+    private fun stopFirstFrameWatcher() {
+        firstFrameWatcherRunnable?.let { handler.removeCallbacks(it) }
+        firstFrameWatcherRunnable = null
     }
 
     private fun applyAdaptiveDowngrade(reason: AdaptiveDowngradeReason) {
@@ -2742,6 +2784,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
         private val socUpdateHandler = Handler(Looper.myLooper()!!)
 
+        private const val FIRST_FRAME_POLL_INTERVAL_MS = 100L
         private const val PERF_WATCHDOG_INTERVAL_MS = 1000L
         private const val PERF_WATCHDOG_SPEED_THRESHOLD = 0.7
         private const val PERF_WATCHDOG_BAD_SAMPLES_NEEDED = 8 // ~8s sustained, not a one-off dip
