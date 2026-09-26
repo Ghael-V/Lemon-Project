@@ -8,7 +8,9 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <new>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 #include "common/assert.h"
@@ -662,13 +664,14 @@ void LoadPipelines(
         }
         u32 num_envs{};
         file.read(reinterpret_cast<char*>(&num_envs), sizeof(num_envs));
-        if (num_envs == 0) {
-            // Confirmed via a real crash (tombstone, SIGSEGV null deref in envs.front() below)
-            // on a truncated/interrupted cache write: same recovery as the bad magic number /
-            // version mismatch case above - the file is corrupt, not the format wrong, but the
-            // fix is the same either way.
+        if (num_envs == 0 || num_envs > Maxwell::MaxShaderProgram) {
+            // Confirmed via a real crash (tombstone, SIGSEGV null deref in envs.front() below):
+            // a 0 here is a zero-filled tail left by an unclean shutdown (a plain truncation
+            // throws from the failbit read instead). Any other garbage value is the same
+            // corruption - a pipeline has 1 (compute) to MaxShaderProgram (graphics) stages -
+            // so treat it the same as the bad magic number / version mismatch case above.
             file.close();
-            LOG_ERROR(Common_Filesystem, "Corrupt pipeline cache entry (0 shaders)");
+            LOG_ERROR(Common_Filesystem, "Corrupt pipeline cache entry ({} shaders)", num_envs);
             if (!Common::FS::RemoveFile(filename)) {
                 LOG_ERROR(Common_Filesystem,
                           "Corrupt pipeline cache file and failed to delete it in \"{}\"",
@@ -689,6 +692,21 @@ void LoadPipelines(
 
 } catch (const std::ios_base::failure& e) {
     LOG_ERROR(Common_Filesystem, "{}", e.what());
+    if (!Common::FS::RemoveFile(filename)) {
+        LOG_ERROR(Common_Filesystem, "Failed to delete pipeline cache file {}",
+                  Common::FS::PathToUTF8String(filename));
+    }
+} catch (const std::length_error& e) {
+    // FileEnvironment::Deserialize() sizes its buffers from counts read out of the file, so a
+    // corrupt entry that gets past the num_envs check can still ask for an absurd allocation -
+    // previously uncaught here, aborting the app on a bad cache file.
+    LOG_ERROR(Common_Filesystem, "Corrupt pipeline cache entry: {}", e.what());
+    if (!Common::FS::RemoveFile(filename)) {
+        LOG_ERROR(Common_Filesystem, "Failed to delete pipeline cache file {}",
+                  Common::FS::PathToUTF8String(filename));
+    }
+} catch (const std::bad_alloc& e) {
+    LOG_ERROR(Common_Filesystem, "Corrupt pipeline cache entry: {}", e.what());
     if (!Common::FS::RemoveFile(filename)) {
         LOG_ERROR(Common_Filesystem, "Failed to delete pipeline cache file {}",
                   Common::FS::PathToUTF8String(filename));
