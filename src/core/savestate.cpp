@@ -6,6 +6,7 @@
 #include <span>
 #include <vector>
 
+#include "common/div_ceil.h"
 #include "common/fs/file.h"
 #include "common/fs/fs.h"
 #include "common/logging.h"
@@ -187,6 +188,23 @@ bool Restore(Core::System& system, const std::string& path) {
         return false;
     }
 
+    // Match the live thread list against the captured one before touching anything -
+    // same list, so iteration order matches Capture()'s as long as nothing created or
+    // destroyed a thread in between. Checked before allocating anything sized from the file,
+    // so a corrupt count can't turn into a huge allocation.
+    std::vector<Kernel::KThread*> live_threads;
+    for (auto& thread : process->GetThreadList()) {
+        live_threads.push_back(std::addressof(thread));
+    }
+
+    if (live_threads.size() != thread_count) {
+        LOG_ERROR(Core,
+                   "SaveState::Restore: thread count mismatch (saved {}, live {}) - the guest's "
+                   "thread set changed since this savestate was captured, refusing to load",
+                   thread_count, live_threads.size());
+        return false;
+    }
+
     std::vector<Kernel::Svc::ThreadContext> thread_contexts(thread_count);
     if (thread_count > 0 &&
         file.ReadSpan<Kernel::Svc::ThreadContext>(thread_contexts) != thread_contexts.size()) {
@@ -194,25 +212,40 @@ bool Restore(Core::System& system, const std::string& path) {
         return false;
     }
 
-    // Match the live thread list against the captured one before touching anything -
-    // same list, so iteration order matches Capture()'s as long as nothing created or
-    // destroyed a thread in between.
-    std::vector<Kernel::KThread*> live_threads;
-    for (auto& thread : process->GetThreadList()) {
-        live_threads.push_back(std::addressof(thread));
-    }
-
-    if (live_threads.size() != thread_contexts.size()) {
-        LOG_ERROR(Core,
-                   "SaveState::Restore: thread count mismatch (saved {}, live {}) - the guest's "
-                   "thread set changed since this savestate was captured, refusing to load",
-                   thread_contexts.size(), live_threads.size());
-        return false;
-    }
-
     u32 region_count = 0;
     if (!file.ReadObject(region_count)) {
         LOG_ERROR(Core, "SaveState::Restore: truncated file '{}'", path);
+        return false;
+    }
+
+    // Validate the whole region table before writing any guest memory. Regions are written
+    // one by one below, so failing on region N used to leave regions 0..N-1 already restored
+    // with the old CPU state still in place - a half-restored game that keeps running. The
+    // realistic case is a Quick Save interrupted mid-write (the app killed while writing ~1GB).
+    // Header-only pass: seeks over each region's data rather than reading it.
+    const s64 regions_start = file.Tell();
+    const u64 file_size = file.GetSize();
+    for (u32 i = 0; i < region_count; i++) {
+        u64 address = 0;
+        u64 size = 0;
+        u64 encoded_size = 0;
+        if (!file.ReadObject(address) || !file.ReadObject(size) || !file.ReadObject(encoded_size)) {
+            LOG_ERROR(Core, "SaveState::Restore: truncated region table in '{}'", path);
+            return false;
+        }
+        const u64 chunks = Common::DivCeil(size, static_cast<u64>(ChunkSize));
+        const s64 position = file.Tell();
+        // Every chunk costs one flag byte, plus its data unless it was all zeros.
+        if (position < 0 || static_cast<u64>(position) > file_size || encoded_size < chunks ||
+            encoded_size > size + chunks ||
+            encoded_size > file_size - static_cast<u64>(position) ||
+            !file.Seek(static_cast<s64>(encoded_size), Common::FS::SeekOrigin::CurrentPosition)) {
+            LOG_ERROR(Core, "SaveState::Restore: truncated or corrupt region {} in '{}'", i, path);
+            return false;
+        }
+    }
+    if (!file.Seek(regions_start)) {
+        LOG_ERROR(Core, "SaveState::Restore: failed to rewind '{}'", path);
         return false;
     }
 
