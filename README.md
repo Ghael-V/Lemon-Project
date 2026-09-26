@@ -101,6 +101,16 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3.3** — Compressed dumps: `.nsz` and `.xcz` load directly. Block-compressed files (the `.xcz` default) are
+  read in place with nothing written to disk; solid ones are decompressed once on first use and cached for later
+  launches (least recently used entries evicted past 24 GiB). Rendering: added a missing barrier before indirect
+  compute dispatches, compute dispatches are no longer skipped, and fixed crashes on dead compute descriptor slots
+  and when rescaling texel buffer views. A corrupted or truncated pipeline cache is now rejected instead of crashing
+  on launch. The loading screen stays up until the first real frame. Older Adreno devices (Snapdragon 888/865): the
+  custom GPU driver is no longer loaded and unloaded repeatedly. Quick Load validates the whole savestate before
+  touching any memory. Fixed a Lemon Cheater freeze deadlock and an out-of-memory abort when taking a snapshot. The
+  game list scans faster (containers are no longer re-parsed on every query) and no longer races between threads,
+  which could crash or drop updates/DLC. Also includes everything from v0.3.2-nightly.1 below.
 - **v0.3.2-nightly.1** — Prerelease. Quick Save/Quick Load no longer aborts a restore over a memory region that's
   legitimately (not corruptly) become partially unmapped since the save; that region is now skipped instead, like an
   excluded sleeping-thread stack. Fixed a crash on some older Adreno/KGSL devices (confirmed on Snapdragon 888 and
