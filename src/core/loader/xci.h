@@ -39,9 +39,8 @@ public:
      */
     static FileType IdentifyType(const FileSys::VirtualFile& xci_file);
 
-    FileType GetFileType() const override {
-        return IdentifyType(file);
-    }
+    FileType GetFileType() const override;
+    bool HasApplicationProgram() const override;
 
     LoadResult Load(Kernel::KProcess& process, Core::System& system) override;
 

@@ -75,41 +75,14 @@ std::optional<IndexedProgram> ResolveIndexedProgram(Core::System& system, u64 pr
     return std::nullopt;
 }
 
-std::shared_ptr<FileSys::NSP> OpenContainerAsNsp(FileSys::VirtualFile file, FileType type,
-                                                 u64 program_id = 0,
-                                                 std::size_t program_index = 0) {
-    if (!file) {
-        return nullptr;
-    }
+} // namespace
 
-    if (type == FileType::NSP) {
-        auto nsp = std::make_shared<FileSys::NSP>(file, program_id, program_index);
-        return nsp->GetStatus() == ResultStatus::Success ? nsp : nullptr;
-    }
-
-    if (type == FileType::XCI) {
-        FileSys::XCI xci{file, program_id, program_index};
-        if (xci.GetStatus() != ResultStatus::Success) {
-            return nullptr;
-        }
-
-        auto secure_nsp = xci.GetSecurePartitionNSP();
-        if (secure_nsp == nullptr || secure_nsp->GetStatus() != ResultStatus::Success) {
-            return nullptr;
-        }
-
-        return secure_nsp;
-    }
-
-    return nullptr;
-}
-
-bool HasApplicationProgramContent(const std::shared_ptr<FileSys::NSP>& nsp) {
-    if (!nsp) {
+bool HasApplicationProgramContent(const FileSys::NSP& nsp) {
+    if (nsp.GetStatus() != ResultStatus::Success) {
         return false;
     }
 
-    const auto& ncas = nsp->GetNCAs();
+    const auto& ncas = nsp.GetNCAs();
     return std::any_of(ncas.cbegin(), ncas.cend(), [](const auto& title_entry) {
         const auto& nca_map = title_entry.second;
         return nca_map.find(
@@ -117,8 +90,6 @@ bool HasApplicationProgramContent(const std::shared_ptr<FileSys::NSP>& nsp) {
                nca_map.end();
     });
 }
-
-} // namespace
 
 FileType IdentifyFile(FileSys::VirtualFile file) {
     if (const auto nsp_type = IdentifyFileLoader<AppLoader_NSP>(file)) {
@@ -147,23 +118,6 @@ bool IsContainerType(FileType type) {
     return type == FileType::NSP || type == FileType::XCI;
 }
 
-bool IsBootableGameContainer(FileSys::VirtualFile file, FileType type, u64 program_id,
-                             std::size_t program_index) {
-    if (!file) {
-        return false;
-    }
-
-    if (type == FileType::Unknown) {
-        type = IdentifyFile(file);
-    }
-
-    if (!IsContainerType(type)) {
-        return false;
-    }
-
-    return HasApplicationProgramContent(OpenContainerAsNsp(file, type, program_id, program_index));
-}
-
 FileType GuessFromFilename(const std::string& name) {
     if (name == "main")
         return FileType::DeconstructedRomDirectory;
@@ -180,7 +134,7 @@ FileType GuessFromFilename(const std::string& name) {
         return FileType::NCA;
     else if (extension == "xci")
         return FileType::XCI;
-    else if (extension == "nsp")
+    else if (extension == "nsp" || extension == "nsz")
         return FileType::NSP;
     else if (extension == "kip")
         return FileType::KIP;

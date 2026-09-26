@@ -76,7 +76,7 @@ jboolean Java_dev_lemon_lemon_1emu_utils_GameMetadata_getIsValid(JNIEnv* env, jo
             auto const file_type = loader->GetFileType();
             if (file_type == Loader::FileType::Unknown || file_type == Loader::FileType::Error)
                 return false;
-            if ((file_type == Loader::FileType::NSP || file_type == Loader::FileType::XCI) && !Loader::IsBootableGameContainer(file, file_type))
+            if (Loader::IsContainerType(file_type) && !loader->HasApplicationProgram())
                 return false;
             u64 program_id = 0;
             return loader->ReadProgramId(program_id) == Loader::ResultStatus::Success;

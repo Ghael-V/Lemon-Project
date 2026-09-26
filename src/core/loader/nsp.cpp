@@ -55,9 +55,9 @@ AppLoader_NSP::AppLoader_NSP(FileSys::VirtualFile file_,
 
 AppLoader_NSP::~AppLoader_NSP() = default;
 
-FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& nsp_file) {
-    const FileSys::NSP nsp(nsp_file);
+namespace {
 
+FileType IdentifyParsedNSP(const FileSys::NSP& nsp) {
     if (nsp.GetStatus() != ResultStatus::Success) {
         return FileType::Error;
     }
@@ -81,12 +81,29 @@ FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& nsp_file) {
         }
 
         const auto& name = entry->GetName();
-        if (name.size() >= 4 && name.substr(name.size() - 4) == ".nca") {
+        if (name.size() >= 4 &&
+            (name.substr(name.size() - 4) == ".nca" || name.substr(name.size() - 4) == ".ncz")) {
             return FileType::NSP;
         }
     }
 
     return FileType::Error;
+}
+
+} // Anonymous namespace
+
+FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& nsp_file) {
+    return IdentifyParsedNSP(FileSys::NSP(nsp_file));
+}
+
+FileType AppLoader_NSP::GetFileType() const {
+    // Reuse the NSP this loader already parsed - IdentifyType() would build (and re-read every
+    // NCA of) a fresh one on every call.
+    return IdentifyParsedNSP(*nsp);
+}
+
+bool AppLoader_NSP::HasApplicationProgram() const {
+    return HasApplicationProgramContent(*nsp);
 }
 
 AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::KProcess& process, Core::System& system) {

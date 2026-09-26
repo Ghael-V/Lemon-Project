@@ -25,6 +25,7 @@ class System;
 
 namespace FileSys {
 class NACP;
+class NSP;
 } // namespace FileSys
 
 namespace Kernel {
@@ -62,15 +63,10 @@ FileType IdentifyFile(FileSys::VirtualFile file);
 bool IsContainerType(FileType type);
 
 /**
- * Returns whether a container file is bootable as a game (has Application/Program content).
- *
- * @param file open file
- * @param type optional file type; if Unknown it is auto-detected.
- * @param program_id optional program id hint for multi-program containers.
- * @param program_index optional program index hint for multi-program containers.
+ * Returns whether an already-parsed NSP (or XCI secure partition) contains Application/Program
+ * content, i.e. is bootable as a game rather than update/DLC-only.
  */
-bool IsBootableGameContainer(FileSys::VirtualFile file, FileType type = FileType::Unknown,
-                             u64 program_id = 0, std::size_t program_index = 0);
+bool HasApplicationProgramContent(const FileSys::NSP& nsp);
 
 /**
  * Guess the type of a bootable file from its name
@@ -300,6 +296,14 @@ public:
      * @return bool indicating whether or not the RomFS is updatable.
      */
     virtual bool IsRomFSUpdatable() const {
+        return true;
+    }
+
+    /**
+     * Get whether this file contains an application program to boot. Container formats (NSP/XCI)
+     * can legitimately hold only update/DLC content; single-program formats are always bootable.
+     */
+    virtual bool HasApplicationProgram() const {
         return true;
     }
 

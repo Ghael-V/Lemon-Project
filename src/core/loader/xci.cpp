@@ -44,9 +44,9 @@ AppLoader_XCI::AppLoader_XCI(FileSys::VirtualFile file_,
 
 AppLoader_XCI::~AppLoader_XCI() = default;
 
-FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& xci_file) {
-    const FileSys::XCI xci(xci_file);
+namespace {
 
+FileType IdentifyParsedXCI(const FileSys::XCI& xci) {
     if (xci.GetStatus() != ResultStatus::Success) {
         return FileType::Error;
     }
@@ -58,6 +58,26 @@ FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& xci_file) {
     }
 
     return FileType::Error;
+}
+
+} // Anonymous namespace
+
+FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& xci_file) {
+    return IdentifyParsedXCI(FileSys::XCI(xci_file));
+}
+
+FileType AppLoader_XCI::GetFileType() const {
+    // Reuse the XCI this loader already parsed - IdentifyType() would rebuild it (and its secure
+    // partition's NCAs) on every call.
+    return IdentifyParsedXCI(*xci);
+}
+
+bool AppLoader_XCI::HasApplicationProgram() const {
+    if (xci->GetStatus() != ResultStatus::Success) {
+        return false;
+    }
+    const auto secure_nsp = xci->GetSecurePartitionNSP();
+    return secure_nsp != nullptr && HasApplicationProgramContent(*secure_nsp);
 }
 
 AppLoader_XCI::LoadResult AppLoader_XCI::Load(Kernel::KProcess& process, Core::System& system) {
