@@ -85,6 +85,10 @@ object GpuDriverHelper {
     // the driver was already loaded once this session (the user is switching drivers mid-
     // session, after already having played), the new selection needs to take effect right
     // away instead of silently waiting for the next app restart.
+    // Synchronized with ensureGpuDriverLoaded() (same monitor): installCustomDriver() runs this
+    // from DriverViewModel's IO coroutine while emulation start calls ensureGpuDriverLoaded() on
+    // the main thread, and both replace the native side's driver library handle.
+    @Synchronized
     private fun reloadGpuDriver() {
         NativeLibrary.initializeGpuDriver(
             hookLibPath,
@@ -110,10 +114,15 @@ object GpuDriverHelper {
     }
 
     fun installDefaultDriver() {
-        // Removing the installed driver will result in the backend using the default system driver.
+        removeInstalledDriver()
+        reloadGpuDriver()
+    }
+
+    // Removing the installed driver will result in the backend using the default system driver -
+    // but doesn't load it, unlike installDefaultDriver().
+    private fun removeInstalledDriver() {
         File(driverInstallationPath!!).deleteRecursively()
         initializeDriverParameters()
-        reloadGpuDriver()
     }
 
     fun copyDriverToInternalStorage(driverUri: Uri): Boolean {
@@ -143,77 +152,83 @@ object GpuDriverHelper {
      * other user data and also unzipped into the installation directory
      */
     fun installCustomDriver(driverUri: Uri): Boolean {
-        // Revert to system default in the event the specified driver is bad.
-        installDefaultDriver()
-
-        // Ensure we have directories.
-        initializeDirectories()
-
-        // Copy the zip file URI to user data
-        val copiedFile =
-            FileUtil.copyUriToInternalStorage(driverUri, driverStoragePath) ?: return false
-
-        // Validate driver
-        val metadata = getMetadataFromZip(copiedFile)
-        if (metadata.name == null) {
-            copiedFile.delete()
-            return false
-        }
-
-        if (metadata.minApi > Build.VERSION.SDK_INT) {
-            copiedFile.delete()
-            return false
-        }
-
-        // Unzip the driver.
+        // Remove the current driver first so a bad new one leaves the system default behind.
+        // The driver is loaded exactly once, in the finally block: this used to go through
+        // installDefaultDriver(), loading the system driver only to replace it moments later -
+        // doubling the driver load/unload cycles per install, and on some older Adreno devices
+        // that system driver is itself the unsuitable one.
+        removeInstalledDriver()
         try {
-            FileUtil.unzipToInternalStorage(
-                copiedFile.path,
-                File(driverInstallationPath!!)
-            )
-        } catch (e: SecurityException) {
-            return false
+            // Ensure we have directories.
+            initializeDirectories()
+
+            // Copy the zip file URI to user data
+            val copiedFile =
+                FileUtil.copyUriToInternalStorage(driverUri, driverStoragePath) ?: return false
+
+            // Validate driver
+            val metadata = getMetadataFromZip(copiedFile)
+            if (metadata.name == null) {
+                copiedFile.delete()
+                return false
+            }
+
+            if (metadata.minApi > Build.VERSION.SDK_INT) {
+                copiedFile.delete()
+                return false
+            }
+
+            // Unzip the driver.
+            try {
+                FileUtil.unzipToInternalStorage(
+                    copiedFile.path,
+                    File(driverInstallationPath!!)
+                )
+            } catch (e: SecurityException) {
+                return false
+            }
+
+            // Initialize the driver parameters.
+            initializeDriverParameters()
+            return true
+        } finally {
+            reloadGpuDriver()
         }
-
-        // Initialize the driver parameters.
-        initializeDriverParameters()
-        reloadGpuDriver()
-
-        return true
     }
 
     /**
      * Unzips driver into installation directory
      */
     fun installCustomDriver(driver: File): Boolean {
-        // Revert to system default in the event the specified driver is bad.
-        installDefaultDriver()
-
-        // Ensure we have directories.
-        initializeDirectories()
-
-        // Validate driver
-        val metadata = getMetadataFromZip(driver)
-        if (metadata.name == null) {
-            driver.delete()
-            return false
-        }
-
-        // Unzip the driver to the private installation directory
+        // See installCustomDriver(Uri) for why the driver is only loaded once, at the end.
+        removeInstalledDriver()
         try {
-            FileUtil.unzipToInternalStorage(
-                driver.path,
-                File(driverInstallationPath!!)
-            )
-        } catch (e: SecurityException) {
-            return false
+            // Ensure we have directories.
+            initializeDirectories()
+
+            // Validate driver
+            val metadata = getMetadataFromZip(driver)
+            if (metadata.name == null) {
+                driver.delete()
+                return false
+            }
+
+            // Unzip the driver to the private installation directory
+            try {
+                FileUtil.unzipToInternalStorage(
+                    driver.path,
+                    File(driverInstallationPath!!)
+                )
+            } catch (e: SecurityException) {
+                return false
+            }
+
+            // Initialize the driver parameters.
+            initializeDriverParameters()
+            return true
+        } finally {
+            reloadGpuDriver()
         }
-
-        // Initialize the driver parameters.
-        initializeDriverParameters()
-        reloadGpuDriver()
-
-        return true
     }
 
     /**

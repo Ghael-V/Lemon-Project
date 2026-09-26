@@ -194,11 +194,23 @@ void EmulationSession::InitializeGpuDriver(const std::string& hook_lib_dir,
             handle = adrenotools_open_libvulkan(
                 RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, nullptr, hook_lib_dir.c_str(),
                 custom_driver_dir.c_str(), custom_driver_name.c_str(), file_redirect_dir_, nullptr);
+            if (!handle) {
+                // The diagnosis behind this retry was never confirmed with this path logging
+                // anything (the "Unsuitable driver" lines in that report can also come from the
+                // system-driver probes). Log it so the next report can tell.
+                LOG_WARNING(Frontend, "Custom driver load attempt {}/{} failed ({}{})",
+                            attempt + 1, MaxAttempts, custom_driver_dir, custom_driver_name);
+            }
         }
     }
 
     // Try to load the system driver.
     if (!handle) {
+        if (custom_driver_name.size()) {
+            LOG_ERROR(Frontend, "Custom driver {} could not be loaded, falling back to the system "
+                                "driver",
+                      custom_driver_name);
+        }
         handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
                                             nullptr, nullptr, file_redirect_dir_, nullptr);
     }
@@ -1001,7 +1013,7 @@ struct SystemDriverProbe {
 // cycles of the GPU driver in a few seconds - confirmed by a real device log to be where the app
 // died. This probes the physical device only: no surface, no logical device, no suitability
 // pass.
-SystemDriverProbe ProbeSystemDriver(const std::string& hook_lib_dir) {
+SystemDriverProbe QuerySystemDriver(const std::string& hook_lib_dir) {
     const char* file_redirect_dir_{};
     int featureFlags{};
     auto handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
@@ -1037,6 +1049,16 @@ SystemDriverProbe ProbeSystemDriver(const std::string& hook_lib_dir) {
                                       VK_API_VERSION_PATCH(driver_version)),
         .model_name = properties2.properties.deviceName,
     };
+}
+
+// Trimming the probe down to the physical device still left one full dlopen/dlclose of the
+// system driver per call, and the driver manager calls both getSystemDriverInfo() and
+// getGpuModel() - so the load/unload churn blamed above was reduced, not removed. The system
+// driver can't change for the life of the process: probe it once. If the probe throws, the
+// static isn't initialized and the next call retries.
+SystemDriverProbe ProbeSystemDriver(const std::string& hook_lib_dir) {
+    static const SystemDriverProbe probe = QuerySystemDriver(hook_lib_dir);
+    return probe;
 }
 } // namespace
 #endif
@@ -1458,14 +1480,13 @@ namespace {
 constexpr u32 VENDOR_QUALCOMM = 0x5143;
 constexpr u32 VENDOR_ARM = 0x13B5;
 
-VkPhysicalDeviceProperties GetVulkanDeviceProperties() {
+VkPhysicalDeviceProperties QueryVulkanDeviceProperties() {
     Common::DynamicLibrary library;
     if (!library.Open("libvulkan.so")) {
         return {};
     }
 
     Vulkan::vk::InstanceDispatch dld;
-    // TODO: warn the user that Vulkan is unavailable rather than hard crash
     const auto instance = Vulkan::CreateInstance(library, dld, VK_API_VERSION_1_1);
     const auto physical_devices = instance.EnumeratePhysicalDevices();
     if (physical_devices.empty()) {
@@ -1476,7 +1497,25 @@ VkPhysicalDeviceProperties GetVulkanDeviceProperties() {
     return physical_device.GetProperties();
 }
 
-bool GetFrameGenerationSupport() {
+// The system driver can't change for the life of the process, so query it once. Each query
+// loads libvulkan (and the vendor driver behind it), creates and destroys an instance, then
+// dlcloses it - and several callers fired back-to-back at every cold start (driver version, API
+// version, GPU model), the same load/unload churn that was implicated in crashes on older
+// Adreno/KGSL devices. Never throws: getGpuModel() had no try/catch, so a failing
+// CreateInstance used to propagate across JNI and abort the app.
+VkPhysicalDeviceProperties GetVulkanDeviceProperties() {
+    static const VkPhysicalDeviceProperties properties = [] {
+        try {
+            return QueryVulkanDeviceProperties();
+        } catch (const std::exception& e) {
+            LOG_ERROR(Frontend, "Failed to query Vulkan device properties: {}", e.what());
+            return VkPhysicalDeviceProperties{};
+        }
+    }();
+    return properties;
+}
+
+bool QueryFrameGenerationSupport() {
     Common::DynamicLibrary library;
     if (!library.Open("libvulkan.so")) {
         return false;
@@ -1506,6 +1545,19 @@ bool GetFrameGenerationSupport() {
     physical_device.GetFeatures2(features);
 
     return memory_model.vulkanMemoryModel == VK_TRUE && float16_int8.shaderFloat16 == VK_TRUE;
+}
+
+// Same once-per-process reasoning as GetVulkanDeviceProperties().
+bool GetFrameGenerationSupport() {
+    static const bool supported = [] {
+        try {
+            return QueryFrameGenerationSupport();
+        } catch (const std::exception& e) {
+            LOG_ERROR(Frontend, "Failed to query frame generation support: {}", e.what());
+            return false;
+        }
+    }();
+    return supported;
 }
 } // namespace
 
