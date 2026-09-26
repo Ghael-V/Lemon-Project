@@ -228,6 +228,12 @@ void TextureCache<P>::FillImageViews(std::span<ImageViewInOut> views, bool compu
             if (blacklist) {
                 if (view.blacklist && view.id != NULL_IMAGE_VIEW_ID) {
                     const ImageViewBase& image_view = slot_image_views[view.id];
+                    // Views with no backing image (texel buffer views) carry NULL_IMAGE_ID, and
+                    // slot_images[NULL_IMAGE_ID] is the placeholder image that's never fully
+                    // constructed (null runtime) - there's nothing here to rescale.
+                    if (image_view.image_id == NULL_IMAGE_ID) {
+                        continue;
+                    }
                     auto& image = slot_images[image_view.image_id];
                     has_blacklisted |= ScaleDown(image);
                     image.scale_rating = 0;

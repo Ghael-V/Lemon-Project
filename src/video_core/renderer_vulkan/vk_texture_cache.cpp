@@ -2340,6 +2340,10 @@ bool Image::IsRescaled() const noexcept {
 }
 
 bool Image::ScaleUp(bool ignore) {
+    if (!runtime) {
+        // Same never-constructed placeholder image ScaleDown() guards against below.
+        return false;
+    }
     const auto& resolution = runtime->resolution;
     if (!resolution.active) {
         return false;
@@ -2381,11 +2385,9 @@ bool Image::ScaleUp(bool ignore) {
 
 bool Image::ScaleDown(bool ignore) {
     if (!runtime) {
-        // Confirmed via a real crash: FillImageViews() can call this on an Image slot that
-        // resolved from a shader-declared image descriptor with no real backing image (never
-        // properly constructed, runtime left null) - same root cause as the texture-buffer
-        // PixelFormat::Invalid case just fixed in BufferCache. Nothing to rescale for an image
-        // that was never actually created.
+        // slot_images[NULL_IMAGE_ID] is a placeholder that's never fully constructed (null
+        // runtime). FillImageViews() used to reach it through texel buffer views, which carry
+        // NULL_IMAGE_ID (confirmed via a real crash); it now skips those, this stays as a guard.
         return false;
     }
     const auto& resolution = runtime->resolution;
