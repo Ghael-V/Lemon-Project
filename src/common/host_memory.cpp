@@ -768,15 +768,14 @@ void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap)
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
     if (virtual_offset + length > virtual_size) {
-        // Seen in the wild during process shutdown (a caller-side bounds bug not yet root-
-        // caused). This ASSERT alone is soft and does not stop the out-of-range mmap(MAP_FIXED,
-        // PROT_NONE) below from actually executing - on POSIX, Impl::Unmap only re-clamps the
-        // range itself when virtual_base is null, which is not the case here, so an unclamped
-        // overshoot can remap host pages past the end of this HostMemory's own reservation.
-        // DeviceMemory (and this HostMemory) can be reused across game sessions when settings
-        // haven't changed (see Core::System::Impl::ReinitializeIfNecessary), so corruption here
-        // wouldn't necessarily surface until the NEXT game loads. Clamp defensively instead of
-        // trusting the caller.
+        // Happens at process shutdown: KPageTableBase::Finalize() unmaps every memory block,
+        // free ones included, and the block tree spans [0, 1 << 39) for 39-bit titles even
+        // though under NCE the process region (and this arena, see device_memory.cpp) is
+        // truncated to 1 << 38 - so the trailing free block always overshoots. Runtime mappings
+        // stay inside the truncated region. A soft ASSERT wouldn't stop the out-of-range
+        // mmap(MAP_FIXED, PROT_NONE) below (Impl::Unmap only re-clamps when virtual_base is
+        // null), which would remap host pages past this reservation, and DeviceMemory is reused
+        // across game sessions (Core::System::Impl::ReinitializeIfNecessary) - so clamp.
         LOG_ERROR(Common_Memory,
                   "Unmap out of range: virtual_offset={:#x} length={:#x} virtual_size={:#x} - clamping",
                   virtual_offset, length, virtual_size);

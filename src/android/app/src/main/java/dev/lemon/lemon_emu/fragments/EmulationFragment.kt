@@ -1685,6 +1685,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         if (adaptivePerformanceDowngradeApplied || _binding == null) {
             return
         }
+        // The thermal path posts this from a system callback with none of the session checks the
+        // performance watchdog does - without these, an event landing while the session is
+        // stopping (or mid ROM swap) would save the BATTERY preset into whatever config is
+        // loaded by then, possibly the next game's.
+        if (!emulationViewModel.emulationStarted.value ||
+            emulationViewModel.isEmulationStopping.value ||
+            isStoppingForRomSwap
+        ) {
+            return
+        }
         adaptivePerformanceDowngradeApplied = true
 
         PerformancePresets.apply(PerformancePresets.Preset.BATTERY)
