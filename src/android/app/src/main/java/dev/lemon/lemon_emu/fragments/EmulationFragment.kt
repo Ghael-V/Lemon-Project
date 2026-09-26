@@ -126,6 +126,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private var socUpdater: (() -> Unit)? = null
 
     val handler = Handler(Looper.getMainLooper())
+    // For the self-rescheduling pollers (first-frame watcher, performance watchdog). Kept apart from
+    // `handler`, whose overlay auto-hide code wipes every pending message on each touch - that used
+    // to silently kill the first-frame watcher and leave the loading screen up forever.
+    private val pollHandler = Handler(Looper.getMainLooper())
 
     private var controllerInputReceived = false
     private var hasPhysicalControllerConnected = false
@@ -1552,6 +1556,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         perfStatsRunnable?.let { perfStatsUpdateHandler.removeCallbacks(it) }
         socRunnable?.let { socUpdateHandler.removeCallbacks(it) }
         handler.removeCallbacksAndMessages(null)
+        // A new view must be able to start these again (their start functions bail while the
+        // runnable field is still set).
+        stopFirstFrameWatcher()
+        unregisterPerformanceWatchdog()
         clearPausedFrame()
         _binding?.surfaceInputOverlay?.touchEventListener = null
         _binding = null
@@ -1613,6 +1621,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val runnable = object : Runnable {
             override fun run() {
                 if (_binding == null) {
+                    perfWatchdogRunnable = null
                     return
                 }
                 if (emulationViewModel.emulationStarted.value &&
@@ -1629,15 +1638,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         perfWatchdogBadStreak = 0
                     }
                 }
-                handler.postDelayed(this, PERF_WATCHDOG_INTERVAL_MS)
+                pollHandler.postDelayed(this, PERF_WATCHDOG_INTERVAL_MS)
             }
         }
         perfWatchdogRunnable = runnable
-        handler.postDelayed(runnable, PERF_WATCHDOG_INTERVAL_MS)
+        pollHandler.postDelayed(runnable, PERF_WATCHDOG_INTERVAL_MS)
     }
 
     private fun unregisterPerformanceWatchdog() {
-        perfWatchdogRunnable?.let { handler.removeCallbacks(it) }
+        perfWatchdogRunnable?.let { pollHandler.removeCallbacks(it) }
         perfWatchdogRunnable = null
     }
 
@@ -1655,6 +1664,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val runnable = object : Runnable {
             override fun run() {
                 if (_binding == null) {
+                    firstFrameWatcherRunnable = null
                     return
                 }
                 if (!emulationViewModel.emulationStarted.value ||
@@ -1665,19 +1675,20 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
                 val fps = NativeLibrary.getPerfStats().getOrElse(1) { 0.0 }
                 if (fps > 0.0) {
+                    Log.info("[EmulationFragment] First frame rendered, hiding the loading screen")
                     ViewUtils.hideView(binding.loadingIndicator)
                     firstFrameWatcherRunnable = null
                     return
                 }
-                handler.postDelayed(this, FIRST_FRAME_POLL_INTERVAL_MS)
+                pollHandler.postDelayed(this, FIRST_FRAME_POLL_INTERVAL_MS)
             }
         }
         firstFrameWatcherRunnable = runnable
-        handler.postDelayed(runnable, FIRST_FRAME_POLL_INTERVAL_MS)
+        pollHandler.postDelayed(runnable, FIRST_FRAME_POLL_INTERVAL_MS)
     }
 
     private fun stopFirstFrameWatcher() {
-        firstFrameWatcherRunnable?.let { handler.removeCallbacks(it) }
+        firstFrameWatcherRunnable?.let { pollHandler.removeCallbacks(it) }
         firstFrameWatcherRunnable = null
     }
 
