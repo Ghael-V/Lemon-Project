@@ -101,6 +101,10 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3.4** — Hotfix: the loading screen could stay up forever after a game had started. The check that hides it
+  once the first frame renders shared its message queue with the touch-overlay auto-hide, which clears that whole
+  queue on every screen touch; the check was cancelled and never restarted. The adaptive-performance watchdog had
+  the same problem and is fixed too.
 - **v0.3.3** — Compressed dumps: `.nsz` and `.xcz` load directly. Block-compressed files (the `.xcz` default) are
   read in place with nothing written to disk; solid ones are decompressed once on first use and cached for later
   launches (least recently used entries evicted past 24 GiB). Rendering: added a missing barrier before indirect
