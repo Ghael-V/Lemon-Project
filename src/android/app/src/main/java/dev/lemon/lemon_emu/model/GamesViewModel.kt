@@ -92,10 +92,9 @@ class GamesViewModel : ViewModel() {
     }
 
     fun reloadGames(directoriesChanged: Boolean, firstStartup: Boolean = false) {
-        if (reloading.get()) {
+        if (!reloading.compareAndSet(false, true)) {
             return
         }
-        reloading.set(true)
         _isReloading.value = true
 
         viewModelScope.launch {

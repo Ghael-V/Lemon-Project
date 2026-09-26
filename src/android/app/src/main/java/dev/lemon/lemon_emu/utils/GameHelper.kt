@@ -29,6 +29,9 @@ object GameHelper {
 
     private lateinit var preferences: SharedPreferences
 
+    // A scan clears and refills the native content provider, so two running at once (a library
+    // reload plus CustomSettingsHandler's lookup) would each wipe what the other registered.
+    @Synchronized
     fun getGames(): List<Game> {
         val games = mutableListOf<Game>()
         val gamesByProgramId = mutableMapOf<String, Game>()

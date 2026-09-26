@@ -4,6 +4,8 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <mutex>
+
 #include "common/android/android_common.h"
 #include "core/core.h"
 #include "core/file_sys/fs_filesystem.h"
@@ -20,6 +22,9 @@ struct RomMetadata {
     std::vector<u8> icon;
     bool isHomebrew;
 };
+// Read and written from whichever thread asks (game-list scan, icon loads, properties screens),
+// and cleared by resetMetadata() - possibly while another thread is mid-lookup.
+static std::mutex m_rom_metadata_mutex;
 static ::Common::unordered_map<std::string, RomMetadata> m_rom_metadata_cache;
 
 static RomMetadata CacheRomMetadata(const std::string& path) {
@@ -49,11 +54,12 @@ static RomMetadata CacheRomMetadata(const std::string& path) {
             entry.version = "1.0.0";
         }
         if (loader->GetFileType() == Loader::FileType::NRO) {
-            auto loader_nro = reinterpret_cast<Loader::AppLoader_NRO*>(loader.get());
+            auto loader_nro = static_cast<Loader::AppLoader_NRO*>(loader.get());
             entry.isHomebrew = loader_nro->IsHomebrew();
         } else {
             entry.isHomebrew = false;
         }
+        std::scoped_lock lock{m_rom_metadata_mutex};
         m_rom_metadata_cache[path] = entry;
         return entry;
     }
@@ -61,10 +67,12 @@ static RomMetadata CacheRomMetadata(const std::string& path) {
 }
 
 static RomMetadata GetRomMetadata(const std::string& path, bool reload = false) {
-    if (reload)
-        return CacheRomMetadata(path);
-    if (auto it = m_rom_metadata_cache.find(path); it != m_rom_metadata_cache.end())
-        return it->second;
+    if (!reload) {
+        std::scoped_lock lock{m_rom_metadata_mutex};
+        if (auto it = m_rom_metadata_cache.find(path); it != m_rom_metadata_cache.end())
+            return it->second;
+    }
+    // Loaded outside the lock so one slow container doesn't stall every other lookup.
     return CacheRomMetadata(path);
 }
 
@@ -113,6 +121,7 @@ jboolean Java_dev_lemon_lemon_1emu_utils_GameMetadata_getIsHomebrew(JNIEnv* env,
 }
 
 void Java_dev_lemon_lemon_1emu_utils_GameMetadata_resetMetadata(JNIEnv* env, jobject obj) {
+    std::scoped_lock lock{m_rom_metadata_mutex};
     m_rom_metadata_cache.clear();
 }
 
