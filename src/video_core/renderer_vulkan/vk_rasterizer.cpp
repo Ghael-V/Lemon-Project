@@ -607,12 +607,15 @@ void RasterizerVulkan::DispatchCompute() {
     // consistent with reports of geometry (e.g. procedurally placed grass) flickering in and
     // out at random instead of being consistently wrong. Mirrors the existing broad
     // READ_BARRIER/WRITE_BARRIER idiom already used around buffer copies in
-    // vk_buffer_cache.cpp rather than inventing a new, narrower one.
+    // vk_buffer_cache.cpp rather than inventing a new, narrower one. The destination masks here
+    // and on both READ_BARRIERs include WRITE too: a read-only destination leaves
+    // write-after-write unordered (e.g. a transfer clearing a counter / indirect-args buffer
+    // that the next dispatch then writes, or two dispatches writing the same buffer).
     static constexpr VkMemoryBarrier WRITE_BARRIER{
         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
         .pNext = nullptr,
         .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
     };
     // dst stage must also cover TRANSFER: buffer_cache can serve this dispatch's output to a
     // later consumer via vkCmdCopyBuffer (e.g. buffer_cache growth/rebase, or a download for
@@ -641,7 +644,7 @@ void RasterizerVulkan::DispatchCompute() {
             .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
             .pNext = nullptr,
             .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+            .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
         };
         scheduler.Record([](vk::CommandBuffer cmdbuf) {
             cmdbuf.PipelineBarrier(vk::PIPELINE_STAGE_GRAPHICS_COMPUTE_TRANSFER,
@@ -667,7 +670,7 @@ void RasterizerVulkan::DispatchCompute() {
         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
         .pNext = nullptr,
         .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
     };
     scheduler.Record([](vk::CommandBuffer cmdbuf) { cmdbuf.PipelineBarrier(vk::PIPELINE_STAGE_GRAPHICS_COMPUTE_TRANSFER, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                0, READ_BARRIER); });

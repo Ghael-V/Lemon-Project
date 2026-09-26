@@ -583,7 +583,11 @@ ComputePipeline* PipelineCache::CurrentComputePipeline() {
     if (is_new) {
         pipeline = CreateComputePipeline(key, shader);
     }
-    return BuiltComputePipeline(pipeline.get());
+    // Deliberately never skipped while still compiling, unlike graphics (BuiltPipeline()): a
+    // skipped draw only drops an object for a frame, but a skipped dispatch leaves its output
+    // buffer stale or uninitialized for every later draw/dispatch that reads it (culling, indirect
+    // args, particles, lighting) - and a one-shot dispatch would never run at all.
+    return pipeline.get();
 }
 
 void PipelineCache::LoadDiskResources(u64 title_id, std::stop_token stop_loading,
@@ -779,24 +783,6 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     if (draw_state.index_buffer.count <= 6 || draw_state.vertex_buffer.count <= 6) {
         return pipeline;
     }
-    return nullptr;
-}
-
-ComputePipeline* PipelineCache::BuiltComputePipeline(ComputePipeline* pipeline) const noexcept {
-    if (!pipeline || pipeline->IsBuilt()) {
-        return pipeline;
-    }
-    if (!use_asynchronous_shaders) {
-        return pipeline;
-    }
-    // Mirrors BuiltPipeline() above, but there's no equivalent to the small index/vertex count
-    // heuristic to preserve here: a compute dispatch has no "this is probably a one-shot
-    // fullscreen-quad shader" signal to fall back on, so any compute pipeline still compiling
-    // in the background is simply skipped for this dispatch while async shaders is enabled -
-    // DispatchCompute() (vk_rasterizer.cpp) already treats a null pipeline as "skip this
-    // dispatch", same as it does for a shaderless draw.
-    LOG_DEBUG(Render_Vulkan,
-              "Skipping compute dispatch, pipeline still compiling asynchronously");
     return nullptr;
 }
 

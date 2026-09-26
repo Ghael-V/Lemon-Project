@@ -56,10 +56,6 @@ public:
         return static_cast<bool>(pipeline);
     }
 
-    [[nodiscard]] bool IsBuilt() const noexcept {
-        return is_built.load(std::memory_order::relaxed);
-    }
-
 private:
     const Device& device;
     vk::PipelineCache& pipeline_cache;

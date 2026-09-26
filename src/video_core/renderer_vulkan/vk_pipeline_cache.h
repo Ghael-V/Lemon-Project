@@ -124,8 +124,6 @@ private:
 
     [[nodiscard]] GraphicsPipeline* BuiltPipeline(GraphicsPipeline* pipeline) const noexcept;
 
-    [[nodiscard]] ComputePipeline* BuiltComputePipeline(ComputePipeline* pipeline) const noexcept;
-
     std::unique_ptr<GraphicsPipeline> CreateGraphicsPipeline();
 
     std::unique_ptr<GraphicsPipeline> CreateGraphicsPipeline(
