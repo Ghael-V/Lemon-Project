@@ -45,6 +45,13 @@ namespace Common::Compression {
 [[nodiscard]] std::vector<u8> DecompressDataZSTD(std::span<const u8> compressed);
 
 /**
+ * Decompresses a single Zstandard frame into a caller-provided buffer of known size.
+ *
+ * @return the number of bytes written, or 0 if the frame is invalid or doesn't fit.
+ */
+[[nodiscard]] std::size_t DecompressDataZSTD(std::span<const u8> compressed, std::span<u8> output);
+
+/**
  * Incremental Zstandard decompressor for sources too large to hold fully in memory (e.g.
  * multi-gigabyte NCZ payloads). The caller feeds compressed bytes via FeedInput() and pulls
  * decompressed bytes via Decompress(); FeedInput() must only be called again once NeedsMoreInput()

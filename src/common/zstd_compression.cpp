@@ -47,6 +47,12 @@ std::vector<u8> DecompressDataZSTD(std::span<const u8> compressed) {
     return decompressed;
 }
 
+std::size_t DecompressDataZSTD(std::span<const u8> compressed, std::span<u8> output) {
+    const std::size_t result =
+        ZSTD_decompress(output.data(), output.size(), compressed.data(), compressed.size());
+    return ZSTD_isError(result) ? 0 : result;
+}
+
 struct ZSTDStreamDecompressor::Impl {
     Impl() : stream(ZSTD_createDStream()) {
         // NCZ files may be compressed with --long (large window mode); this is cheap to allow
