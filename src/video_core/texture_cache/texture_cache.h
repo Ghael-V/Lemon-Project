@@ -138,6 +138,14 @@ void TextureCache<P>::RunGarbageCollector() {
         if ((!aggressive_mode && True(image.flags & ImageFlagBits::CostlyLoad)) || (!high_priority_mode && must_download)) {
             return false;
         }
+        if (!aggressive_mode && !must_download && True(image.flags & ImageFlagBits::GpuModified)) {
+            // Written by the GPU and not downloadable (e.g. depth, MSAA without download support,
+            // bad overlaps), so its contents exist only on the host. Deleting it hands the guest a
+            // blank image the next time it samples it - on TOTK this lost hundreds of shadow and
+            // render targets a minute once usage passed the expected threshold. Only give those
+            // up when memory is actually critical.
+            return false;
+        }
         if (must_download) {
             auto map = runtime.DownloadStagingBuffer(image.unswizzled_size_bytes);
             const auto copies = FixSmallVectorADL(FullDownloadCopies(image.info));
