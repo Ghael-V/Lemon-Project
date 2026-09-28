@@ -202,7 +202,8 @@ that came out of yuzu's shutdown:
 
 And everyone who continues or has contributed to any of them. <3
 
-Logo by Madeleine.
+A very special thank you to Madeleine, who designed Lemon's logo for free and put up with endless
+rounds of changes with a lot of patience. Thank you, Madeleine! <3
 
 <a href="https://buymeacoffee.com/ghael">Si te ha gustado mi trabajo puedes invitarme a un café</a>
 
