@@ -166,8 +166,31 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         if (!firstTimeSetup && NativeLibrary.isUpdateCheckerEnabled() && BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()) {
              checkForUpdates()
         }
+        setUpBundledDriver()
         setInsets()
         applyFullscreenPreference()
+    }
+
+    // Off the main thread: copies the bundled driver zip and, the first time on a supported GPU,
+    // probes the GPU model through Vulkan.
+    private fun setUpBundledDriver() {
+        Thread {
+            val revertedToSystemDriver = try {
+                BundledDriver.onAppStart(applicationContext)
+            } catch (e: Exception) {
+                Log.error("[BundledDriver] Setup failed: ${e.message}")
+                false
+            }
+            if (revertedToSystemDriver) {
+                runOnUiThread {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.bundled_driver_reverted_title)
+                        .setMessage(R.string.bundled_driver_reverted_description)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            }
+        }.start()
     }
 
     private fun checkForUpdates() {

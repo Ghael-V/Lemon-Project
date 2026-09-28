@@ -336,6 +336,25 @@
     <string name="notification_no_directory_link">No se pudo abrir la carpeta Lemon</string>
     <string name="notification_no_directory_link_description">Por favor, busque la carpeta user con el panel lateral del explorador de archivos de forma manual.</string>
     <string name="manage_save_data">Administrar datos de guardado</string>
+    <string name="migrate_from_emulator">Migrar desde otro emulador</string>
+    <string name="migrate_from_emulator_description">Trae tus partidas guardadas desde Eden, Citron o yuzu sin tener que abrirlos (y las claves y el firmware si Lemon aún no los tiene)</string>
+    <string name="migrate_no_sources">No se ha encontrado ningún emulador compatible. Son compatibles Eden, Citron, yuzu y otros emuladores basados en yuzu.</string>
+    <string name="migrate_choose_source">Migrar desde</string>
+    <string name="migrate_wrong_folder">Elige la carpeta principal de %1$s, la que se abre al principio, sin entrar en ninguna subcarpeta.</string>
+    <string name="migrate_nothing">No hay nada que importar desde %1$s.</string>
+    <string name="migrate_confirm_title">Migrar desde %1$s</string>
+    <string name="migrate_found_saves">Partidas guardadas encontradas: %1$d</string>
+    <string name="migrate_found_conflicts">%1$d de esos juegos ya tienen partida en Lemon.</string>
+    <string name="migrate_found_keys">También se importarán tus claves (Lemon aún no tiene).</string>
+    <string name="migrate_found_firmware">También se importará tu firmware (Lemon aún no tiene).</string>
+    <string name="migrate_replace">Reemplazar las de Lemon</string>
+    <string name="migrate_keep">Conservar las de Lemon</string>
+    <string name="migrate_import">Importar</string>
+    <string name="migrating">Migrando</string>
+    <string name="migrate_done">Importadas: %1$d · Conservadas de Lemon: %2$d · Con error: %3$d</string>
+    <string name="migrate_done_keys">Claves importadas.</string>
+    <string name="migrate_done_firmware">Firmware importado.</string>
+    <string name="migrate_done_backup">Las partidas de Lemon reemplazadas se han guardado en %1$s</string>
     <string name="manage_save_data_description">Guardar los datos encontrados. Por favor, seleccione una opción de abajo.</string>
     <string name="import_save_warning">Importar datos de guardado</string>
     <string name="import_save_warning_description">Esto sobreescribirá todos los datos de guardado existentes con el archivo proporcionado. ¿Está seguro de querer continuar\?</string>
@@ -741,6 +760,8 @@
     <string name="driver_already_installed">Controlador ya instalado</string>
     <string name="installed_label">%1$s (Instalado)</string>
     <string name="system_gpu_driver">Controlador de la GPU del sistema</string>
+    <string name="bundled_driver_reverted_title">Se ha vuelto al controlador de GPU del sistema</string>
+    <string name="bundled_driver_reverted_description">El controlador Lemon-Ade integrado cerró la app antes de que el juego mostrara nada, así que Lemon ha vuelto al controlador del sistema de tu dispositivo. Puedes elegir otro controlador en Ajustes &gt; Gestor de controladores de GPU.</string>
     <string name="installing_driver">Instalando controlador...</string>
 
     <!-- GPU driver fetcher -->

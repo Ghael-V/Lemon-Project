@@ -90,6 +90,7 @@ import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.overlay.model.OverlayControl
 import dev.lemon.lemon_emu.overlay.model.OverlayLayout
 import dev.lemon.lemon_emu.overlay.model.OverlayPreset
+import dev.lemon.lemon_emu.utils.BundledDriver
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.GameHelper
@@ -1065,6 +1066,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         emulationViewModel.isEmulationStopping.collect(viewLifecycleOwner) {
             if (it) {
+                BundledDriver.onEmulationStopped()
                 stopFirstFrameWatcher()
                 binding.loadingText.setText(R.string.shutting_down)
                 ViewUtils.showView(binding.loadingIndicator)
@@ -1127,6 +1129,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
 
+        // The per-game config is loaded by now, so this sees the driver the game will use.
+        BundledDriver.onEmulationStarting()
         driverViewModel.onLaunchGame()
     }
 
@@ -1676,6 +1680,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 val fps = NativeLibrary.getPerfStats().getOrElse(1) { 0.0 }
                 if (fps > 0.0) {
                     Log.info("[EmulationFragment] First frame rendered, hiding the loading screen")
+                    BundledDriver.onFirstFrame()
                     ViewUtils.hideView(binding.loadingIndicator)
                     firstFrameWatcherRunnable = null
                     return

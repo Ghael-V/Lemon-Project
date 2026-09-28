@@ -26,7 +26,6 @@ import androidx.navigation.findNavController
 import androidx.preference.PreferenceManager
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.google.android.material.transition.MaterialFadeThrough
-import dev.lemon.lemon_emu.HomeNavigationDirections
 import dev.lemon.lemon_emu.NativeLibrary
 import java.io.File
 import dev.lemon.lemon_emu.R
@@ -34,7 +33,6 @@ import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.adapters.SetupAdapter
 import dev.lemon.lemon_emu.databinding.FragmentSetupBinding
 import dev.lemon.lemon_emu.features.settings.model.Settings
-import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
 import dev.lemon.lemon_emu.model.ButtonState
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
@@ -44,7 +42,6 @@ import dev.lemon.lemon_emu.model.SetupPage
 import dev.lemon.lemon_emu.model.PageState
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
-import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
 import dev.lemon.lemon_emu.utils.ViewUtils
@@ -224,35 +221,9 @@ class SetupFragment : Fragment() {
                                 }
                             )
                         )
-                        if (GpuDriverHelper.isAdrenoGpu()) {
-                            add(
-                                PageButton(
-                                    R.drawable.ic_build,
-                                    R.string.gpu_driver_manager,
-                                    R.string.install_gpu_driver_description,
-                                    {
-                                        pageButtonCallback = it
-                                        val action = HomeNavigationDirections
-                                            .actionGlobalSettingsSubscreenActivity(
-                                                SettingsSubscreen.DRIVER_MANAGER,
-                                                null
-                                            )
-                                        binding.root.findNavController().navigate(action)
-                                    },
-                                    {
-                                        try {
-                                            if (GpuDriverHelper.installedCustomDriverData.name != null) {
-                                                ButtonState.BUTTON_ACTION_COMPLETE
-                                            } else {
-                                                ButtonState.BUTTON_ACTION_INCOMPLETE
-                                            }
-                                        } catch (e: Throwable) {
-                                            ButtonState.BUTTON_ACTION_INCOMPLETE
-                                        }
-                                    }
-                                )
-                            )
-                        }
+                        // No driver step: supported GPUs get the bundled Lemon-Ade driver
+                        // automatically (see BundledDriver), and the driver manager stays in
+                        // Settings for anyone who wants another one.
                         add(
                             PageButton(
                                 R.drawable.ic_controller,

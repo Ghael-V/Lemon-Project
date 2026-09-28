@@ -396,6 +396,25 @@
     <string name="notification_no_directory_link">Could not open Lemon directory</string>
     <string name="notification_no_directory_link_description">Please locate the user folder with the file manager\'s side panel manually.</string>
     <string name="manage_save_data">Manage save data</string>
+    <string name="migrate_from_emulator">Migrate from another emulator</string>
+    <string name="migrate_from_emulator_description">Bring your saves over from Eden, Citron or yuzu without opening them (plus keys and firmware if Lemon has none yet)</string>
+    <string name="migrate_no_sources">No compatible emulator found. Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
+    <string name="migrate_choose_source">Migrate from</string>
+    <string name="migrate_wrong_folder">Pick the main %1$s folder, the one the picker opens on, without going into any subfolder.</string>
+    <string name="migrate_nothing">There is nothing to import from %1$s.</string>
+    <string name="migrate_confirm_title">Migrate from %1$s</string>
+    <string name="migrate_found_saves">Saves found: %1$d</string>
+    <string name="migrate_found_conflicts">%1$d of those games already have a save in Lemon.</string>
+    <string name="migrate_found_keys">Your keys will be imported too (Lemon has none yet).</string>
+    <string name="migrate_found_firmware">Your firmware will be imported too (Lemon has none yet).</string>
+    <string name="migrate_replace">Replace Lemon saves</string>
+    <string name="migrate_keep">Keep Lemon saves</string>
+    <string name="migrate_import">Import</string>
+    <string name="migrating">Migrating</string>
+    <string name="migrate_done">Imported: %1$d · Kept from Lemon: %2$d · Failed: %3$d</string>
+    <string name="migrate_done_keys">Keys imported.</string>
+    <string name="migrate_done_firmware">Firmware imported.</string>
+    <string name="migrate_done_backup">The Lemon saves that were replaced are backed up in %1$s</string>
     <string name="manage_save_data_description">Save data found. Please select an option below.</string>
     <string name="import_save_warning">Import save data</string>
     <string name="import_save_warning_description">This will overwrite all existing save data with the provided file. Are you sure that you want to continue?</string>
@@ -827,6 +846,8 @@
     <string name="driver_already_installed">Driver already installed</string>
     <string name="installed_label">%1$s (Installed)</string>
     <string name="system_gpu_driver">System GPU driver</string>
+    <string name="bundled_driver_reverted_title">Switched back to the system GPU driver</string>
+    <string name="bundled_driver_reverted_description">The built-in Lemon-Ade driver closed the app before the game could show anything, so Lemon went back to your device\'s system driver. You can pick another driver in Settings &gt; GPU driver manager.</string>
     <string name="installing_driver">Installing driver…</string>
 
     <!-- GPU driver fetcher -->
