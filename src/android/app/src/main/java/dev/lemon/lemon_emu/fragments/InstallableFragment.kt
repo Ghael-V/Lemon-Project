@@ -14,9 +14,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
@@ -29,6 +32,7 @@ import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.model.Installable
 import dev.lemon.lemon_emu.model.TaskState
+import dev.lemon.lemon_emu.utils.EmulatorMigration
 import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.InstallableActions
 import dev.lemon.lemon_emu.utils.NativeConfig
@@ -82,6 +86,11 @@ class InstallableFragment : Fragment() {
         }
 
         val installables = listOf(
+            Installable(
+                R.string.migrate_from_emulator,
+                R.string.migrate_from_emulator_description,
+                install = { startEmulatorMigration() }
+            ),
             Installable(
                 R.string.user_data,
                 R.string.user_data_description,
@@ -354,6 +363,129 @@ class InstallableFragment : Fragment() {
                 }
             }.show(parentFragmentManager, ProgressDialogFragment.TAG)
         }
+
+    // Set right before the folder picker opens; tells the result which emulator it belongs to.
+    private var migrationSource: EmulatorMigration.Source? = null
+
+    private val migrationFolderLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+            val source = migrationSource
+            if (treeUri == null || source == null) {
+                return@registerForActivityResult
+            }
+            onMigrationFolderPicked(source, treeUri)
+        }
+
+    private fun startEmulatorMigration() {
+        val sources = EmulatorMigration.findSources(requireContext())
+        when (sources.size) {
+            0 -> MessageDialogFragment.newInstance(
+                requireActivity(),
+                titleId = R.string.migrate_from_emulator,
+                descriptionId = R.string.migrate_no_sources
+            ).show(parentFragmentManager, MessageDialogFragment.TAG)
+
+            1 -> pickMigrationFolder(sources.first())
+
+            else -> MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.migrate_choose_source)
+                .setItems(sources.map { it.label }.toTypedArray()) { _, which ->
+                    pickMigrationFolder(sources[which])
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun pickMigrationFolder(source: EmulatorMigration.Source) {
+        migrationSource = source
+        // Opens straight on the emulator's user folder: the user only confirms access.
+        migrationFolderLauncher.launch(source.initialUri)
+    }
+
+    private fun onMigrationFolderPicked(source: EmulatorMigration.Source, treeUri: android.net.Uri) {
+        val context = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val plan = withContext(Dispatchers.IO) {
+                EmulatorMigration.scan(context, source, treeUri)
+            }
+            if (plan == null) {
+                MessageDialogFragment.newInstance(
+                    requireActivity(),
+                    titleId = R.string.migrate_from_emulator,
+                    descriptionString = getString(R.string.migrate_wrong_folder, source.label)
+                ).show(parentFragmentManager, MessageDialogFragment.TAG)
+                return@launch
+            }
+            if (plan.saves.isEmpty() && !plan.importKeys && !plan.importFirmware) {
+                MessageDialogFragment.newInstance(
+                    requireActivity(),
+                    titleId = R.string.migrate_from_emulator,
+                    descriptionString = getString(R.string.migrate_nothing, source.label)
+                ).show(parentFragmentManager, MessageDialogFragment.TAG)
+                return@launch
+            }
+
+            val message = buildString {
+                append(getString(R.string.migrate_found_saves, plan.saves.size))
+                if (plan.conflicts > 0) {
+                    append("\n").append(getString(R.string.migrate_found_conflicts, plan.conflicts))
+                }
+                if (plan.importKeys) {
+                    append("\n").append(getString(R.string.migrate_found_keys))
+                }
+                if (plan.importFirmware) {
+                    append("\n").append(getString(R.string.migrate_found_firmware))
+                }
+            }
+            val dialog = MaterialAlertDialogBuilder(requireContext())
+                .setTitle(getString(R.string.migrate_confirm_title, source.label))
+                .setMessage(message)
+                .setNegativeButton(android.R.string.cancel, null)
+            if (plan.conflicts > 0) {
+                dialog.setPositiveButton(R.string.migrate_replace) { _, _ -> runMigration(plan, true) }
+                dialog.setNeutralButton(R.string.migrate_keep) { _, _ -> runMigration(plan, false) }
+            } else {
+                dialog.setPositiveButton(R.string.migrate_import) { _, _ -> runMigration(plan, false) }
+            }
+            dialog.show()
+        }
+    }
+
+    private fun runMigration(plan: EmulatorMigration.Plan, replaceExisting: Boolean) {
+        val context = requireContext().applicationContext
+        ProgressDialogFragment.newInstance(
+            requireActivity(),
+            R.string.migrating,
+            false
+        ) { progressCallback, _ ->
+            val result = EmulatorMigration.migrate(context, plan, replaceExisting) { done, total ->
+                progressCallback(total, done)
+            }
+            if (result.keysImported || result.firmwareImported) {
+                withContext(Dispatchers.Main) { gamesViewModel.reloadGames(true) }
+            }
+            buildString {
+                append(
+                    context.getString(
+                        R.string.migrate_done,
+                        result.imported,
+                        result.skipped,
+                        result.failed
+                    )
+                )
+                if (result.keysImported) {
+                    append("\n").append(context.getString(R.string.migrate_done_keys))
+                }
+                if (result.firmwareImported) {
+                    append("\n").append(context.getString(R.string.migrate_done_firmware))
+                }
+                result.backupDir?.let {
+                    append("\n\n").append(context.getString(R.string.migrate_done_backup, it.path))
+                }
+            }
+        }.show(parentFragmentManager, ProgressDialogFragment.TAG)
+    }
 
     private val exportSaves = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
