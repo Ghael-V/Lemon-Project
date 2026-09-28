@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 512 512"
+   width="512"
+   height="512"
+   version="1.1"
+   id="svg21"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <style
+     id="style1">
+    .lemon-rind      { fill: #FBC02D; }   /* outer yellow ring */
+    .lemon-flesh     { fill: #FFDE3D; }   /* main slice yellow */
+    .lemon-highlight { fill: #FFEB8A; }   /* wedge inner highlight */
+    .lemon-pith      { stroke: #FFF6D6; stroke-width: 6; stroke-linecap: round; }
+
+    .pad-body        { fill: #F0432E; }   /* controller red */
+    .pad-shade       { fill: #D8331F; }   /* subtle darker red edge */
+    .button-face     { fill: #1E1E1E; }   /* D-pad / face buttons */
+    .stick-outer     { fill: #241F1E; }   /* joystick outer ring */
+    .stick-inner     { fill: #3A3230; }   /* joystick inner cap */
+    .cap-button      { fill: #1E1E1E; }   /* small square capture button */
+
+    .leaf-light      { fill: #4CAF50; }
+    .leaf-dark       { fill: #2E7D32; }
+    .leaf-vein       { stroke: #1B5E20; stroke-width: 4; stroke-linecap: round; }
+
+    .outline         { fill: none; stroke: #1A1A1A; stroke-width: 10; stroke-linejoin: round; }
+    .outline-thin    { fill: none; stroke: #1A1A1A; stroke-width: 6; stroke-linejoin: round; stroke-linecap: round; }
+    .seam            { fill: none; stroke: #1A1A1A; stroke-width: 10; stroke-linecap: round; }
+  </style>
+  <defs
+     id="defs2">
+    <clipPath
+       id="circleClip">
+      <circle
+         cx="246"
+         cy="276"
+         r="210"
+         id="circle1" />
+    </clipPath>
+    <clipPath
+       id="leftHalfClip">
+      <path
+         d="M246,66                C 316,140 316,220 246,276                C 180,328 180,410 246,486                L 0,486 L 0,66 Z"
+         id="path1" />
+    </clipPath>
+    <clipPath
+       id="rightHalfClip">
+      <path
+         d="M246,66                C 316,140 316,220 246,276                C 180,328 180,410 246,486                L 512,486 L 512,66 Z"
+         id="path2" />
+    </clipPath>
+  </defs>
+  <g
+     clip-path="url(#circleClip)"
+     id="g18">
+    <g
+       clip-path="url(#leftHalfClip)"
+       id="g11">
+      <circle
+         class="lemon-rind"
+         cx="246"
+         cy="276"
+         r="210"
+         id="circle2" />
+      <circle
+         class="lemon-flesh"
+         cx="246"
+         cy="276"
+         r="178"
+         id="circle3" />
+      <g
+         class="lemon-pith"
+         id="g7">
+        <line
+           x1="246"
+           y1="276"
+           x2="246"
+           y2="98"
+           id="line3" />
+        <line
+           x1="246"
+           y1="276"
+           x2="107"
+           y2="146"
+           id="line4" />
+        <line
+           x1="246"
+           y1="276"
+           x2="57"
+           y2="276"
+           id="line5" />
+        <line
+           x1="246"
+           y1="276"
+           x2="107"
+           y2="406"
+           id="line6" />
+        <line
+           x1="246"
+           y1="276"
+           x2="246"
+           y2="454"
+           id="line7" />
+      </g>
+      <g
+         class="lemon-highlight"
+         opacity="0.55"
+         id="g10">
+        <path
+           d="M246,276 L246,130 A146,146 0 0,0 137,178 Z"
+           id="path7" />
+        <path
+           d="M246,276 L137,178 A146,146 0 0,0 100,276 Z"
+           id="path8" />
+        <path
+           d="M246,276 L100,276 A146,146 0 0,0 137,374 Z"
+           id="path9" />
+        <path
+           d="M246,276 L137,374 A146,146 0 0,0 246,422 Z"
+           id="path10" />
+      </g>
+    </g>
+    <g
+       clip-path="url(#rightHalfClip)"
+       id="g17">
+      <circle
+         class="pad-body"
+         cx="246"
+         cy="276"
+         r="210"
+         id="circle11" />
+      <path
+         class="pad-shade"
+         opacity="0.25"
+         d="M246,66 A210,210 0 0,1 246,486 A230,230 0 0,0 246,66 Z"
+         id="path11" />
+      <g
+         class="button-face"
+         id="g15">
+        <circle
+           cx="366"
+           cy="158"
+           r="16"
+           id="circle12" />
+        <circle
+           cx="330"
+           cy="196"
+           r="16"
+           id="circle13" />
+        <circle
+           cx="396"
+           cy="196"
+           r="16"
+           id="circle14" />
+        <circle
+           cx="360"
+           cy="230"
+           r="16"
+           id="circle15" />
+      </g>
+      <circle
+         class="stick-outer"
+         cx="330"
+         cy="352"
+         r="50"
+         id="circle16" />
+      <circle
+         class="stick-inner"
+         cx="330"
+         cy="352"
+         r="31"
+         id="circle17" />
+      <rect
+         class="cap-button"
+         x="288"
+         y="424"
+         width="22"
+         height="22"
+         rx="4"
+         id="rect17" />
+    </g>
+    <path
+       class="seam"
+       d="M246,66              C 316,140 316,220 246,276              C 180,328 180,410 246,486"
+       id="path17" />
+  </g>
+  <circle
+     class="outline"
+     cx="246"
+     cy="276"
+     r="210"
+     id="circle18" />
+  <g
+     id="g21">
+    <path
+       class="leaf-dark"
+       d="M338,124              C 360,68 418,38 470,40              C 468,94 442,142 392,166              C 368,178 342,170 332,148              C 327,138 329,130 338,124 Z"
+       id="path18" />
+    <path
+       class="leaf-light"
+       d="M338,124              C 354,84 396,54 436,46              C 424,88 396,128 358,150              C 344,158 332,150 333,136              C 333,132 335,128 338,124 Z"
+       id="path19" />
+    <path
+       class="leaf-vein"
+       fill="none"
+       d="M350,146 C 384,118 418,86 458,54"
+       id="path20" />
+    <path
+       class="outline-thin"
+       d="M338,124              C 360,68 418,38 470,40              C 468,94 442,142 392,166              C 368,178 342,170 332,148              C 327,138 329,130 338,124 Z"
+       id="path21" />
+  </g>
+  </svg>

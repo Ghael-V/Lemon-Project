@@ -106,6 +106,13 @@
                         android:layout_marginTop="6dp"
                         android:textAlignment="viewStart"
                         android:text="@string/contributors_description" />
+                    <com.google.android.material.textview.MaterialTextView
+                        style="@style/SynthwaveText.Body"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textAlignment="viewStart"
+                        android:text="@string/logo_credit" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

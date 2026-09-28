@@ -12,7 +12,7 @@
 
 <h1 align="center">
   <br>
-  <img src="./src/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="Lemon" width="200">
+  <img src="./dist/lemon-logo.svg" alt="Lemon" width="200">
   <br>
   <b>Lemon</b>
   <br>
@@ -201,6 +201,8 @@ that came out of yuzu's shutdown:
 - Ryubing
 
 And everyone who continues or has contributed to any of them. <3
+
+Logo by Madeleine.
 
 <a href="https://buymeacoffee.com/ghael">Si te ha gustado mi trabajo puedes invitarme a un café</a>
 

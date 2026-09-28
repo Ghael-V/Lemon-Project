@@ -455,6 +455,7 @@
     <string name="about_app_description">Un emulador privado de Nintendo Switch, exclusivo para Android, hecho para GPUs Adreno</string>
     <string name="contributors">Colaboradores</string>
     <string name="contributors_description">Gente que hizo posible Eden para Android</string>
+    <string name="logo_credit">Logo por Madeleine</string>
     <string name="licenses_description">Proyectos que hacen que Lemon para Android sea posible</string>
     <string name="build">Compilación</string>
     <string name="user_data">Datos de usuario</string>
