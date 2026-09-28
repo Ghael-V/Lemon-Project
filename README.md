@@ -101,6 +101,14 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v0.3.5** — Coming from Eden, Citron or yuzu: Lemon imports your saves (plus keys and firmware if it has none)
+  without opening the other emulator, from the first-run setup or the top of Settings. Android 12 support. The
+  Lemon-Ade driver ships inside the app and is picked automatically on the Adreno 830, with an automatic fallback to
+  the system driver if a game fails to start with it; Lemon-Ade is also first in the driver downloader. Games built
+  for Switch firmware 22.0+ (ZBIC-compressed executables) load. New logo by Madeleine. Fixes: Add-ons toggles
+  flipping other entries while scrolling, GPU-written textures evicted under memory pressure, the update notice
+  never showing, plus several upstream Eden fixes (MK8D/SM3DW local wireless crash, controller-disconnect freeze,
+  SGSR black screen on system screens, UE5 buffer sync races, IPS/pchtxt mods).
 - **v0.3.4** — Hotfix: the loading screen could stay up forever after a game had started. The check that hides it
   once the first frame renders shared its message queue with the touch-overlay auto-hide, which clears that whole
   queue on every screen touch; the check was cancelled and never restarted. The adaptive-performance watchdog had
