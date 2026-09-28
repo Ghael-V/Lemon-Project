@@ -64,6 +64,7 @@ import androidx.documentfile.provider.DocumentFile
 private var updateCheckStarted = false
 private var pendingUpdate: NativeLibrary.UpdateResult? = null
 private var resumedInstance: MainActivity? = null
+private var pendingDriverRevertNotice = false
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -197,11 +198,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             }
             if (revertedToSystemDriver) {
                 runOnUiThread {
-                    MaterialAlertDialogBuilder(this)
-                        .setTitle(R.string.bundled_driver_reverted_title)
-                        .setMessage(R.string.bundled_driver_reverted_description)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show()
+                    pendingDriverRevertNotice = true
+                    resumedInstance?.showPendingDriverRevertNotice()
                 }
             }
         }.start()
@@ -233,6 +231,19 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         }
         pendingUpdate = null
         UpdateDialogFragment.show(supportFragmentManager, update)
+    }
+
+    // A DialogFragment, like the other startup notices, so a recreation can't lose it.
+    private fun showPendingDriverRevertNotice() {
+        if (!pendingDriverRevertNotice || supportFragmentManager.isStateSaved) {
+            return
+        }
+        pendingDriverRevertNotice = false
+        MessageDialogFragment.newInstance(
+            this,
+            titleId = R.string.bundled_driver_reverted_title,
+            descriptionId = R.string.bundled_driver_reverted_description
+        ).show(supportFragmentManager, MessageDialogFragment.TAG)
     }
 
     fun onUpdateAccepted(release: NativeLibrary.UpdateResult) {
@@ -390,6 +401,7 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         applyFullscreenPreference()
         resumedInstance = this
         showPendingUpdate()
+        showPendingDriverRevertNotice()
     }
 
     override fun onPause() {
