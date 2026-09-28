@@ -42,6 +42,7 @@ import dev.lemon.lemon_emu.model.SetupPage
 import dev.lemon.lemon_emu.model.PageState
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
+import dev.lemon.lemon_emu.utils.EmulatorMigration
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
 import dev.lemon.lemon_emu.utils.ViewUtils
@@ -154,6 +155,28 @@ class SetupFragment : Fragment() {
                     R.string.emulator_data,
                     R.string.emulator_data_description,
                     mutableListOf<PageButton>().apply {
+                        // Coming from Eden/Citron/yuzu: one step brings saves, keys and firmware
+                        // over, so it goes first. Only shown when such an emulator is installed.
+                        if (EmulatorMigration.findSources(requireContext()).isNotEmpty()) {
+                            add(
+                                PageButton(
+                                    R.drawable.ic_import,
+                                    R.string.migrate_from_emulator,
+                                    R.string.migrate_from_emulator_setup_description,
+                                    {
+                                        pageButtonCallback = it
+                                        emulatorMigration.start()
+                                    },
+                                    {
+                                        if (migrationDone) {
+                                            ButtonState.BUTTON_ACTION_COMPLETE
+                                        } else {
+                                            ButtonState.BUTTON_ACTION_INCOMPLETE
+                                        }
+                                    }
+                                )
+                            )
+                        }
                         add(
                             PageButton(
                                 R.drawable.ic_key,
@@ -425,6 +448,13 @@ class SetupFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private var migrationDone = false
+
+    private val emulatorMigration = EmulatorMigrationFlow(this) {
+        migrationDone = true
+        checkForButtonState.invoke()
     }
 
     private val checkForButtonState: () -> Unit = {

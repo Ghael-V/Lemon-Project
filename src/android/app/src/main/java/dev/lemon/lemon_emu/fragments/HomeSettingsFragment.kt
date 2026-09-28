@@ -30,6 +30,7 @@ import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
+import kotlinx.coroutines.flow.MutableStateFlow
 import dev.lemon.lemon_emu.HomeNavigationDirections
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
@@ -44,6 +45,7 @@ import dev.lemon.lemon_emu.model.DriverViewModel
 import dev.lemon.lemon_emu.model.HomeSetting
 import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.ui.main.MainActivity
+import dev.lemon.lemon_emu.utils.EmulatorMigration
 import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.GpuDriverHelper
 import dev.lemon.lemon_emu.utils.Log
@@ -60,6 +62,8 @@ class HomeSettingsFragment : Fragment() {
 
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val driverViewModel: DriverViewModel by activityViewModels()
+
+    private val emulatorMigration = EmulatorMigrationFlow(this)
 
     private var showAdvancedSettings = false
 
@@ -101,6 +105,22 @@ class HomeSettingsFragment : Fragment() {
     // the "More options" toggle below so first-time setup isn't a wall of 17 identical cards.
     private fun buildEssentialOptions(): MutableList<HomeSetting> =
         mutableListOf<HomeSetting>().apply {
+            // Only while an emulator to migrate from is installed, and first: it's what someone
+            // coming from Eden/Citron/yuzu needs before anything else.
+            val migrationSources = EmulatorMigration.findSources(requireContext())
+            if (migrationSources.isNotEmpty()) {
+                add(
+                    HomeSetting(
+                        R.string.migrate_from_emulator,
+                        R.string.migrate_from_emulator_description,
+                        R.drawable.ic_import,
+                        { emulatorMigration.start() },
+                        details = MutableStateFlow(
+                            migrationSources.joinToString(", ") { it.label }
+                        )
+                    )
+                )
+            }
             add(
                 HomeSetting(
                     R.string.gpu_driver_manager,

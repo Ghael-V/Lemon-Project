@@ -338,6 +338,7 @@
     <string name="manage_save_data">Administrar datos de guardado</string>
     <string name="migrate_from_emulator">Migrar desde otro emulador</string>
     <string name="migrate_from_emulator_description">Trae tus partidas guardadas desde Eden, Citron o yuzu sin tener que abrirlos (y las claves y el firmware si Lemon aún no los tiene)</string>
+    <string name="migrate_from_emulator_setup_description">¿Vienes de otro emulador? Importa tus partidas, claves y firmware en un solo paso</string>
     <string name="migrate_no_sources">No se ha encontrado ningún emulador compatible. Son compatibles Eden, Citron, yuzu y otros emuladores basados en yuzu.</string>
     <string name="migrate_choose_source">Migrar desde</string>
     <string name="migrate_wrong_folder">Elige la carpeta principal de %1$s, la que se abre al principio, sin entrar en ninguna subcarpeta.</string>

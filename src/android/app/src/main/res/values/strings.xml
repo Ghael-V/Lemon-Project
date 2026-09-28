@@ -398,6 +398,7 @@
     <string name="manage_save_data">Manage save data</string>
     <string name="migrate_from_emulator">Migrate from another emulator</string>
     <string name="migrate_from_emulator_description">Bring your saves over from Eden, Citron or yuzu without opening them (plus keys and firmware if Lemon has none yet)</string>
+    <string name="migrate_from_emulator_setup_description">Coming from another emulator? Import your saves, keys and firmware in one step</string>
     <string name="migrate_no_sources">No compatible emulator found. Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
     <string name="migrate_choose_source">Migrate from</string>
     <string name="migrate_wrong_folder">Pick the main %1$s folder, the one the picker opens on, without going into any subfolder.</string>
