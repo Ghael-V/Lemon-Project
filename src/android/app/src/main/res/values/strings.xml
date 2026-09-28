@@ -233,6 +233,9 @@
     <string name="game_image_desc">Screenshot for %1$s</string>
     <string name="folder">Folder</string>
     <string name="dont_show_again">Don\'t Show Again</string>
+    <string name="support_prompt_title">Enjoying Lemon?</string>
+    <string name="support_prompt_description">If you like my work, consider supporting it with a Ko-fi or by buying me a coffee. Thanks!</string>
+    <string name="not_now">Not now</string>
     <string name="add_directory_success">New game directory added successfully </string>
     <string name="enable_update_checks">Check for Updates</string>
     <string name="enable_update_checks_description">Check for updates on launch, and optionally download and install the new update.</string>

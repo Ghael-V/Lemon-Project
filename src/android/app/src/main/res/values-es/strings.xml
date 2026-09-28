@@ -224,6 +224,9 @@
     <string name="game_image_desc">Captura de pantalla para %1$s</string>
     <string name="folder">Carpeta</string>
     <string name="dont_show_again">No mostrar de nuevo</string>
+    <string name="support_prompt_title">¿Te gusta Lemon?</string>
+    <string name="support_prompt_description">Si te gusta mi trabajo, puedes apoyarlo con un Ko-fi o invitándome a un café. ¡Gracias!</string>
+    <string name="not_now">Ahora no</string>
     <string name="add_directory_success">Nuevo directorio de juegos agregado exitosamente</string>
     <string name="enable_update_checks">Buscar actualizaciones</string>
     <string name="enable_update_checks_description">Comprobar actualizaciones al iniciar, y opcionalmente, descargar e instalar la nueva actualización.</string>

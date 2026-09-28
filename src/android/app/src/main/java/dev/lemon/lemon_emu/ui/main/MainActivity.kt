@@ -29,6 +29,7 @@ import java.io.File
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.ActivityMainBinding
+import dev.lemon.lemon_emu.databinding.DialogSupportBinding
 import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
@@ -56,6 +57,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.documentfile.provider.DocumentFile
+
+private const val PREF_SUPPORT_PROMPT_DISABLED = "support_prompt_disabled"
+private const val PREF_SUPPORT_PROMPT_VERSION = "support_prompt_version"
+private const val PREF_SUPPORT_PROMPT_LAUNCHES = "support_prompt_launches"
+private const val SUPPORT_PROMPT_EVERY_LAUNCHES = 10
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -163,8 +169,21 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         val firstTimeSetup = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
 
-        if (!firstTimeSetup && NativeLibrary.isUpdateCheckerEnabled() && BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()) {
-             checkForUpdates()
+        // One after the other, never stacked: the support prompt first (when due), then the
+        // update check once it's closed.
+        if (!firstTimeSetup) {
+            val updateCheck = {
+                if (NativeLibrary.isUpdateCheckerEnabled() &&
+                    BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()
+                ) {
+                    checkForUpdates()
+                }
+            }
+            // A recreation (theme setup, rotation) isn't a new launch.
+            val isNewLaunch = savedInstanceState == null
+            if (!maybeShowSupportPrompt(isNewLaunch, onClosed = updateCheck)) {
+                updateCheck()
+            }
         }
         setUpBundledDriver()
         setInsets()
@@ -202,6 +221,59 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 }
             }
         }.start()
+    }
+
+    // On the first launch of each version, and again every SUPPORT_PROMPT_EVERY_LAUNCHES launches
+    // after "Not now", until the user opts out. Returns whether it was shown; onClosed runs once
+    // the user has closed it.
+    private fun maybeShowSupportPrompt(isNewLaunch: Boolean, onClosed: () -> Unit): Boolean {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        if (preferences.getBoolean(PREF_SUPPORT_PROMPT_DISABLED, false)) {
+            return false
+        }
+        val version = NativeLibrary.getBuildVersion()
+        if (preferences.getString(PREF_SUPPORT_PROMPT_VERSION, null) == version) {
+            var launches = preferences.getInt(PREF_SUPPORT_PROMPT_LAUNCHES, 0)
+            if (isNewLaunch) {
+                launches++
+                preferences.edit { putInt(PREF_SUPPORT_PROMPT_LAUNCHES, launches) }
+            }
+            if (launches < SUPPORT_PROMPT_EVERY_LAUNCHES) {
+                return false
+            }
+        }
+
+        // Marked as seen only on something the user did. The activity is often recreated right
+        // after launch (theme setup), which closes the dialog too; it's shown again then.
+        val markSeen = {
+            preferences.edit {
+                putString(PREF_SUPPORT_PROMPT_VERSION, version)
+                putInt(PREF_SUPPORT_PROMPT_LAUNCHES, 0)
+            }
+            onClosed()
+        }
+        val supportBinding = DialogSupportBinding.inflate(layoutInflater)
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.support_prompt_title)
+            .setView(supportBinding.root)
+            .setPositiveButton(R.string.not_now) { _, _ -> markSeen() }
+            .setNegativeButton(R.string.dont_show_again) { _, _ ->
+                markSeen()
+                preferences.edit { putBoolean(PREF_SUPPORT_PROMPT_DISABLED, true) }
+            }
+            .setOnCancelListener { markSeen() }
+            .show()
+        supportBinding.buttonKofi.setOnClickListener {
+            markSeen()
+            dialog.dismiss()
+            openLink(getString(R.string.kofi_link))
+        }
+        supportBinding.buttonBuymeacoffee.setOnClickListener {
+            markSeen()
+            dialog.dismiss()
+            openLink(getString(R.string.buymeacoffee_link))
+        }
+        return true
     }
 
     // TODO(crueter): body, "View on Forgejo" button
