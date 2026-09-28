@@ -221,7 +221,9 @@ android {
         create("mainline") {
             dimension = "version"
             isDefault = true
-            minSdk = 33
+            // Android 12. Everything newer is guarded at runtime (SDK_INT checks, dlsym for
+            // APerformanceHint).
+            minSdk = 31
 
             manifestPlaceholders += mapOf("appNameBase" to "Lemon")
             resValue("string", "app_name_suffixed", "Lemon")
