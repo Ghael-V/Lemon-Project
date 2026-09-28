@@ -29,11 +29,12 @@ import java.io.File
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.ActivityMainBinding
-import dev.lemon.lemon_emu.databinding.DialogSupportBinding
 import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
+import dev.lemon.lemon_emu.fragments.SupportDialogFragment
+import dev.lemon.lemon_emu.fragments.UpdateDialogFragment
 import dev.lemon.lemon_emu.model.AddonViewModel
 import dev.lemon.lemon_emu.model.DriverViewModel
 import dev.lemon.lemon_emu.model.GamesViewModel
@@ -58,10 +59,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.documentfile.provider.DocumentFile
 
-private const val PREF_SUPPORT_PROMPT_DISABLED = "support_prompt_disabled"
-private const val PREF_SUPPORT_PROMPT_VERSION = "support_prompt_version"
-private const val PREF_SUPPORT_PROMPT_LAUNCHES = "support_prompt_launches"
-private const val SUPPORT_PROMPT_EVERY_LAUNCHES = 10
+// App-process state for the update check: once per launch, and its result is handed to whichever
+// MainActivity instance is resumed (it's recreated right after launch and on every rotation).
+private var updateCheckStarted = false
+private var pendingUpdate: NativeLibrary.UpdateResult? = null
+private var resumedInstance: MainActivity? = null
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -169,20 +171,13 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         val firstTimeSetup = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
 
-        // One after the other, never stacked: the support prompt first (when due), then the
-        // update check once it's closed.
-        if (!firstTimeSetup) {
-            val updateCheck = {
-                if (NativeLibrary.isUpdateCheckerEnabled() &&
-                    BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()
-                ) {
-                    checkForUpdates()
-                }
-            }
-            // A recreation (theme setup, rotation) isn't a new launch.
-            val isNewLaunch = savedInstanceState == null
-            if (!maybeShowSupportPrompt(isNewLaunch, onClosed = updateCheck)) {
-                updateCheck()
+        // Once per launch; on a recreation (theme setup, rotation) the system restores the dialogs.
+        if (!firstTimeSetup && savedInstanceState == null) {
+            SupportDialogFragment.onAppLaunch(this, supportFragmentManager)
+            if (NativeLibrary.isUpdateCheckerEnabled() &&
+                BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()
+            ) {
+                checkForUpdates()
             }
         }
         setUpBundledDriver()
@@ -213,92 +208,39 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
     }
 
     private fun checkForUpdates() {
+        if (updateCheckStarted) {
+            return
+        }
+        updateCheckStarted = true
         Thread {
+            Log.info("[Updater] Checking for updates")
             val latestVersion = NativeLibrary.checkForUpdate()
-            if (latestVersion != null) {
-                runOnUiThread {
-                    showUpdateDialog(latestVersion)
-                }
+            Log.info("[Updater] Latest release: ${latestVersion?.tag ?: "none newer"}")
+            if (latestVersion == null) {
+                return@Thread
+            }
+            runOnUiThread {
+                pendingUpdate = latestVersion
+                resumedInstance?.showPendingUpdate()
             }
         }.start()
     }
 
-    // On the first launch of each version, and again every SUPPORT_PROMPT_EVERY_LAUNCHES launches
-    // after "Not now", until the user opts out. Returns whether it was shown; onClosed runs once
-    // the user has closed it.
-    private fun maybeShowSupportPrompt(isNewLaunch: Boolean, onClosed: () -> Unit): Boolean {
-        val preferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-        if (preferences.getBoolean(PREF_SUPPORT_PROMPT_DISABLED, false)) {
-            return false
+    private fun showPendingUpdate() {
+        val update = pendingUpdate ?: return
+        if (supportFragmentManager.isStateSaved) {
+            return
         }
-        val version = NativeLibrary.getBuildVersion()
-        if (preferences.getString(PREF_SUPPORT_PROMPT_VERSION, null) == version) {
-            var launches = preferences.getInt(PREF_SUPPORT_PROMPT_LAUNCHES, 0)
-            if (isNewLaunch) {
-                launches++
-                preferences.edit { putInt(PREF_SUPPORT_PROMPT_LAUNCHES, launches) }
-            }
-            if (launches < SUPPORT_PROMPT_EVERY_LAUNCHES) {
-                return false
-            }
-        }
-
-        // Marked as seen only on something the user did. The activity is often recreated right
-        // after launch (theme setup), which closes the dialog too; it's shown again then.
-        val markSeen = {
-            preferences.edit {
-                putString(PREF_SUPPORT_PROMPT_VERSION, version)
-                putInt(PREF_SUPPORT_PROMPT_LAUNCHES, 0)
-            }
-            onClosed()
-        }
-        val supportBinding = DialogSupportBinding.inflate(layoutInflater)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.support_prompt_title)
-            .setView(supportBinding.root)
-            .setPositiveButton(R.string.not_now) { _, _ -> markSeen() }
-            .setNegativeButton(R.string.dont_show_again) { _, _ ->
-                markSeen()
-                preferences.edit { putBoolean(PREF_SUPPORT_PROMPT_DISABLED, true) }
-            }
-            .setOnCancelListener { markSeen() }
-            .show()
-        supportBinding.buttonKofi.setOnClickListener {
-            markSeen()
-            dialog.dismiss()
-            openLink(getString(R.string.kofi_link))
-        }
-        supportBinding.buttonBuymeacoffee.setOnClickListener {
-            markSeen()
-            dialog.dismiss()
-            openLink(getString(R.string.buymeacoffee_link))
-        }
-        return true
+        pendingUpdate = null
+        UpdateDialogFragment.show(supportFragmentManager, update)
     }
 
-    // TODO(crueter): body, "View on Forgejo" button
-    private fun showUpdateDialog(release: NativeLibrary.UpdateResult) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.update_available)
-            .setMessage(getString(R.string.update_available_description, release.title))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val assets = release.assets
-
-                if (assets.isEmpty()) {
-                    openLink(release.url)
-                } else {
-                    downloadAndInstallUpdate(release)
-                }
-            }
-            .setNeutralButton(R.string.cancel) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .setNegativeButton(R.string.dont_show_again) { dialog, _ ->
-                BooleanSetting.ENABLE_UPDATE_CHECKS.setBoolean(false)
-                NativeConfig.saveGlobalConfig()
-                dialog.dismiss()
-            }
-            .show()
+    fun onUpdateAccepted(release: NativeLibrary.UpdateResult) {
+        if (release.assets.isEmpty()) {
+            openLink(release.url)
+        } else {
+            downloadAndInstallUpdate(release)
+        }
     }
 
     private fun openLink(link: String) {
@@ -446,6 +388,15 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ThemeHelper.setCorrectTheme(this)
         super.onResume()
         applyFullscreenPreference()
+        resumedInstance = this
+        showPendingUpdate()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (resumedInstance === this) {
+            resumedInstance = null
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
