@@ -3,6 +3,7 @@
 
 package dev.lemon.lemon_emu.ui.modern
 
+import androidx.compose.ui.text.style.TextOverflow
 import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -129,6 +130,8 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
+            // One height for every card, so the grid reads as tidy rows.
+            .height(124.dp)
             .lemonInteractive(
                 shape = shape,
                 cornerRadius = 22.dp,
@@ -139,9 +142,9 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
             )
             .clip(shape)
             .background(LemonColors.Surface)
-            .padding(18.dp)
+            .padding(16.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.Top
     ) {
         Image(
@@ -151,14 +154,25 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
             modifier = Modifier.size(26.dp)
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            BasicText(stringResource(option.titleId), style = LemonType.Button.copy(fontSize = 16.sp))
+            BasicText(
+                stringResource(option.titleId),
+                style = LemonType.Button.copy(fontSize = 15.sp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
             BasicText(
                 stringResource(option.descriptionId),
-                style = LemonType.Body.copy(fontSize = 13.sp),
-                maxLines = 2
+                style = LemonType.Body.copy(fontSize = 12.sp),
+                maxLines = if (details.isEmpty()) 3 else 2,
+                overflow = TextOverflow.Ellipsis
             )
             if (details.isNotEmpty()) {
-                BasicText(details, style = LemonType.Label.copy(letterSpacing = 0.sp, fontSize = 12.sp), maxLines = 1)
+                BasicText(
+                    details,
+                    style = LemonType.Label.copy(letterSpacing = 0.sp, fontSize = 12.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
