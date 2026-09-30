@@ -245,6 +245,13 @@
     <string name="lemon_game_folders">Carpetas de juegos</string>
     <string name="lemon_install_content">Instalar contenido</string>
     <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_perf_title">Perfil de rendimiento</string>
+    <string name="lemon_perf_resolution">Resolución</string>
+    <string name="lemon_perf_speed">Límite de velocidad</string>
+    <string name="lemon_perf_driver">Controlador de GPU</string>
+    <string name="lemon_speed_unlimited">Sin límite</string>
+    <string name="lemon_about_credits_title">Créditos</string>
+    <string name="lemon_about_credits_body">Construido sobre el trabajo de la comunidad de emulación de código abierto, desde yuzu hasta todos los proyectos que vinieron después. Gracias.</string>
     <string name="lemon_tab_data">Datos y guardado</string>
     <string name="lemon_search_settings">Buscar ajustes</string>
     <string name="lemon_welcome_title">Bienvenido a Lemon</string>
@@ -470,7 +477,7 @@
     <string name="copied_to_clipboard">Copiado al portapapeles</string>
     <string name="about_app_description">Un emulador privado de Nintendo Switch, exclusivo para Android, hecho para GPUs Adreno</string>
     <string name="contributors">Colaboradores</string>
-    <string name="contributors_description">Gente que hizo posible Eden para Android</string>
+    <string name="contributors_description">Las personas y proyectos sobre los que se construye Lemon</string>
     <string name="logo_credit">Logo diseñado por Madeleine, que lo hizo de forma desinteresada y con muchísima paciencia. ¡Mil gracias, Madeleine!</string>
     <string name="licenses_description">Proyectos que hacen que Lemon para Android sea posible</string>
     <string name="build">Compilación</string>

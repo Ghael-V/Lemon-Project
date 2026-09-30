@@ -82,6 +82,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <!-- Side panels such as the in-game menu. -->
     <style name="Widget.Lemon.NavigationView" parent="Widget.Material3.NavigationView">
         <item name="android:background">?attr/colorSurfaceContainerLow</item>
+        <item name="android:maxWidth">760dp</item>
         <item name="itemShapeAppearance">@style/ShapeAppearance.Lemon.Medium</item>
         <item name="itemShapeFillColor">@color/lemon_m_nav_item_fill</item>
         <item name="itemShapeInsetStart">12dp</item>

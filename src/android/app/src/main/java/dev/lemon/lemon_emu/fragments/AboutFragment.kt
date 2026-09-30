@@ -3,6 +3,11 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import dev.lemon.lemon_emu.ui.modern.ModernAbout
+import dev.lemon.lemon_emu.ui.modern.AboutActions
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -109,7 +114,30 @@ class AboutFragment : Fragment() {
             openLink(getString(R.string.kofi_link))
         }
 
+        if (UiMode.isModern(requireContext())) {
+            setupModernAbout()
+        }
         setInsets()
+    }
+
+    // The redesigned screen, drawn over the classic one and reusing its handlers.
+    private fun setupModernAbout() {
+        val buildName = getString(R.string.app_name_suffixed)
+        val versionText = "$buildName (${NativeLibrary.getBuildVersion()})"
+        val actions = AboutActions(
+            onBack = { requireActivity().onBackPressedDispatcher.onBackPressed() },
+            onCopyVersion = { binding.buttonVersionName.performClick() },
+            onLicenses = { binding.buttonLicenses.performClick() },
+            onLink = { linkRes -> openLink(getString(linkRes)) }
+        )
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent { ModernAbout(versionText, actions) }
+        }
+        (binding.root as ViewGroup).addView(
+            composeView,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
     }
 
     private fun openLink(link: String) {

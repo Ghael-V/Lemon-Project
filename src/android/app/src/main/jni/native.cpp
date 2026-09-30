@@ -1716,7 +1716,7 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstr
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_logDeviceInfo(JNIEnv* env, jclass clazz) {
-    LOG_INFO(Frontend, "eden Version: {}-{}", Common::g_scm_branch, Common::g_scm_desc);
+    LOG_INFO(Frontend, "Lemon Version: {}-{}", Common::g_scm_branch, Common::g_scm_desc);
     LOG_INFO(Frontend, "Host OS: Android API level {}", android_get_device_api_level());
 }
 

@@ -6,6 +6,7 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.PerformanceInfo
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
@@ -735,6 +736,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
             override fun onDrawerOpened(drawerView: View) {
                 menuTick.intValue++
+                focusInGameMenuPanel()
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
                 binding.inGameMenu.requestFocus()
                 emulationViewModel.setDrawerOpen(true)
@@ -1181,12 +1183,29 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
     // Re-read by the redesigned in-game panel every time the drawer opens.
     private val menuTick = mutableIntStateOf(0)
+    private var inGameMenuPanel: ComposeView? = null
+    private var menuAnchor: View? = null
 
     /**
      * Replaces the look of the in-game side panel with the redesigned one. The classic menu stays
      * in place, hidden, and the panel drives it: it lists its items and sends every tap through
      * its own handler, so behavior is identical.
      */
+    /**
+     * Hands the view focus to the redesigned panel. The window is often in touch mode here (the
+     * drawer was opened with a swipe) and the game's touch overlay holds the focus; a view that is
+     * not focusable in touch mode can't take it from there, and then no key would reach the rows.
+     */
+    private fun focusInGameMenuPanel() {
+        val panel = inGameMenuPanel ?: return
+        panel.postDelayed({
+            for (i in 0 until panel.childCount) {
+                panel.getChildAt(i).isFocusableInTouchMode = true
+            }
+            panel.requestFocus()
+        }, 60)
+    }
+
     private fun setupModernInGameMenu() {
         val nav = binding.inGameMenu
         for (i in 0 until nav.childCount) {
@@ -1201,11 +1220,69 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     menu = nav.menu,
                     game = game,
                     tick = menuTick.intValue,
+                    performance = buildPerformanceInfo(),
                     onItem = { id -> nav.menu.performIdentifierAction(id, 0) }
                 )
             }
         }
         nav.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        inGameMenuPanel = panel
+        // NavigationView caps a wrap_content drawer at 360dp; an exact width has no cap, and the
+        // panel plus its floating performance card need room.
+        val metrics = resources.displayMetrics
+        val room = metrics.widthPixels - (64 * metrics.density).toInt()
+        nav.layoutParams = nav.layoutParams.apply {
+            width = minOf((730 * metrics.density).toInt(), room)
+        }
+        // The classic menu's rows no longer exist, so the small pop-up menus that were anchored to
+        // them (controller layout, overlay options) hang from this point inside the panel instead.
+        val density = resources.displayMetrics.density
+        menuAnchor = View(requireContext()).also {
+            nav.addView(
+                it,
+                FrameLayout.LayoutParams(1, 1).apply {
+                    gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                    leftMargin = (200 * density).toInt()
+                    topMargin = (150 * density).toInt()
+                }
+            )
+        }
+    }
+
+    private fun buildPerformanceInfo(): PerformanceInfo {
+        val presets = PerformancePresets.Preset.entries
+        return PerformanceInfo(
+            presetLabels = presets.map { getString(it.titleRes) },
+            activePreset = { PerformancePresets.current()?.let { presets.indexOf(it) } ?: -1 },
+            resolution = {
+                val values = resources.getIntArray(R.array.rendererResolutionValues)
+                val names = resources.getStringArray(R.array.rendererResolutionNames)
+                val index = values.indexOf(IntSetting.RENDERER_RESOLUTION.getInt())
+                if (index >= 0) names[index] else "-"
+            },
+            speedLimit = {
+                if (BooleanSetting.RENDERER_USE_SPEED_LIMIT.getBoolean(false)) {
+                    "${ShortSetting.RENDERER_SPEED_LIMIT.getShort(false)}%"
+                } else {
+                    getString(R.string.lemon_speed_unlimited)
+                }
+            },
+            driver = { driverViewModel.selectedDriverTitle.value },
+            onPreset = { index ->
+                val preset = presets[index]
+                PerformancePresets.apply(preset)
+                if (NativeConfig.isPerGameConfigLoaded()) {
+                    NativeConfig.savePerGameConfig()
+                } else {
+                    NativeConfig.saveGlobalConfig()
+                }
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.preset_applied, getString(preset.titleRes)),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
     }
 
     /**
@@ -2378,7 +2455,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private fun showOverlayOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls)
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls) ?: menuAnchor ?: binding.inGameMenu
         val popup = PopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_options, popup.menu)
@@ -2513,7 +2590,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private fun showOverlayLayoutOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout)
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout) ?: menuAnchor ?: binding.inGameMenu
         val popup = PopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_layout, popup.menu)

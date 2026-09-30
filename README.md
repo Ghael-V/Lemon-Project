@@ -49,9 +49,10 @@
 
 ## About
 
-Lemon is a fork of [Eden](https://git.eden-emu.dev/eden-emu/eden), an open-source Switch emulator, trimmed down to
-just the Android app and stripped of everything that isn't needed to build and run it on a single Adreno-equipped
-Android device: no Qt/desktop/CLI targets, no multi-platform CI, no Mali/PowerVR-specific code paths.
+Lemon is an Android-only Nintendo Switch emulator built for Adreno GPUs. It runs on the open-source emulation
+core developed by the yuzu community and the projects that followed it, trimmed down to just what's needed to build
+and run it on a single Adreno-equipped Android device: no Qt/desktop/CLI targets, no multi-platform CI, no
+Mali/PowerVR-specific code paths.
 
 Started as a personal build for the maintainer's own device(s); builds are now published on the
 [Releases page](https://github.com/Ghael-V/Lemon-Project/releases) and the app checks for new ones on launch. It's
@@ -162,7 +163,7 @@ consolidated build going forward instead of splitting fixes across three branche
 - **Android only.** Every desktop/CLI build target from upstream has been removed.
 - **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested.
 - **No keys, no firmware.** `prod.keys` and Switch firmware are not part of this repository and never will be —
-  sourcing them from your own legally owned console is entirely on you. This fork does not touch key derivation,
+  sourcing them from your own legally owned console is entirely on you. Lemon does not touch key derivation,
   decryption, or DRM in any way; it only builds the emulator app.
 
 ## Building
@@ -197,10 +198,10 @@ Lemon, like Eden, is licensed under the GPLv3 (or any later version). Refer to [
 
 ## Special thanks
 
-This project stands on the work of Eden and, before it, yuzu — and the broader community of Switch emulator forks
-that came out of yuzu's shutdown:
+This project stands on the open-source work of the yuzu community and of the projects that came after it:
 
 - Yuzu
+- Eden
 - Ryujinx
 - Sudachi
 - Citron

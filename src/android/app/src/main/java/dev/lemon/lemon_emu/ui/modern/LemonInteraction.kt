@@ -15,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -138,4 +139,7 @@ fun Modifier.lemonInteractive(
             onLongClick = onLongClick,
             onClick = onClick
         )
+        // A plain clickable can't take focus while the window is in touch mode (say, right after
+        // the in-game menu was swiped open), leaving a controller with nothing to move around.
+        .focusable(interactionSource = interactionSource)
 }

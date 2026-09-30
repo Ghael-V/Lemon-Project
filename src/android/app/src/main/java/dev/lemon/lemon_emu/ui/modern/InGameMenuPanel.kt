@@ -3,6 +3,7 @@
 
 package dev.lemon.lemon_emu.ui.modern
 
+import kotlinx.coroutines.delay
 import android.view.Menu
 import android.view.MenuItem
 import androidx.compose.foundation.Image
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -42,38 +44,65 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.model.Game
 
+/** What the floating performance card shows and does; every value is read fresh when the menu opens. */
+class PerformanceInfo(
+    val presetLabels: List<String>,
+    val activePreset: () -> Int,
+    val resolution: () -> String,
+    val speedLimit: () -> String,
+    val driver: () -> String,
+    val onPreset: (Int) -> Unit
+)
+
 /**
- * The in-game side panel. It is drawn from the classic menu (the same items, in the same order) and
- * every tap goes through that menu's own handler, so no option can be lost or behave differently;
- * only how it looks changes. [tick] makes it re-read the menu, whose titles and icons change while
- * playing (pause / resume, show / hide overlay, lock drawer).
+ * The in-game side panel, with the performance card floating beside it. It is drawn from the classic
+ * menu (the same items, in the same order) and every tap goes through that menu's own handler, so no
+ * option can be lost or behave differently. [tick] makes it re-read the menu and the card, and take
+ * focus again, every time the drawer opens.
  */
 @Composable
 fun InGameMenuPanel(
     menu: Menu,
     game: Game?,
     tick: Int,
+    performance: PerformanceInfo?,
     onItem: (Int) -> Unit
 ) {
-    val context = LocalContext.current
     var localTick by remember { mutableIntStateOf(0) }
-    val items = remember(tick, localTick) {
-        (0 until menu.size()).map { menu.getItem(it) }.filter { it.isVisible }
-    }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
-
-    fun act(item: MenuItem) {
-        onItem(item.itemId)
-        localTick++
+    // Opening the drawer hands the controller to the panel: without this no view holds focus and
+    // neither the d-pad nor the A button reach the rows.
+    LaunchedEffect(tick) {
+        // Wait for the drawer to finish sliding in: the panel can't take focus before it is laid out.
+        delay(200)
+        runCatching { first.requestFocus() }
     }
 
+    Row(
+        Modifier.fillMaxHeight().windowInsetsPadding(WindowInsets.systemBars),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Panel(menu, game, tick + localTick, first) { id ->
+            onItem(id)
+            localTick++
+        }
+        if (performance != null) {
+            PerformanceCard(performance, tick + localTick) { localTick++ }
+        }
+    }
+}
+
+@Composable
+private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, onItem: (Int) -> Unit) {
+    val context = LocalContext.current
+    val items = remember(version) { (0 until menu.size()).map { menu.getItem(it) }.filter { it.isVisible } }
     val pause = items.firstOrNull { it.itemId == R.id.menu_pause_emulation }
     val quickSave = items.firstOrNull { it.itemId == R.id.menu_quick_save_state }
     val quickLoad = items.firstOrNull { it.itemId == R.id.menu_quick_load_state }
@@ -88,15 +117,13 @@ fun InGameMenuPanel(
 
     Column(
         Modifier
-            .width(340.dp)
+            .width(400.dp)
             .fillMaxHeight()
             .background(LemonColors.Background.copy(alpha = 0.97f))
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Header(game)
-        Spacer(Modifier.height(4.dp))
 
         pause?.let {
             val resumes = it.title?.toString() == context.getString(R.string.emulation_unpause)
@@ -104,29 +131,39 @@ fun InGameMenuPanel(
                 text = it.title?.toString().orEmpty(),
                 iconRes = if (resumes) R.drawable.ic_play else R.drawable.ic_pause,
                 primary = true,
-                height = 50.dp,
+                height = 46.dp,
                 modifier = Modifier.fillMaxWidth().focusRequester(first)
-            ) { act(it) }
+            ) { onItem(it.itemId) }
         }
 
         if (quickSave != null || quickLoad != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 quickSave?.let {
-                    ShortcutTile(R.drawable.ic_save, it.title?.toString().orEmpty(), Modifier.weight(1f).height(72.dp)) { act(it) }
+                    ShortcutTile(R.drawable.ic_save, it.title?.toString().orEmpty(), Modifier.weight(1f).height(62.dp)) {
+                        onItem(it.itemId)
+                    }
                 }
                 quickLoad?.let {
-                    ShortcutTile(R.drawable.ic_restore, it.title?.toString().orEmpty(), Modifier.weight(1f).height(72.dp)) { act(it) }
+                    ShortcutTile(R.drawable.ic_restore, it.title?.toString().orEmpty(), Modifier.weight(1f).height(62.dp)) {
+                        onItem(it.itemId)
+                    }
                 }
             }
         }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(LemonColors.Outline))
 
+        // The other options, two to a row so more of them fit on a handheld's short screen.
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            rest.forEach { item -> MenuRow(item) { act(item) } }
+            rest.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pair.forEach { item -> MenuRow(item, Modifier.weight(1f)) { onItem(item.itemId) } }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
         }
 
         exit?.let {
@@ -134,12 +171,12 @@ fun InGameMenuPanel(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(44.dp)
                     .lemonInteractive(
                         shape = shape,
                         cornerRadius = 16.dp,
                         glowColor = LemonColors.Red,
-                        onClick = { act(it) }
+                        onClick = { onItem(it.itemId) }
                     )
                     .clip(shape)
                     .border(1.dp, LemonColors.Red.copy(alpha = 0.55f), shape)
@@ -160,13 +197,85 @@ fun InGameMenuPanel(
 }
 
 @Composable
+private fun PerformanceCard(info: PerformanceInfo, version: Int, onChanged: () -> Unit) {
+    val active = remember(version) { info.activePreset() }
+    val resolution = remember(version) { info.resolution() }
+    val speed = remember(version) { info.speedLimit() }
+    val driver = remember(version) { info.driver() }
+    val shape = RoundedCornerShape(24.dp)
+
+    Column(
+        Modifier
+            .padding(top = 20.dp)
+            .width(300.dp)
+            .heightIn(max = 300.dp)
+            .clip(shape)
+            .background(LemonColors.Background.copy(alpha = 0.97f))
+            .border(1.dp, LemonColors.Lemon.copy(alpha = 0.25f), shape)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        BasicText(stringResource(R.string.lemon_perf_title).uppercase(), style = LemonType.Label)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            info.presetLabels.forEachIndexed { index, label ->
+                val selected = index == active
+                val chipShape = RoundedCornerShape(14.dp)
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
+                        .lemonInteractive(
+                            shape = chipShape,
+                            cornerRadius = 14.dp,
+                            focusScale = 1.04f,
+                            onClick = {
+                                info.onPreset(index)
+                                onChanged()
+                            }
+                        )
+                        .clip(chipShape)
+                        .background(if (selected) LemonColors.Lemon else LemonColors.SurfaceRaised)
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BasicText(
+                        label,
+                        style = LemonType.Button.copy(
+                            fontSize = 12.sp,
+                            color = if (selected) LemonColors.OnLemon else LemonColors.Text
+                        ),
+                        maxLines = 2
+                    )
+                }
+            }
+        }
+        InfoRow(stringResource(R.string.lemon_perf_resolution), resolution)
+        InfoRow(stringResource(R.string.lemon_perf_speed), speed)
+        InfoRow(stringResource(R.string.lemon_perf_driver), driver)
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        BasicText(label, style = LemonType.Body.copy(fontSize = 13.sp))
+        BasicText(
+            value,
+            style = LemonType.Button.copy(fontSize = 13.sp),
+            maxLines = 2,
+            modifier = Modifier.padding(start = 12.dp).weight(1f, fill = false)
+        )
+    }
+}
+
+@Composable
 private fun Header(game: Game?) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val icon = game?.let { rememberGameIcon(it) }
-        val shape = RoundedCornerShape(14.dp)
+        val shape = RoundedCornerShape(12.dp)
         Box(
             Modifier
-                .size(48.dp)
+                .size(40.dp)
                 .clip(shape)
                 .background(LemonColors.Surface)
         ) {
@@ -174,37 +283,35 @@ private fun Header(game: Game?) {
                 Image(bitmap = icon, contentDescription = null, modifier = Modifier.matchParentSize())
             }
         }
-        Column(Modifier.weight(1f)) {
-            BasicText(
-                text = game?.title.orEmpty(),
-                style = LemonType.Heading.copy(fontSize = 18.sp),
-                maxLines = 2
-            )
-        }
+        BasicText(
+            text = game?.title.orEmpty(),
+            style = LemonType.Heading.copy(fontSize = 17.sp),
+            maxLines = 2,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun MenuRow(item: MenuItem, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+private fun MenuRow(item: MenuItem, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
     val icon = itemIcon(item)
     Row(
-        Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .lemonInteractive(shape = shape, cornerRadius = 16.dp, focusScale = 1.03f, onClick = onClick)
+        modifier
+            .heightIn(min = 48.dp)
+            .lemonInteractive(shape = shape, cornerRadius = 14.dp, focusScale = 1.03f, onClick = onClick)
             .clip(shape)
             .background(LemonColors.SurfaceRaised.copy(alpha = 0.55f))
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Image(bitmap = icon, contentDescription = null, colorFilter = ColorFilter.tint(LemonColors.Lemon), modifier = Modifier.size(20.dp))
+            Image(bitmap = icon, contentDescription = null, colorFilter = ColorFilter.tint(LemonColors.Lemon), modifier = Modifier.size(18.dp))
         } else {
-            Spacer(Modifier.size(20.dp))
+            Spacer(Modifier.size(18.dp))
         }
-        Spacer(Modifier.width(12.dp))
-        BasicText(item.title?.toString().orEmpty(), style = LemonType.Button.copy(fontSize = 15.sp), maxLines = 1)
+        Spacer(Modifier.width(10.dp))
+        BasicText(item.title?.toString().orEmpty(), style = LemonType.Button.copy(fontSize = 13.sp), maxLines = 2)
     }
 }
 

@@ -22,31 +22,36 @@ object PerformancePresets {
         QUALITY(R.string.preset_quality)
     }
 
+    private class Values(
+        val resolution: Int,
+        val scalingFilter: Int,
+        val antiAliasing: Int,
+        val accuracy: Int,
+        val vsync: Int
+    )
+
+    private fun valuesOf(preset: Preset) = when (preset) {
+        Preset.BATTERY -> Values(1, 1, 0, 0, 2) // 0.5x, bilinear, no AA, low accuracy, Fifo
+        Preset.BALANCED -> Values(3, 1, 0, 0, 2) // native, bilinear, no AA, low accuracy, Fifo
+        Preset.QUALITY -> Values(6, 2, 1, 1, 2) // 2x, bicubic, FXAA, high accuracy, Fifo
+    }
+
     fun apply(preset: Preset) {
-        when (preset) {
-            Preset.BATTERY -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(1) // Res1_2X (50%)
-                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
-                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
+        val v = valuesOf(preset)
+        IntSetting.RENDERER_RESOLUTION.setInt(v.resolution)
+        IntSetting.RENDERER_SCALING_FILTER.setInt(v.scalingFilter)
+        IntSetting.RENDERER_ANTI_ALIASING.setInt(v.antiAliasing)
+        IntSetting.RENDERER_ACCURACY.setInt(v.accuracy)
+        IntSetting.RENDERER_VSYNC.setInt(v.vsync)
+    }
 
-            Preset.BALANCED -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(3) // Res1X (native)
-                IntSetting.RENDERER_SCALING_FILTER.setInt(1) // Bilinear
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(0) // None
-                IntSetting.RENDERER_ACCURACY.setInt(0) // Low
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
-
-            Preset.QUALITY -> {
-                IntSetting.RENDERER_RESOLUTION.setInt(6) // Res2X
-                IntSetting.RENDERER_SCALING_FILTER.setInt(2) // Bicubic
-                IntSetting.RENDERER_ANTI_ALIASING.setInt(1) // Fxaa
-                IntSetting.RENDERER_ACCURACY.setInt(1) // High
-                IntSetting.RENDERER_VSYNC.setInt(2) // Fifo
-            }
-        }
+    /** The preset the current settings match exactly, or null if they were tuned by hand. */
+    fun current(): Preset? = Preset.entries.firstOrNull { preset ->
+        val v = valuesOf(preset)
+        IntSetting.RENDERER_RESOLUTION.getInt() == v.resolution &&
+            IntSetting.RENDERER_SCALING_FILTER.getInt() == v.scalingFilter &&
+            IntSetting.RENDERER_ANTI_ALIASING.getInt() == v.antiAliasing &&
+            IntSetting.RENDERER_ACCURACY.getInt() == v.accuracy &&
+            IntSetting.RENDERER_VSYNC.getInt() == v.vsync
     }
 }
