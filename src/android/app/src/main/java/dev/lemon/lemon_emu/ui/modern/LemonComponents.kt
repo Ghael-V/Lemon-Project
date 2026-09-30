@@ -3,6 +3,8 @@
 
 package dev.lemon.lemon_emu.ui.modern
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -131,14 +134,22 @@ fun GameTile(
     size: Dp,
     selected: Boolean,
     modifier: Modifier = Modifier,
+    dimmed: Boolean = false,
     onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(22.dp)
     val icon = rememberGameIcon(game)
+    // Tiles that aren't the selected one fade back a little, so the selected one reads at a glance.
+    val alpha by animateFloatAsState(
+        targetValue = if (dimmed) 0.6f else 1f,
+        animationSpec = tween(250),
+        label = "tileAlpha"
+    )
     Box(
         modifier = modifier
             .size(size)
+            .graphicsLayer { this.alpha = alpha }
             .lemonInteractive(
                 shape = shape,
                 cornerRadius = 22.dp,

@@ -245,6 +245,12 @@
     <string name="lemon_game_folders">Carpetas de juegos</string>
     <string name="lemon_install_content">Instalar contenido</string>
     <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_welcome_title">Bienvenido a Lemon</string>
+    <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
+    <string name="lemon_welcome_feature_driver">Controlador de GPU Lemon-Ade integrado</string>
+    <string name="lemon_welcome_feature_migrate">Trae tus partidas de Eden o Citron</string>
+    <string name="lemon_welcome_feature_savestate">Guardado rápido en cualquier juego</string>
+    <string name="lemon_welcome_start">Empezar</string>
     <string name="lemon_ui_modern_title">Interfaz nueva</string>
     <string name="lemon_ui_modern_description">La interfaz rediseñada de Lemon. Desactívala para volver a la clásica; se aplica al volver a la biblioteca.</string>
     <string name="manage_game_folders">Gestionar carpetas de juegos</string>

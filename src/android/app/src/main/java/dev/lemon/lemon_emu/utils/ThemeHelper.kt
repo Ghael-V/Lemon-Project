@@ -17,6 +17,7 @@ import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.features.settings.model.IntSetting
 import dev.lemon.lemon_emu.ui.main.ThemeProvider
+import dev.lemon.lemon_emu.ui.modern.UiMode
 import androidx.preference.PreferenceManager
 import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.features.settings.model.Settings
@@ -48,6 +49,11 @@ object ThemeHelper {
         // will then show light mode colors/navigation bars but with black backgrounds.
         if (BooleanSetting.BLACK_BACKGROUNDS.getBoolean() && isNightMode(activity)) {
             activity.setTheme(R.style.ThemeOverlay_Lemon_Dark)
+        }
+
+        // The redesigned interface has one look: Lemon's own palette, shapes and fonts.
+        if (UiMode.isModern(activity)) {
+            activity.theme.applyStyle(R.style.ThemeOverlay_Lemon_Modern, true)
         }
     }
 
@@ -87,7 +93,12 @@ object ThemeHelper {
     }
 
     fun setThemeMode(activity: AppCompatActivity) {
-        val themeMode = IntSetting.THEME_MODE.getInt()
+        // Dark only in the redesigned interface: its palette is a dark one.
+        val themeMode = if (UiMode.isModern(activity)) {
+            AppCompatDelegate.MODE_NIGHT_YES
+        } else {
+            IntSetting.THEME_MODE.getInt()
+        }
         activity.delegate.localNightMode = themeMode
         val windowController = WindowCompat.getInsetsController(
             activity.window,

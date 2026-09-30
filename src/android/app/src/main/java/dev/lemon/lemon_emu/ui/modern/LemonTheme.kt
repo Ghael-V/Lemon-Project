@@ -4,10 +4,14 @@
 package dev.lemon.lemon_emu.ui.modern
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import dev.lemon.lemon_emu.R
 
 /** Lemon's palette: warm near-black surfaces, lemon yellow for the main action, red only for danger. */
 object LemonColors {
@@ -22,10 +26,26 @@ object LemonColors {
     val Red = Color(0xFFF0432E)
 }
 
-/** Title face (Bricolage Grotesque) and body face (DM Sans); system sans until the fonts are bundled. */
+/** Title face (Bricolage Grotesque) and body face (DM Sans), both variable fonts bundled in res/font. */
+@OptIn(ExperimentalTextApi::class)
 object LemonFonts {
-    val Title: FontFamily = FontFamily.SansSerif
-    val Body: FontFamily = FontFamily.SansSerif
+    private fun face(resId: Int, weight: Int) = Font(
+        resId = resId,
+        weight = FontWeight(weight),
+        variationSettings = FontVariation.Settings(FontVariation.weight(weight))
+    )
+
+    val Title: FontFamily = FontFamily(
+        face(R.font.bricolage_grotesque, 600),
+        face(R.font.bricolage_grotesque, 700),
+        face(R.font.bricolage_grotesque, 800)
+    )
+    val Body: FontFamily = FontFamily(
+        face(R.font.dm_sans, 400),
+        face(R.font.dm_sans, 500),
+        face(R.font.dm_sans, 600),
+        face(R.font.dm_sans, 700)
+    )
 }
 
 object LemonType {

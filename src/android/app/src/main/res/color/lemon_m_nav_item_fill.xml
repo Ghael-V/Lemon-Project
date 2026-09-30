@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/lemon_m_primary_container" />
+    <item android:state_checked="true" android:color="@color/lemon_m_primary_container" />
+    <item android:state_pressed="true" android:color="@color/lemon_m_container_highest" />
+    <item android:color="@android:color/transparent" />
+</selector>

@@ -17,6 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.edit
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import dev.lemon.lemon_emu.features.settings.utils.SettingsFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
@@ -33,7 +41,11 @@ import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.ui.modern.LibraryActions
 import dev.lemon.lemon_emu.ui.modern.ModernLibraryScreen
+import dev.lemon.lemon_emu.utils.GameIconUtils
 import dev.lemon.lemon_emu.utils.GameLaunchUtils
+import dev.lemon.lemon_emu.utils.GpuDriverHelper
+import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.utils.PerformancePresets
 import dev.lemon.lemon_emu.utils.GameStatsUtils
 
 /** The redesigned library (see [ModernLibraryScreen]); [GamesFragment] stays as the classic one. */
@@ -121,8 +133,56 @@ class ModernGamesFragment : Fragment() {
                 )
             )
         },
-        onLaunchQLaunch = ::launchQLaunch
+        onLaunchQLaunch = ::launchQLaunch,
+        onPerformance = ::showPerformancePresetDialog,
+        onDriverSettings = { game ->
+            findNavController().navigate(
+                HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
+                    SettingsSubscreen.FREEDRENO_SETTINGS,
+                    game
+                )
+            )
+        },
+        onAddShortcut = ::requestPinShortcut,
+        hasDriverOption = GpuDriverHelper.isAdrenoGpu(),
+        canPinShortcut = ShortcutManagerCompat.isRequestPinShortcutSupported(requireContext())
     )
+
+    private fun requestPinShortcut(game: Game) {
+        val activity = requireActivity() as AppCompatActivity
+        activity.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val shortcut = ShortcutInfoCompat.Builder(activity, "pin_${game.path}")
+                    .setShortLabel(game.title)
+                    .setIcon(GameIconUtils.getShortcutIcon(activity, game))
+                    .setIntent(game.launchIntent)
+                    .build()
+                ShortcutManagerCompat.requestPinShortcut(activity, shortcut, null)
+            }
+        }
+    }
+
+    private fun showPerformancePresetDialog(game: Game) {
+        val presets = PerformancePresets.Preset.entries.toTypedArray()
+        val labels = presets.map { getString(it.titleRes) }.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.performance_preset)
+            .setItems(labels) { dialog, which ->
+                val preset = presets[which]
+                SettingsFile.loadCustomConfig(game)
+                PerformancePresets.apply(preset)
+                NativeConfig.savePerGameConfig()
+                NativeConfig.unloadPerGameConfig()
+                dialog.dismiss()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.preset_applied_per_game, getString(preset.titleRes)),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
+            .show()
+    }
 
     private fun launchQLaunch() {
         try {

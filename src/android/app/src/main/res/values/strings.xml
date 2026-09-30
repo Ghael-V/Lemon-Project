@@ -254,6 +254,12 @@
     <string name="lemon_game_folders">Game folders</string>
     <string name="lemon_install_content">Install content</string>
     <string name="lemon_more_options">More options</string>
+    <string name="lemon_welcome_title">Welcome to Lemon</string>
+    <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
+    <string name="lemon_welcome_feature_driver">Lemon-Ade GPU driver built in</string>
+    <string name="lemon_welcome_feature_migrate">Bring your saves over from Eden or Citron</string>
+    <string name="lemon_welcome_feature_savestate">Quick save in any game</string>
+    <string name="lemon_welcome_start">Get started</string>
     <string name="lemon_ui_modern_title">New interface</string>
     <string name="lemon_ui_modern_description">The redesigned Lemon interface. Turn it off to go back to the classic one; it applies when you return to the library.</string>
     <string name="manage_game_folders">Manage game folders</string>

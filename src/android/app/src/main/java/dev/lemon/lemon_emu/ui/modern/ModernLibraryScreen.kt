@@ -83,7 +83,12 @@ class LibraryActions(
     val onAddGames: () -> Unit,
     val onManageFolders: () -> Unit,
     val onInstallContent: () -> Unit,
-    val onLaunchQLaunch: () -> Unit
+    val onLaunchQLaunch: () -> Unit,
+    val onPerformance: (Game) -> Unit,
+    val onDriverSettings: (Game) -> Unit,
+    val onAddShortcut: (Game) -> Unit,
+    val hasDriverOption: Boolean,
+    val canPinShortcut: Boolean
 )
 
 private class SheetItem(val label: String, val selected: Boolean = false, val onClick: () -> Unit)
@@ -181,6 +186,7 @@ fun ModernLibraryScreen(
                 items = listOf(
                     SheetItem(stringResource(R.string.play)) { actions.onLaunch(game) },
                     SheetItem(stringResource(R.string.per_game_settings)) { actions.onDetails(game) },
+                    SheetItem(stringResource(R.string.performance_preset)) { actions.onPerformance(game) },
                     SheetItem(
                         stringResource(
                             if (isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites
@@ -188,6 +194,19 @@ fun ModernLibraryScreen(
                     ) {
                         actions.onToggleFavorite(game)
                         favoritesVersion++
+                    }
+                ) + listOfNotNull(
+                    if (actions.hasDriverOption) {
+                        SheetItem(stringResource(R.string.freedreno_per_game_title)) {
+                            actions.onDriverSettings(game)
+                        }
+                    } else {
+                        null
+                    },
+                    if (actions.canPinShortcut) {
+                        SheetItem(stringResource(R.string.add_to_home_screen)) { actions.onAddShortcut(game) }
+                    } else {
+                        null
                     }
                 ),
                 onDismiss = { sheetGame = null }
@@ -282,6 +301,7 @@ private fun LandscapeLayout(
                                     game = game,
                                     size = slot,
                                     selected = isSelected,
+                                    dimmed = !isSelected,
                                     modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocusSelect(game) },
                                     onLongClick = { onOpenSheet(game) },
                                     onClick = { onSelect(game) }
@@ -343,6 +363,7 @@ private fun PortraitLayout(
                     game = game,
                     size = 160.dp,
                     selected = game.path == selected?.path,
+                    dimmed = game.path != selected?.path,
                     modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocusSelect(game) },
                     onLongClick = { onOpenSheet(game) },
                     onClick = { onSelect(game) }

@@ -87,7 +87,9 @@ object EmulatorMigration {
             .map { info ->
                 Source(
                     info.packageName,
-                    packageManager.getApplicationLabel(info.applicationInfo).toString(),
+                    // Some forks put a slogan after the name ("citron-neo: The switch fell off...").
+                    packageManager.getApplicationLabel(info.applicationInfo).toString()
+                        .substringBefore(':').trim(),
                     info.authority
                 )
             }

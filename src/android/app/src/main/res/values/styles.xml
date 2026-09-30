@@ -190,9 +190,9 @@
     </style>
 
     <style name="LemonButton.Secondary" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="strokeColor">@color/lemon_secondary</item>
+        <item name="strokeColor">?attr/colorOutline</item>
         <item name="strokeWidth">2dp</item>
-        <item name="android:textColor">@color/lemon_secondary</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
         <item name="android:textAllCaps">false</item>
         <item name="cornerRadius">12dp</item>
         <item name="android:textStyle">bold</item>
@@ -223,45 +223,25 @@
     <style name="SynthwaveText.Title" parent="TextAppearance.Material3.DisplayLarge">
         <item name="android:textColor">@color/lemon_on_background</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.1</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:shadowColor">@color/lemon_glow_pink</item>
-        <item name="android:shadowDx">0</item>
-        <item name="android:shadowDy">0</item>
-        <item name="android:shadowRadius">8</item>
+        <item name="android:fontFamily">@font/lemon_title</item>
     </style>
     <style name="SynthwaveText.Header" parent="TextAppearance.Material3.DisplaySmall">
         <item name="android:textColor">@color/lemon_primary</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.05</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:shadowColor">@color/lemon_glow_pink</item>
-        <item name="android:shadowDx">0</item>
-        <item name="android:shadowDy">0</item>
-        <item name="android:shadowRadius">6</item>
+        <item name="android:fontFamily">@font/lemon_title</item>
     </style>
     <style name="SynthwaveText.Body" parent="TextAppearance.Material3.BodyLarge">
         <item name="android:textColor">@color/lemon_on_background</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:letterSpacing">0.02</item>
+        <item name="android:fontFamily">@font/lemon_body</item>
     </style>
     <style name="SynthwaveText.Secondary" parent="TextAppearance.Material3.BodyMedium">
-        <item name="android:textColor">@color/lemon_secondary</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:shadowColor">@color/lemon_glow_cyan</item>
-        <item name="android:shadowDx">0</item>
-        <item name="android:shadowDy">0</item>
-        <item name="android:shadowRadius">4</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:fontFamily">@font/lemon_body</item>
     </style>
     <style name="SynthwaveText.Accent" parent="TextAppearance.Material3.LabelLarge">
-        <item name="android:textColor">@color/lemon_accent_orange</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">monospace</item>
-        <item name="android:letterSpacing">0.1</item>
-        <item name="android:shadowColor">@color/lemon_glow_orange</item>
-        <item name="android:shadowDx">0</item>
-        <item name="android:shadowDy">0</item>
-        <item name="android:shadowRadius">4</item>
+        <item name="android:fontFamily">@font/lemon_body</item>
     </style>
     <!-- Shape appearance for carousel images -->
     <style name="ShapeAppearance.Lemon.CarouselImage" parent="">

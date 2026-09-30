@@ -6,4 +6,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
 <resources>
     <!-- Holds the classic or the redesigned library (LibraryHostFragment). -->
     <item name="library_container" type="id" />
+    <!-- The redesigned welcome screen laid over first-run setup. -->
+    <item name="setup_welcome_compose" type="id" />
 </resources>
