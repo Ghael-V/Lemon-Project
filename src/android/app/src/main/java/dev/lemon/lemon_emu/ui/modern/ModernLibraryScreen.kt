@@ -6,7 +6,7 @@ package dev.lemon.lemon_emu.ui.modern
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -65,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import dev.lemon.lemon_emu.R
@@ -155,6 +157,7 @@ fun ModernLibraryScreen(
                 onSearching = { searching = it; if (!it) search = "" },
                 onSort = { showSort = true },
                 onSelect = ::select,
+                onFocusSelect = { selectedPath = it.path },
                 onOpenSheet = { sheetGame = it },
                 onShowAll = { search = ""; searching = false; filterId = android.view.View.NO_ID }
             )
@@ -165,6 +168,7 @@ fun ModernLibraryScreen(
                 onSearching = { searching = it; if (!it) search = "" },
                 onSort = { showSort = true },
                 onSelect = ::select,
+                onFocusSelect = { selectedPath = it.path },
                 onOpenSheet = { sheetGame = it },
                 onShowAll = { search = ""; searching = false; filterId = android.view.View.NO_ID }
             )
@@ -217,6 +221,7 @@ private fun LandscapeLayout(
     onSearching: (Boolean) -> Unit,
     onSort: () -> Unit,
     onSelect: (Game) -> Unit,
+    onFocusSelect: (Game) -> Unit,
     onOpenSheet: (Game) -> Unit,
     onShowAll: () -> Unit
 ) {
@@ -233,40 +238,64 @@ private fun LandscapeLayout(
             .padding(horizontal = 36.dp, vertical = 12.dp)
     ) {
         TopBar(search, searching, onSearch, onSearching, onSort, actions)
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
 
-        if (visible.isEmpty()) {
-            EmptyState(actions, loading)
-        } else {
-            LazyRow(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.fillMaxWidth().height(214.dp)
-            ) {
-                itemsIndexed(visible, key = { _, game -> game.path }) { _, game ->
-                    val isSelected = game.path == selected?.path
-                    val size by animateDpAsState(
-                        targetValue = if (isSelected) 196.dp else 150.dp,
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
-                        label = "tileSize"
-                    )
-                    GameTile(
-                        game = game,
-                        size = size,
-                        selected = isSelected,
-                        modifier = Modifier.onFocusChanged { if (it.hasFocus) onSelect(game) },
-                        onLongClick = { onOpenSheet(game) },
-                        onClick = { onSelect(game) }
-                    )
+        // The row of tiles takes whatever height is left after the title, buttons and shortcuts,
+        // so the same screen fits a 1080p handheld (about 400 dp once the system bars are out) and
+        // a tablet alike.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            if (visible.isEmpty()) {
+                EmptyState(actions, loading)
+            } else {
+                val rowHeight = (maxHeight - 100.dp).coerceIn(112.dp, 214.dp)
+                val selectedSize = rowHeight - 14.dp
+                // Every tile takes the same slot; the selected one is only drawn bigger. That keeps
+                // the scroll maths exact, so the selected tile always lands in the middle.
+                val slot = selectedSize * 0.76f
+                val selectedScale = selectedSize / slot
+                val sidePadding = (maxWidth - slot) / 2
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    LazyRow(
+                        state = listState,
+                        contentPadding = PaddingValues(horizontal = sidePadding, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(30.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().height(rowHeight)
+                    ) {
+                        itemsIndexed(visible, key = { _, game -> game.path }) { _, game ->
+                            val isSelected = game.path == selected?.path
+                            val scale by animateFloatAsState(
+                                targetValue = if (isSelected) selectedScale else 1f,
+                                animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+                                label = "tileScale"
+                            )
+                            Box(
+                                Modifier
+                                    .size(slot)
+                                    .zIndex(if (isSelected) 1f else 0f)
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                    }
+                            ) {
+                                GameTile(
+                                    game = game,
+                                    size = slot,
+                                    selected = isSelected,
+                                    modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocusSelect(game) },
+                                    onLongClick = { onOpenSheet(game) },
+                                    onClick = { onSelect(game) }
+                                )
+                            }
+                        }
+                    }
+                    selected?.let { HeroInfo(it, actions, centered = true, onMore = { onOpenSheet(it) }) }
                 }
             }
-            selected?.let { HeroInfo(it, actions, onMore = { onOpenSheet(it) }) }
         }
 
-        Spacer(Modifier.weight(1f))
-        ShortcutRow(actions, showQLaunch, onShowAll, tileHeight = 76.dp)
+        Spacer(Modifier.height(8.dp))
+        ShortcutRow(actions, showQLaunch, onShowAll, tileHeight = 64.dp)
     }
 }
 
@@ -283,6 +312,7 @@ private fun PortraitLayout(
     onSearching: (Boolean) -> Unit,
     onSort: () -> Unit,
     onSelect: (Game) -> Unit,
+    onFocusSelect: (Game) -> Unit,
     onOpenSheet: (Game) -> Unit,
     onShowAll: () -> Unit
 ) {
@@ -313,7 +343,7 @@ private fun PortraitLayout(
                     game = game,
                     size = 160.dp,
                     selected = game.path == selected?.path,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 0.dp),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocusSelect(game) },
                     onLongClick = { onOpenSheet(game) },
                     onClick = { onSelect(game) }
                 )
@@ -404,11 +434,16 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit, modifier
 }
 
 @Composable
-private fun HeroInfo(game: Game, actions: LibraryActions, onMore: () -> Unit) {
+private fun HeroInfo(game: Game, actions: LibraryActions, centered: Boolean = false, onMore: () -> Unit) {
     val context = LocalContext.current
     val playtime = remember(game.path) { GameStatsUtils.buildAbbreviated(context, game) }
-    Column(Modifier.fillMaxWidth().padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    val arrangement = if (centered) Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(12.dp)
+    Column(
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = arrangement) {
             BasicText(
                 text = game.title,
                 style = LemonType.Display,
@@ -426,18 +461,21 @@ private fun HeroInfo(game: Game, actions: LibraryActions, onMore: () -> Unit) {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = arrangement, verticalAlignment = Alignment.CenterVertically) {
             LemonButton(
                 text = stringResource(R.string.play),
                 iconRes = R.drawable.ic_play,
                 primary = true,
+                height = 46.dp,
                 modifier = Modifier.width(180.dp)
             ) { actions.onLaunch(game) }
-            LemonButton(text = stringResource(R.string.lemon_view_details)) { actions.onDetails(game) }
+            LemonButton(text = stringResource(R.string.lemon_view_details), height = 46.dp) {
+                actions.onDetails(game)
+            }
             LemonIconButton(
                 R.drawable.ic_more_vert,
                 stringResource(R.string.lemon_more_options),
-                size = 52.dp,
+                size = 46.dp,
                 onClick = onMore
             )
         }

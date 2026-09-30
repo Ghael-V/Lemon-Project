@@ -243,7 +243,7 @@
     <string name="lemon_view_details">Ver detalles</string>
     <string name="lemon_all_games">Todos los juegos</string>
     <string name="lemon_game_folders">Carpetas de juegos</string>
-    <string name="lemon_install_content">Instalar DLC y actualizaciones</string>
+    <string name="lemon_install_content">Instalar contenido</string>
     <string name="lemon_more_options">Más opciones</string>
     <string name="lemon_ui_modern_title">Interfaz nueva</string>
     <string name="lemon_ui_modern_description">La interfaz rediseñada de Lemon. Desactívala para volver a la clásica; se aplica al volver a la biblioteca.</string>

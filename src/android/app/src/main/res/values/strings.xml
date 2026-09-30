@@ -252,7 +252,7 @@
     <string name="lemon_view_details">View details</string>
     <string name="lemon_all_games">All games</string>
     <string name="lemon_game_folders">Game folders</string>
-    <string name="lemon_install_content">Install DLC and updates</string>
+    <string name="lemon_install_content">Install content</string>
     <string name="lemon_more_options">More options</string>
     <string name="lemon_ui_modern_title">New interface</string>
     <string name="lemon_ui_modern_description">The redesigned Lemon interface. Turn it off to go back to the classic one; it applies when you return to the library.</string>

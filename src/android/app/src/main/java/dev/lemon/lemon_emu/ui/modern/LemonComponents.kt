@@ -173,7 +173,6 @@ fun ShortcutTile(
     val shape = RoundedCornerShape(20.dp)
     Column(
         modifier = modifier
-            .height(92.dp)
             .lemonInteractive(
                 shape = shape,
                 cornerRadius = 20.dp,
