@@ -239,6 +239,14 @@
     <string name="home_search">Buscar</string>
     <string name="home_settings">Ajustes</string>
     <string name="empty_gamelist">No se encontraron archivos o aún no se ha seleccionado ningún directorio de juego.</string>
+    <string name="lemon_library">Biblioteca</string>
+    <string name="lemon_view_details">Ver detalles</string>
+    <string name="lemon_all_games">Todos los juegos</string>
+    <string name="lemon_game_folders">Carpetas de juegos</string>
+    <string name="lemon_install_content">Instalar DLC y actualizaciones</string>
+    <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_ui_modern_title">Interfaz nueva</string>
+    <string name="lemon_ui_modern_description">La interfaz rediseñada de Lemon. Desactívala para volver a la clásica; se aplica al volver a la biblioteca.</string>
     <string name="manage_game_folders">Gestionar carpetas de juegos</string>
     <string name="select_games_folder_description">Permite que Lemon complete la lista de juegos.</string>
     <string name="add_games_warning">¿Omitir la selección de la carpeta de juegos?</string>

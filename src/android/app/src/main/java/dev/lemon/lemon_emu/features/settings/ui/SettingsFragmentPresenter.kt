@@ -31,6 +31,7 @@ import dev.lemon.lemon_emu.features.settings.model.view.*
 import dev.lemon.lemon_emu.utils.InputHandler
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.ui.modern.UiMode
 import dev.lemon.lemon_emu.utils.NativePostProcessing
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.FullscreenHelper
@@ -1346,6 +1347,13 @@ class SettingsFragmentPresenter(
             }
 
             add(HeaderSetting(R.string.app_settings))
+            add(
+                SwitchSetting(
+                    UiMode.asSetting(context),
+                    titleId = R.string.lemon_ui_modern_title,
+                    descriptionId = R.string.lemon_ui_modern_description
+                )
+            )
             add(IntSetting.APP_LANGUAGE.key)
 
             if (NativeLibrary.isUpdateCheckerEnabled()) {

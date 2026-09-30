@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<resources>
+    <!-- Holds the classic or the redesigned library (LibraryHostFragment). -->
+    <item name="library_container" type="id" />
+</resources>
