@@ -134,7 +134,11 @@ class AboutFragment : Fragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent { ModernAbout(versionText, actions) }
         }
-        (binding.root as ViewGroup).addView(
+        val root = binding.root as ViewGroup
+        for (i in 0 until root.childCount) {
+            root.getChildAt(i).visibility = View.GONE
+        }
+        root.addView(
             composeView,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )

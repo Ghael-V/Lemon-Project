@@ -19,7 +19,7 @@
         android:paddingEnd="8dp"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
-        android:background="?attr/selectableItemBackground"
+        android:background="@drawable/lemon_row_focus"
         android:clickable="true"
         android:focusable="true">
 

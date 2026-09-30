@@ -735,10 +735,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
 
             override fun onDrawerOpened(drawerView: View) {
-                menuTick.intValue++
-                focusInGameMenuPanel()
+                // Each drawer hands the focus to its own rows; the hidden one must not take it.
+                val modernSheet = UiMode.isModern(requireContext()) && drawerView == binding.quickSettingsSheet
+                if (drawerView == binding.inGameMenu) {
+                    menuTick.intValue++
+                    focusInGameMenuPanel()
+                }
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-                binding.inGameMenu.requestFocus()
+                if (!modernSheet) {
+                    binding.inGameMenu.requestFocus()
+                }
                 emulationViewModel.setDrawerOpen(true)
                 updateQuickOverlayMenuEntry(BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean())
                 if (drawerView == binding.inGameMenu) {
@@ -964,6 +970,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         addQuickSettings()
         if (UiMode.isModern(requireContext())) {
             setupModernInGameMenu()
+            setupModernQuickSettings()
         }
 
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
@@ -979,6 +986,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     }
                     refreshPostProcessing()
                     addQuickSettings()
+                    if (UiMode.isModern(requireContext())) {
+                        focusFirstQuickSetting()
+                    }
                 }
             }
 
@@ -1204,6 +1214,35 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
             panel.requestFocus()
         }, 60)
+    }
+
+    /** Dresses the right-hand quick settings drawer in the Lemon look; its rows and logic are the classic ones. */
+    private fun setupModernQuickSettings() {
+        val sheet = binding.quickSettingsSheet
+        val metrics = resources.displayMetrics
+        val room = metrics.widthPixels - (64 * metrics.density).toInt()
+        sheet.layoutParams = sheet.layoutParams.apply {
+            width = minOf((460 * metrics.density).toInt(), room)
+        }
+        sheet.setBackgroundResource(R.drawable.lemon_side_panel_end)
+        sheet.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.quick_settings_toolbar)
+            ?.setTitleTextAppearance(requireContext(), R.style.TextAppearance_Lemon_TitleLarge)
+    }
+
+    /**
+     * Gives the first row of the quick settings the focus. Like the in-game panel, it can be swiped
+     * open while the window is in touch mode, where nothing else would take it from the game's overlay.
+     */
+    private fun focusFirstQuickSetting() {
+        val sheet = binding.quickSettingsSheet
+        sheet.postDelayed({
+            val focusables = ArrayList<View>()
+            sheet.addFocusables(focusables, View.FOCUS_DOWN, View.FOCUSABLES_ALL)
+            focusables.firstOrNull { it.isShown && it.isEnabled && it !== sheet }?.let {
+                it.isFocusableInTouchMode = true
+                it.requestFocus()
+            }
+        }, 120)
     }
 
     private fun setupModernInGameMenu() {

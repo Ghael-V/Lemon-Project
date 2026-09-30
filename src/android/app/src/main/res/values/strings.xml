@@ -254,6 +254,9 @@
     <string name="lemon_game_folders">Game folders</string>
     <string name="lemon_install_content">Install content</string>
     <string name="lemon_more_options">More options</string>
+    <string name="lemon_stat_games">Games</string>
+    <string name="lemon_stat_playtime">Total playtime</string>
+    <string name="lemon_stat_sessions">Sessions</string>
     <string name="lemon_perf_title">Performance profile</string>
     <string name="lemon_perf_resolution">Resolution</string>
     <string name="lemon_perf_speed">Speed limit</string>
@@ -2026,6 +2029,32 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    </string>
+    <string name="license_eden" translatable="false">Eden</string>
+    <string name="license_eden_description" translatable="false">The open-source Nintendo Switch emulator whose work Lemon is built upon (itself descended from yuzu)</string>
+    <string name="license_eden_link" translatable="false">https://git.eden-emu.dev/eden-emu/eden</string>
+    <string name="license_eden_copyright" translatable="false">Copyright © Eden Emulator Project and yuzu Emulator Project contributors</string>
+    <string name="license_eden_text" translatable="false">
+GNU General Public License v3.0 or later
+
+
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     </string>
 
     <string name="external_content">External Content</string>

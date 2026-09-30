@@ -245,6 +245,9 @@
     <string name="lemon_game_folders">Carpetas de juegos</string>
     <string name="lemon_install_content">Instalar contenido</string>
     <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_stat_games">Juegos</string>
+    <string name="lemon_stat_playtime">Tiempo total</string>
+    <string name="lemon_stat_sessions">Sesiones</string>
     <string name="lemon_perf_title">Perfil de rendimiento</string>
     <string name="lemon_perf_resolution">Resolución</string>
     <string name="lemon_perf_speed">Límite de velocidad</string>

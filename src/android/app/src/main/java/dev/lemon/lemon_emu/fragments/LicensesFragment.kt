@@ -52,6 +52,13 @@ class LicensesFragment : Fragment() {
 
         val licenses = listOf(
             License(
+                R.string.license_eden,
+                R.string.license_eden_description,
+                R.string.license_eden_link,
+                R.string.license_eden_copyright,
+                R.string.license_eden_text
+            ),
+            License(
                 R.string.license_fidelityfx_fsr,
                 R.string.license_fidelityfx_fsr_description,
                 R.string.license_fidelityfx_fsr_link,
