@@ -23,6 +23,7 @@ protected:
     void ReadAndroidUIValues();
     void ReadDriverValues();
     void ReadOverlayValues();
+    void ReadCustomOverlayValues();
     void ReadHidbusValues() override {}
     void ReadDebugControlValues() override {}
     void ReadPathValues() override;
@@ -38,6 +39,7 @@ protected:
     void SaveAndroidUIValues();
     void SaveDriverValues();
     void SaveOverlayValues();
+    void SaveCustomOverlayValues();
     void SaveHidbusValues() override {}
     void SaveDebugControlValues() override {}
     void SavePathValues() override;

@@ -751,7 +751,7 @@
     <string name="export_success">Exportado correctamente</string>
     <string name="start">Comenzar</string>
     <string name="global">Global</string>
-    <string name="custom">Perzonalizado</string>
+    <string name="custom">Personalizado</string>
     <string name="import_complete">La importación se completó</string>
     <string name="use_global_setting">Usar configuración global</string>
     <string name="operation_completed_successfully">Operación completada con éxito</string>
@@ -1248,4 +1248,10 @@
     <string name="add_folders">Añadir carpeta</string>
     <string name="percent">%1$d%%</string>
 
+    <string name="overlay_save_scope_title">Guardar el mando en pantalla</string>
+    <string name="overlay_save_scope_message">Has cambiado el mando en pantalla. ¿Quieres conservar el cambio solo para %1$s o para todos los juegos?</string>
+    <string name="overlay_save_this_game">Solo este juego</string>
+    <string name="overlay_save_all_games">Todos los juegos</string>
+    <string name="overlay_discard_changes">Descartar cambios</string>
+    <string name="overlay_saved_for_game">Mando en pantalla guardado para %1$s</string>
 </resources>
