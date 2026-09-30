@@ -6,6 +6,18 @@
 
 package dev.lemon.lemon_emu.features.settings.ui
 
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import dev.lemon.lemon_emu.ui.modern.SettingsActions
+import dev.lemon.lemon_emu.ui.modern.ModernSupportedTypes
+import dev.lemon.lemon_emu.ui.modern.ModernSettingsList
+import dev.lemon.lemon_emu.SettingsNavigationDirections
+import com.google.android.material.appbar.AppBarLayout
+import androidx.recyclerview.widget.RecyclerView
+import androidx.navigation.NavOptions
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.runtime.mutableIntStateOf
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Build
@@ -179,6 +191,85 @@ class SettingsFragment : Fragment() {
 
         presenter.onViewCreated()
         setInsets()
+        if (UiMode.isModern(requireContext())) {
+            setupModernList()
+        }
+    }
+
+    /**
+     * The redesigned list. It draws what the classic adapter holds (same items, same handlers, same
+     * dialogs) and falls back to the classic list for sections with row types it cannot draw yet.
+     */
+    private fun setupModernList() {
+        val adapter = settingsAdapter ?: return
+        val tick = mutableIntStateOf(0)
+        val rail = presenter.rootSections()
+        val actions = SettingsActions(
+            onSwitch = { item, checked, position -> adapter.onBooleanClick(item, checked, position) },
+            onSingleChoice = { item, position -> adapter.onSingleChoiceClick(item, position) },
+            onStringSingleChoice = { item, position -> adapter.onStringSingleChoiceClick(item, position) },
+            onIntSingleChoice = { item, position -> adapter.onIntSingleChoiceClick(item, position) },
+            onSlider = { item, position -> adapter.onSliderClick(item, position) },
+            onSpinBox = { item, position -> adapter.onSpinBoxClick(item, position) },
+            onDateTime = { item, position -> adapter.onDateTimeClick(item, position) },
+            onStringInput = { item, position -> adapter.onStringInputClick(item, position) },
+            onPath = { item, position -> adapter.onPathClick(item, position) },
+            onSubmenu = { item -> adapter.onSubmenuClick(item) },
+            onLaunchable = { item -> adapter.onLaunchableClick(item) },
+            onClear = { item, position -> adapter.onClearClick(item, position) },
+            onLongClick = { item, position -> adapter.onLongClick(item, position) },
+            onRailSection = { section ->
+                val nav = requireView().findNavController()
+                val currentId = nav.currentDestination?.id
+                if (currentId != null) {
+                    val options = NavOptions.Builder().setPopUpTo(currentId, true).build()
+                    if (section.menuKey == Settings.MenuTag.SECTION_FREEDRENO) {
+                        nav.navigate(R.id.action_settingsFragment_to_freedrenoSettingsFragment, null, options)
+                    } else {
+                        nav.navigate(
+                            SettingsNavigationDirections.actionGlobalSettingsFragment(section.menuKey, null),
+                            options
+                        )
+                    }
+                }
+            }
+        )
+
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                val t = tick.intValue
+                ModernSettingsList(
+                    items = adapter.currentList,
+                    tick = t,
+                    isRoot = args.menuTag == Settings.MenuTag.SECTION_ROOT,
+                    currentSection = args.menuTag.name,
+                    railSections = rail,
+                    actions = actions
+                )
+            }
+        }
+        val params = CoordinatorLayout.LayoutParams(
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+            CoordinatorLayout.LayoutParams.MATCH_PARENT
+        ).apply { behavior = AppBarLayout.ScrollingViewBehavior() }
+        (binding.root as ViewGroup).addView(composeView, params)
+
+        fun refresh() {
+            val drawable = adapter.currentList.all { it.type in ModernSupportedTypes }
+            composeView.visibility = if (drawable) View.VISIBLE else View.GONE
+            binding.listSettings.visibility = if (drawable) View.GONE else View.VISIBLE
+            tick.intValue++
+        }
+        adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() = refresh()
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) = refresh()
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int, payload: Any?) = refresh()
+            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = refresh()
+            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) = refresh()
+            override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) = refresh()
+        })
+        refresh()
     }
 private fun getPlayerIndex(): Int =
         when (args.menuTag) {

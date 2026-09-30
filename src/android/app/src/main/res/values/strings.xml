@@ -254,6 +254,8 @@
     <string name="lemon_game_folders">Game folders</string>
     <string name="lemon_install_content">Install content</string>
     <string name="lemon_more_options">More options</string>
+    <string name="lemon_tab_data">Data and saves</string>
+    <string name="lemon_search_settings">Search settings</string>
     <string name="lemon_welcome_title">Welcome to Lemon</string>
     <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
     <string name="lemon_welcome_feature_driver">Lemon-Ade GPU driver built in</string>

@@ -245,6 +245,8 @@
     <string name="lemon_game_folders">Carpetas de juegos</string>
     <string name="lemon_install_content">Instalar contenido</string>
     <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_tab_data">Datos y guardado</string>
+    <string name="lemon_search_settings">Buscar ajustes</string>
     <string name="lemon_welcome_title">Bienvenido a Lemon</string>
     <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
     <string name="lemon_welcome_feature_driver">Controlador de GPU Lemon-Ade integrado</string>

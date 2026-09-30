@@ -165,6 +165,13 @@ class SettingsFragmentPresenter(
         loadSettingsList()
     }
 
+    /** The top-level sections, for the redesigned interface's side rail. */
+    fun rootSections(): List<SubmenuSetting> {
+        val list = ArrayList<SettingsItem>()
+        addConfigSettings(list)
+        return list.filterIsInstance<SubmenuSetting>()
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     fun loadSettingsList(notifyDataSetChanged: Boolean = false) {
         val sl = ArrayList<SettingsItem>()

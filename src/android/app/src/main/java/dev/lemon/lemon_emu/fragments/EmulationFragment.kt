@@ -48,6 +48,13 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import dev.lemon.lemon_emu.ui.modern.InGameMenuPanel
+import dev.lemon.lemon_emu.ui.modern.LoadingSnapshot
+import dev.lemon.lemon_emu.ui.modern.ModernLoadingScreen
+import dev.lemon.lemon_emu.ui.modern.UiMode
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.drawerlayout.widget.DrawerLayout.DrawerListener
 import androidx.fragment.app.Fragment
@@ -727,6 +734,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
 
             override fun onDrawerOpened(drawerView: View) {
+                menuTick.intValue++
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
                 binding.inGameMenu.requestFocus()
                 emulationViewModel.setDrawerOpen(true)
@@ -952,6 +960,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
 
         addQuickSettings()
+        if (UiMode.isModern(requireContext())) {
+            setupModernInGameMenu()
+        }
 
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
@@ -1002,6 +1013,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             binding.loadingTitle.text = it.title
         } ?: run {
             binding.loadingTitle.text = ""
+        }
+        if (UiMode.isModern(requireContext())) {
+            setupModernLoadingScreen()
         }
         binding.loadingTitle.isSelected = true
         binding.loadingText.isSelected = true
@@ -1163,6 +1177,70 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
             }
         }
+    }
+
+    // Re-read by the redesigned in-game panel every time the drawer opens.
+    private val menuTick = mutableIntStateOf(0)
+
+    /**
+     * Replaces the look of the in-game side panel with the redesigned one. The classic menu stays
+     * in place, hidden, and the panel drives it: it lists its items and sends every tap through
+     * its own handler, so behavior is identical.
+     */
+    private fun setupModernInGameMenu() {
+        val nav = binding.inGameMenu
+        for (i in 0 until nav.childCount) {
+            nav.getChildAt(i).visibility = View.GONE
+        }
+        // The panel draws its own background; the drawer's would show as a strip beside it.
+        nav.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        val panel = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                InGameMenuPanel(
+                    menu = nav.menu,
+                    game = game,
+                    tick = menuTick.intValue,
+                    onItem = { id -> nav.menu.performIdentifierAction(id, 0) }
+                )
+            }
+        }
+        nav.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    }
+
+    /**
+     * Turns the small loading card into a full-screen loading screen. The card's own views are kept
+     * (all the existing code that updates them keeps working) and only read by the new screen.
+     */
+    private fun setupModernLoadingScreen() {
+        val card = binding.loadingIndicator as com.google.android.material.card.MaterialCardView
+        card.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        card.strokeWidth = 0
+        card.radius = 0f
+        card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.loadingLayout.visibility = View.GONE
+        val screen = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                ModernLoadingScreen(
+                    isActive = { _binding != null && card.visibility == View.VISIBLE },
+                    read = {
+                        val b = _binding
+                        LoadingSnapshot(
+                            game = game,
+                            message = b?.loadingText?.text?.toString().orEmpty(),
+                            progress = b?.loadingProgressIndicator?.progress ?: 0,
+                            max = b?.loadingProgressIndicator?.max ?: 0,
+                            indeterminate = b?.loadingProgressIndicator?.isIndeterminate ?: true
+                        )
+                    }
+                )
+            }
+        }
+        card.addView(screen, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
 
     private fun updateGameTitle() {
