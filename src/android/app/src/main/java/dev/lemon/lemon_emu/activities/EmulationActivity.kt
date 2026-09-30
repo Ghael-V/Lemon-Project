@@ -416,6 +416,11 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
             return super.dispatchKeyEvent(event)
         }
 
+        // Runs before the drawer check so its button state stays right while the menu is open.
+        if (isControllerInput && handleMenuHotkeys(event)) {
+            return true
+        }
+
         if (emulationViewModel.drawerOpen.value) {
             return super.dispatchKeyEvent(event)
         }
@@ -425,6 +430,80 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
         }
 
         return InputHandler.dispatchKeyEvent(event)
+    }
+
+    private var hotkeyStickDown = false
+    private var hotkeyStartDown = false
+    private var hotkeyChordActive = false
+
+    /**
+     * Gamepad shortcuts for the in-game menu, for controllers without a Back button (Xbox and the
+     * like): R3 (right stick click) + Start together, or the Guide button, toggle it, and B
+     * closes it. The chord releases the first button in the game so it is not left held down.
+     */
+    private fun handleMenuHotkeys(event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP) {
+            return false
+        }
+        val down = event.action == KeyEvent.ACTION_DOWN
+        val drawerOpen = emulationViewModel.drawerOpen.value
+
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_MODE -> {
+                if (!down && NativeLibrary.isRunning()) {
+                    emulationViewModel.setDrawerOpen(!drawerOpen)
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_B -> {
+                if (!drawerOpen) {
+                    return false
+                }
+                if (!down) {
+                    emulationViewModel.setDrawerOpen(false)
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_THUMBR -> hotkeyStickDown = down
+            KeyEvent.KEYCODE_BUTTON_START -> hotkeyStartDown = down
+            else -> return false
+        }
+
+        if (hotkeyChordActive) {
+            // The chord already fired: swallow what is left of it.
+            if (!hotkeyStickDown && !hotkeyStartDown) {
+                hotkeyChordActive = false
+            }
+            return true
+        }
+
+        if (down && hotkeyStickDown && hotkeyStartDown && NativeLibrary.isRunning()) {
+            hotkeyChordActive = true
+            if (!drawerOpen) {
+                val first = if (event.keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+                    KeyEvent.KEYCODE_BUTTON_THUMBR
+                } else {
+                    KeyEvent.KEYCODE_BUTTON_START
+                }
+                InputHandler.dispatchKeyEvent(
+                    KeyEvent(
+                        event.downTime,
+                        event.eventTime,
+                        KeyEvent.ACTION_UP,
+                        first,
+                        0,
+                        event.metaState,
+                        event.deviceId,
+                        0,
+                        event.flags,
+                        event.source
+                    )
+                )
+            }
+            emulationViewModel.setDrawerOpen(!drawerOpen)
+            return true
+        }
+        return false
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
