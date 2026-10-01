@@ -216,6 +216,10 @@ class SettingsFragment : Fragment() {
             onPath = { item, position -> adapter.onPathClick(item, position) },
             onSubmenu = { item -> adapter.onSubmenuClick(item) },
             onLaunchable = { item -> adapter.onLaunchableClick(item) },
+            onInput = { item, position -> adapter.onInputClick(item, position) },
+            onInputOptions = { anchor, item, position -> adapter.onInputOptionsClick(anchor, item, position) },
+            onInputProfile = { item, position -> adapter.onInputProfileClick(item, position) },
+            onGpuUnswizzle = { item, position -> adapter.onGpuUnswizzleClick(item, position) },
             onClear = { item, position -> adapter.onClearClick(item, position) },
             onLongClick = { item, position -> adapter.onLongClick(item, position) },
             onRailSection = { section ->

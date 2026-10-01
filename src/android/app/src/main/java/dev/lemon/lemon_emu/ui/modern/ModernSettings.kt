@@ -3,6 +3,19 @@
 
 package dev.lemon.lemon_emu.ui.modern
 
+import dev.lemon.lemon_emu.features.settings.model.view.ModifierInputSetting
+import dev.lemon.lemon_emu.features.settings.model.view.InputSetting
+import dev.lemon.lemon_emu.features.settings.model.view.InputProfileSetting
+import dev.lemon.lemon_emu.features.settings.model.view.GpuUnswizzleSetting
+import dev.lemon.lemon_emu.features.settings.model.view.FxToolbarSetting
+import dev.lemon.lemon_emu.features.settings.model.view.FxShaderCardSetting
+import dev.lemon.lemon_emu.features.settings.model.view.FxPresetSetting
+import dev.lemon.lemon_emu.features.settings.model.view.FxButtonSetting
+import dev.lemon.lemon_emu.features.settings.model.view.ButtonInputSetting
+import dev.lemon.lemon_emu.features.settings.model.view.AnalogInputSetting
+import dev.lemon.lemon_emu.features.input.NativeInput
+import androidx.compose.ui.platform.LocalView
+import android.view.View
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
@@ -195,6 +208,10 @@ class SettingsActions(
     val onPath: (PathSetting, Int) -> Unit,
     val onSubmenu: (SubmenuSetting) -> Unit,
     val onLaunchable: (LaunchableSetting) -> Unit,
+    val onInput: (InputSetting, Int) -> Unit,
+    val onInputOptions: (View, InputSetting, Int) -> Unit,
+    val onInputProfile: (InputProfileSetting, Int) -> Unit,
+    val onGpuUnswizzle: (GpuUnswizzleSetting, Int) -> Unit,
     val onClear: (SettingsItem, Int) -> Unit,
     val onLongClick: (SettingsItem, Int) -> Unit,
     val onRailSection: (SubmenuSetting) -> Unit
@@ -214,7 +231,14 @@ val ModernSupportedTypes = setOf(
     SettingsItem.TYPE_RUNNABLE,
     SettingsItem.TYPE_STRING_INPUT,
     SettingsItem.TYPE_LAUNCHABLE,
-    SettingsItem.TYPE_PATH
+    SettingsItem.TYPE_PATH,
+    SettingsItem.TYPE_INPUT,
+    SettingsItem.TYPE_INPUT_PROFILE,
+    SettingsItem.TYPE_GPU_UNSWIZZLE,
+    SettingsItem.TYPE_FX_TOOLBAR,
+    SettingsItem.TYPE_FX_PRESET,
+    SettingsItem.TYPE_FX_SHADER,
+    SettingsItem.TYPE_FX_BUTTON
 )
 
 @Composable
@@ -407,6 +431,27 @@ private fun SectionList(items: List<SettingsItem>, tick: Int, actions: SettingsA
 @Composable
 private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARAMETER") tick: Int, actions: SettingsActions) {
     val context = LocalContext.current
+    when (item) {
+        is FxToolbarSetting -> {
+            FxToolbarRow(item) { actions.onStringInput(item.createPreset, position) }
+            return
+        }
+        is FxPresetSetting -> {
+            FxPresetRow(item)
+            return
+        }
+        is FxShaderCardSetting -> {
+            FxShaderCardRow(item)
+            return
+        }
+        is FxButtonSetting -> {
+            FxButtonRow(item)
+            return
+        }
+        else -> Unit
+    }
+    val hostView = LocalView.current
+    var showOptions = false
     val enabled = item.isEditable
     val shape = RoundedCornerShape(0.dp)
 
@@ -484,6 +529,46 @@ private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARA
             chevron = true
             onClick = { actions.onLaunchable(item) }
         }
+        is InputSetting -> {
+            value = item.getSelectedValue()
+            showOptions = when (item) {
+                is AnalogInputSetting -> {
+                    val param = NativeInput.getStickParam(item.playerIndex, item.nativeAnalog)
+                    param.get("engine", "") == "analog_from_button" || param.has("axis_x") || param.has("axis_y")
+                }
+                is ButtonInputSetting -> {
+                    val param = NativeInput.getButtonParam(item.playerIndex, item.nativeButton)
+                    param.has("code") || param.has("button") || param.has("hat") || param.has("axis")
+                }
+                is ModifierInputSetting -> {
+                    NativeInput.getStickParam(item.playerIndex, item.nativeAnalog).has("modifier")
+                }
+            }
+            onClick = { actions.onInput(item, position) }
+        }
+        is InputProfileSetting -> {
+            value = item.getCurrentProfile().ifEmpty { context.getString(R.string.not_set) }
+            chevron = true
+            onClick = { actions.onInputProfile(item, position) }
+        }
+        is GpuUnswizzleSetting -> {
+            val res = context.resources
+            value = if (item.isEnabled()) {
+                fun label(choices: Int, values: Int, current: Int): String {
+                    val i = res.getIntArray(values).indexOf(current)
+                    return if (i >= 0) res.getStringArray(choices)[i] else "?"
+                }
+                listOf(
+                    label(item.textureSizeChoicesId, item.textureSizeValuesId, item.getTextureSize()),
+                    label(item.streamSizeChoicesId, item.streamSizeValuesId, item.getStreamSize()),
+                    label(item.chunkSizeChoicesId, item.chunkSizeValuesId, item.getChunkSize())
+                ).joinToString(" · ")
+            } else {
+                context.getString(R.string.gpu_unswizzle_disabled)
+            }
+            chevron = true
+            onClick = { actions.onGpuUnswizzle(item, position) }
+        }
         else -> Unit
     }
 
@@ -530,6 +615,9 @@ private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARA
         }
         if (switchState != null) {
             LemonSwitch(switchState)
+        }
+        if (showOptions) {
+            RowOptionsButton { (item as? InputSetting)?.let { actions.onInputOptions(hostView, it, position) } }
         }
         if (chevron) {
             Image(
