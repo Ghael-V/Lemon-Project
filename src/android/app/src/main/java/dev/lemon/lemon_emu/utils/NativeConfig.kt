@@ -180,6 +180,27 @@ object NativeConfig {
     @Synchronized
     external fun setOverlayControlData(overlayControlData: Array<OverlayControlData>)
 
+    /**
+     * Gets the global layout of the touch controls, or the one a game saved for itself.
+     * @param global True for the global layout, false for the game's own.
+     */
+    external fun getOverlayControlDataFor(global: Boolean): Array<OverlayControlData>
+
+    /** Replaces the global layout of the touch controls, or the game's own one. */
+    external fun setOverlayControlDataFor(
+        overlayControlData: Array<OverlayControlData>,
+        global: Boolean
+    )
+
+    /** Whether the touch controls currently use a layout saved for the running game. */
+    external fun isCustomOverlayActive(): Boolean
+
+    /**
+     * Makes the touch controls use the game's own layout (true) or the global one (false). Saving
+     * the per-game config then stores, or clears, the game's layout.
+     */
+    external fun setCustomOverlayActive(active: Boolean)
+
     @Synchronized
     external fun getInputSettings(global: Boolean): Array<PlayerInput>
 

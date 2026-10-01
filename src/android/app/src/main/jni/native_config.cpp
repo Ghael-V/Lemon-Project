@@ -65,6 +65,9 @@ void Java_dev_lemon_lemon_1emu_utils_NativeConfig_reloadGlobalConfig(JNIEnv* env
     }
     global_config->AndroidConfig::ReloadAllValues();
     ResetFxChainToGlobal();
+    // Back on the global layout for the touch controls.
+    AndroidSettings::values.use_custom_overlay = false;
+    AndroidSettings::values.custom_overlay_control_data.clear();
 }
 
 void Java_dev_lemon_lemon_1emu_utils_NativeConfig_saveGlobalConfig(JNIEnv* env, jobject obj) {
@@ -398,13 +401,12 @@ void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setDisabledAddons(JNIEnv* env,
     Settings::values.disabled_addons[program_id] = disabled_addons;
 }
 
-jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getOverlayControlData(JNIEnv* env,
-                                                                              jobject obj) {
+static jobjectArray OverlayControlDataToJava(JNIEnv* env,
+                                              const std::vector<AndroidSettings::OverlayControlData>& data) {
     jobjectArray joverlayControlDataArray =
-        env->NewObjectArray(AndroidSettings::values.overlay_control_data.size(),
-                            Common::Android::GetOverlayControlDataClass(), nullptr);
-    for (size_t i = 0; i < AndroidSettings::values.overlay_control_data.size(); ++i) {
-        const auto& control_data = AndroidSettings::values.overlay_control_data[i];
+        env->NewObjectArray(data.size(), Common::Android::GetOverlayControlDataClass(), nullptr);
+    for (size_t i = 0; i < data.size(); ++i) {
+        const auto& control_data = data[i];
         jobject jlandscapePosition =
             env->NewObject(Common::Android::GetPairClass(), Common::Android::GetPairConstructor(),
                            Common::Android::ToJDouble(env, control_data.landscape_position.first),
@@ -430,9 +432,9 @@ jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getOverlayControlData(
     return joverlayControlDataArray;
 }
 
-void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setOverlayControlData(
-    JNIEnv* env, jobject obj, jobjectArray joverlayControlDataArray) {
-    AndroidSettings::values.overlay_control_data.clear();
+static void OverlayControlDataFromJava(JNIEnv* env, jobjectArray joverlayControlDataArray,
+                                       std::vector<AndroidSettings::OverlayControlData>& out) {
+    out.clear();
     int size = env->GetArrayLength(joverlayControlDataArray);
 
     if (size == 0) {
@@ -476,10 +478,46 @@ void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setOverlayControlData(
         float individual_scale = static_cast<float>(env->GetFloatField(
             joverlayControlData, Common::Android::GetOverlayControlDataIndividualScaleField()));
 
-        AndroidSettings::values.overlay_control_data.push_back(AndroidSettings::OverlayControlData{
+        out.push_back(AndroidSettings::OverlayControlData{
             Common::Android::GetJString(env, jidString), enabled, landscape_position,
             portrait_position, foldable_position, individual_scale});
     }
+}
+
+// The layout the touch controls are using right now: the game's own if it has one, else the
+// global one.
+jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getOverlayControlData(JNIEnv* env,
+                                                                              jobject obj) {
+    return OverlayControlDataToJava(env, AndroidSettings::values.ActiveOverlayControlData());
+}
+
+void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setOverlayControlData(
+    JNIEnv* env, jobject obj, jobjectArray joverlayControlDataArray) {
+    OverlayControlDataFromJava(env, joverlayControlDataArray,
+                               AndroidSettings::values.ActiveOverlayControlData());
+}
+
+jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getOverlayControlDataFor(
+    JNIEnv* env, jobject obj, jboolean jglobal) {
+    return OverlayControlDataToJava(env, jglobal ? AndroidSettings::values.overlay_control_data
+                                                 : AndroidSettings::values.custom_overlay_control_data);
+}
+
+void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setOverlayControlDataFor(
+    JNIEnv* env, jobject obj, jobjectArray joverlayControlDataArray, jboolean jglobal) {
+    OverlayControlDataFromJava(env, joverlayControlDataArray,
+                               jglobal ? AndroidSettings::values.overlay_control_data
+                                       : AndroidSettings::values.custom_overlay_control_data);
+}
+
+jboolean Java_dev_lemon_lemon_1emu_utils_NativeConfig_isCustomOverlayActive(JNIEnv* env,
+                                                                          jobject obj) {
+    return AndroidSettings::values.use_custom_overlay;
+}
+
+void Java_dev_lemon_lemon_1emu_utils_NativeConfig_setCustomOverlayActive(JNIEnv* env, jobject obj,
+                                                                       jboolean jactive) {
+    AndroidSettings::values.use_custom_overlay = static_cast<bool>(jactive);
 }
 
 jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getInputSettings(JNIEnv* env, jobject obj,

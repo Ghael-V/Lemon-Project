@@ -7,6 +7,8 @@
 package dev.lemon.lemon_emu.fragments
 
 import dev.lemon.lemon_emu.ui.modern.PerformanceInfo
+import dev.lemon.lemon_emu.overlay.model.OverlayControlData
+import dev.lemon.lemon_emu.utils.PerGameOverlay
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
@@ -379,6 +381,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 throw fallbackException
             }
         }
+        // A game that runs on its custom config may have its own touch controls layout.
+        // (The view may not exist yet here; the overlay reads the layout when it is laid out.)
+        _binding?.surfaceInputOverlay?.post { _binding?.surfaceInputOverlay?.refreshControls() }
         try {
             if (GpuDriverHelper.isAdrenoGpu()) {
                 val programIdHex = game!!.programIdHex
@@ -1992,12 +1997,60 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         addQuickSettings()
     }
 
+    private var overlayEditBefore: Array<OverlayControlData>? = null
+    private var overlayEditWasCustom = false
+
+    /** Remembers the touch controls layout before an edit, to ask where to keep it afterwards. */
+    private fun beginOverlayEdit() {
+        overlayEditBefore = PerGameOverlay.snapshot()
+        overlayEditWasCustom = NativeConfig.isCustomOverlayActive()
+    }
+
+    /**
+     * If the edit changed the layout, asks whether it is for every game or only for this one.
+     * Closing the dialog keeps the change for every game, as it always worked.
+     */
+    private fun finishOverlayEdit() {
+        val before = overlayEditBefore ?: return
+        overlayEditBefore = null
+        val target = game ?: return
+        if (_binding == null || !PerGameOverlay.changed(before)) {
+            return
+        }
+        val wasCustom = overlayEditWasCustom
+        val edited = NativeConfig.getOverlayControlData()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.overlay_save_scope_title)
+            .setMessage(getString(R.string.overlay_save_scope_message, target.title))
+            .setPositiveButton(R.string.overlay_save_this_game) { _, _ ->
+                PerGameOverlay.saveForThisGame(target, before, wasCustom, edited)
+                shouldUseCustom = true
+                _binding?.surfaceInputOverlay?.refreshControls()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.overlay_saved_for_game, target.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton(R.string.overlay_save_all_games) { _, _ ->
+                PerGameOverlay.saveForAllGames(target, edited, wasCustom)
+                _binding?.surfaceInputOverlay?.refreshControls()
+            }
+            .setNeutralButton(R.string.overlay_discard_changes) { _, _ ->
+                PerGameOverlay.discard(before, wasCustom)
+                _binding?.surfaceInputOverlay?.refreshControls()
+            }
+            .show()
+    }
+
     private fun resetInputOverlay() {
         IntSetting.OVERLAY_SCALE.reset()
         IntSetting.OVERLAY_OPACITY.reset()
+        beginOverlayEdit()
         binding.surfaceInputOverlay.post {
             binding.surfaceInputOverlay.resetLayoutVisibilityAndPlacement()
             binding.surfaceInputOverlay.resetIndividualControlScale()
+            finishOverlayEdit()
         }
     }
 
@@ -2639,19 +2692,25 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             when (it.itemId) {
                 R.id.menu_preset_default -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Default)
+                    finishOverlayEdit()
                     true
                 }
 
                 R.id.menu_preset_big -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Big)
+                    finishOverlayEdit()
                     true
                 }
 
                 R.id.menu_preset_swapped -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Swapped)
+                    finishOverlayEdit()
                     true
                 }
 
@@ -2683,6 +2742,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         toggleOverlay(true)
+        beginOverlayEdit()
         binding.controlConfigHintContainer.setVisible(true)
         binding.surfaceInputOverlay.setIsInEditMode(true)
     }
@@ -2697,6 +2757,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         NativeConfig.saveGlobalConfig()
+        finishOverlayEdit()
     }
 
     @SuppressLint("SetTextI18n")

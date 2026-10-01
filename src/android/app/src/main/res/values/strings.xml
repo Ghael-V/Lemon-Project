@@ -2061,4 +2061,10 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="add_folders">Add Folder</string>
     <string name="percent">%1$d%%</string>
 
+    <string name="overlay_save_scope_title">Save the on-screen controls</string>
+    <string name="overlay_save_scope_message">You changed the on-screen controls. Keep the change only for %1$s, or for every game?</string>
+    <string name="overlay_save_this_game">Only this game</string>
+    <string name="overlay_save_all_games">All games</string>
+    <string name="overlay_discard_changes">Discard changes</string>
+    <string name="overlay_saved_for_game">On-screen controls saved for %1$s</string>
 </resources>
