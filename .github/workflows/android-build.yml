@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: Android build
 
 # Verifies the Android-only trim actually configures & compiles.

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: Build savestate test homebrew
 
 # Compiles tools/savestate-test-homebrew/ into a .nro via devkitPro's own Docker image.
