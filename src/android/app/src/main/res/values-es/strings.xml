@@ -1398,6 +1398,10 @@
     <string name="lemon_cheater_freeze">Congelar este valor</string>
     <string name="lemon_cheater_unfreeze">Descongelar este valor</string>
     <string name="lemon_cheater_no_frozen">No hay valores congelados</string>
+    <string name="lemon_cheater_type_int">Entero</string>
+    <string name="lemon_cheater_type_float">Float</string>
+    <string name="lemon_cheater_invalid_float">Introduce un número, p. ej. 87.5</string>
+    <string name="lemon_cheater_type_changed">Tipo de valor cambiado - empieza una nueva búsqueda</string>
     <string name="lemon_macro">Macros</string>
     <string name="lemon_macro_record">Grabar</string>
     <string name="lemon_macro_stop_recording">Detener grabación</string>
