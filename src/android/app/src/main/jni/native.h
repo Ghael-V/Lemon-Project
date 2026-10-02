@@ -48,13 +48,16 @@ public:
     void UnPauseEmulation();
     bool QuickSaveState();
     bool QuickLoadState();
-    std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value);
+    std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,
+                                                       Core::MemorySearch::ValueType type,
+                                                       float tolerance);
     void CheatTakeSnapshot();
     std::vector<Core::MemorySearch::Match> CheatCompareSnapshot(
-        Core::MemorySearch::Comparison comparison);
+        Core::MemorySearch::Comparison comparison, Core::MemorySearch::ValueType type);
     std::vector<Core::MemorySearch::Match> CheatRefine(
         std::span<const Core::MemorySearch::Match> candidates,
-        std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value);
+        std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value,
+        Core::MemorySearch::ValueType type, float tolerance);
     bool CheatRead(u64 address, std::span<u8> out);
     bool CheatWrite(u64 address, std::span<const u8> value);
     void CheatSetFrozen(u64 address, s32 value);

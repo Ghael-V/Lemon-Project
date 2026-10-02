@@ -16,7 +16,9 @@ class System;
 // Live memory search/edit ("Lemon Cheater"): a Cheat Engine style value scanner, distinct
 // from Core::Memory::CheatEngine (the Atmosphere-style .txt cheat code VM/parser).
 //
-// Scope (v1): values are 4-byte signed integers (i32). Everything here uses
+// Scope: values are 4 bytes, read either as signed integers (i32) or as IEEE floats (f32). A
+// Match always carries the raw 32 bits in `value`; ValueType says how to interpret them.
+// Everything here uses
 // Memory::ReadBlockUnsafe()/WriteBlockUnsafe(), not the regular ReadBlock()/WriteBlock() -
 // the regular versions sync with whatever the GPU emulation has cached for that memory
 // (HandleRasterizerDownload()/HandleRasterizerWrite() per chunk), which is unwanted overhead
@@ -26,9 +28,14 @@ class System;
 // game was reloaded, even with zero writes.
 namespace Core::MemorySearch {
 
+enum class ValueType {
+    Int32,
+    Float32,
+};
+
 struct Match {
     u64 address;
-    s32 value; // the value at `address` as of the call that produced this Match
+    s32 value; // the raw 32 bits at `address` as of the call that produced this Match
 };
 
 // Searches the process' general heap (Kernel::KMemoryState::Normal - see
@@ -46,7 +53,15 @@ struct Match {
 // tools make between "candidates tracked" and "candidates shown". Does not require the
 // system to be paused - this is a live memory read, same as the game's own code reading its
 // own memory.
+//
+// For ValueType::Float32 `needle_value` holds the float's bit pattern, only 4-byte-aligned
+// addresses are examined (floats are never stored unaligned, and scanning every byte offset
+// would bury the real hits in noise), and a value matches when it is within `tolerance` of the
+// needle. A game rarely stores exactly the number the user typed (87.3 is held as 87.30000305,
+// or the on-screen value is rounded), so the caller derives the tolerance from how many
+// decimals were typed. A tolerance of 0 means bit-exact. NaN and infinity never match.
 [[nodiscard]] std::vector<Match> Search(Core::System& system, s32 needle_value,
+                                        ValueType type = ValueType::Int32, float tolerance = 0.0f,
                                         size_t max_results = 300000);
 
 // Step 1 of a "blind" search, for when the caller doesn't know an exact starting value (e.g.
@@ -68,6 +83,7 @@ enum class Comparison {
 // `comparison` relative to the snapshotted one. Frees the snapshot afterward (single-use).
 // Returns up to `max_results` matches, same reasoning as Search().
 [[nodiscard]] std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison,
+                                                 ValueType type = ValueType::Int32,
                                                  size_t max_results = 300000);
 
 // "Next scan": narrows an existing candidate list down to just the ones that still qualify.
@@ -76,7 +92,7 @@ enum class Comparison {
 // CompareSnapshot() call) - this is what lets "greater than/less than" chain across
 // multiple refine passes, not just once right after a blind search. `needle_value` is only
 // used when `comparison` is std::nullopt (exact-match refine, the original behavior); when
-// `comparison` is set, `needle_value` is ignored.
+// `comparison` is set, `needle_value` is ignored. `type` and `tolerance` are as in Search().
 //
 // Reads exactly `candidates.size() * 4` bytes total - one small direct read per
 // already-known address, nothing more. (An earlier version instead re-walked memory
@@ -86,7 +102,8 @@ enum class Comparison {
 // refine - worse than the many-small-reads it was trying to avoid.)
 [[nodiscard]] std::vector<Match> Refine(Core::System& system, std::span<const Match> candidates,
                                         std::optional<Comparison> comparison,
-                                        s32 needle_value = 0);
+                                        s32 needle_value = 0, ValueType type = ValueType::Int32,
+                                        float tolerance = 0.0f);
 
 // Reads `out.size()` bytes at `address` from the current application process' memory.
 [[nodiscard]] bool Read(Core::System& system, u64 address, std::span<u8> out);

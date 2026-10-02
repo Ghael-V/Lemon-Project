@@ -195,11 +195,14 @@ object NativeLibrary {
     external fun quickLoadState(): Boolean
 
     /**
-     * Scans all live guest process memory for an exact match of the 4-byte signed [needleValue].
+     * Scans all live guest process memory for a 4-byte value. [valueType] 0 reads memory as a
+     * signed integer and looks for an exact match of [needleValue]. [valueType] 1 reads it as a
+     * float: [needleValue] then holds the float's raw bits, and any stored float within
+     * [tolerance] of it matches (0 = bit-exact).
      * Returns matches interleaved as [addr0, value0, addr1, value1, ...] (capped internally to
-     * a sane limit) - decode with CheatOverlay's decodeMatches().
+     * a sane limit; each value is the raw 32 bits) - decode with CheatOverlay's decodeMatches().
      */
-    external fun cheatSearch(needleValue: Int): LongArray
+    external fun cheatSearch(needleValue: Int, valueType: Int, tolerance: Float): LongArray
 
     /**
      * "Blind search" step 1: snapshots current guest memory for a later [cheatCompareSnapshot]
@@ -212,9 +215,9 @@ object NativeLibrary {
      * [cheatTakeSnapshot] and returns every address whose value satisfies [comparison]
      * (0 = increased, 1 = decreased, 2 = unchanged) relative to the snapshotted value there.
      * Interleaved like [cheatSearch]. Consumes the snapshot - only callable once per
-     * [cheatTakeSnapshot].
+     * [cheatTakeSnapshot]. [valueType] is 0 for integers, 1 for floats.
      */
-    external fun cheatCompareSnapshot(comparison: Int): LongArray
+    external fun cheatCompareSnapshot(comparison: Int, valueType: Int): LongArray
 
     /**
      * Narrows [candidates] (interleaved like [cheatSearch]'s return) down to just the ones
@@ -222,9 +225,16 @@ object NativeLibrary {
      * current value equals [needleValue] (exact-match refine). Otherwise [needleValue] is
      * ignored and each candidate's current value is compared against its OWN previous value
      * (0 = increased, 1 = decreased, 2 = unchanged) - this is what lets these refines chain
-     * across multiple passes, not just once right after a blind search.
+     * across multiple passes, not just once right after a blind search. [valueType] and
+     * [tolerance] work as in [cheatSearch].
      */
-    external fun cheatRefine(candidates: LongArray, comparison: Int, needleValue: Int): LongArray
+    external fun cheatRefine(
+        candidates: LongArray,
+        comparison: Int,
+        needleValue: Int,
+        valueType: Int,
+        tolerance: Float
+    ): LongArray
 
     /**
      * Reads [length] bytes of live guest process memory at [address].

@@ -1114,6 +1114,10 @@
     <string name="lemon_cheater_freeze">Freeze this value</string>
     <string name="lemon_cheater_unfreeze">Unfreeze this value</string>
     <string name="lemon_cheater_no_frozen">No frozen values</string>
+    <string name="lemon_cheater_type_int">Integer</string>
+    <string name="lemon_cheater_type_float">Float</string>
+    <string name="lemon_cheater_invalid_float">Enter a number, e.g. 87.5</string>
+    <string name="lemon_cheater_type_changed">Value type changed - start a new search</string>
     <string name="lemon_macro">Macros</string>
     <string name="lemon_macro_record">Record</string>
     <string name="lemon_macro_stop_recording">Stop recording</string>
