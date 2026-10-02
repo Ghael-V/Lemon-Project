@@ -79,6 +79,8 @@ class DriverFetcherFragment : Fragment() {
         DriverRepo("KIMCHI Turnip", "K11MCH1/AdrenoToolsDrivers", 3, true, SortMode.PublishTime),
         DriverRepo("Weab-Chan Freedreno", "Weab-chan/freedreno_turnip-CI", 4),
         DriverRepo("Whitebelyash Turnip", "whitebelyash/freedreno_turnip-CI", sort=5, false, SortMode.PublishTime),
+        DriverRepo("StevenMXZ Turnip", "StevenMXZ/Adreno-Tools-Drivers", 6, false, SortMode.PublishTime),
+        DriverRepo("Balemuni Apex Turnip", "Balemuni/Balemunis-Aurora", 7, false, SortMode.PublishTime),
     )
 
     private val driverMap = listOf(
