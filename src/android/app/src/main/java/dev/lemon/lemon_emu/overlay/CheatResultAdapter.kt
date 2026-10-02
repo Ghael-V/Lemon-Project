@@ -19,10 +19,17 @@ class CheatResultAdapter(
 ) : RecyclerView.Adapter<CheatResultAdapter.ViewHolder>() {
     private var results: List<Pair<Long, Int>> = emptyList()
     private var frozenAddresses: Set<Long> = emptySet()
+    private var formatValue: (address: Long, bits: Int) -> String = { _, bits -> bits.toString() }
 
-    fun submitResults(newResults: List<Pair<Long, Int>>, frozen: Set<Long>) {
+    /** [format] turns an address' raw 32 bits into the text shown (integer or float). */
+    fun submitResults(
+        newResults: List<Pair<Long, Int>>,
+        frozen: Set<Long>,
+        format: (address: Long, bits: Int) -> String
+    ) {
         results = newResults
         frozenAddresses = frozen
+        formatValue = format
         notifyDataSetChanged()
     }
 
@@ -40,7 +47,7 @@ class CheatResultAdapter(
         val isFrozen = frozenAddresses.contains(address)
 
         holder.binding.cheatResultAddress.text = String.format("0x%016X", address)
-        holder.binding.cheatResultValue.text = value.toString()
+        holder.binding.cheatResultValue.text = formatValue(address, value)
         holder.itemView.setOnClickListener { onRowClicked(address, value) }
 
         holder.binding.cheatResultFreeze.apply {

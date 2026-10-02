@@ -484,9 +484,10 @@ bool EmulationSession::QuickLoadState() {
     return ok;
 }
 
-std::vector<Core::MemorySearch::Match> EmulationSession::CheatSearch(s32 needle_value) {
+std::vector<Core::MemorySearch::Match> EmulationSession::CheatSearch(
+    s32 needle_value, Core::MemorySearch::ValueType type, float tolerance) {
     std::scoped_lock lock(m_mutex);
-    return Core::MemorySearch::Search(m_system, needle_value);
+    return Core::MemorySearch::Search(m_system, needle_value, type, tolerance);
 }
 
 void EmulationSession::CheatTakeSnapshot() {
@@ -495,16 +496,18 @@ void EmulationSession::CheatTakeSnapshot() {
 }
 
 std::vector<Core::MemorySearch::Match> EmulationSession::CheatCompareSnapshot(
-    Core::MemorySearch::Comparison comparison) {
+    Core::MemorySearch::Comparison comparison, Core::MemorySearch::ValueType type) {
     std::scoped_lock lock(m_mutex);
-    return Core::MemorySearch::CompareSnapshot(m_system, comparison);
+    return Core::MemorySearch::CompareSnapshot(m_system, comparison, type);
 }
 
 std::vector<Core::MemorySearch::Match> EmulationSession::CheatRefine(
     std::span<const Core::MemorySearch::Match> candidates,
-    std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value) {
+    std::optional<Core::MemorySearch::Comparison> comparison, s32 needle_value,
+    Core::MemorySearch::ValueType type, float tolerance) {
     std::scoped_lock lock(m_mutex);
-    return Core::MemorySearch::Refine(m_system, candidates, comparison, needle_value);
+    return Core::MemorySearch::Refine(m_system, candidates, comparison, needle_value, type,
+                                      tolerance);
 }
 
 bool EmulationSession::CheatRead(u64 address, std::span<u8> out) {
@@ -1190,9 +1193,14 @@ std::vector<Core::MemorySearch::Match> JLongArrayToMatchVector(JNIEnv* env, jlon
 
 extern "C" {
 
+// jvalueType: 0 = 32-bit integer, 1 = 32-bit float (jneedleValue then carries the float's bits
+// and jtolerance is how far a stored float may be from it and still match).
 jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatSearch(JNIEnv* env, jclass clazz,
-                                                              jint jneedleValue) {
-    const auto results = EmulationSession::GetInstance().CheatSearch(static_cast<s32>(jneedleValue));
+                                                              jint jneedleValue, jint jvalueType,
+                                                              jfloat jtolerance) {
+    const auto results = EmulationSession::GetInstance().CheatSearch(
+        static_cast<s32>(jneedleValue), static_cast<Core::MemorySearch::ValueType>(jvalueType),
+        static_cast<float>(jtolerance));
     return MatchVectorToJLongArray(env, results);
 }
 
@@ -1201,9 +1209,11 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_cheatTakeSnapshot(JNIEnv* env, jcla
 }
 
 jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatCompareSnapshot(JNIEnv* env, jclass clazz,
-                                                                       jint jcomparison) {
+                                                                       jint jcomparison,
+                                                                       jint jvalueType) {
     const auto comparison = static_cast<Core::MemorySearch::Comparison>(jcomparison);
-    const auto results = EmulationSession::GetInstance().CheatCompareSnapshot(comparison);
+    const auto results = EmulationSession::GetInstance().CheatCompareSnapshot(
+        comparison, static_cast<Core::MemorySearch::ValueType>(jvalueType));
     return MatchVectorToJLongArray(env, results);
 }
 
@@ -1212,13 +1222,15 @@ jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatCompareSnapshot(JNIEnv* 
 jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_cheatRefine(JNIEnv* env, jclass clazz,
                                                               jlongArray jcandidates,
                                                               jint jcomparison,
-                                                              jint jneedleValue) {
+                                                              jint jneedleValue, jint jvalueType,
+                                                              jfloat jtolerance) {
     const auto candidates = JLongArrayToMatchVector(env, jcandidates);
     const std::optional<Core::MemorySearch::Comparison> comparison =
         jcomparison < 0 ? std::nullopt
                         : std::make_optional(static_cast<Core::MemorySearch::Comparison>(jcomparison));
     const auto results = EmulationSession::GetInstance().CheatRefine(
-        candidates, comparison, static_cast<s32>(jneedleValue));
+        candidates, comparison, static_cast<s32>(jneedleValue),
+        static_cast<Core::MemorySearch::ValueType>(jvalueType), static_cast<float>(jtolerance));
     return MatchVectorToJLongArray(env, results);
 }
 

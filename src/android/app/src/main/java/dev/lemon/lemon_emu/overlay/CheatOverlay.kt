@@ -16,8 +16,13 @@ import androidx.core.widget.doOnTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
+import java.math.BigDecimal
+import java.math.MathContext
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.pow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,10 +42,20 @@ import dev.lemon.lemon_emu.databinding.OverlayCheatPanelBinding
  * bounds are never claimed here, so they fall through to whatever's beneath (the game/input
  * overlay) via ordinary Android view dispatch - no custom routing needed for that part.
  *
- * Scope (v1): values are treated as 4-byte signed integers.
+ * Values are 4 bytes, searched as signed integers or as floats (see [ValueType]). Native code
+ * always hands back the raw 32 bits; this class decides how to show and edit them.
  */
 class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs) {
     private data class Match(val address: Long, val value: Int)
+
+    // What the user typed, turned into what the native search wants: the raw bits and, for
+    // floats, how far a stored value may be from it and still count as a match.
+    private data class Needle(val bits: Int, val tolerance: Float)
+
+    private enum class ValueType(val nativeValue: Int) {
+        INT(0),
+        FLOAT(1),
+    }
 
     private val binding: OverlayCheatPanelBinding
     private val adapter = CheatResultAdapter(
@@ -49,6 +64,13 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     )
 
     private var lastMatches: List<Match> = emptyList()
+
+    // How the candidate list in [lastMatches] is interpreted - set by cheat_type_toggle_group.
+    private var valueType = ValueType.INT
+
+    // Addresses that were frozen as floats, so the Frozen view keeps showing them as floats
+    // even after the type selector is moved. Anything not in here is shown as an integer.
+    private val frozenFloatAddresses = mutableSetOf<Long>()
 
     // Address -> value currently being held by the native freeze thread. Doubles as the "is
     // this address frozen" check (frozenValues.containsKey(...)) for both the results view
@@ -95,6 +117,11 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         binding.cheatUnchangedButton.setOnClickListener { onComparisonClicked(Comparison.UNCHANGED) }
         binding.cheatValueInput.doOnTextChanged { _, _, _, _ ->
             binding.cheatValueInputLayout.error = null
+        }
+        binding.cheatTypeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val newType = if (checkedId == R.id.cheat_type_float_button) ValueType.FLOAT else ValueType.INT
+            if (newType != valueType) onValueTypeChanged(newType)
         }
         binding.cheatViewToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -161,20 +188,82 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         }
     }
 
-    private fun parseValueOrShowError(): Int? {
-        val text = binding.cheatValueInput.text?.toString().orEmpty()
-        val value = text.toIntOrNull()
-        if (value == null) {
-            binding.cheatValueInputLayout.error = context.getString(R.string.lemon_cheater_invalid_value)
+    /** The same candidate bits mean different things as an int and as a float, so a type change
+     *  starts over (a blind-search snapshot is raw memory and stays valid). */
+    private fun onValueTypeChanged(newType: ValueType) {
+        valueType = newType
+        binding.cheatValueInput.inputType = if (newType == ValueType.FLOAT) {
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED or
+                InputType.TYPE_NUMBER_FLAG_DECIMAL
+        } else {
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
         }
-        return value
+        binding.cheatValueInputLayout.error = null
+        val hadResults = lastMatches.isNotEmpty()
+        lastMatches = emptyList()
+        setButtonsEnabled(enabled = !isBusy)
+        updateDisplay()
+        if (hadResults) {
+            binding.cheatStatusText.text = context.getString(R.string.lemon_cheater_type_changed)
+        }
+    }
+
+    private fun parseValueOrShowError(): Needle? {
+        val text = binding.cheatValueInput.text?.toString().orEmpty()
+        val needle = if (valueType == ValueType.FLOAT) parseFloatNeedle(text) else {
+            text.toIntOrNull()?.let { Needle(it, 0f) }
+        }
+        if (needle == null) {
+            binding.cheatValueInputLayout.error = context.getString(
+                if (valueType == ValueType.FLOAT) {
+                    R.string.lemon_cheater_invalid_float
+                } else {
+                    R.string.lemon_cheater_invalid_value
+                }
+            )
+        }
+        return needle
+    }
+
+    /** A game seldom stores exactly what the user typed, or shows it rounded. Typing "87.3"
+     *  accepts 87.25 up to 87.35 (half a unit of the last typed digit); "100" accepts 99.5 up to
+     *  100.5. */
+    private fun parseFloatNeedle(text: String): Needle? {
+        val normalized = text.trim().replace(',', '.')
+        val value = normalized.toFloatOrNull() ?: return null
+        if (value.isNaN() || value.isInfinite()) return null
+        val decimals = normalized.substringAfter('.', "").takeWhile { it.isDigit() }.length
+        val tolerance = 0.5f * 10f.pow(-decimals)
+        return Needle(value.toRawBits(), tolerance)
+    }
+
+    /** Raw 32 bits as the text the user sees for [address]: a float if that is how the address
+     *  was found (or frozen), a plain integer otherwise. */
+    private fun formatValue(address: Long, bits: Int): String {
+        val asFloat = if (viewingFrozen) address in frozenFloatAddresses else valueType == ValueType.FLOAT
+        return if (asFloat) formatFloat(bits) else bits.toString()
+    }
+
+    private fun formatFloat(bits: Int): String {
+        val value = Float.fromBits(bits)
+        if (value.isNaN() || value.isInfinite()) return value.toString()
+        if (value == 0f) return "0"
+        val magnitude = abs(value)
+        return if (magnitude >= 1e7f || magnitude < 1e-4f) {
+            String.format(Locale.ROOT, "%.4e", value)
+        } else {
+            BigDecimal(value.toDouble()).round(MathContext(7)).stripTrailingZeros().toPlainString()
+        }
     }
 
     private fun onSearchClicked() {
         if (isBusy) return
-        val value = parseValueOrShowError() ?: return
+        val needle = parseValueOrShowError() ?: return
+        val type = valueType
         runBusy {
-            val results = withContext(Dispatchers.Default) { NativeLibrary.cheatSearch(value) }
+            val results = withContext(Dispatchers.Default) {
+                NativeLibrary.cheatSearch(needle.bits, type.nativeValue, needle.tolerance)
+            }
             awaitingBlindCompare = false
             lastMatches = decodeMatches(results)
             showResultsView()
@@ -183,11 +272,18 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     private fun onRefineClicked() {
         if (isBusy) return
-        val value = parseValueOrShowError() ?: return
+        val needle = parseValueOrShowError() ?: return
+        val type = valueType
         runBusy {
             val candidates = encodeMatches(lastMatches)
             val results = withContext(Dispatchers.Default) {
-                NativeLibrary.cheatRefine(candidates, EXACT_COMPARISON, value)
+                NativeLibrary.cheatRefine(
+                    candidates,
+                    EXACT_COMPARISON,
+                    needle.bits,
+                    type.nativeValue,
+                    needle.tolerance
+                )
             }
             lastMatches = decodeMatches(results)
             showResultsView()
@@ -207,12 +303,19 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     private fun onComparisonClicked(comparison: Comparison) {
         if (isBusy) return
+        val type = valueType
         runBusy {
             val results = withContext(Dispatchers.Default) {
                 if (awaitingBlindCompare) {
-                    NativeLibrary.cheatCompareSnapshot(comparison.nativeValue)
+                    NativeLibrary.cheatCompareSnapshot(comparison.nativeValue, type.nativeValue)
                 } else {
-                    NativeLibrary.cheatRefine(encodeMatches(lastMatches), comparison.nativeValue, 0)
+                    NativeLibrary.cheatRefine(
+                        encodeMatches(lastMatches),
+                        comparison.nativeValue,
+                        0,
+                        type.nativeValue,
+                        0f
+                    )
                 }
             }
             awaitingBlindCompare = false
@@ -264,7 +367,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         } else {
             lastMatches.take(DISPLAY_LIMIT).map { it.address to it.value }
         }
-        adapter.submitResults(rows, frozenValues.keys)
+        adapter.submitResults(rows, frozenValues.keys, ::formatValue)
 
         binding.cheatViewFrozenButton.text =
             context.getString(R.string.lemon_cheater_view_frozen, frozenValues.size)
@@ -310,24 +413,38 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             }
             if (currentlyFrozen) {
                 frozenValues.remove(address)
+                frozenFloatAddresses.remove(address)
             } else {
                 frozenValues[address] = value
+                if (valueType == ValueType.FLOAT) frozenFloatAddresses.add(address)
             }
             updateDisplay()
         }
     }
 
     private fun showWriteDialog(address: Long, currentValue: Int) {
+        val asFloat = if (viewingFrozen) address in frozenFloatAddresses else valueType == ValueType.FLOAT
         val input = TextInputEditText(context).apply {
-            setText(currentValue.toString())
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
+            setText(if (asFloat) formatFloat(currentValue) else currentValue.toString())
+            inputType = if (asFloat) {
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED or
+                    InputType.TYPE_NUMBER_FLAG_DECIMAL
+            } else {
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
+            }
         }
 
         MaterialAlertDialogBuilder(context)
             .setTitle(String.format("0x%016X", address))
             .setView(input)
             .setPositiveButton(R.string.lemon_cheater_write) { _, _ ->
-                val newValue = input.text?.toString()?.toIntOrNull()
+                val typed = input.text?.toString().orEmpty()
+                val newValue = if (asFloat) {
+                    typed.trim().replace(',', '.').toFloatOrNull()
+                        ?.takeIf { it.isFinite() }?.toRawBits()
+                } else {
+                    typed.toIntOrNull()
+                }
                 if (newValue == null) {
                     return@setPositiveButton
                 }
