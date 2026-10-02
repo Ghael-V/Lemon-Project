@@ -35,6 +35,7 @@ import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
 import dev.lemon.lemon_emu.fragments.SupportDialogFragment
+import dev.lemon.lemon_emu.fragments.WhatsNewDialogFragment
 import dev.lemon.lemon_emu.fragments.UpdateDialogFragment
 import dev.lemon.lemon_emu.model.AddonViewModel
 import dev.lemon.lemon_emu.model.DriverViewModel
@@ -173,9 +174,16 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         val firstTimeSetup = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
 
+        if (firstTimeSetup) {
+            WhatsNewDialogFragment.markSeen(this)
+        }
+
         // Once per launch; on a recreation (theme setup, rotation) the system restores the dialogs.
         if (!firstTimeSetup && savedInstanceState == null) {
-            SupportDialogFragment.onAppLaunch(this, supportFragmentManager)
+            // One notice at a time: what's new first, the support card on a later launch.
+            if (!WhatsNewDialogFragment.onAppLaunch(this, supportFragmentManager)) {
+                SupportDialogFragment.onAppLaunch(this, supportFragmentManager)
+            }
             if (NativeLibrary.isUpdateCheckerEnabled() &&
                 BooleanSetting.ENABLE_UPDATE_CHECKS.getBoolean()
             ) {

@@ -197,6 +197,20 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_update"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/check_updates_now"
+                app:icon="@drawable/ic_refresh"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_website"
                 style="@style/LemonButton.Secondary"
                 android:layout_width="match_parent"
@@ -211,6 +225,20 @@
                 app:strokeWidth="1dp" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_source"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/source_link_button"
+                app:icon="@drawable/ic_code"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_github"
                 style="@style/LemonButton.Secondary"
                 android:layout_width="match_parent"
@@ -219,6 +247,34 @@
                 android:layout_marginTop="12dp"
                 android:text="@string/github_link_button"
                 app:icon="@drawable/ic_github"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_guide"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/guide_link_button"
+                app:icon="@drawable/ic_info_outline"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_faq"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/faq_link_button"
+                app:icon="@drawable/ic_info_outline"
                 app:iconSize="24dp"
                 app:iconGravity="textStart"
                 app:strokeColor="?attr/colorOutline"

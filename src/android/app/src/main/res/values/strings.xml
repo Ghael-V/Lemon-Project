@@ -558,11 +558,26 @@
     <string name="user_data_export_cancelled">Export cancelled</string>
     <string name="user_data_import_failed_description">Make sure the user data folders are at the root of the zip folder and contain a config file at config/config.ini and try again.</string>
     <string name="github_link" translatable="false">https://github.com/Ghael-V/Lemon-Project</string>
-    <string name="github_link_button">GitHub</string>
+    <string name="github_link_button">GitHub (mirror)</string>
     <string name="discord_link" translatable="false">https://discord.com/invite/PEE7Q5TVM5</string>
     <string name="discord_link_button">Discord</string>
     <string name="website_link" translatable="false">https://lemon-emu.org</string>
     <string name="website_link_button">Website</string>
+    <string name="source_link" translatable="false">https://git.lemon-emu.org/lemon/Lemon-Project</string>
+    <string name="source_link_button">Source code</string>
+    <string name="guide_link">https://lemon-emu.org/guide.html</string>
+    <string name="guide_link_button">Settings guide</string>
+    <string name="faq_link">https://lemon-emu.org/faq.html</string>
+    <string name="faq_link_button">FAQ</string>
+    <string name="check_updates_now">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_none">No newer version found, or the update server could not be reached.</string>
+    <string name="update_open_page">Open download page</string>
+    <string name="whats_new_title">What\'s new in Lemon 1.0</string>
+    <string name="whats_new_body">• A new interface: a launcher-style library, a quick in-game panel with a performance card and full controller navigation.\n• On-screen controller layout per game.\n• Lemon Cheater now searches floats.\n• Fixes: FIFA\'s missing indicators, shadows and text, FIFA 23 start-up, updates and DLC inside .nsz files, and gyro controls on foldables.\n• A red \"Reset all settings\" card at the bottom of Settings.\n• A new website with a settings guide and an FAQ: lemon-emu.org</string>
+    <string name="whats_new_got_it">Got it</string>
+    <string name="whats_new_read_more">Read more</string>
+    <string name="whats_new_link">https://lemon-emu.org/#fixes</string>
     <string name="join_discord_button">Join our Discord</string>
     <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
     <string name="buymeacoffee_link_button">Buy me a coffee</string>

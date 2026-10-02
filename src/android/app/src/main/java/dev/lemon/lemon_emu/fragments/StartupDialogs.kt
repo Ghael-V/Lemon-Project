@@ -92,6 +92,48 @@ class SupportDialogFragment : DialogFragment() {
     }
 }
 
+/**
+ * "What's new" after an update. It is tied to a fixed release id ([CURRENT]), not to the build version, so it
+ * shows once per release and never again; bump the id (and the texts) with each release that has news.
+ */
+class WhatsNewDialogFragment : DialogFragment() {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        return MaterialAlertDialogBuilder(requireContext())
+            .setIcon(R.drawable.ic_new_label)
+            .setTitle(R.string.whats_new_title)
+            .setMessage(R.string.whats_new_body)
+            .setPositiveButton(R.string.whats_new_got_it, null)
+            .setNeutralButton(R.string.whats_new_read_more) { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, getString(R.string.whats_new_link).toUri()))
+            }
+            .create()
+    }
+
+    companion object {
+        const val TAG = "WhatsNewDialogFragment"
+        private const val PREF_SEEN = "whats_new_seen"
+        private const val CURRENT = "1.0"
+
+        private fun preferences(context: Context) =
+            PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+
+        /** A fresh install goes through the first-run setup instead, so it must not get this on top. */
+        fun markSeen(context: Context) = preferences(context).edit { putString(PREF_SEEN, CURRENT) }
+
+        /** Call once per launch. Returns true when the notice was shown, so another one can wait. */
+        fun onAppLaunch(context: Context, fragmentManager: FragmentManager): Boolean {
+            if (preferences(context).getString(PREF_SEEN, null) == CURRENT) {
+                return false
+            }
+            markSeen(context)
+            if (fragmentManager.findFragmentByTag(TAG) == null) {
+                WhatsNewDialogFragment().show(fragmentManager, TAG)
+            }
+            return true
+        }
+    }
+}
+
 /** "A new version is available" notice. */
 class UpdateDialogFragment : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {

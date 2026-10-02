@@ -26,6 +26,7 @@ import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.findNavController
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.transition.MaterialSharedAxis
 import dev.lemon.lemon_emu.HomeNavigationDirections
 import dev.lemon.lemon_emu.R
@@ -106,7 +107,11 @@ class AboutFragment : Fragment() {
             }
         }
 
+        binding.buttonUpdate.setOnClickListener { checkForUpdatesNow() }
         binding.buttonWebsite.setOnClickListener { openLink(getString(R.string.website_link)) }
+        binding.buttonSource.setOnClickListener { openLink(getString(R.string.source_link)) }
+        binding.buttonGuide.setOnClickListener { openLink(getString(R.string.guide_link)) }
+        binding.buttonFaq.setOnClickListener { openLink(getString(R.string.faq_link)) }
         binding.buttonGithub.setOnClickListener { openLink(getString(R.string.github_link)) }
         binding.buttonDiscord.setOnClickListener { openLink(getString(R.string.discord_link)) }
         binding.buttonBuymeacoffee.setOnClickListener {
@@ -130,6 +135,7 @@ class AboutFragment : Fragment() {
             onBack = { requireActivity().onBackPressedDispatcher.onBackPressed() },
             onCopyVersion = { binding.buttonVersionName.performClick() },
             onLicenses = { binding.buttonLicenses.performClick() },
+            onCheckUpdates = { checkForUpdatesNow() },
             onLink = { linkRes -> openLink(getString(linkRes)) }
         )
         val composeView = ComposeView(requireContext()).apply {
@@ -144,6 +150,28 @@ class AboutFragment : Fragment() {
             composeView,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )
+    }
+
+    /** The same check that runs at launch, on demand. It always asks, whatever the launch-time setting is. */
+    private fun checkForUpdatesNow() {
+        val activity = requireActivity()
+        Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show()
+        Thread {
+            val release = if (NativeLibrary.isUpdateCheckerEnabled()) NativeLibrary.checkForUpdate() else null
+            activity.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (release == null) {
+                    Toast.makeText(activity, R.string.update_none, Toast.LENGTH_LONG).show()
+                } else {
+                    MaterialAlertDialogBuilder(activity)
+                        .setTitle(R.string.update_available)
+                        .setMessage(getString(R.string.update_available_description, release.title))
+                        .setPositiveButton(R.string.update_open_page) { _, _ -> openLink(release.url) }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                }
+            }
+        }.start()
     }
 
     private fun openLink(link: String) {
