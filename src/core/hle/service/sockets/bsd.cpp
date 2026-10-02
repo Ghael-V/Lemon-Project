@@ -341,6 +341,29 @@ void BSD_USA::Fcntl(HLERequestContext& ctx) {
     rb.PushEnum(bsd_errno);
 }
 
+void BSD_USA::Ioctl(HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    const s32 fd = rp.Pop<s32>();
+    const u32 request = rp.Pop<u32>();
+    const u32 buffer_count = rp.Pop<u32>();
+
+    const std::span<const u8> in = ctx.CanReadBuffer(0) ? ctx.ReadBuffer(0) : std::span<const u8>{};
+    LOG_DEBUG(Service, "called. fd={} request={:#x} bufcount={} in_size={}", fd, request,
+              buffer_count, in.size());
+
+    std::vector<u8> out;
+    const auto [ret, bsd_errno] = IoctlImpl(fd, request, in, out);
+    if (!out.empty() && ctx.CanWriteBuffer(0)) {
+        ctx.WriteBuffer(out.data(), std::min<std::size_t>(out.size(), ctx.GetWriteBufferSize(0)),
+                        0);
+    }
+
+    IPC::ResponseBuilder rb{ctx, 4};
+    rb.Push(ResultSuccess);
+    rb.Push<s32>(ret);
+    rb.PushEnum(bsd_errno);
+}
+
 void BSD_USA::SetSockOpt(HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
 
@@ -783,6 +806,56 @@ std::pair<s32, Errno> BSD_USA::FcntlImpl(s32 fd, FcntlCmd cmd, s32 arg) {
     }
 }
 
+std::pair<s32, Errno> BSD_USA::IoctlImpl(s32 fd, u32 request, std::span<const u8> in,
+                                           std::vector<u8>& out) {
+    // FreeBSD request numbers, which is what the Switch's socket library uses.
+    constexpr u32 FIONREAD = 0x4004667f;
+    constexpr u32 FIONBIO = 0x8004667e;
+
+    if (!IsFileDescriptorValid(fd)) {
+        return {-1, Errno::BADF};
+    }
+    if (!file_descriptors[fd]->socket) {
+        LOG_WARNING(Service, "Uninitialized socket");
+        return {-1, Errno::BADF};
+    }
+    FileDescriptor& descriptor = *file_descriptors[fd];
+
+    switch (request) {
+    case FIONREAD: {
+        // Libraries (TLS/HTTP stacks) ask how much can be read before they commit to a Recv.
+        const auto [available, bsd_errno] = descriptor.socket->GetBytesAvailable();
+        if (bsd_errno != Network::Errno::SUCCESS) {
+            return {-1, Translate(bsd_errno)};
+        }
+        out.resize(sizeof(s32));
+        std::memcpy(out.data(), &available, sizeof(available));
+        return {0, Errno::SUCCESS};
+    }
+    case FIONBIO: {
+        s32 enable = 0;
+        if (in.size() >= sizeof(enable)) {
+            std::memcpy(&enable, in.data(), sizeof(enable));
+        }
+        const Errno bsd_errno = Translate(descriptor.socket->SetNonBlock(enable != 0));
+        if (bsd_errno != Errno::SUCCESS) {
+            return {-1, bsd_errno};
+        }
+        if (enable != 0) {
+            descriptor.flags |= Network::FLAG_O_NONBLOCK;
+        } else {
+            descriptor.flags &= ~Network::FLAG_O_NONBLOCK;
+        }
+        return {0, Errno::SUCCESS};
+    }
+    default:
+        // An unknown request fails like an ordinary ioctl would, instead of taking the service
+        // down: the game decides what to do about it.
+        LOG_WARNING(Service, "Unimplemented ioctl request={:#x}", request);
+        return {-1, Errno::INVAL};
+    }
+}
+
 Errno BSD_USA::GetSockOptImpl(s32 fd, u32 level, OptName optname, std::vector<u8>& optval) {
     if (!IsFileDescriptorValid(fd)) {
         return Errno::BADF;
@@ -835,8 +908,10 @@ Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<cons
     Network::SocketBase* const socket = file_descriptors[fd]->socket.get();
 
     if (optname == OptName::LINGER) {
-        ASSERT(optval.size() == sizeof(Linger));
-        auto linger = GetValue<Linger>(optval);
+        // Some guests pass just the on/off word; reading a whole Linger from that would run past
+        // the buffer, so take what is there and leave the timeout at zero.
+        Linger linger{};
+        std::memcpy(&linger, optval.data(), std::min(optval.size(), sizeof(Linger)));
         ASSERT(linger.onoff == 0 || linger.onoff == 1);
 
         return Translate(socket->SetLinger(linger.onoff != 0, linger.linger));
@@ -1104,7 +1179,7 @@ BSD_USA::BSD_USA(Core::System& system_, const char* name, bool is_user_)
         {16, &BSD_USA::GetSockName, "GetSockName"},
         {17, &BSD_USA::GetSockOpt, "GetSockOpt"},
         {18, &BSD_USA::Listen, "Listen"},
-        {19, nullptr, "Ioctl"},
+        {19, &BSD_USA::Ioctl, "Ioctl"},
         {20, &BSD_USA::Fcntl, "Fcntl"},
         {21, &BSD_USA::SetSockOpt, "SetSockOpt"},
         {22, &BSD_USA::Shutdown, "Shutdown"},
