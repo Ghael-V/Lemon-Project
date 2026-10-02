@@ -269,18 +269,35 @@ std::vector<Release> GetReleases() {
     return Release::ListFromJson(body_str, url, Common::g_build_auto_update_stable_repo);
 }
 
-std::optional<Release> GetLatestRelease() {
-    const auto releases_path =  Common::g_build_auto_update_api_path;
-    const auto url = fmt::format("https://{}", Common::g_build_auto_update_api);
+static std::optional<Release> FetchLatestRelease(const std::string& api, const std::string& path,
+                                                 const std::string& repo) {
+    const auto url = fmt::format("https://{}", api);
 
-    const auto body = MakeRequest(url, releases_path);
+    const auto body = MakeRequest(url, path);
     if (!body) {
-        LOG_WARNING(Common, "Failed to get latest release");
+        LOG_WARNING(Common, "Failed to get the latest release from {}", api);
         return std::nullopt;
     }
 
     const std::string_view body_str = body.value();
-    return Release::FromJson(body_str, url, Common::g_build_auto_update_repo);
+    return Release::FromJson(body_str, url, repo);
+}
+
+std::optional<Release> GetLatestRelease() {
+    // Lemon's own server is the source of truth. It is only treated as unavailable when the
+    // request itself fails (down, unreachable, no release published yet): an answer that simply
+    // matches the running build is still an answer, and must not send the check to the mirror.
+    if (auto release = FetchLatestRelease(Common::g_build_auto_update_api,
+                                          Common::g_build_auto_update_api_path,
+                                          Common::g_build_auto_update_repo)) {
+        return release;
+    }
+
+    LOG_WARNING(Common, "Falling back to {} for the latest release",
+                Common::g_build_auto_update_fallback_api);
+    return FetchLatestRelease(Common::g_build_auto_update_fallback_api,
+                              Common::g_build_auto_update_fallback_api_path,
+                              Common::g_build_auto_update_fallback_repo);
 }
 
 std::optional<std::string> GetReleasesBody() {

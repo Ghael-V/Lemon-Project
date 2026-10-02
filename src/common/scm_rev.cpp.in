@@ -25,6 +25,9 @@
 #define BUILD_AUTO_UPDATE_STABLE_API "@BUILD_AUTO_UPDATE_STABLE_API@"
 #define BUILD_AUTO_UPDATE_STABLE_API_PATH "@BUILD_AUTO_UPDATE_STABLE_API_PATH@"
 #define BUILD_AUTO_UPDATE_STABLE_REPO "@BUILD_AUTO_UPDATE_STABLE_REPO@"
+#define BUILD_AUTO_UPDATE_FALLBACK_API "@BUILD_AUTO_UPDATE_FALLBACK_API@"
+#define BUILD_AUTO_UPDATE_FALLBACK_API_PATH "@BUILD_AUTO_UPDATE_FALLBACK_API_PATH@"
+#define BUILD_AUTO_UPDATE_FALLBACK_REPO "@BUILD_AUTO_UPDATE_FALLBACK_REPO@"
 #define IS_NIGHTLY_BUILD @IS_NIGHTLY_BUILD@
 
 namespace Common {
@@ -51,5 +54,8 @@ constexpr const char g_build_auto_update_repo[] = BUILD_AUTO_UPDATE_REPO;
 constexpr const char g_build_auto_update_stable_api[] = BUILD_AUTO_UPDATE_STABLE_API;
 constexpr const char g_build_auto_update_stable_api_path[] = BUILD_AUTO_UPDATE_STABLE_API_PATH;
 constexpr const char g_build_auto_update_stable_repo[] = BUILD_AUTO_UPDATE_STABLE_REPO;
+constexpr const char g_build_auto_update_fallback_api[] = BUILD_AUTO_UPDATE_FALLBACK_API;
+constexpr const char g_build_auto_update_fallback_api_path[] = BUILD_AUTO_UPDATE_FALLBACK_API_PATH;
+constexpr const char g_build_auto_update_fallback_repo[] = BUILD_AUTO_UPDATE_FALLBACK_REPO;
 
 } // namespace Common

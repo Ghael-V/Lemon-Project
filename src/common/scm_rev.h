@@ -31,5 +31,8 @@ extern const char g_build_auto_update_repo[];
 extern const char g_build_auto_update_stable_api[];
 extern const char g_build_auto_update_stable_api_path[];
 extern const char g_build_auto_update_stable_repo[];
+extern const char g_build_auto_update_fallback_api[];
+extern const char g_build_auto_update_fallback_api_path[];
+extern const char g_build_auto_update_fallback_repo[];
 
 } // namespace Common

@@ -34,18 +34,28 @@ set(GIT_DESC ${BUILD_VERSION})
 
 # Generate cpp with Git revision from template
 
-# Lemon's own GitHub repo - all 3 branches (main/nightly/experimental) are tagged and
-# released identically (see the project's release workflow), so there's no need for the
-# separate nightly-vs-stable API/repo split Eden's upstream used; both point at the same
-# GitHub Releases API.
-set(BUILD_AUTO_UPDATE_STABLE_REPO "Ghael-V/Lemon-Project")
-set(BUILD_AUTO_UPDATE_STABLE_API "api.github.com")
-set(BUILD_AUTO_UPDATE_STABLE_API_PATH "/repos/")
+# Updates come from Lemon's own Forgejo server; the GitHub repo is only a mirror, kept as a
+# fallback for when the server cannot be reached (or has no release yet). Both speak the same
+# release JSON (tag_name, name, body, assets[].browser_download_url), so one parser serves both.
+# The owner/repo of the Forgejo repository is set here and nowhere else.
+set(LEMON_GIT_HOST "git.lemon-emu.org")
+set(LEMON_GIT_REPO "lemon/Lemon-Project")
+set(LEMON_GITHUB_HOST "api.github.com")
+set(LEMON_GITHUB_REPO "Ghael-V/Lemon-Project")
 
-set(BUILD_AUTO_UPDATE_API_PATH "/repos/Ghael-V/Lemon-Project/releases/latest")
-set(BUILD_AUTO_UPDATE_WEBSITE "https://github.com")
-set(BUILD_AUTO_UPDATE_API "api.github.com")
-set(BUILD_AUTO_UPDATE_REPO "Ghael-V/Lemon-Project")
+# All branches are tagged and released identically, so there is no nightly-vs-stable split.
+set(BUILD_AUTO_UPDATE_STABLE_REPO "${LEMON_GIT_REPO}")
+set(BUILD_AUTO_UPDATE_STABLE_API "${LEMON_GIT_HOST}")
+set(BUILD_AUTO_UPDATE_STABLE_API_PATH "api/v1/repos")
+
+set(BUILD_AUTO_UPDATE_API_PATH "/api/v1/repos/${LEMON_GIT_REPO}/releases/latest")
+set(BUILD_AUTO_UPDATE_WEBSITE "https://${LEMON_GIT_HOST}")
+set(BUILD_AUTO_UPDATE_API "${LEMON_GIT_HOST}")
+set(BUILD_AUTO_UPDATE_REPO "${LEMON_GIT_REPO}")
+
+set(BUILD_AUTO_UPDATE_FALLBACK_API "${LEMON_GITHUB_HOST}")
+set(BUILD_AUTO_UPDATE_FALLBACK_API_PATH "/repos/${LEMON_GITHUB_REPO}/releases/latest")
+set(BUILD_AUTO_UPDATE_FALLBACK_REPO "${LEMON_GITHUB_REPO}")
 if (NIGHTLY_BUILD)
     set(REPO_NAME "Lemon Nightly")
 else()
