@@ -492,8 +492,16 @@ class SettingsFragmentPresenter(
             }
             add(
                 RunnableSetting(
-                    titleId = R.string.reset_to_default,
-                    descriptionId = R.string.reset_to_default_description,
+                    titleId = if (NativeConfig.isPerGameConfigLoaded()) {
+                        R.string.reset_game_settings
+                    } else {
+                        R.string.reset_everything
+                    },
+                    descriptionId = if (NativeConfig.isPerGameConfigLoaded()) {
+                        R.string.reset_game_settings_description
+                    } else {
+                        R.string.reset_everything_description
+                    },
                     isRunnable = !NativeLibrary.isRunning(),
                     iconId = R.drawable.ic_restore
                 ) { settingsViewModel.setShouldShowResetSettingsDialog(true) }

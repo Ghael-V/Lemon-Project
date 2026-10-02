@@ -14,5 +14,7 @@ data class HomeSetting(
     val isEnabled: () -> Boolean = { true },
     val disabledTitleId: Int = 0,
     val disabledMessageId: Int = 0,
-    val details: StateFlow<String> = MutableStateFlow("")
+    val details: StateFlow<String> = MutableStateFlow(""),
+    /** Drawn in red: the card does something that cannot be undone. */
+    val isDestructive: Boolean = false
 )

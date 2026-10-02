@@ -8,22 +8,52 @@ SPDX-License-Identifier: GPL-3.0-or-later
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
     android:orientation="vertical"
     android:paddingHorizontal="24dp"
-    android:paddingTop="8dp">
+    android:paddingTop="24dp">
+
+    <ImageView
+        android:layout_width="88dp"
+        android:layout_height="88dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_lemon_splash" />
 
     <com.google.android.material.textview.MaterialTextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="@string/support_prompt_title"
+        android:textAppearance="?attr/textAppearanceHeadlineSmall"
+        android:textStyle="bold" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
         android:text="@string/support_prompt_description"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_discord"
+        style="@style/LemonButton.Primary"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="20dp"
+        android:text="@string/join_discord_button"
+        app:icon="@drawable/ic_discord"
+        app:iconGravity="textStart"
+        app:iconSize="24dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/button_kofi"
         style="@style/LemonButton.Secondary"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="10dp"
         android:text="@string/kofi_link_button"
         app:icon="@drawable/ic_coffee"
         app:iconGravity="textStart"

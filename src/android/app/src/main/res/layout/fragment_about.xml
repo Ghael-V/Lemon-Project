@@ -197,6 +197,20 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_website"
+                style="@style/LemonButton.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/website_link_button"
+                app:icon="@drawable/ic_website"
+                app:iconSize="24dp"
+                app:iconGravity="textStart"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_github"
                 style="@style/LemonButton.Secondary"
                 android:layout_width="match_parent"

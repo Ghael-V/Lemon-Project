@@ -225,7 +225,7 @@
     <string name="folder">Carpeta</string>
     <string name="dont_show_again">No mostrar de nuevo</string>
     <string name="support_prompt_title">¿Te gusta Lemon?</string>
-    <string name="support_prompt_description">Si te gusta mi trabajo, puedes apoyarlo con un Ko-fi o invitándome a un café. ¡Gracias!</string>
+    <string name="support_prompt_description">Lemon es un proyecto independiente y pequeño. Si te gusta, puedes ayudar a mantenerlo con un Ko-fi o invitándome a un café, o unirte a la comunidad en Discord para compartir opiniones y recibir ayuda. ¡Gracias!</string>
     <string name="not_now">Ahora no</string>
     <string name="add_directory_success">Nuevo directorio de juegos agregado exitosamente</string>
     <string name="enable_update_checks">Buscar actualizaciones</string>
@@ -759,6 +759,18 @@
     <string name="reset_all_settings">¿Restablecer todas las configuraciones?</string>
     <string name="reset_all_settings_description">Todas las opciones avanzadas se restablecerán a su configuración predeterminada. Esta acción no se puede deshacer.</string>
     <string name="settings_reset">Reiniciar ajustes</string>
+    <string name="reset_everything">Restablecer todos los ajustes</string>
+    <string name="reset_everything_description">Vuelve a la configuración original</string>
+    <string name="reset_everything_dialog_description">Todos los ajustes vuelven a su valor original: gráficos, sistema, controles y asignación de botones, audio, el diseño del mando en pantalla y las opciones de la app. Se conservan tus carpetas de juegos, las ubicaciones de almacenamiento, las claves, el firmware y las partidas. Esta acción no se puede deshacer.</string>
+    <string name="reset_everything_delete_game_settings">Borrar también los ajustes personalizados de cada juego</string>
+    <string name="reset_everything_delete_game_settings_hint">Cada juego vuelve a usar los ajustes generales. Esto también elimina su diseño de mando propio y cuáles de sus actualizaciones, DLC y mods estaban desactivados.</string>
+    <string name="reset_everything_confirm">Restablecer</string>
+    <string name="settings_reset_everything">Se han restablecido todos los ajustes</string>
+    <string name="reset_everything_failed">No se pudieron restablecer los ajustes</string>
+    <string name="reset_game_settings">Restablecer los ajustes de este juego</string>
+    <string name="reset_game_settings_description">Vuelve a los ajustes generales</string>
+    <string name="reset_game_settings_question">¿Restablecer los ajustes de este juego?</string>
+    <string name="reset_game_settings_dialog_description">Se eliminan los ajustes personalizados de este juego y vuelve a usar los ajustes generales. Esta acción no se puede deshacer.</string>
     <string name="close">Cerrar</string>
     <string name="learn_more">Saber más</string>
     <string name="auto">Auto</string>
@@ -1338,6 +1350,8 @@
     <string name="share_crash_log_missing">No se encontró ningún registro de fallos</string>
     <string name="github_link_button">GitHub</string>
     <string name="discord_link_button">Discord</string>
+    <string name="website_link_button">Sitio web</string>
+    <string name="join_discord_button">Unirse a nuestro Discord</string>
     <string name="buymeacoffee_link_button">Invítame a un café</string>
     <string name="kofi_link_button">Ko-fi</string>
     <string name="fast_cpu_time_description">Sube el reloj que informa la CPU emulada, lo que elimina algunos límites de FPS. Las CPU más débiles pueden perder rendimiento y algunos juegos pueden comportarse mal.</string>

@@ -140,6 +140,7 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
     val enabled = option.isEnabled()
     val details by option.details.collectAsState()
     val shape = RoundedCornerShape(22.dp)
+    val accent = if (option.isDestructive) LemonColors.Red else LemonColors.Lemon
     Row(
         Modifier
             .fillMaxWidth()
@@ -148,13 +149,20 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
             .lemonInteractive(
                 shape = shape,
                 cornerRadius = 22.dp,
-                glowColor = LemonColors.Lemon,
+                glowColor = accent,
                 focusScale = 1.03f,
                 pressScale = 0.96f,
                 onClick = { onClick(option) }
             )
             .clip(shape)
-            .background(LemonColors.Surface)
+            .background(if (option.isDestructive) LemonColors.Red.copy(alpha = 0.12f) else LemonColors.Surface)
+            .then(
+                if (option.isDestructive) {
+                    Modifier.border(1.dp, LemonColors.Red.copy(alpha = 0.6f), shape)
+                } else {
+                    Modifier
+                }
+            )
             .padding(16.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -163,13 +171,16 @@ private fun HomeCard(option: HomeSetting, onClick: (HomeSetting) -> Unit) {
         Image(
             painter = painterResource(option.iconId),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(LemonColors.Lemon),
+            colorFilter = ColorFilter.tint(accent),
             modifier = Modifier.size(26.dp)
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             BasicText(
                 stringResource(option.titleId),
-                style = LemonType.Button.copy(fontSize = 15.sp),
+                style = LemonType.Button.copy(
+                    fontSize = 15.sp,
+                    color = if (option.isDestructive) LemonColors.Red else LemonType.Button.color
+                ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )

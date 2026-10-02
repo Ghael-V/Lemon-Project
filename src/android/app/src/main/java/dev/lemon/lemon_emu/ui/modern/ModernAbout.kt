@@ -109,6 +109,7 @@ fun ModernAbout(versionText: String, actions: AboutActions) {
 
                 Spacer(Modifier.height(20.dp))
                 val links = @Composable {
+                    LinkButton(R.drawable.ic_website, stringResource(R.string.website_link_button)) { actions.onLink(R.string.website_link) }
                     LinkButton(R.drawable.ic_github, stringResource(R.string.github_link_button)) { actions.onLink(R.string.github_link) }
                     LinkButton(R.drawable.ic_discord, stringResource(R.string.discord_link_button)) { actions.onLink(R.string.discord_link) }
                     LinkButton(R.drawable.ic_coffee, stringResource(R.string.kofi_link_button)) { actions.onLink(R.string.kofi_link) }

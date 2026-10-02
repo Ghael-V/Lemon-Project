@@ -236,7 +236,7 @@
     <string name="folder">Folder</string>
     <string name="dont_show_again">Don\'t Show Again</string>
     <string name="support_prompt_title">Enjoying Lemon?</string>
-    <string name="support_prompt_description">If you like my work, consider supporting it with a Ko-fi or by buying me a coffee. Thanks!</string>
+    <string name="support_prompt_description">Lemon is a small independent project. If you enjoy it, you can help keep it going with a Ko-fi or by buying me a coffee, or join the community on Discord to share feedback and get help. Thank you!</string>
     <string name="not_now">Not now</string>
     <string name="add_directory_success">New game directory added successfully </string>
     <string name="enable_update_checks">Check for Updates</string>
@@ -561,6 +561,9 @@
     <string name="github_link_button">GitHub</string>
     <string name="discord_link" translatable="false">https://discord.com/invite/PEE7Q5TVM5</string>
     <string name="discord_link_button">Discord</string>
+    <string name="website_link" translatable="false">https://lemon-emu.org</string>
+    <string name="website_link_button">Website</string>
+    <string name="join_discord_button">Join our Discord</string>
     <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
     <string name="buymeacoffee_link_button">Buy me a coffee</string>
     <string name="kofi_link" translatable="false">https://ko-fi.com/LemonProject</string>
@@ -847,6 +850,18 @@
     <string name="reset_all_settings">Reset all settings?</string>
     <string name="reset_all_settings_description">All advanced settings will be reset to their default configuration. This can not be undone.</string>
     <string name="settings_reset">Settings reset</string>
+    <string name="reset_everything">Reset all settings</string>
+    <string name="reset_everything_description">Back to the original configuration</string>
+    <string name="reset_everything_dialog_description">Every setting goes back to its original value: graphics, system, controls and button mappings, audio, the on-screen controller layout and the app options. Your game folders, storage locations, keys, firmware and saves are kept. This can not be undone.</string>
+    <string name="reset_everything_delete_game_settings">Also delete the custom settings of every game</string>
+    <string name="reset_everything_delete_game_settings_hint">Each game goes back to the general settings. This also removes its own controller layout and which of its updates, DLC and mods were switched off.</string>
+    <string name="reset_everything_confirm">Reset</string>
+    <string name="settings_reset_everything">All settings have been reset</string>
+    <string name="reset_everything_failed">Could not reset the settings</string>
+    <string name="reset_game_settings">Reset this game\'s settings</string>
+    <string name="reset_game_settings_description">Back to the general settings</string>
+    <string name="reset_game_settings_question">Reset this game\'s settings?</string>
+    <string name="reset_game_settings_dialog_description">The custom settings of this game are removed and it uses the general settings again. This can not be undone.</string>
     <string name="close">Close</string>
     <string name="learn_more">Learn more</string>
     <string name="auto">Auto</string>

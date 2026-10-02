@@ -518,6 +518,21 @@ class HomeSettingsFragment : Fragment() {
         if (showAdvancedSettings) {
             options.addAll(buildAdvancedOptions())
         }
+        // Always last and always visible: it is needed too often to hide behind "advanced".
+        options.add(
+            HomeSetting(
+                R.string.reset_everything,
+                R.string.reset_everything_description,
+                R.drawable.ic_restore,
+                {
+                    ResetSettingsDialogFragment().show(
+                        parentFragmentManager,
+                        ResetSettingsDialogFragment.TAG
+                    )
+                },
+                isDestructive = true
+            )
+        )
         return options
     }
 

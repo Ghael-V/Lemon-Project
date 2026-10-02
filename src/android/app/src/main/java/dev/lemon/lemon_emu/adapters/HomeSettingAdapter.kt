@@ -6,6 +6,7 @@
 
 package dev.lemon.lemon_emu.adapters
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +32,10 @@ class HomeSettingAdapter(
 
     inner class HomeOptionViewHolder(val binding: CardHomeOptionBinding) :
         AbstractViewHolder<HomeSetting>(binding) {
+        private val defaultTitleColors = binding.optionTitle.textColors
+        private val defaultIconTint = binding.optionIcon.imageTintList
+        private val defaultStroke = binding.optionCard.strokeColorStateList
+
         override fun bind(model: HomeSetting) {
             binding.optionTitle.text = activity.resources.getString(model.titleId)
             binding.optionDescription.text = activity.resources.getString(model.descriptionId)
@@ -41,6 +46,18 @@ class HomeSettingAdapter(
                     activity.theme
                 )
             )
+
+            // Cards are recycled, so the normal look has to be put back as well.
+            if (model.isDestructive) {
+                val red = 0xFFF0432E.toInt()
+                binding.optionTitle.setTextColor(red)
+                binding.optionIcon.imageTintList = ColorStateList.valueOf(red)
+                binding.optionCard.setStrokeColor(ColorStateList.valueOf(red))
+            } else {
+                binding.optionTitle.setTextColor(defaultTitleColors)
+                binding.optionIcon.imageTintList = defaultIconTint
+                binding.optionCard.setStrokeColor(defaultStroke)
+            }
 
             if (!model.isEnabled.invoke()) {
                 binding.optionTitle.alpha = 0.5f

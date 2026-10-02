@@ -106,6 +106,7 @@ class AboutFragment : Fragment() {
             }
         }
 
+        binding.buttonWebsite.setOnClickListener { openLink(getString(R.string.website_link)) }
         binding.buttonGithub.setOnClickListener { openLink(getString(R.string.github_link)) }
         binding.buttonDiscord.setOnClickListener { openLink(getString(R.string.discord_link)) }
         binding.buttonBuymeacoffee.setOnClickListener {

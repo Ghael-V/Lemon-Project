@@ -161,6 +161,9 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /** True when this screen is a game's own settings rather than the general ones. */
+    val isPerGameSettings: Boolean get() = args.game != null
+
     fun onSettingsReset() {
         // Delete settings file because the user may have changed values that do not exist in the UI
         if (args.game == null) {

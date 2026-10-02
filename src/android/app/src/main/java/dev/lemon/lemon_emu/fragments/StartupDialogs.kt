@@ -25,15 +25,15 @@ import dev.lemon.lemon_emu.utils.NativeConfig
 // recreated (theme setup right after launch, every rotation). Plain dialogs got closed by that
 // without the user seeing them, or shown twice.
 
-/** Ko-fi / Buy Me a Coffee note. */
+/** Support note: Discord, Ko-fi and Buy Me a Coffee. */
 class SupportDialogFragment : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val context = requireContext()
         val binding = DialogSupportBinding.inflate(layoutInflater)
+        binding.buttonDiscord.setOnClickListener { openAndClose(R.string.discord_link) }
         binding.buttonKofi.setOnClickListener { openAndClose(R.string.kofi_link) }
         binding.buttonBuymeacoffee.setOnClickListener { openAndClose(R.string.buymeacoffee_link) }
         return MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.support_prompt_title)
             .setView(binding.root)
             .setPositiveButton(R.string.not_now) { _, _ -> markSeen(context) }
             .setNegativeButton(R.string.dont_show_again) { _, _ ->
