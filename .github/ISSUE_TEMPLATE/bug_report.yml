@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Bug report / Informe de fallo
+description: Something does not work as it should. / Algo no funciona como debería.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A complete report is the fastest way to get a fix. You can write it in English or in Spanish.
+        Gracias por dedicar tu tiempo. Un informe completo es la forma más rápida de conseguir una solución. Puedes escribirlo en inglés o en español.
+
+        For quick help, the [Discord](https://discord.com/invite/PEE7Q5TVM5) is faster. / Para ayuda rápida, el [Discord](https://discord.com/invite/PEE7Q5TVM5) es más rápido.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it / Antes de enviarlo
+      options:
+        - label: I read the [FAQ](https://lemon-emu.org/faq.html). / He leído el [FAQ](https://lemon-emu.org/faq.html).
+          required: true
+        - label: I tried **Settings → Reset all settings** and the problem is still there. / Probé **Ajustes → Restablecer todos los ajustes** y el problema sigue.
+          required: false
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and GPU / Dispositivo y GPU
+      description: The model of your phone or handheld and its GPU. The device overlay, in the settings, shows both. / El modelo de tu móvil o portátil y su GPU. La superposición del dispositivo, en los ajustes, los muestra.
+      placeholder: "AYN Odin 3 · Adreno 830"
+    validations:
+      required: true
+
+  - type: input
+    id: android
+    attributes:
+      label: Android version / Versión de Android
+      placeholder: "Android 15"
+    validations:
+      required: true
+
+  - type: input
+    id: lemon
+    attributes:
+      label: Lemon version / Versión de Lemon
+      description: Copy it from About (tap the build number). / Cópiala desde Acerca de (toca el número de compilación).
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Game and version / Juego y versión
+      description: The name, and the update version if you have one installed. / El nombre y, si tienes una instalada, la versión de la actualización.
+      placeholder: "FIFA 23 Legacy Edition"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens / Qué pasa
+      description: What you see, and what you expected to see instead. / Lo que ves y lo que esperabas ver.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Pasos para reproducirlo
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Did it work in an earlier version? / ¿Funcionaba en una versión anterior?
+      options:
+        - I don't know / No lo sé
+        - Yes, it worked before / Sí, antes funcionaba
+        - No, it never worked / No, nunca ha funcionado
+    validations:
+      required: false
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings you changed / Ajustes que has cambiado
+      description: For example the GPU mode, the resolution or the graphics driver, in general or only for this game. / Por ejemplo el modo de la GPU, la resolución o el driver gráfico, en general o solo para este juego.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots / Registros y capturas
+      description: |
+        Attach the log, it helps a lot: **Settings → More options → Share debug logs** (and **Share crash log** if the app closed). You can also add screenshots or a short video.
+        Adjunta el registro, ayuda muchísimo: **Ajustes → Más opciones → Compartir registros de depuración** (y **Compartir registro de fallos** si la app se cerró). También puedes añadir capturas o un vídeo corto.
+    validations:
+      required: false
