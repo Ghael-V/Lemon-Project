@@ -866,8 +866,8 @@
     <string name="reset_all_settings_description">All advanced settings will be reset to their default configuration. This can not be undone.</string>
     <string name="settings_reset">Settings reset</string>
     <string name="reset_everything">Reset all settings</string>
-    <string name="reset_everything_description">Back to the original configuration</string>
-    <string name="reset_everything_dialog_description">Every setting goes back to its original value: graphics, system, controls and button mappings, audio, the on-screen controller layout and the app options. Your game folders, storage locations, keys, firmware and saves are kept. This can not be undone.</string>
+    <string name="reset_everything_description">Back to the default values of a fresh install</string>
+    <string name="reset_everything_dialog_description">Every setting goes back to the value a fresh install of Lemon has: graphics, system, controls and button mappings, audio, the on-screen controller layout and the app options. Anything you tuned yourself, such as resolution, GPU mode or the graphics driver, goes back to the default. Your game folders, storage locations, keys, firmware and saves are kept. This can not be undone.</string>
     <string name="reset_everything_delete_game_settings">Also delete the custom settings of every game</string>
     <string name="reset_everything_delete_game_settings_hint">Each game goes back to the general settings. This also removes its own controller layout and which of its updates, DLC and mods were switched off.</string>
     <string name="reset_everything_confirm">Reset</string>

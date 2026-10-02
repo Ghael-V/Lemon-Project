@@ -13,14 +13,23 @@ SPDX-License-Identifier: GPL-3.0-or-later
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingHorizontal="24dp"
-    android:paddingTop="20dp">
+    android:paddingTop="12dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingEnd="16dp">
 
     <ImageView
-        android:layout_width="72dp"
-        android:layout_height="72dp"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:importantForAccessibility="no"
         android:src="@drawable/ic_lemon_splash" />
 
@@ -42,12 +51,20 @@ SPDX-License-Identifier: GPL-3.0-or-later
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="?attr/colorOnSurfaceVariant" />
 
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/button_discord"
         style="@style/LemonButton.Primary"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="0dp"
         android:text="@string/join_discord_button"
         app:icon="@drawable/ic_discord"
         app:iconGravity="textStart"
@@ -78,6 +95,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
         app:iconSize="24dp"
         app:strokeColor="?attr/colorOutline"
         app:strokeWidth="1dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
 

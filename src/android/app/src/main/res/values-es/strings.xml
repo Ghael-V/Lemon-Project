@@ -760,8 +760,8 @@
     <string name="reset_all_settings_description">Todas las opciones avanzadas se restablecerán a su configuración predeterminada. Esta acción no se puede deshacer.</string>
     <string name="settings_reset">Reiniciar ajustes</string>
     <string name="reset_everything">Restablecer todos los ajustes</string>
-    <string name="reset_everything_description">Vuelve a la configuración original</string>
-    <string name="reset_everything_dialog_description">Todos los ajustes vuelven a su valor original: gráficos, sistema, controles y asignación de botones, audio, el diseño del mando en pantalla y las opciones de la app. Se conservan tus carpetas de juegos, las ubicaciones de almacenamiento, las claves, el firmware y las partidas. Esta acción no se puede deshacer.</string>
+    <string name="reset_everything_description">Vuelve a los valores de una instalación nueva</string>
+    <string name="reset_everything_dialog_description">Todos los ajustes vuelven al valor que tiene una instalación nueva de Lemon: gráficos, sistema, controles y asignación de botones, audio, el diseño del mando en pantalla y las opciones de la app. Lo que hayas ajustado tú, como la resolución, el modo de la GPU o el driver gráfico, vuelve al valor por defecto. Se conservan tus carpetas de juegos, las ubicaciones de almacenamiento, las claves, el firmware y las partidas. Esta acción no se puede deshacer.</string>
     <string name="reset_everything_delete_game_settings">Borrar también los ajustes personalizados de cada juego</string>
     <string name="reset_everything_delete_game_settings_hint">Cada juego vuelve a usar los ajustes generales. Esto también elimina su diseño de mando propio y cuáles de sus actualizaciones, DLC y mods estaban desactivados.</string>
     <string name="reset_everything_confirm">Restablecer</string>
