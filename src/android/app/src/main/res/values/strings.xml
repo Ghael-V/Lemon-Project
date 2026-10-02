@@ -574,7 +574,7 @@
     <string name="update_none">No newer version found, or the update server could not be reached.</string>
     <string name="update_open_page">Open download page</string>
     <string name="whats_new_title">What\'s new in Lemon 1.0</string>
-    <string name="whats_new_body">• A new interface: a launcher-style library, a quick in-game panel with a performance card and full controller navigation.\n• On-screen controller layout per game.\n• Lemon Cheater now searches floats.\n• Fixes: FIFA\'s missing indicators, shadows and text, FIFA 23 start-up, updates and DLC inside .nsz files, and gyro controls on foldables.\n• A red \"Reset all settings\" card at the bottom of Settings.\n• A new website with a settings guide and an FAQ: lemon-emu.org</string>
+    <string name="whats_new_body">• A new interface: a launcher-style library, a quick in-game panel with a performance card and full controller navigation.\n• On-screen controller layout per game.\n• Lemon Cheater now searches floats.\n• Fixes: FIFA\'s missing indicators, shadows and text, FIFA 23 start-up, updates and DLC inside .nsz files, and gyro controls on foldables.\n• GPU Mode is now Accurate by default, which fixes flickering textures in some games.\n• A red \"Reset all settings\" card at the bottom of Settings.\n• A new website with a settings guide and an FAQ: lemon-emu.org</string>
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_read_more">Read more</string>
     <string name="whats_new_link">https://lemon-emu.org/#fixes</string>

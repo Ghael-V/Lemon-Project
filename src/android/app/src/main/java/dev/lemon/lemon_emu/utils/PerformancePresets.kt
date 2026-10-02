@@ -32,7 +32,7 @@ object PerformancePresets {
 
     private fun valuesOf(preset: Preset) = when (preset) {
         Preset.BATTERY -> Values(1, 1, 0, 0, 2) // 0.5x, bilinear, no AA, low accuracy, Fifo
-        Preset.BALANCED -> Values(3, 1, 0, 0, 2) // native, bilinear, no AA, low accuracy, Fifo
+        Preset.BALANCED -> Values(3, 1, 0, 1, 2) // native, bilinear, no AA, high accuracy, Fifo (the stock settings)
         Preset.QUALITY -> Values(6, 2, 1, 1, 2) // 2x, bicubic, FXAA, high accuracy, Fifo
     }
 

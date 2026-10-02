@@ -501,11 +501,9 @@ struct Values {
                                          linkage, 0, "bg_blue", Category::Renderer, Specialization::Default, true, true};
 
     SwitchableSetting<GpuAccuracy, true> gpu_accuracy{linkage,
-#ifdef __ANDROID__
-                                                      GpuAccuracy::Low,
-#else
+                                                      // Accurate everywhere. Fast makes some games flicker
+                                                      // (confirmed on Garfield and Dragon Ball, Adreno 830).
                                                       GpuAccuracy::High,
-#endif
                                                       "gpu_accuracy",
                                                       Category::RendererAdvanced,
                                                       Specialization::Default,
