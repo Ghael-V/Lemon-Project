@@ -83,7 +83,6 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
     private val gyro = FloatArray(3)
     private val accel = FloatArray(3)
     private var motionTimestamp: Long = 0
-    private var flipMotionOrientation: Boolean = false
 
     private val actionPause = "ACTION_EMULATOR_PAUSE"
     private val actionPlay = "ACTION_EMULATOR_PLAY"
@@ -497,33 +496,43 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
             return
         }
 
-        val rotation = this.display?.rotation
-        if (rotation == Surface.ROTATION_90) {
-            flipMotionOrientation = true
-        }
-        if (rotation == Surface.ROTATION_270) {
-            flipMotionOrientation = false
+        // Sensor axes are fixed to the device's natural orientation, not to the screen. Turn the
+        // x/y pair so it lines up with how the display is currently rotated. All four rotations
+        // matter: a foldable's inner screen, or a tablet, reports 0/180 when held landscape, and
+        // those used to be treated like 270 (swapping the axes, so left/right read as up/down).
+        // An unknown rotation keeps the 270 mapping this always assumed.
+        val deviceX = event.values[0]
+        val deviceY = event.values[1]
+        val screenX: Float
+        val screenY: Float
+        when (this.display?.rotation) {
+            Surface.ROTATION_0 -> {
+                screenX = deviceX
+                screenY = deviceY
+            }
+            Surface.ROTATION_90 -> {
+                screenX = -deviceY
+                screenY = deviceX
+            }
+            Surface.ROTATION_180 -> {
+                screenX = -deviceX
+                screenY = -deviceY
+            }
+            else -> {
+                screenX = deviceY
+                screenY = -deviceX
+            }
         }
 
         if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-            if (flipMotionOrientation) {
-                accel[0] = event.values[1] / SensorManager.GRAVITY_EARTH
-                accel[1] = -event.values[0] / SensorManager.GRAVITY_EARTH
-            } else {
-                accel[0] = -event.values[1] / SensorManager.GRAVITY_EARTH
-                accel[1] = event.values[0] / SensorManager.GRAVITY_EARTH
-            }
+            accel[0] = -screenX / SensorManager.GRAVITY_EARTH
+            accel[1] = -screenY / SensorManager.GRAVITY_EARTH
             accel[2] = -event.values[2] / SensorManager.GRAVITY_EARTH
         }
         if (event.sensor.type == Sensor.TYPE_GYROSCOPE) {
             // Investigate why sensor value is off by 6x
-            if (flipMotionOrientation) {
-                gyro[0] = -event.values[1] / 6.0f
-                gyro[1] = event.values[0] / 6.0f
-            } else {
-                gyro[0] = event.values[1] / 6.0f
-                gyro[1] = -event.values[0] / 6.0f
-            }
+            gyro[0] = screenX / 6.0f
+            gyro[1] = screenY / 6.0f
             gyro[2] = event.values[2] / 6.0f
         }
 
