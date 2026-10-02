@@ -2065,7 +2065,11 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_clearFilesystemProvider(JNIEnv* env
 
 jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_areKeysPresent(JNIEnv* env, jobject jobj) {
     auto& system = EmulationSession::GetInstance().System();
-    system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
+    // Only make sure the factories exist. The default (overwrite) destroys and recreates the
+    // content providers the union points at, which crashes a game-list scan that is running at the
+    // same moment (use after free in ContentProviderUnion::GetEntryRaw). Installing firmware or
+    // keys already reloads the system through initializeSystem(true).
+    system.GetFileSystemController().CreateFactories(*system.GetFilesystem(), false);
     return ContentManager::AreKeysPresent();
 }
 
