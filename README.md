@@ -32,17 +32,14 @@
 > This GitHub repository is a mirror. For help or to report a problem, use the Discord.
 
 <p align="center">
+  <a href="https://git.lemon-emu.org/lemon/Lemon-Project/releases/latest">
+    <img src="https://img.shields.io/gitea/v/release/lemon/Lemon-Project?gitea_url=https%3A%2F%2Fgit.lemon-emu.org&label=latest%20release&color=success" alt="Latest release">
+  </a>
+  <a href="./LICENSE.txt">
+    <img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="License: GPL-3.0-or-later">
+  </a>
   <a href="https://github.com/Ghael-V/Lemon-Project/stargazers">
-    <img src="https://img.shields.io/github/stars/Ghael-V/Lemon-Project?style=flat&color=yellow" alt="GitHub stars">
-  </a>
-  <a href="https://github.com/Ghael-V/Lemon-Project/releases">
-    <img src="https://img.shields.io/github/downloads/Ghael-V/Lemon-Project/total?color=blue" alt="Total downloads">
-  </a>
-  <a href="https://github.com/Ghael-V/Lemon-Project/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Ghael-V/Lemon-Project?label=stable&color=success" alt="Latest stable release">
-  </a>
-  <a href="https://github.com/Ghael-V/Lemon-Project/releases">
-    <img src="https://img.shields.io/github/v/release/Ghael-V/Lemon-Project?include_prereleases&label=latest%20(any%20channel)&color=orange" alt="Latest release, any channel">
+    <img src="https://img.shields.io/github/stars/Ghael-V/Lemon-Project?style=flat&color=yellow&label=GitHub%20mirror%20stars" alt="GitHub mirror stars">
   </a>
   <a href="https://github.com/Ghael-V">
     <img src="https://img.shields.io/badge/dev-Ghael--V-blueviolet" alt="Developer">
@@ -66,7 +63,8 @@ and run it on a single Adreno-equipped Android device: no Qt/desktop/CLI targets
 Mali/PowerVR-specific code paths.
 
 Started as a personal build for the maintainer's own device(s); builds are now published on the
-[Releases page](https://github.com/Ghael-V/Lemon-Project/releases) and the app checks for new ones on launch. It's
+[Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of Lemon's own server and the app checks
+for new ones on launch (with the GitHub mirror as a fallback). It's
 still a small, personal-scale project rather than a community one — there's a [Discord](https://discord.com/invite/PEE7Q5TVM5)
 for feedback and support, but it isn't actively looking for external contributions; the source and releases are
 public under the GPL.
@@ -80,8 +78,12 @@ captured and restored) — see [Features](#features) below.
 
 Everything below is specific to Lemon, on top of the Switch emulation it inherits from Eden/yuzu:
 
+- **Redesigned interface** — a launcher-style library (carousel, grid or list), a quick in-game panel with a live
+  performance card, redesigned Settings, About and Statistics screens, and full controller navigation, including
+  gamepad shortcuts to open the in-game menu.
 - **Lemon Cheater** — a live memory search/edit tool built into the in-game menu, Cheat-Engine style: exact-value
-  and blind (unknown-value) searches, refine by increased/decreased/unchanged across passes, direct value editing,
+  and blind (unknown-value) searches over 32-bit integers and floats (a float matches within the precision you
+  typed), refine by increased/decreased/unchanged across passes, direct value editing,
   and freezing a found address so it stays fixed (infinite HP/ammo/etc.) via a background rewrite thread, without
   needing a premade cheat code.
 - **Input macros** — record a sequence of on-screen controller presses with their timing and play it back, looped
@@ -96,11 +98,18 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
 - **Controller layout presets** — a "Diseño del mando" entry in the pause menu with one-tap presets (default, big
   buttons, swapped D-pad/stick) plus quick access to the existing drag-and-resize edit mode, which used to be
   buried two menus deep with no indication it existed.
+- **Controller layout per game** — move and resize the on-screen controls for one game only, or for all of them.
+- **Reset all settings** — a red card at the bottom of Settings that puts every setting back to a fresh install's
+  defaults, optionally also deleting every game's custom settings. Game folders, storage locations and each game's
+  add-on choices are kept (unless the games' settings are deleted too).
+- **Website, settings guide and FAQ** at [lemon-emu.org](https://lemon-emu.org), in English and Spanish, with a plain-language
+  explanation of every setting.
 - **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
   "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
 - **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.
-- **In-app updates** — checks this repository's GitHub Releases on launch and can download/install the new APK
-  directly, with no path (missing release, no connection) that crashes the app.
+- **In-app updates** — checks Lemon's own server on launch (falling back to the GitHub mirror when it can't be
+  reached), on demand from the About screen too, and can download/install the new APK directly, with no path
+  (missing release, no connection) that crashes the app. A one-time "What's new" notice follows an update.
 - **Adreno GPU driver manager** — install alternate Adreno graphics drivers per game, plus per-game performance
   presets, frame generation and post-processing options.
 - Save data import/export, Amiibo loading, and ad-hoc multiplayer, same as upstream Eden.
@@ -108,11 +117,25 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
 ## Changelog
 
 Full release notes (including Nightly/Experimental prereleases) are on the
-[Releases page](https://github.com/Ghael-V/Lemon-Project/releases). Highlights:
+[Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases). Highlights:
 
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.0.0** — Lemon has its own home: the code, the releases and the updates now live at
+  [git.lemon-emu.org](https://git.lemon-emu.org/lemon/Lemon-Project) (GitHub is a mirror) and there is a website,
+  [lemon-emu.org](https://lemon-emu.org), with a settings guide and an FAQ. A new interface: launcher-style library,
+  quick in-game panel with a performance card, redesigned Settings/About/Statistics and full controller navigation;
+  the new screens are translated to Spanish. Controller layout per game. Lemon Cheater searches, edits and freezes
+  floats as well as integers. **Reset all settings** on the Settings screen. **GPU Mode is Accurate by default**:
+  Fast made textures flicker in some games (confirmed on Garfield and Dragon Ball). Updates come from Lemon's own
+  server with GitHub as a fallback, a Check for updates button on the About screen and a "What's new" notice after
+  an update. Fixes: FIFA's missing player indicators, ball-direction lines, button prompts and text (a texture handle
+  that travels with the vertices could not be followed by the shader compiler, so those draws were silently
+  dropped; draws are now split by texture); FIFA 23 stuck at the splash screen (the network service lacked an
+  `Ioctl` call); updates and DLC bundled in `.nsz` files showing the wrong version and no DLC; motion controls on
+  every screen rotation, so they work on foldables and tablets held landscape. Known issue: in FIFA 23 the faces
+  of some players can show wrong colors.
 - **v0.3.5** — Coming from Eden, Citron or yuzu: Lemon imports your saves (plus keys and firmware if it has none)
   without opening the other emulator, from the first-run setup or the top of Settings. Android 12 support. The
   Lemon-Ade driver ships inside the app and is picked automatically on the Adreno 830, with an automatic fallback to
@@ -172,23 +195,24 @@ consolidated build going forward instead of splitting fixes across three branche
 ## Scope
 
 - **Android only.** Every desktop/CLI build target from upstream has been removed.
-- **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested.
+- **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested; the app may start on them,
+  but they are not supported (see the [FAQ](https://lemon-emu.org/faq.html)).
 - **No keys, no firmware.** `prod.keys` and Switch firmware are not part of this repository and never will be —
   sourcing them from your own legally owned console is entirely on you. Lemon does not touch key derivation,
   decryption, or DRM in any way; it only builds the emulator app.
 
 ## Building
 
-Releases are built and published manually (see the [Releases page](https://github.com/Ghael-V/Lemon-Project/releases)
+Releases are built and published manually (see the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases)
 for prebuilt APKs). A [GitHub Actions workflow](.github/workflows/android-build.yml) exists to verify the build
-still compiles, but it's manually triggered (`workflow_dispatch`), not run automatically on every push. To build
+still compiles, but it's manually triggered (`workflow_dispatch`) and only runs on the GitHub mirror. To build
 locally:
 
 **Dependencies:** [Android Studio](https://developer.android.com/studio), NDK 27+ and CMake 3.22.1 (installable
 from Android Studio's SDK Manager), and Git.
 
 ```sh
-git clone --recursive https://github.com/Ghael-V/Lemon-Project.git
+git clone --recursive https://git.lemon-emu.org/lemon/Lemon-Project.git
 ```
 
 Then either open `Lemon-Project/src/android` in Android Studio and use `Run > Run 'app'`, or from a terminal:
