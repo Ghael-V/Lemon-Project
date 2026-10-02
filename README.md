@@ -21,6 +21,17 @@
 <h4 align="center">An Android-only Nintendo Switch emulator built for Adreno GPUs.</h4>
 
 <p align="center">
+  <a href="https://lemon-emu.org">Website</a> |
+  <a href="https://git.lemon-emu.org/lemon/Lemon-Project">Main repository</a> |
+  <a href="https://lemon-emu.org/faq.html">FAQ</a> |
+  <a href="https://lemon-emu.org/guide.html">Settings guide</a> |
+  <a href="https://discord.com/invite/PEE7Q5TVM5">Discord</a>
+</p>
+
+> The main repository and the releases live at <https://git.lemon-emu.org/lemon/Lemon-Project>.
+> This GitHub repository is a mirror. For help or to report a problem, use the Discord.
+
+<p align="center">
   <a href="https://github.com/Ghael-V/Lemon-Project/stargazers">
     <img src="https://img.shields.io/github/stars/Ghael-V/Lemon-Project?style=flat&color=yellow" alt="GitHub stars">
   </a>

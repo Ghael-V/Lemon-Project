@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# This GitHub repository is a mirror: Lemon's main repository is https://git.lemon-emu.org/lemon/Lemon-Project.
+# Support and bug reports happen on Discord, so GitHub only shows these links instead of an empty issue form.
+blank_issues_enabled: false
+contact_links:
+  - name: Support and bug reports (Discord)
+    url: https://discord.com/invite/PEE7Q5TVM5
+    about: Ask for help or report a bug. Please include the game, your device and the build number from About.
+  - name: FAQ
+    url: https://lemon-emu.org/faq.html
+    about: Answers to the most common questions and problems.
+  - name: Settings guide
+    url: https://lemon-emu.org/guide.html
+    about: What every setting does, in plain words.
