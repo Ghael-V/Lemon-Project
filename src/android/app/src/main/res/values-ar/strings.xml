@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
 
-    <string name="app_disclaimer">سيعمل هذا البرنامج على تشغيل ألعاب منصة ألعاب «نينتندو سويتش». لا يتضمن البرنامج أي ألعاب أو مفاتيح تفعيل.<br /><br /> قبل البدء، يرجى تحديد موقع ملف <![CDATA[<b> prod.keys</b> ]]> في مساحة التخزين بجهازك.<br /><br /><![CDATA[<a href=\"https://git.eden-emu.dev/eden-emu/eden/src/branch/master/docs/user/QuickStart.md\">مزيد من المعلومات</a>]]></string>
+    <string name="app_disclaimer">سيعمل هذا البرنامج على تشغيل ألعاب منصة ألعاب «نينتندو سويتش». لا يتضمن البرنامج أي ألعاب أو مفاتيح تفعيل.<br /><br /> قبل البدء، يرجى تحديد موقع ملف <![CDATA[<b> prod.keys</b> ]]> في مساحة التخزين بجهازك.</string>
     <string name="notice_notification_channel_name">الإشعارات والأخطاء</string>
     <string name="notice_notification_channel_description">عرض الإشعارات عند حدوث خطأ ما.</string>
     <string name="notification_permission_not_granted">لم يتم منح إذن الإشعار!</string>

@@ -6,6 +6,9 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.PerformanceInfo
+import dev.lemon.lemon_emu.overlay.model.OverlayControlData
+import dev.lemon.lemon_emu.utils.PerGameOverlay
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
@@ -48,6 +51,13 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import dev.lemon.lemon_emu.ui.modern.InGameMenuPanel
+import dev.lemon.lemon_emu.ui.modern.LoadingSnapshot
+import dev.lemon.lemon_emu.ui.modern.ModernLoadingScreen
+import dev.lemon.lemon_emu.ui.modern.UiMode
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.drawerlayout.widget.DrawerLayout.DrawerListener
 import androidx.fragment.app.Fragment
@@ -371,6 +381,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 throw fallbackException
             }
         }
+        // A game that runs on its custom config may have its own touch controls layout.
+        // (The view may not exist yet here; the overlay reads the layout when it is laid out.)
+        _binding?.surfaceInputOverlay?.post { _binding?.surfaceInputOverlay?.refreshControls() }
         try {
             if (GpuDriverHelper.isAdrenoGpu()) {
                 val programIdHex = game!!.programIdHex
@@ -727,8 +740,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
 
             override fun onDrawerOpened(drawerView: View) {
+                // Each drawer hands the focus to its own rows; the hidden one must not take it.
+                val modernSheet = UiMode.isModern(requireContext()) && drawerView == binding.quickSettingsSheet
+                if (drawerView == binding.inGameMenu) {
+                    menuTick.intValue++
+                    focusInGameMenuPanel()
+                }
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-                binding.inGameMenu.requestFocus()
+                if (!modernSheet) {
+                    binding.inGameMenu.requestFocus()
+                }
                 emulationViewModel.setDrawerOpen(true)
                 updateQuickOverlayMenuEntry(BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean())
                 if (drawerView == binding.inGameMenu) {
@@ -952,6 +973,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
 
         addQuickSettings()
+        if (UiMode.isModern(requireContext())) {
+            setupModernInGameMenu()
+            setupModernQuickSettings()
+        }
 
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
@@ -966,6 +991,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     }
                     refreshPostProcessing()
                     addQuickSettings()
+                    if (UiMode.isModern(requireContext())) {
+                        focusFirstQuickSetting()
+                    }
                 }
             }
 
@@ -1002,6 +1030,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             binding.loadingTitle.text = it.title
         } ?: run {
             binding.loadingTitle.text = ""
+        }
+        if (UiMode.isModern(requireContext())) {
+            setupModernLoadingScreen()
         }
         binding.loadingTitle.isSelected = true
         binding.loadingText.isSelected = true
@@ -1163,6 +1194,174 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
             }
         }
+    }
+
+    // Re-read by the redesigned in-game panel every time the drawer opens.
+    private val menuTick = mutableIntStateOf(0)
+    private var inGameMenuPanel: ComposeView? = null
+    private var menuAnchor: View? = null
+
+    /**
+     * Replaces the look of the in-game side panel with the redesigned one. The classic menu stays
+     * in place, hidden, and the panel drives it: it lists its items and sends every tap through
+     * its own handler, so behavior is identical.
+     */
+    /**
+     * Hands the view focus to the redesigned panel. The window is often in touch mode here (the
+     * drawer was opened with a swipe) and the game's touch overlay holds the focus; a view that is
+     * not focusable in touch mode can't take it from there, and then no key would reach the rows.
+     */
+    private fun focusInGameMenuPanel() {
+        val panel = inGameMenuPanel ?: return
+        panel.postDelayed({
+            for (i in 0 until panel.childCount) {
+                panel.getChildAt(i).isFocusableInTouchMode = true
+            }
+            panel.requestFocus()
+        }, 60)
+    }
+
+    /** Dresses the right-hand quick settings drawer in the Lemon look; its rows and logic are the classic ones. */
+    private fun setupModernQuickSettings() {
+        val sheet = binding.quickSettingsSheet
+        val metrics = resources.displayMetrics
+        val room = metrics.widthPixels - (64 * metrics.density).toInt()
+        sheet.layoutParams = sheet.layoutParams.apply {
+            width = minOf((460 * metrics.density).toInt(), room)
+        }
+        sheet.setBackgroundResource(R.drawable.lemon_side_panel_end)
+        sheet.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.quick_settings_toolbar)
+            ?.setTitleTextAppearance(requireContext(), R.style.TextAppearance_Lemon_TitleLarge)
+    }
+
+    /**
+     * Gives the first row of the quick settings the focus. Like the in-game panel, it can be swiped
+     * open while the window is in touch mode, where nothing else would take it from the game's overlay.
+     */
+    private fun focusFirstQuickSetting() {
+        val sheet = binding.quickSettingsSheet
+        sheet.postDelayed({
+            val focusables = ArrayList<View>()
+            sheet.addFocusables(focusables, View.FOCUS_DOWN, View.FOCUSABLES_ALL)
+            focusables.firstOrNull { it.isShown && it.isEnabled && it !== sheet }?.let {
+                it.isFocusableInTouchMode = true
+                it.requestFocus()
+            }
+        }, 120)
+    }
+
+    private fun setupModernInGameMenu() {
+        val nav = binding.inGameMenu
+        for (i in 0 until nav.childCount) {
+            nav.getChildAt(i).visibility = View.GONE
+        }
+        // The panel draws its own background; the drawer's would show as a strip beside it.
+        nav.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        val panel = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                InGameMenuPanel(
+                    menu = nav.menu,
+                    game = game,
+                    tick = menuTick.intValue,
+                    performance = buildPerformanceInfo(),
+                    onItem = { id -> nav.menu.performIdentifierAction(id, 0) }
+                )
+            }
+        }
+        nav.addView(panel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        inGameMenuPanel = panel
+        // NavigationView caps a wrap_content drawer at 360dp; an exact width has no cap, and the
+        // panel plus its floating performance card need room.
+        val metrics = resources.displayMetrics
+        val room = metrics.widthPixels - (64 * metrics.density).toInt()
+        nav.layoutParams = nav.layoutParams.apply {
+            width = minOf((730 * metrics.density).toInt(), room)
+        }
+        // The classic menu's rows no longer exist, so the small pop-up menus that were anchored to
+        // them (controller layout, overlay options) hang from this point inside the panel instead.
+        val density = resources.displayMetrics.density
+        menuAnchor = View(requireContext()).also {
+            nav.addView(
+                it,
+                FrameLayout.LayoutParams(1, 1).apply {
+                    gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                    leftMargin = (200 * density).toInt()
+                    topMargin = (150 * density).toInt()
+                }
+            )
+        }
+    }
+
+    private fun buildPerformanceInfo(): PerformanceInfo {
+        val presets = PerformancePresets.Preset.entries
+        return PerformanceInfo(
+            presetLabels = presets.map { getString(it.titleRes) },
+            activePreset = { PerformancePresets.current()?.let { presets.indexOf(it) } ?: -1 },
+            resolution = {
+                val values = resources.getIntArray(R.array.rendererResolutionValues)
+                val names = resources.getStringArray(R.array.rendererResolutionNames)
+                val index = values.indexOf(IntSetting.RENDERER_RESOLUTION.getInt())
+                if (index >= 0) names[index] else "-"
+            },
+            speedLimit = {
+                if (BooleanSetting.RENDERER_USE_SPEED_LIMIT.getBoolean(false)) {
+                    "${ShortSetting.RENDERER_SPEED_LIMIT.getShort(false)}%"
+                } else {
+                    getString(R.string.lemon_speed_unlimited)
+                }
+            },
+            driver = { driverViewModel.selectedDriverTitle.value },
+            onPreset = { index ->
+                val preset = presets[index]
+                PerformancePresets.apply(preset)
+                if (NativeConfig.isPerGameConfigLoaded()) {
+                    NativeConfig.savePerGameConfig()
+                } else {
+                    NativeConfig.saveGlobalConfig()
+                }
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.preset_applied, getString(preset.titleRes)),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
+    /**
+     * Turns the small loading card into a full-screen loading screen. The card's own views are kept
+     * (all the existing code that updates them keeps working) and only read by the new screen.
+     */
+    private fun setupModernLoadingScreen() {
+        val card = binding.loadingIndicator as com.google.android.material.card.MaterialCardView
+        card.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        card.strokeWidth = 0
+        card.radius = 0f
+        card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.loadingLayout.visibility = View.GONE
+        val screen = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                ModernLoadingScreen(
+                    isActive = { _binding != null && card.visibility == View.VISIBLE },
+                    read = {
+                        val b = _binding
+                        LoadingSnapshot(
+                            game = game,
+                            message = b?.loadingText?.text?.toString().orEmpty(),
+                            progress = b?.loadingProgressIndicator?.progress ?: 0,
+                            max = b?.loadingProgressIndicator?.max ?: 0,
+                            indeterminate = b?.loadingProgressIndicator?.isIndeterminate ?: true
+                        )
+                    }
+                )
+            }
+        }
+        card.addView(screen, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
 
     private fun updateGameTitle() {
@@ -1798,12 +1997,60 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         addQuickSettings()
     }
 
+    private var overlayEditBefore: Array<OverlayControlData>? = null
+    private var overlayEditWasCustom = false
+
+    /** Remembers the touch controls layout before an edit, to ask where to keep it afterwards. */
+    private fun beginOverlayEdit() {
+        overlayEditBefore = PerGameOverlay.snapshot()
+        overlayEditWasCustom = NativeConfig.isCustomOverlayActive()
+    }
+
+    /**
+     * If the edit changed the layout, asks whether it is for every game or only for this one.
+     * Closing the dialog keeps the change for every game, as it always worked.
+     */
+    private fun finishOverlayEdit() {
+        val before = overlayEditBefore ?: return
+        overlayEditBefore = null
+        val target = game ?: return
+        if (_binding == null || !PerGameOverlay.changed(before)) {
+            return
+        }
+        val wasCustom = overlayEditWasCustom
+        val edited = NativeConfig.getOverlayControlData()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.overlay_save_scope_title)
+            .setMessage(getString(R.string.overlay_save_scope_message, target.title))
+            .setPositiveButton(R.string.overlay_save_this_game) { _, _ ->
+                PerGameOverlay.saveForThisGame(target, before, wasCustom, edited)
+                shouldUseCustom = true
+                _binding?.surfaceInputOverlay?.refreshControls()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.overlay_saved_for_game, target.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton(R.string.overlay_save_all_games) { _, _ ->
+                PerGameOverlay.saveForAllGames(target, edited, wasCustom)
+                _binding?.surfaceInputOverlay?.refreshControls()
+            }
+            .setNeutralButton(R.string.overlay_discard_changes) { _, _ ->
+                PerGameOverlay.discard(before, wasCustom)
+                _binding?.surfaceInputOverlay?.refreshControls()
+            }
+            .show()
+    }
+
     private fun resetInputOverlay() {
         IntSetting.OVERLAY_SCALE.reset()
         IntSetting.OVERLAY_OPACITY.reset()
+        beginOverlayEdit()
         binding.surfaceInputOverlay.post {
             binding.surfaceInputOverlay.resetLayoutVisibilityAndPlacement()
             binding.surfaceInputOverlay.resetIndividualControlScale()
+            finishOverlayEdit()
         }
     }
 
@@ -2300,7 +2547,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private fun showOverlayOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls)
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls) ?: menuAnchor ?: binding.inGameMenu
         val popup = PopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_options, popup.menu)
@@ -2435,7 +2682,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private fun showOverlayLayoutOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout)
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout) ?: menuAnchor ?: binding.inGameMenu
         val popup = PopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_layout, popup.menu)
@@ -2445,19 +2692,25 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             when (it.itemId) {
                 R.id.menu_preset_default -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Default)
+                    finishOverlayEdit()
                     true
                 }
 
                 R.id.menu_preset_big -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Big)
+                    finishOverlayEdit()
                     true
                 }
 
                 R.id.menu_preset_swapped -> {
                     toggleOverlay(true)
+                    beginOverlayEdit()
                     binding.surfaceInputOverlay.applyPreset(OverlayPreset.Swapped)
+                    finishOverlayEdit()
                     true
                 }
 
@@ -2489,6 +2742,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         toggleOverlay(true)
+        beginOverlayEdit()
         binding.controlConfigHintContainer.setVisible(true)
         binding.surfaceInputOverlay.setIsInEditMode(true)
     }
@@ -2503,6 +2757,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         NativeConfig.saveGlobalConfig()
+        finishOverlayEdit()
     }
 
     @SuppressLint("SetTextI18n")

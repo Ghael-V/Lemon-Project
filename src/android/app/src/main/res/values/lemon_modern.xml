@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<resources>
+    <!-- The redesigned interface's palette: warm near-black, lemon yellow, red only for danger. -->
+    <color name="lemon_m_background">#0F0E0C</color>
+    <color name="lemon_m_surface">#151412</color>
+    <color name="lemon_m_surface_variant">#26231F</color>
+    <color name="lemon_m_on_surface">#F5F0E6</color>
+    <color name="lemon_m_on_surface_variant">#BDB5A8</color>
+    <color name="lemon_m_outline">#5A544D</color>
+    <color name="lemon_m_outline_variant">#3A3631</color>
+    <color name="lemon_m_primary">#FFD43B</color>
+    <color name="lemon_m_on_primary">#1A1814</color>
+    <color name="lemon_m_primary_container">#4A3D00</color>
+    <color name="lemon_m_on_primary_container">#FFE27A</color>
+    <color name="lemon_m_secondary">#D9CDAE</color>
+    <color name="lemon_m_on_secondary">#2A2723</color>
+    <color name="lemon_m_secondary_container">#33302A</color>
+    <color name="lemon_m_on_secondary_container">#EDE3C8</color>
+    <color name="lemon_m_tertiary">#FF8A78</color>
+    <color name="lemon_m_on_tertiary">#3A0A04</color>
+    <color name="lemon_m_tertiary_container">#5C1D12</color>
+    <color name="lemon_m_on_tertiary_container">#FFDAD3</color>
+    <color name="lemon_m_error">#FF6B57</color>
+    <color name="lemon_m_on_error">#3A0A04</color>
+    <color name="lemon_m_error_container">#5C1D12</color>
+    <color name="lemon_m_on_error_container">#FFDAD3</color>
+    <color name="lemon_m_container_lowest">#0B0A09</color>
+    <color name="lemon_m_container_low">#181614</color>
+    <color name="lemon_m_container">#1F1D1A</color>
+    <color name="lemon_m_container_high">#26231F</color>
+    <color name="lemon_m_container_highest">#2E2B27</color>
+    <color name="lemon_m_surface_bright">#34302B</color>
+
+    <style name="ShapeAppearance.Lemon.Small" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+    <style name="ShapeAppearance.Lemon.Medium" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+    <style name="ShapeAppearance.Lemon.Large" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">26dp</item>
+    </style>
+
+    <!-- Titles use the title face; everything else the body face (see android:fontFamily below). -->
+    <style name="TextAppearance.Lemon.Display" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="android:fontFamily">@font/lemon_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Lemon.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">@font/lemon_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Lemon.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:fontFamily">@font/lemon_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Lemon.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">@font/lemon_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="LemonMaterialDialog.Modern" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearance">@style/ShapeAppearance.Lemon.Large</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Lemon.Large</item>
+        <item name="colorSurfaceContainerHigh">@color/lemon_m_container_high</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Material3.Title.Text</item>
+    </style>
+
+    <style name="TextAppearance.Lemon.NavItem" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/lemon_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <!-- Side panels such as the in-game menu. -->
+    <style name="Widget.Lemon.NavigationView" parent="Widget.Material3.NavigationView">
+        <item name="android:background">?attr/colorSurfaceContainerLow</item>
+        <item name="android:maxWidth">760dp</item>
+        <item name="itemShapeAppearance">@style/ShapeAppearance.Lemon.Medium</item>
+        <item name="itemShapeFillColor">@color/lemon_m_nav_item_fill</item>
+        <item name="itemShapeInsetStart">12dp</item>
+        <item name="itemShapeInsetEnd">12dp</item>
+        <item name="itemShapeInsetTop">3dp</item>
+        <item name="itemShapeInsetBottom">3dp</item>
+        <item name="itemTextAppearance">@style/TextAppearance.Lemon.NavItem</item>
+        <item name="itemIconTint">?attr/colorPrimary</item>
+        <item name="itemRippleColor">@color/lemon_m_primary_container</item>
+        <item name="itemHorizontalPadding">20dp</item>
+        <item name="itemVerticalPadding">12dp</item>
+        <item name="itemIconPadding">16dp</item>
+    </style>
+
+    <!-- Applied on top of the base theme when the "New interface" switch is on. -->
+    <style name="ThemeOverlay.Lemon.Modern" parent="">
+        <item name="colorPrimary">@color/lemon_m_primary</item>
+        <item name="colorOnPrimary">@color/lemon_m_on_primary</item>
+        <item name="colorPrimaryContainer">@color/lemon_m_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/lemon_m_on_primary_container</item>
+        <item name="colorSecondary">@color/lemon_m_secondary</item>
+        <item name="colorOnSecondary">@color/lemon_m_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/lemon_m_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/lemon_m_on_secondary_container</item>
+        <item name="colorTertiary">@color/lemon_m_tertiary</item>
+        <item name="colorOnTertiary">@color/lemon_m_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/lemon_m_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/lemon_m_on_tertiary_container</item>
+        <item name="colorError">@color/lemon_m_error</item>
+        <item name="colorOnError">@color/lemon_m_on_error</item>
+        <item name="colorErrorContainer">@color/lemon_m_error_container</item>
+        <item name="colorOnErrorContainer">@color/lemon_m_on_error_container</item>
+        <item name="android:colorBackground">@color/lemon_m_background</item>
+        <item name="colorOnBackground">@color/lemon_m_on_surface</item>
+        <item name="colorSurface">@color/lemon_m_surface</item>
+        <item name="colorOnSurface">@color/lemon_m_on_surface</item>
+        <item name="colorSurfaceVariant">@color/lemon_m_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/lemon_m_on_surface_variant</item>
+        <item name="colorOutline">@color/lemon_m_outline</item>
+        <item name="colorOutlineVariant">@color/lemon_m_outline_variant</item>
+        <item name="colorSurfaceInverse">@color/lemon_m_on_surface</item>
+        <item name="colorOnSurfaceInverse">@color/lemon_m_on_primary</item>
+        <item name="colorPrimaryInverse">@color/lemon_m_primary_container</item>
+        <item name="colorSurfaceDim">@color/lemon_m_background</item>
+        <item name="colorSurfaceBright">@color/lemon_m_surface_bright</item>
+        <item name="colorSurfaceContainerLowest">@color/lemon_m_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/lemon_m_container_low</item>
+        <item name="colorSurfaceContainer">@color/lemon_m_container</item>
+        <item name="colorSurfaceContainerHigh">@color/lemon_m_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/lemon_m_container_highest</item>
+        <item name="colorControlNormal">@color/lemon_m_on_surface_variant</item>
+        <item name="colorControlActivated">@color/lemon_m_primary</item>
+
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Lemon.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Lemon.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Lemon.Large</item>
+
+        <item name="android:fontFamily">@font/lemon_body</item>
+        <item name="fontFamily">@font/lemon_body</item>
+        <item name="textAppearanceDisplayMedium">@style/TextAppearance.Lemon.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.Lemon.Headline</item>
+        <item name="textAppearanceHeadlineSmall">@style/TextAppearance.Lemon.HeadlineSmall</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Lemon.TitleLarge</item>
+
+        <item name="materialAlertDialogTheme">@style/LemonMaterialDialog.Modern</item>
+        <item name="navigationViewStyle">@style/Widget.Lemon.NavigationView</item>
+    </style>
+</resources>

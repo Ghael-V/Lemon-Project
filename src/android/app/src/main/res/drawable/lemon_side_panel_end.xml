@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the right-hand quick settings drawer: dark, with its inner corners rounded. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F70F0E0C" />
+    <corners
+        android:topLeftRadius="28dp"
+        android:bottomLeftRadius="28dp" />
+</shape>

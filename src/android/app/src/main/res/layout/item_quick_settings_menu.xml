@@ -14,7 +14,7 @@
         android:paddingEnd="24dp"
         android:paddingTop="12dp"
         android:paddingBottom="8dp"
-        android:background="?attr/selectableItemBackground"
+        android:background="@drawable/lemon_row_focus"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
@@ -71,7 +71,7 @@
         android:paddingEnd="24dp"
         android:paddingTop="12dp"
         android:paddingBottom="8dp"
-        android:background="?attr/selectableItemBackground"
+        android:background="@drawable/lemon_row_focus"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
@@ -117,7 +117,7 @@
         android:paddingEnd="24dp"
         android:paddingTop="12dp"
         android:paddingBottom="8dp"
-        android:background="?attr/selectableItemBackground"
+        android:background="@drawable/lemon_row_focus"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">

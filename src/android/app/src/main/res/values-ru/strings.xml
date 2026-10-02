@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
 
-    <string name="app_disclaimer">Это программное обеспечение предназначено для запуска игр консоли Nintendo Switch. Никакие игры или ключи не входят в комплект.<br /><br />Перед началом работы найдите файл <![CDATA[<b> prod.keys </b>]]> во внутреннем хранилище вашего устройства. <br /><br /><![CDATA[<a href=\"https://git.eden-emu.dev/eden-emu/eden/src/branch/master/docs/user/QuickStart.md\">Узнать больше</a>]]></string>
+    <string name="app_disclaimer">Это программное обеспечение предназначено для запуска игр консоли Nintendo Switch. Никакие игры или ключи не входят в комплект.<br /><br />Перед началом работы найдите файл <![CDATA[<b> prod.keys </b>]]> во внутреннем хранилище вашего устройства. </string>
     <string name="notice_notification_channel_name">Уведомления и ошибки</string>
     <string name="notice_notification_channel_description">Показывает уведомления, когда что-то пошло не так</string>
     <string name="notification_permission_not_granted">Вы не предоставили разрешение на уведомления!</string>

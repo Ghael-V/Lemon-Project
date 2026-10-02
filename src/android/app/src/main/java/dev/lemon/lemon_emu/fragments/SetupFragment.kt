@@ -16,6 +16,12 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -43,6 +49,8 @@ import dev.lemon.lemon_emu.model.PageState
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.EmulatorMigration
+import dev.lemon.lemon_emu.ui.modern.ModernWelcomeScreen
+import dev.lemon.lemon_emu.ui.modern.UiMode
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
 import dev.lemon.lemon_emu.utils.ViewUtils
@@ -102,6 +110,8 @@ class SetupFragment : Fragment() {
 
         requireActivity().window.navigationBarColor =
             ContextCompat.getColor(requireContext(), android.R.color.transparent)
+
+        showModernWelcome()
 
         pages = mutableListOf<SetupPage>()
         pages.apply {
@@ -549,6 +559,27 @@ class SetupFragment : Fragment() {
                 mainActivity.processGamesDir(result)
             }
         }
+
+    // The redesigned interface opens setup with a welcome screen laid over the steps.
+    private fun showModernWelcome() {
+        if (!UiMode.isModern(requireContext())) {
+            return
+        }
+        val welcome = ComposeView(requireContext()).apply {
+            id = R.id.setup_welcome_compose
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                var shown by rememberSaveable { mutableStateOf(true) }
+                if (shown) {
+                    ModernWelcomeScreen(onStart = { shown = false })
+                }
+            }
+        }
+        (binding.root as ViewGroup).addView(
+            welcome,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+    }
 
     private fun finishSetup() {
         PreferenceManager.getDefaultSharedPreferences(LemonApplication.appContext)

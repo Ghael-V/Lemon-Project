@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Row highlight for controller navigation: a lemon outline when focused, a soft fill when pressed. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <inset
+            android:insetLeft="10dp"
+            android:insetRight="10dp"
+            android:insetTop="2dp"
+            android:insetBottom="2dp">
+            <shape android:shape="rectangle">
+                <solid android:color="#14FFFFFF" />
+                <stroke
+                    android:width="2dp"
+                    android:color="?attr/colorPrimary" />
+                <corners android:radius="18dp" />
+            </shape>
+        </inset>
+    </item>
+    <item android:state_pressed="true">
+        <inset
+            android:insetLeft="10dp"
+            android:insetRight="10dp"
+            android:insetTop="2dp"
+            android:insetBottom="2dp">
+            <shape android:shape="rectangle">
+                <solid android:color="#1FFFFFFF" />
+                <corners android:radius="18dp" />
+            </shape>
+        </inset>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</selector>

@@ -3,6 +3,12 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import dev.lemon.lemon_emu.ui.modern.ModernGameDetail
+import dev.lemon.lemon_emu.ui.modern.GameDetailActions
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.runtime.mutableStateOf
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
@@ -127,6 +133,7 @@ class GamePropertiesFragment : Fragment() {
 
         if (GameHelper.cachedGameList.isEmpty()) {
             binding.buttonStart.isEnabled = false
+            modernPlayEnabled.value = false
             viewLifecycleOwner.lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     GameHelper.restoreContentForGame(args.game)
@@ -136,9 +143,13 @@ class GamePropertiesFragment : Fragment() {
                 }
                 addonViewModel.onAddonsViewStarted(args.game)
                 binding.buttonStart.isEnabled = true
+                modernPlayEnabled.value = true
             }
         }
 
+        if (UiMode.isModern(requireContext())) {
+            setupModernDetail()
+        }
         reloadList()
 
         homeViewModel.openImportSaves.collect(
@@ -161,10 +172,51 @@ class GamePropertiesFragment : Fragment() {
         }
     }
 
+    // The redesigned page: drawn over the classic one from the same list of properties.
+    private val modernProperties = mutableStateOf<List<GameProperty>>(emptyList())
+    private val modernPlaytime = mutableStateOf("")
+    private val modernUsage = mutableStateOf("")
+    private val modernPlayEnabled = mutableStateOf(true)
+
+    private fun setupModernDetail() {
+        // The classic views stay in place (their state is read and their clicks reused) but hidden.
+        binding.listAll.visibility = View.GONE
+        binding.buttonStart.visibility = View.GONE
+        val shortcutManager = requireActivity().getSystemService(ShortcutManager::class.java)
+        val actions = GameDetailActions(
+            onBack = { binding.root.findNavController().popBackStack() },
+            onPlay = {
+                LaunchGameDialogFragment.newInstance(args.game)
+                    .show(childFragmentManager, LaunchGameDialogFragment.TAG)
+            },
+            onShortcut = { binding.buttonShortcut.performClick() },
+            onEditPlaytime = { showEditPlaytimeDialog() }
+        )
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                ModernGameDetail(
+                    game = args.game,
+                    playtime = modernPlaytime.value,
+                    usage = modernUsage.value,
+                    properties = modernProperties.value,
+                    playEnabled = modernPlayEnabled.value,
+                    canPinShortcut = shortcutManager.isRequestPinShortcutSupported,
+                    actions = actions
+                )
+            }
+        }
+        (binding.root as ViewGroup).addView(
+            composeView,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+    }
+
     private fun getPlayTime() {
         val playTimeSeconds = NativeLibrary.playTimeManagerGetPlayTime(args.game.programId)
         val readablePlayTime = PlayTimeUtils.formatReadable(requireContext(), playTimeSeconds)
         binding.playtime.text = getString(R.string.playtime) + " " + readablePlayTime
+        modernPlaytime.value = binding.playtime.text.toString()
 
         binding.playtime.setOnClickListener {
             showEditPlaytimeDialog()
@@ -190,6 +242,7 @@ class GamePropertiesFragment : Fragment() {
                     sessionCount
                 )
         }
+        modernUsage.value = binding.gameUsageStats.text.toString()
     }
 
     private fun showEditPlaytimeDialog() {
@@ -546,6 +599,7 @@ class GamePropertiesFragment : Fragment() {
                 }
             }
         }
+        modernProperties.value = properties
         binding.listProperties.apply {
             val spanCount = resources.getInteger(R.integer.grid_columns)
             val staggered = StaggeredGridLayoutManager(

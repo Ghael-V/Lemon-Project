@@ -9,6 +9,16 @@ Files: dist/english_plurals/*
 Copyright: yuzu Emulator Project
 License: GPL-2.0-or-later
 
+Files: src/android/app/src/main/res/font/bricolage_grotesque.ttf
+Copyright: 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage)
+License: OFL-1.1
+Comment: license text in dist/fonts/OFL-BricolageGrotesque.txt
+
+Files: src/android/app/src/main/res/font/dm_sans.ttf
+Copyright: 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+License: OFL-1.1
+Comment: license text in dist/fonts/OFL-DMSans.txt
+
 Files: externals/getopt/getopt.c
        externals/getopt/getopt.h
 Copyright: 2011 Ludvik Jerabek

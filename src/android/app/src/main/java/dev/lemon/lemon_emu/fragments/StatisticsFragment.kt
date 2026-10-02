@@ -3,6 +3,13 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import dev.lemon.lemon_emu.ui.modern.StatisticsActions
+import dev.lemon.lemon_emu.ui.modern.ModernStatistics
+import dev.lemon.lemon_emu.HomeNavigationDirections
+import androidx.navigation.findNavController
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -83,7 +90,33 @@ class StatisticsFragment : Fragment() {
 
         binding.sortButton.setOnClickListener { showSortMenu(it) }
 
+        if (UiMode.isModern(requireContext())) {
+            setupModernStatistics()
+        }
         setInsets()
+    }
+
+    // The redesigned screen replaces the classic one, which stays in the tree but hidden.
+    private fun setupModernStatistics() {
+        val root = binding.root as ViewGroup
+        for (i in 0 until root.childCount) {
+            root.getChildAt(i).visibility = View.GONE
+        }
+        val actions = StatisticsActions(
+            onBack = { requireActivity().onBackPressedDispatcher.onBackPressed() },
+            onOpenGame = { entry ->
+                val action = HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(entry.game)
+                root.findNavController().navigate(action)
+            }
+        )
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent { ModernStatistics(entries, actions) }
+        }
+        root.addView(
+            composeView,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
     }
 
     private fun sortedEntries(): List<GameStatEntry> = when (currentSortType) {

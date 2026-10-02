@@ -3,6 +3,12 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import dev.lemon.lemon_emu.ui.modern.ModernHomeSettings
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.runtime.mutableStateOf
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -96,9 +102,45 @@ class HomeSettingsFragment : Fragment() {
             val spacing = resources.getDimensionPixelSize(R.dimen.spacing_small)
             addItemDecoration(SpacingItemDecoration(spacing))
         }
+        if (UiMode.isModern(requireContext())) {
+            setupModernHome()
+        }
         refreshOptionsList()
 
         setInsets()
+    }
+
+    // The redesigned home: a searchable grid of cards drawn from the same list of options.
+    private val homeOptions = mutableStateOf<List<HomeSetting>>(emptyList())
+
+    private fun setupModernHome() {
+        binding.scrollViewSettings.visibility = View.GONE
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                ModernHomeSettings(
+                    options = homeOptions.value,
+                    onOptionClick = { model ->
+                        if (model.isEnabled.invoke()) {
+                            model.onClick.invoke()
+                        } else {
+                            MessageDialogFragment.newInstance(
+                                requireActivity(),
+                                titleId = model.disabledTitleId,
+                                descriptionId = model.disabledMessageId
+                            ).show(parentFragmentManager, MessageDialogFragment.TAG)
+                        }
+                    }
+                )
+            }
+        }
+        val params = ConstraintLayout.LayoutParams(0, 0).apply {
+            topToBottom = binding.appbarHomeSettings.id
+            bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+            startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+            endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+        }
+        (binding.root as ViewGroup).addView(composeView, params)
     }
 
     // Only the settings people actually reach for day to day. Everything else lives behind
@@ -479,6 +521,10 @@ class HomeSettingsFragment : Fragment() {
     }
 
     private fun refreshOptionsList() {
+        if (UiMode.isModern(requireContext())) {
+            homeOptions.value = buildOptionsList()
+            return
+        }
         binding.homeSettingsList.adapter = HomeSettingAdapter(
             requireActivity() as AppCompatActivity,
             viewLifecycleOwner,
