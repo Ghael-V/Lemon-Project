@@ -50,6 +50,8 @@ import dev.lemon.lemon_emu.model.PageState
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
 import dev.lemon.lemon_emu.utils.EmulatorMigration
+import androidx.compose.ui.graphics.toArgb
+import dev.lemon.lemon_emu.ui.modern.LemonColors
 import dev.lemon.lemon_emu.ui.modern.ModernWelcomeScreen
 import dev.lemon.lemon_emu.ui.modern.UiMode
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
@@ -357,6 +359,9 @@ class SetupFragment : Fragment() {
                     ViewUtils.showView(binding.buttonNext)
                 }
 
+                // Steps are created ahead of time; make the one coming into view show current state.
+                (binding.viewPager2.adapter as? SetupAdapter)?.refreshStates()
+
                 previousPosition = position
             }
         })
@@ -436,6 +441,7 @@ class SetupFragment : Fragment() {
         // which - unlike the file-picker buttons on this screen - doesn't call back directly).
         if (_binding != null) {
             checkForButtonState.invoke()
+            (binding.viewPager2.adapter as? SetupAdapter)?.refreshStates()
         }
     }
 
@@ -566,6 +572,8 @@ class SetupFragment : Fragment() {
         if (!UiMode.isModern(requireContext())) {
             return
         }
+        // The steps sit on the same dark surface as the welcome screen and the rest of the app.
+        binding.root.setBackgroundColor(LemonColors.Background.toArgb())
         val welcome = ComposeView(requireContext()).apply {
             id = R.id.setup_welcome_compose
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)

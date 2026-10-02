@@ -202,11 +202,11 @@
     <string name="welcome_description">Aprende cómo configurar <b>Lemon</b> y salta a la emulación.</string>
     <string name="get_started">Empezar</string>
     <string name="keys">Claves</string>
-    <string name="keys_description">Selecciona tu archivo <b>prod.keys</b> utilizando el botón de abajo.</string>
+    <string name="keys_description">Selecciona tu archivo <b>prod.keys</b></string>
     <string name="firmware">Firmware</string>
-    <string name="firmware_description">Seleccione su archivo <b> firmware.zip </b> con el botón de abajo.</string>
+    <string name="firmware_description">Selecciona tu archivo <b>firmware.zip</b></string>
     <string name="games">Juegos</string>
-    <string name="games_description">Selecciona la carpeta <b>Juegos</b> utilizando el botón de abajo</string>
+    <string name="games_description">Selecciona tu carpeta de <b>juegos</b></string>
     <string name="done">Hecho</string>
     <string name="done_description">Ya está todo listo.\n¡Disfrute de tus juegos!</string>
     <string name="next">Siguiente</string>
@@ -286,7 +286,10 @@
     <string name="install_firmware_warning_description">Muchos juegos requieren el acceso al firmware para funcionar correctamente.</string>
     <string name="install_firmware_warning_help">https://yuzu-mirror.github.io/help/quickstart/#guide-introduction</string>
     <string name="notifications">Notificaciones</string>
-    <string name="notifications_description">Otorga el permiso de notificación con el botón de abajo.</string>
+    <string name="notifications_description">Concede el permiso de notificaciones</string>
+    <string name="setup_step_of">Paso %1$d de %2$d</string>
+    <string name="setup_required">Obligatorio</string>
+    <string name="setup_later">Después</string>
     <string name="permission_denied">Permiso denegado</string>
     <string name="permission_denied_description">Se ha denegado este permiso demasiadas veces y ahora debes otorgarlo de forma manual en la configuración del sistema.</string>
     <string name="about">Acerca de</string>

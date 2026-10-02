@@ -213,11 +213,11 @@
     <string name="welcome_description">Learn how to setup &lt;b>Lemon&lt;/b> and jump into emulation.</string>
     <string name="get_started">Get started</string>
     <string name="keys">Keys</string>
-    <string name="keys_description">Select your &lt;b>prod.keys&lt;/b> file with the button below.</string>
+    <string name="keys_description">Select your &lt;b>prod.keys&lt;/b> file</string>
     <string name="firmware">Firmware</string>
-    <string name="firmware_description">Select your &lt;b>firmware.zip&lt;/b> file with the button below.</string>
+    <string name="firmware_description">Select your &lt;b>firmware.zip&lt;/b> file</string>
     <string name="games">Games</string>
-    <string name="games_description">Select your &lt;b>Games&lt;/b> folder with the button below.</string>
+    <string name="games_description">Select your &lt;b>Games&lt;/b> folder</string>
     <string name="done">Done</string>
     <string name="done_description">You\'re all set.\nEnjoy your games!</string>
     <string name="next">Next</string>
@@ -297,7 +297,10 @@
     <string name="install_firmware_warning_description">Many games require access to firmware to run properly.</string>
     <string name="install_firmware_warning_help">https://yuzu-mirror.github.io/help/quickstart/#guide-introduction</string>
     <string name="notifications">Notifications</string>
-    <string name="notifications_description">Grant the notification permission with the button below.</string>
+    <string name="notifications_description">Grant the notification permission</string>
+    <string name="setup_step_of">Step %1$d of %2$d</string>
+    <string name="setup_required">Required</string>
+    <string name="setup_later">Later</string>
     <string name="permission_denied">Permission denied</string>
     <string name="permission_denied_description">You denied this permission too many times and now you have to manually grant it in system settings.</string>
     <string name="about">About</string>

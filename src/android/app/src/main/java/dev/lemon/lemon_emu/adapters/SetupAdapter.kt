@@ -13,6 +13,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import com.google.android.material.button.MaterialButton
 import dev.lemon.lemon_emu.databinding.PageSetupBinding
+import dev.lemon.lemon_emu.databinding.PageSetupModernBinding
+import dev.lemon.lemon_emu.ui.modern.ModernSetupFinish
+import dev.lemon.lemon_emu.ui.modern.ModernSetupPage
+import dev.lemon.lemon_emu.ui.modern.SetupSummaryItem
+import dev.lemon.lemon_emu.ui.modern.SetupCardData
+import dev.lemon.lemon_emu.ui.modern.UiMode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import dev.lemon.lemon_emu.model.PageState
 import dev.lemon.lemon_emu.model.SetupCallback
 import dev.lemon.lemon_emu.model.SetupPage
@@ -23,10 +33,96 @@ import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.model.ButtonState
 
 class SetupAdapter(val activity: AppCompatActivity, pages: List<SetupPage>) :
-    AbstractListAdapter<SetupPage, SetupAdapter.SetupPageViewHolder>(pages) {
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SetupPageViewHolder {
-        PageSetupBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            .also { return SetupPageViewHolder(it) }
+    AbstractListAdapter<SetupPage, AbstractViewHolder<SetupPage>>(pages) {
+    // The redesigned interface shows each step as cards; the classic one keeps its buttons.
+    private val modern = UiMode.isModern(activity)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbstractViewHolder<SetupPage> {
+        val inflater = LayoutInflater.from(parent.context)
+        if (modern) {
+            return ModernSetupPageViewHolder(PageSetupModernBinding.inflate(inflater, parent, false))
+        }
+        return SetupPageViewHolder(PageSetupBinding.inflate(inflater, parent, false))
+    }
+
+    // Bumped whenever something may have been completed or a step comes into view, so every card
+    // (and the final recap) re-reads its state instead of showing what it saw when it was created.
+    private var refresh by mutableIntStateOf(0)
+
+    fun refreshStates() {
+        refresh++
+    }
+
+    inner class ModernSetupPageViewHolder(val binding: PageSetupModernBinding) :
+        AbstractViewHolder<SetupPage>(binding), SetupCallback {
+        override fun bind(model: SetupPage) {
+            val position = bindingAdapterPosition.coerceAtLeast(0)
+            val isLast = position == itemCount - 1
+            binding.composePage.setContent {
+                if (isLast) {
+                    // The closing step: a recap of everything the earlier steps could set up, and
+                    // the button that finishes setup.
+                    val version = refresh
+                    val summary = remember(version) {
+                        currentList.dropLast(1)
+                            .flatMap { it.pageButtons ?: emptyList() }
+                            .filter { it.buttonState.invoke() != ButtonState.BUTTON_ACTION_UNDEFINED }
+                            .map {
+                                SetupSummaryItem(
+                                    activity.getString(it.titleId),
+                                    it.buttonState.invoke() == ButtonState.BUTTON_ACTION_COMPLETE
+                                )
+                            }
+                    }
+                    val action = model.pageButtons?.firstOrNull()
+                    ModernSetupFinish(
+                        title = activity.getString(model.titleId),
+                        description = Html.fromHtml(activity.getString(model.descriptionId), 0)
+                            .toString().trim(),
+                        summary = summary,
+                        actionText = action?.let { activity.getString(it.titleId) } ?: "",
+                        onAction = { action?.buttonAction?.invoke(this@ModernSetupPageViewHolder) }
+                    )
+                    return@setContent
+                }
+                // Reading `refresh` here is what makes a completed step update on screen.
+                val version = refresh
+                val cards = remember(version) {
+                    (model.pageButtons ?: emptyList()).map { button ->
+                        val state = button.buttonState.invoke()
+                        SetupCardData(
+                            iconRes = button.iconId,
+                            title = activity.getString(button.titleId),
+                            subtitle = if (button.descriptionId != 0) {
+                                Html.fromHtml(activity.getString(button.descriptionId), 0)
+                                    .toString().trim()
+                            } else {
+                                ""
+                            },
+                            done = state == ButtonState.BUTTON_ACTION_COMPLETE,
+                            required = button.isUnskippable,
+                            isAction = state == ButtonState.BUTTON_ACTION_UNDEFINED,
+                            onClick = { button.buttonAction.invoke(this@ModernSetupPageViewHolder) }
+                        )
+                    }
+                }
+                val pageDone = remember(version) { model.pageSteps.invoke() == PageState.COMPLETE }
+                ModernSetupPage(
+                    stepNumber = position + 1,
+                    stepCount = itemCount,
+                    iconRes = model.iconId,
+                    title = activity.getString(model.titleId),
+                    description = Html.fromHtml(activity.getString(model.descriptionId), 0)
+                        .toString().trim(),
+                    cards = cards,
+                    pageDone = pageDone
+                )
+            }
+        }
+
+        override fun onStepCompleted(pageButtonId: Int, pageFullyCompleted: Boolean) {
+            refresh++
+        }
     }
 
     inner class SetupPageViewHolder(val binding: PageSetupBinding) :
