@@ -794,7 +794,15 @@ std::pair<u32, std::string> get_pretty_cpus() {
             const auto part = (midr >> 4) & 0xfff;
 
             if (!cpus.empty()) cpus += " + ";
-            cpus += fmt::format("{}x {}", count, find_cpu_name(vendor, part));
+            // A core that is not in the table (a chip newer than this build) must not take the
+            // whole summary down: formatting a null name threw, and the caller then reported the
+            // CPU as just "Unknown". Print the raw ids instead so the next log tells us what to add.
+            if (const char* name = find_cpu_name(vendor, part)) {
+                cpus += fmt::format("{}x {}", count, name);
+            } else {
+                cpus += fmt::format("{}x Unknown (implementer 0x{:02x}, part 0x{:03x})", count,
+                                    vendor, part);
+            }
         }
     }
 

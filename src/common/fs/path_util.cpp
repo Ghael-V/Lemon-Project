@@ -302,10 +302,18 @@ std::string GetLegacyPathString(EmuPath legacy_path) {
 
 void SetEdenPath(EdenPath eden_path, const fs::path& new_path) {
     auto& instance = PathManagerImpl::GetInstance();
+    // A saved folder that was never created (or was removed) is created again rather than refused:
+    // it is what the config asks for, and refusing logged an error on every config load.
+    if (!FS::Exists(new_path)) {
+        static_cast<void>(FS::CreateDirs(new_path));
+    }
     if (FS::IsDir(new_path)) {
         instance.SetEdenPathImpl(eden_path, new_path);
     } else {
-        LOG_ERROR(Common_Filesystem, "Filesystem object at new_path={} is not a directory", PathToUTF8String(new_path));
+        LOG_WARNING(Common_Filesystem,
+                    "new_path={} is not a usable folder (a file is in the way, or it could not be "
+                    "created); keeping the current one",
+                    PathToUTF8String(new_path));
     }
 }
 

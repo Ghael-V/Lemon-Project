@@ -782,9 +782,18 @@ u64 System::ResolveCallerProgramId(u64 process_id) const {
     }
 
     const auto fallback = this->GetApplicationProcessProgramID();
-    LOG_WARNING(Core,
-                "Could not resolve caller process_id={}, falling back to application {:016X}",
-                process_id, fallback);
+    // The fallback is the normal answer for services called from outside a process, and games ask
+    // dozens of times: say it once, then keep it out of the way of the lines that matter.
+    static std::atomic<bool> warned{false};
+    if (!warned.exchange(true, std::memory_order_relaxed)) {
+        LOG_WARNING(Core,
+                    "Could not resolve caller process_id={}, falling back to application {:016X} "
+                    "(further occurrences are logged at debug level)",
+                    process_id, fallback);
+    } else {
+        LOG_DEBUG(Core, "Could not resolve caller process_id={}, falling back to application {:016X}",
+                  process_id, fallback);
+    }
     return fallback;
 }
 
