@@ -763,6 +763,12 @@ object NativeLibrary {
     external fun areKeysPresent(): Boolean
 
     /**
+     * "name<TAB>bytes done<TAB>bytes total" for the solid .nsz/.xcz content being decompressed right
+     * now, or null when nothing is.
+     */
+    external fun getNczDecodeInfo(): String?
+
+    /**
      * Updates the device power state to global variables
      */
     external fun updatePowerState(percentage: Int, isCharging: Boolean, hasBattery: Boolean)

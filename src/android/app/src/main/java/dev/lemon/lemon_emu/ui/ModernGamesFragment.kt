@@ -11,9 +11,13 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.edit
@@ -41,6 +45,9 @@ import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.ui.modern.LibraryActions
 import dev.lemon.lemon_emu.ui.modern.ModernLibraryScreen
+import dev.lemon.lemon_emu.ui.modern.PullToRefresh
+import dev.lemon.lemon_emu.ui.modern.ScanProgressCard
+import dev.lemon.lemon_emu.utils.GameHelper
 import dev.lemon.lemon_emu.utils.GameIconUtils
 import dev.lemon.lemon_emu.utils.GameLaunchUtils
 import dev.lemon.lemon_emu.utils.GpuDriverHelper
@@ -77,15 +84,32 @@ class ModernGamesFragment : Fragment() {
             }
             val actions = remember { buildActions() }
 
-            ModernLibraryScreen(
-                games = games,
-                loading = reloading,
-                preferences = preferences,
-                initialSelectedPath = lastPlayedPath,
-                showQLaunch = BooleanSetting.ENABLE_QLAUNCH_BUTTON.getBoolean() &&
-                    NativeLibrary.isFirmwareAvailable(),
-                actions = actions
-            )
+            val scan by GameHelper.scanProgress.collectAsState()
+            Box(Modifier.fillMaxSize()) {
+                PullToRefresh(
+                    refreshing = reloading,
+                    onRefresh = { gamesViewModel.reloadGames(false) },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    ModernLibraryScreen(
+                        games = games,
+                        loading = reloading,
+                        preferences = preferences,
+                        initialSelectedPath = lastPlayedPath,
+                        showQLaunch = BooleanSetting.ENABLE_QLAUNCH_BUTTON.getBoolean() &&
+                            NativeLibrary.isFirmwareAvailable(),
+                        actions = actions
+                    )
+                }
+                // A library scan can take minutes with many games (or one big compressed one):
+                // say so, in the middle while there is nothing to show yet, at the bottom otherwise.
+                scan?.let {
+                    ScanProgressCard(
+                        it,
+                        Modifier.align(if (games.isEmpty()) Alignment.Center else Alignment.BottomCenter)
+                    )
+                }
+            }
         }
     }
 

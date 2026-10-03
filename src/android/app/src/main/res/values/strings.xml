@@ -301,6 +301,11 @@
     <string name="setup_step_of">Step %1$d of %2$d</string>
     <string name="setup_required">Required</string>
     <string name="setup_later">Later</string>
+    <string name="pull_to_refresh">Pull down to refresh</string>
+    <string name="pull_release">Release to refresh</string>
+    <string name="scan_listing">Looking for games…</string>
+    <string name="scan_loading">Loading your games… %1$d of %2$d</string>
+    <string name="scan_decoding">Preparing a compressed game for the first time: %1$s of %2$s (only once)</string>
     <string name="permission_denied">Permission denied</string>
     <string name="permission_denied_description">You denied this permission too many times and now you have to manually grant it in system settings.</string>
     <string name="about">About</string>

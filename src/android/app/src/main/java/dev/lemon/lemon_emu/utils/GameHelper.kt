@@ -20,6 +20,14 @@ import dev.lemon.lemon_emu.model.GameDir
 import dev.lemon.lemon_emu.model.MinimalDocumentFile
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * How far a library scan has got. [total] is 0 while the folders are still being listed.
+ * [current] is the file being read right now.
+ */
+data class ScanProgress(val done: Int, val total: Int, val current: String)
 
 object GameHelper {
     private const val KEY_OLD_GAME_PATH = "game_path"
@@ -29,10 +37,23 @@ object GameHelper {
 
     private lateinit var preferences: SharedPreferences
 
+    /** Non-null while a scan is running, so the library can show that work is going on. */
+    val scanProgress: StateFlow<ScanProgress?> get() = _scanProgress
+    private val _scanProgress = MutableStateFlow<ScanProgress?>(null)
+
     // A scan clears and refills the native content provider, so two running at once (a library
     // reload plus CustomSettingsHandler's lookup) would each wipe what the other registered.
     @Synchronized
     fun getGames(): List<Game> {
+        _scanProgress.value = ScanProgress(0, 0, "")
+        try {
+            return scanGames()
+        } finally {
+            _scanProgress.value = null
+        }
+    }
+
+    private fun scanGames(): List<Game> {
         val games = mutableListOf<Game>()
         val gamesByProgramId = mutableMapOf<String, Game>()
         val context = LemonApplication.appContext
@@ -59,23 +80,21 @@ object GameHelper {
         mountExternalContentDirectories(mountedContainerUris)
 
         val badDirs = mutableListOf<Int>()
+        // List every folder first (quick), so the scan below knows how many files it has to read
+        // and can report real progress. Files keep the order the old recursive walk visited them.
+        val pending = mutableListOf<MinimalDocumentFile>()
         gameDirs.forEachIndexed { index: Int, gameDir: GameDir ->
             val gameDirUri = gameDir.uriString.toUri()
             val isValid = FileUtil.isTreeUriValid(gameDirUri)
             if (isValid) {
                 val scanDepth = if (gameDir.deepScan) 3 else 1
 
-                addGamesRecursive(
-                    games,
-                    gamesByProgramId,
-                    FileUtil.listFiles(gameDirUri),
-                    scanDepth,
-                    mountedContainerUris
-                )
+                collectFiles(FileUtil.listFiles(gameDirUri), scanDepth, pending)
             } else {
                 badDirs.add(index)
             }
         }
+        scanFiles(pending, games, gamesByProgramId, mountedContainerUris)
 
         // Remove all game dirs with insufficient permissions from config
         if (badDirs.isNotEmpty()) {
@@ -139,12 +158,11 @@ object GameHelper {
         }
     }
 
-    private fun addGamesRecursive(
-        games: MutableList<Game>,
-        gamesByProgramId: MutableMap<String, Game>,
+    // Flattens the folders (depth first, in listing order) into one list of files.
+    private fun collectFiles(
         files: Array<MinimalDocumentFile>,
         depth: Int,
-        mountedContainerUris: MutableSet<String>
+        out: MutableList<MinimalDocumentFile>
     ) {
         if (depth <= 0) {
             return
@@ -152,42 +170,67 @@ object GameHelper {
 
         files.forEach {
             if (it.isDirectory) {
-                addGamesRecursive(
-                    games,
-                    gamesByProgramId,
-                    FileUtil.listFiles(it.uri),
-                    depth - 1,
-                    mountedContainerUris
-                )
+                collectFiles(FileUtil.listFiles(it.uri), depth - 1, out)
             } else {
-                val extension = FileUtil.getExtension(it.uri).lowercase()
-                val filePath = it.uri.toString()
+                out.add(it)
+            }
+        }
+    }
 
-                val mountedContainer = externalContentExtensions.contains(extension) &&
-                    mountedContainerUris.add(filePath)
-                if (mountedContainer) {
-                    NativeLibrary.addGameFolderFileToFilesystemProvider(filePath)
+    private fun scanFiles(
+        files: List<MinimalDocumentFile>,
+        games: MutableList<Game>,
+        gamesByProgramId: MutableMap<String, Game>,
+        mountedContainerUris: MutableSet<String>
+    ) {
+        fun isRelevant(extension: String) =
+            externalContentExtensions.contains(extension) || Game.extensions.contains(extension)
+
+        val total = files.count { isRelevant(FileUtil.getExtension(it.uri).lowercase()) }
+        var done = 0
+        files.forEach {
+            val extension = FileUtil.getExtension(it.uri).lowercase()
+            if (!isRelevant(extension)) {
+                return@forEach
+            }
+            _scanProgress.value = ScanProgress(done, total, it.filename)
+            addGameFile(it, extension, games, gamesByProgramId, mountedContainerUris)
+            done++
+        }
+    }
+
+    private fun addGameFile(
+        file: MinimalDocumentFile,
+        extension: String,
+        games: MutableList<Game>,
+        gamesByProgramId: MutableMap<String, Game>,
+        mountedContainerUris: MutableSet<String>
+    ) {
+        val filePath = file.uri.toString()
+
+        val mountedContainer = externalContentExtensions.contains(extension) &&
+            mountedContainerUris.add(filePath)
+        if (mountedContainer) {
+            NativeLibrary.addGameFolderFileToFilesystemProvider(filePath)
+        }
+
+        if (Game.extensions.contains(extension)) {
+            val game = getGame(file.uri, true, false)
+            if (game != null) {
+                games.add(game)
+                if (game.programId != "0") {
+                    gamesByProgramId[game.programId] = game
                 }
-
-                if (Game.extensions.contains(extension)) {
-                    val game = getGame(it.uri, true, false)
-                    if (game != null) {
-                        games.add(game)
-                        if (game.programId != "0") {
-                            gamesByProgramId[game.programId] = game
-                        }
-                    } else if (mountedContainer) {
-                        GameMetadata.getProgramId(filePath).toLongOrNull()?.let { programId ->
-                            gamesByProgramId[(programId and 0x800L.inv()).toString()]
-                        }?.let { existingGame ->
-                            NativeLibrary.getPatchesForFile(existingGame.path, existingGame.programId)
-                            existingGame.version = GameMetadata.getVersion(
-                                existingGame.path,
-                                true
-                            )
-                            GameIconUtils.refreshGameIcon(existingGame)
-                        }
-                    }
+            } else if (mountedContainer) {
+                GameMetadata.getProgramId(filePath).toLongOrNull()?.let { programId ->
+                    gamesByProgramId[(programId and 0x800L.inv()).toString()]
+                }?.let { existingGame ->
+                    NativeLibrary.getPatchesForFile(existingGame.path, existingGame.programId)
+                    existingGame.version = GameMetadata.getVersion(
+                        existingGame.path,
+                        true
+                    )
+                    GameIconUtils.refreshGameIcon(existingGame)
                 }
             }
         }
