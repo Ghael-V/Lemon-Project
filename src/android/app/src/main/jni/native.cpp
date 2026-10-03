@@ -59,6 +59,7 @@ extern "C" {
 #include "core/core.h"
 #include "core/cpu_manager.h"
 #include "core/crypto/key_manager.h"
+#include "core/crypto/ncz_decompressor.h"
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
@@ -2071,6 +2072,17 @@ jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_areKeysPresent(JNIEnv* env, job
     // keys already reloads the system through initializeSystem(true).
     system.GetFileSystemController().CreateFactories(*system.GetFilesystem(), false);
     return ContentManager::AreKeysPresent();
+}
+
+// "name<TAB>bytes done<TAB>bytes total" for the solid .nsz/.xcz content being decompressed right
+// now, or null when none is. The game-list scan shows it so a long first-time wait is explained.
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_getNczDecodeInfo(JNIEnv* env, jobject jobj) {
+    const auto progress = Core::Crypto::GetNczDecodeProgress();
+    if (!progress) {
+        return nullptr;
+    }
+    return Common::Android::ToJString(env, progress->name + '\t' + std::to_string(progress->done) +
+                                               '\t' + std::to_string(progress->total));
 }
 
 jint Java_dev_lemon_lemon_1emu_NativeLibrary_getVirtualAmiiboState(JNIEnv* env, jobject jobj) {

@@ -3,8 +3,11 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
 #include <string_view>
 
+#include "common/common_types.h"
 #include "core/file_sys/vfs/vfs_types.h"
 
 namespace Core::Crypto {
@@ -31,5 +34,16 @@ namespace Core::Crypto {
  */
 [[nodiscard]] FileSys::VirtualFile DecompressNCZ(const FileSys::VirtualFile& ncz_file,
                                                  std::string_view output_name);
+
+/// How far the solid NCZ being decoded right now has got, so the frontend can tell the user what a
+/// long wait is. Several decodes at once report whichever updated last.
+struct NczDecodeProgress {
+    std::string name;
+    u64 done;
+    u64 total;
+};
+
+/// The decode in flight, or nullopt when nothing is being decoded.
+[[nodiscard]] std::optional<NczDecodeProgress> GetNczDecodeProgress();
 
 } // namespace Core::Crypto
