@@ -18,6 +18,16 @@ std::optional<Common::Net::Release> UpdateChecker::GetUpdate() {
 
     LOG_INFO(Frontend, "Received update {}", latest->title);
 
+    // Every build variant (standard, Lite, ...) follows only its own APK, which the release carries
+    // under a name ending in that variant's suffix (see Release::GetPlatformAssets). A release with
+    // no APK for this variant - published for another one, or still being uploaded - is not an
+    // update for it, and must not send its users to a page with nothing for them to install.
+    if (latest->GetPlatformAssets().empty()) {
+        LOG_INFO(Frontend, "Release {} has no APK for this build variant, not offering it",
+                 latest->tag);
+        return std::nullopt;
+    }
+
     // Previously, nightly builds compared versions by splitting the tag on "." and requiring
     // exactly two segments - a scheme borrowed from upstream (Citra/Azahar) that doesn't fit
     // Lemon's own tags (e.g. "v0.2.6-experimental.2", "v0.3" split into 3 and 2 segments

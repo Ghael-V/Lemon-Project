@@ -160,4 +160,18 @@ fi
 
 echo "-- Done! APK and AAB artifacts are in ${ARTIFACTS_DIR}"
 
+# The file a release is published as: "Lemon-<tag>-<variant>.apk" instead of Gradle's
+# "app-<flavor>-<type>.apk". The in-app updater finds a variant's APK by the END of the name
+# (src/common/net/net.cpp), so the suffix here must match the one that variant looks for, and the
+# name carries no spaces or "&" (GitHub rewrites them). Only the standard variant is named so far;
+# other variants get their name when they become real products.
+if [ "$DEVEL" != "true" ] && [ "$TARGET_LOWER" = "standard" ]; then
+    RELEASE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+    if [ -n "$RELEASE_TAG" ]; then
+        cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" \
+            "${ARTIFACTS_DIR}/Lemon-${RELEASE_TAG}-standard.apk"
+        echo "-- Release file: Lemon-${RELEASE_TAG}-standard.apk"
+    fi
+fi
+
 ls -l "${ARTIFACTS_DIR}/"
