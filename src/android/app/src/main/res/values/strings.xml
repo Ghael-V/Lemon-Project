@@ -1162,6 +1162,7 @@
     <string name="emulation_quick_save_state_failure">Failed to save state</string>
     <string name="emulation_quick_load_state_success">State loaded</string>
     <string name="emulation_quick_load_state_failure">Failed to load state</string>
+    <string name="emulation_quick_state_no_safe_moment">Couldn\'t do it at this exact moment (the game was in the middle of something). Try again in a second.</string>
     <string name="emulation_quick_load_state_incompatible">Can\'t load: the game has changed since you saved (this usually happens after dying or entering a new area). Quick Load only works in the same situation where you saved, and nothing was changed.</string>
     <string name="lemon_cheater">Lemon Cheater</string>
     <string name="lemon_cheater_value_hint">Value</string>

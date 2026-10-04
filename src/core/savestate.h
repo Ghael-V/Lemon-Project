@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace Core {
 class System;
@@ -45,6 +46,10 @@ namespace Core::SaveState {
 // GetWaitReasonForDebugging() in core/hle/kernel/k_thread.h.
 enum class RestoreFailure {
     Other,
+    // The guest's threads are not waiting the way they were when the save was made (some are in
+    // the middle of waking or going to sleep), so the kernel and the saved memory would disagree.
+    // Nothing was changed; trying again a moment later usually works.
+    NotSettled,
     // Memory the savestate holds is no longer mapped: the guest freed or moved it after the save
     // (dying and respawning does this). Nothing was changed.
     MemoryLayoutChanged,
@@ -54,17 +59,31 @@ enum class RestoreFailure {
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path,
                            RestoreFailure* failure = nullptr);
 
-// Read-only: true if any live thread is currently waiting on a condition
-// variable or address arbiter - the one wait kind that depends on another
-// GUEST thread reaching a specific point and signalling it, rather than on
-// a timer (Sleep) or a host-side service (IPC) that don't care about any of
-// this. If that other thread just got rewound, or gets rewound by a
-// Restore() happening right now, it may never send that signal again,
-// leaving the waiter parked forever - the most likely explanation for the
-// freezes observed in practice. Touches nothing and doesn't look at any
-// savestate file; meant to be polled right before calling Restore(), so a
-// caller can wait for a safer moment (nothing in this state) instead of
-// committing to a restore while it's true.
+// One entry per guest thread, in thread-list order: its kernel state in bits 8 and up and what it
+// is waiting for (the ThreadWaitReasonForDebugging value) in the low byte. Saved inside every
+// savestate. A save or a restore is only consistent when no thread is in the middle of a
+// transition, which this shows as the signature changing from one look to the next, or differing
+// from the saved one. Over 33 save/load pairs on Super Mario 3D World every pair with identical
+// signatures loaded fine and every frozen load had a difference.
+[[nodiscard]] std::vector<u32> WaitSignature(Core::System& system);
+
+// Reads the signature stored in a savestate file without loading anything else.
+[[nodiscard]] bool ReadSavedSignature(const std::string& path, std::vector<u32>& out);
+
+// Read-only: true if any live thread is currently in an address-arbiter wait,
+// which is a lock handoff in progress (SignalToAddress/WaitForAddress). A save
+// taken, or a restore done, at that instant leaves guest memory saying "a
+// waiter is queued on this lock" while the kernel has nobody queued there (or
+// the other way round), so the waiter is never woken: the game stays frozen.
+// Measured on Super Mario 3D World with an automatic save/load loop: every
+// load that froze involved a save or a live state with one thread in this wait
+// (waits Cond=12 Arb=1 instead of the steady Cond=13 Arb=0), and 9 of 9
+// saves without it loaded fine. Condition-variable waiters are NOT the
+// problem: a game's idle worker pool sits in them permanently (13 threads
+// here), so counting them made this check true all the time and useless.
+// Touches nothing and doesn't look at any savestate file; meant to be polled
+// while the game is paused, letting it run on in short steps until it is false.
 [[nodiscard]] bool HasRiskyPendingWaits(Core::System& system);
+
 
 } // namespace Core::SaveState

@@ -839,13 +839,18 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_quick_save_state -> {
-                    val ok = NativeLibrary.quickSaveState()
-                    Toast.makeText(
-                        requireContext(),
-                        if (ok) R.string.emulation_quick_save_state_success
-                        else R.string.emulation_quick_save_state_failure,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // It may wait a moment for a safe point to save at: not on the main thread.
+                    val appContext = requireContext().applicationContext
+                    Thread {
+                        val message = when (NativeLibrary.quickSaveState()) {
+                            NativeLibrary.QUICK_SAVE_SAVED -> R.string.emulation_quick_save_state_success
+                            NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
+                            else -> R.string.emulation_quick_save_state_failure
+                        }
+                        activity?.runOnUiThread {
+                            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+                        }
+                    }.start()
                     binding.inGameMenu.requestFocus()
                     true
                 }
@@ -857,6 +862,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         val message = when (NativeLibrary.quickLoadState()) {
                             NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
                             NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
+                            NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
                             else -> R.string.emulation_quick_load_state_failure
                         }
                         activity?.runOnUiThread {

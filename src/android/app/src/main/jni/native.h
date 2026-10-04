@@ -46,13 +46,20 @@ public:
     bool IsPaused() const;
     void PauseEmulation();
     void UnPauseEmulation();
-    bool QuickSaveState();
+    /// What Quick Save did. The values are what the JNI call returns to Kotlin.
+    enum class QuickSaveResult : int {
+        Failed = 0,       // the save could not be written
+        Saved = 1,        // saved
+        NoSafeMoment = 2, // a lock handoff was in progress for the whole wait; nothing was saved
+    };
+    QuickSaveResult QuickSaveState();
 
     /// What Quick Load did. The values are what the JNI call returns to Kotlin.
     enum class QuickLoadResult : int {
         Failed = 0,       // nothing was restored (no quicksave, or it does not fit this game)
         Loaded = 1,       // restored
         Incompatible = 2, // refused: the game freed memory the save holds since it was made
+        NoSafeMoment = 3, // a lock handoff was in progress for the whole wait; nothing was changed
     };
     QuickLoadResult QuickLoadState();
     std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,
@@ -110,6 +117,13 @@ private:
     std::shared_ptr<FileSys::VfsFilesystem> m_vfs;
     Core::SystemResultStatus m_load_result{Core::SystemResultStatus::ErrorNotInitialized};
     std::atomic<bool> m_is_running = false;
+    /// With the system paused: lets the game run on in 30 ms steps (when `can_run`) for up to about
+    /// three seconds until it is at a safe moment, and returns whether it got there. No thread may
+    /// be in an address-arbiter wait, and the threads' wait signature must either equal `target`
+    /// (a load: the one stored in the save) or, with no target (a save), have been the same for
+    /// three looks in a row. See Core::SaveState::WaitSignature.
+    bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr);
+
     std::atomic<bool> m_is_paused = false;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};
     std::unique_ptr<FileSys::ManualContentProvider> m_manual_provider;

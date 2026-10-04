@@ -185,9 +185,14 @@ object NativeLibrary {
 
     /**
      * Captures CPU register state and process memory to a single quicksave slot.
-     * Same-session only - does not survive closing the game. Returns true on success.
+     * Same-session only - does not survive closing the game. Returns one of the QUICK_SAVE_*
+     * results; it can wait up to about three seconds for a safe moment.
      */
-    external fun quickSaveState(): Boolean
+    external fun quickSaveState(): Int
+
+    const val QUICK_SAVE_FAILED = 0 // the save could not be written
+    const val QUICK_SAVE_SAVED = 1 // saved
+    const val QUICK_SAVE_NO_SAFE_MOMENT = 2 // a lock handoff never ended; nothing was saved
 
     /**
      * Restores CPU register state and process memory from the quicksave slot. Returns one of the
@@ -198,6 +203,7 @@ object NativeLibrary {
     const val QUICK_LOAD_FAILED = 0 // nothing was restored
     const val QUICK_LOAD_LOADED = 1 // restored
     const val QUICK_LOAD_INCOMPATIBLE = 2 // refused: the game freed memory the save holds
+    const val QUICK_LOAD_NO_SAFE_MOMENT = 3 // a lock handoff never ended; nothing was changed
 
     /**
      * Scans all live guest process memory for a 4-byte value. [valueType] 0 reads memory as a

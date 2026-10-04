@@ -440,51 +440,105 @@ std::string GetQuickSavePath() {
 }
 } // namespace
 
-bool EmulationSession::QuickSaveState() {
+bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target) {
+    static constexpr int MaxAttempts = 100;
+    static constexpr auto Step = std::chrono::milliseconds(30);
+    std::vector<u32> previous;
+    int equal_in_a_row = 0;
+    for (int attempt = 0; attempt < MaxAttempts; attempt++) {
+        const std::vector<u32> now = Core::SaveState::WaitSignature(m_system);
+        const bool arbiter = Core::SaveState::HasRiskyPendingWaits(m_system);
+        equal_in_a_row = (now == previous) ? equal_in_a_row + 1 : 0;
+        previous = now;
+
+        bool good = false;
+        if (!arbiter) {
+            good = target != nullptr ? (now == *target) : equal_in_a_row >= 2;
+        }
+        if (good) {
+            return true;
+        }
+        if (!can_run) {
+            // Held paused by the user: nothing will change. A save has no way to check for
+            // stability, so it only needs the lock handoff to be over; a load needs the match.
+            return target == nullptr && !arbiter;
+        }
+        m_system.Run();
+        std::this_thread::sleep_for(Step);
+        m_system.Pause();
+    }
+    return false;
+}
+
+EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
     if (!was_paused) {
         m_system.Pause();
     }
 
-    const bool ok = Core::SaveState::Capture(m_system, GetQuickSavePath());
+    // A save made while a thread is in the middle of a lock handoff can never be loaded back
+    // without freezing the game (see HasRiskyPendingWaits), so wait for a moment without one.
+    QuickSaveResult result = QuickSaveResult::NoSafeMoment;
+    if (WaitForSafeMoment(!was_paused, nullptr)) {
+        result = Core::SaveState::Capture(m_system, GetQuickSavePath()) ? QuickSaveResult::Saved
+                                                                        : QuickSaveResult::Failed;
+    } else {
+        LOG_WARNING(Frontend, "Quick Save: no safe moment found, nothing was saved");
+    }
 
     if (!was_paused) {
         m_system.Run();
     }
-    return ok;
+    return result;
 }
 
 EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
 
-    // Give the live game a short window to move past any condvar/address-arbiter wait
-    // before committing to a restore - that's the one wait kind that depends on another
-    // guest thread signalling it, so a restore happening right now can leave it parked on
-    // a signal that will never come again (see savestate.h). The check is free (no file
-    // I/O, just reads live thread state), so it costs nothing when things are already
-    // clean - which is the common case for the other wait reasons (Sleep/IPC). This never
-    // forces anything; it only waits for a naturally better moment or gives up and
-    // restores anyway after a short budget.
-    static constexpr int MaxAttempts = 10;
-    static constexpr auto RetryDelay = std::chrono::milliseconds(30);
-    m_system.Pause();
-    for (int attempt = 0;
-         attempt < MaxAttempts - 1 && Core::SaveState::HasRiskyPendingWaits(m_system);
-         attempt++) {
-        m_system.Run();
-        std::this_thread::sleep_for(RetryDelay);
-        m_system.Pause();
-    }
-
+    // The game is paused, but other parts of the emulator can still wake its threads in the
+    // milliseconds between looking at them and restoring (the restore itself checks again and
+    // refuses, see RestoreFailure::NotSettled): so wait, try, and wait again if it was refused
+    // for that reason.
+    static constexpr int MaxTries = 20;
     Core::SaveState::RestoreFailure failure = Core::SaveState::RestoreFailure::Other;
-    const bool ok = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
+    bool restored = false;
+    bool no_safe_moment = false;
+    for (int attempt = 0; attempt < MaxTries; attempt++) {
+        m_system.Pause();
+
+        // A restore done while threads are waking or going to sleep leaves the game frozen or
+        // aborted (see WaitSignature): wait until they wait the way they did at the save.
+        std::vector<u32> saved_signature;
+        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature)) {
+            if (!was_paused) {
+                m_system.Run();
+            }
+            return QuickLoadResult::Failed; // no usable save
+        }
+        if (!WaitForSafeMoment(!was_paused, &saved_signature)) {
+            no_safe_moment = true;
+            break;
+        }
+
+        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
+        if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
+            break;
+        }
+        if (attempt + 1 == MaxTries) {
+            no_safe_moment = true;
+        }
+    }
 
     if (!was_paused) {
         m_system.Run();
     }
-    if (ok) {
+    if (no_safe_moment) {
+        LOG_WARNING(Frontend, "Quick Load: no safe moment found, nothing was changed");
+        return QuickLoadResult::NoSafeMoment;
+    }
+    if (restored) {
         return QuickLoadResult::Loaded;
     }
     return failure == Core::SaveState::RestoreFailure::MemoryLayoutChanged
@@ -1139,8 +1193,8 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_pauseEmulation(JNIEnv* env, jclass 
     EmulationSession::GetInstance().PauseEmulation();
 }
 
-jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveState(JNIEnv* env, jclass clazz) {
-    return static_cast<jboolean>(EmulationSession::GetInstance().QuickSaveState());
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveState(JNIEnv* env, jclass clazz) {
+    return static_cast<jint>(EmulationSession::GetInstance().QuickSaveState());
 }
 
 jint Java_dev_lemon_lemon_1emu_NativeLibrary_quickLoadState(JNIEnv* env, jclass clazz) {

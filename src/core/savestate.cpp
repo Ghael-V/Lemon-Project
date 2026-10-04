@@ -23,7 +23,7 @@ namespace Core::SaveState {
 namespace {
 
 constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
-constexpr u32 CurrentVersion = 2;
+constexpr u32 CurrentVersion = 3; // 3: the wait signature follows the thread count
 
 // Regions are stored in fixed-size chunks, each preceded by a one-byte flag: 1 if the whole
 // chunk is zero (skip writing/reading the actual bytes), 0 if it isn't (bytes follow as
@@ -37,6 +37,40 @@ constexpr size_t ChunkSize = 4096;
 constexpr std::array<u8, ChunkSize> ZeroChunk{};
 
 } // namespace
+
+std::vector<u32> WaitSignature(Core::System& system) {
+    std::vector<u32> signature;
+    if (auto* process = system.ApplicationProcess()) {
+        for (auto& thread : process->GetThreadList()) {
+            // The kernel state (running/waiting/...) as well as the wait reason: a thread blocked
+            // in a kernel lock is Waiting with no reason recorded, and a save/load pair that
+            // disagreed only on that (the main thread waiting at the save, runnable at the load)
+            // froze the game while the reason-only signature said "same".
+            const u32 state = static_cast<u32>(static_cast<u16>(thread.GetState()) &
+                                               static_cast<u16>(Kernel::ThreadState::Mask));
+            signature.push_back((state << 8) |
+                                static_cast<u32>(thread.GetWaitReasonForDebugging()));
+        }
+    }
+    return signature;
+}
+
+bool ReadSavedSignature(const std::string& path, std::vector<u32>& out) {
+    Common::FS::IOFile file{path, Common::FS::FileAccessMode::Read};
+    if (!file.IsOpen()) {
+        return false;
+    }
+    std::array<char, 4> magic{};
+    u32 version = 0;
+    u32 thread_count = 0;
+    if (file.ReadSpan<char>(magic) != magic.size() || magic != Magic ||
+        !file.ReadObject(version) || version != CurrentVersion || !file.ReadObject(thread_count) ||
+        thread_count > 4096) {
+        return false;
+    }
+    out.resize(thread_count);
+    return thread_count == 0 || file.ReadSpan<u32>(out) == out.size();
+}
 
 bool Capture(Core::System& system, const std::string& path) {
     auto* process = system.ApplicationProcess();
@@ -67,6 +101,9 @@ bool Capture(Core::System& system, const std::string& path) {
 
     const auto thread_count = static_cast<u32>(thread_contexts.size());
     ok = ok && file.WriteObject(thread_count);
+    const std::vector<u32> signature = WaitSignature(system);
+    ok = ok && signature.size() == thread_count &&
+         (thread_count == 0 || file.WriteSpan<u32>(signature) == signature.size());
     ok = ok && file.WriteSpan<Kernel::Svc::ThreadContext>(thread_contexts) ==
                    thread_contexts.size();
 
@@ -190,6 +227,16 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         LOG_ERROR(Core, "SaveState::Restore: truncated file '{}'", path);
         return false;
     }
+    std::vector<u32> saved_signature;
+    if (thread_count > 4096) {
+        LOG_ERROR(Core, "SaveState::Restore: implausible thread count in '{}'", path);
+        return false;
+    }
+    saved_signature.resize(thread_count);
+    if (thread_count > 0 && file.ReadSpan<u32>(saved_signature) != saved_signature.size()) {
+        LOG_ERROR(Core, "SaveState::Restore: truncated thread signature in '{}'", path);
+        return false;
+    }
 
     // Match the live thread list against the captured one before touching anything -
     // same list, so iteration order matches Capture()'s as long as nothing created or
@@ -205,6 +252,19 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                    "SaveState::Restore: thread count mismatch (saved {}, live {}) - the guest's "
                    "thread set changed since this savestate was captured, refusing to load",
                    thread_count, live_threads.size());
+        return false;
+    }
+
+    // Refuse, before touching anything, when the threads are not waiting the way they were at the
+    // save: see WaitSignature. The caller normally waits for this to hold; this keeps any other
+    // caller from restoring onto a game caught mid-transition.
+    if (WaitSignature(system) != saved_signature) {
+        LOG_WARNING(Core,
+                    "SaveState::Restore: the guest's threads are not waiting as they were at the save "
+                    "(some are waking or sleeping), refusing for now");
+        if (failure != nullptr) {
+            *failure = RestoreFailure::NotSettled;
+        }
         return false;
     }
 
@@ -438,9 +498,7 @@ bool HasRiskyPendingWaits(Core::System& system) {
     }
 
     for (auto& thread : process->GetThreadList()) {
-        const auto reason = thread.GetWaitReasonForDebugging();
-        if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
-            reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+        if (thread.GetWaitReasonForDebugging() == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
             return true;
         }
     }
