@@ -190,10 +190,16 @@ object NativeLibrary {
     external fun quickSaveState(): Boolean
 
     /**
-     * Restores CPU register state and process memory from the quicksave slot.
-     * Fails (returns false) without changing anything if no compatible quicksave exists.
+     * Restores CPU register state and process memory from the quicksave slot, then watches that
+     * the game goes on presenting frames. This waits up to about eight seconds, so call it off the
+     * main thread. Returns one of the QUICK_LOAD_* results.
      */
-    external fun quickLoadState(): Boolean
+    external fun quickLoadState(): Int
+
+    const val QUICK_LOAD_FAILED = 0 // nothing was restored
+    const val QUICK_LOAD_LOADED = 1 // restored and the game resumed
+    const val QUICK_LOAD_ROLLED_BACK = 2 // the game never resumed; the previous state was put back
+    const val QUICK_LOAD_ROLLBACK_FAILED = 3 // the game never resumed and could not be put back
 
     /**
      * Scans all live guest process memory for a 4-byte value. [valueType] 0 reads memory as a

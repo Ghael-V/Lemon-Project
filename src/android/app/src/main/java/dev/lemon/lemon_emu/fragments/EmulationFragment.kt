@@ -837,13 +837,20 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_quick_load_state -> {
-                    val ok = NativeLibrary.quickLoadState()
-                    Toast.makeText(
-                        requireContext(),
-                        if (ok) R.string.emulation_quick_load_state_success
-                        else R.string.emulation_quick_load_state_failure,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // The load waits to see the game resume (and undoes itself if it does not),
+                    // which can take seconds: never on the main thread.
+                    val appContext = requireContext().applicationContext
+                    Thread {
+                        val message = when (NativeLibrary.quickLoadState()) {
+                            NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
+                            NativeLibrary.QUICK_LOAD_ROLLED_BACK -> R.string.emulation_quick_load_state_rolled_back
+                            NativeLibrary.QUICK_LOAD_ROLLBACK_FAILED -> R.string.emulation_quick_load_state_rollback_failed
+                            else -> R.string.emulation_quick_load_state_failure
+                        }
+                        activity?.runOnUiThread {
+                            Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                        }
+                    }.start()
                     binding.inGameMenu.requestFocus()
                     true
                 }

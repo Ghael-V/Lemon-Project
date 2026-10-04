@@ -1162,6 +1162,8 @@
     <string name="emulation_quick_save_state_failure">Failed to save state</string>
     <string name="emulation_quick_load_state_success">State loaded</string>
     <string name="emulation_quick_load_state_failure">Failed to load state</string>
+    <string name="emulation_quick_load_state_rolled_back">The game did not resume after loading, so it was put back where it was. That save may not fit the game anymore.</string>
+    <string name="emulation_quick_load_state_rollback_failed">The game did not resume after loading and could not be put back. Close it and start again.</string>
     <string name="lemon_cheater">Lemon Cheater</string>
     <string name="lemon_cheater_value_hint">Value</string>
     <string name="lemon_cheater_new_search">New search</string>
