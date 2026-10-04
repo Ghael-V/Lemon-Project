@@ -301,6 +301,10 @@
     <string name="setup_step_of">Step %1$d of %2$d</string>
     <string name="setup_required">Required</string>
     <string name="setup_later">Later</string>
+    <string name="library_view">View</string>
+    <string name="library_view_carousel">Carousel</string>
+    <string name="library_view_grid">Grid</string>
+    <string name="library_view_list">List</string>
     <string name="pull_to_refresh">Pull down to refresh</string>
     <string name="pull_release">Release to refresh</string>
     <string name="scan_listing">Looking for games…</string>

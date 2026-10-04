@@ -112,6 +112,8 @@ fun ModernLibraryScreen(
     var favoritesVersion by remember { mutableIntStateOf(0) }
     var sheetGame by remember { mutableStateOf<Game?>(null) }
     var showSort by remember { mutableStateOf(false) }
+    var showViews by remember { mutableStateOf(false) }
+    var viewMode by remember { mutableStateOf(LibraryView.fromId(preferences.getInt(LibraryView.PREF, 0))) }
 
     val visible = remember(games, filterId, search, favoritesVersion) {
         GameListFilters.apply(preferences, games, filterId, search)
@@ -155,12 +157,37 @@ fun ModernLibraryScreen(
             )
         )
 
-        if (landscape) {
+        if (viewMode != LibraryView.CAROUSEL && landscape) {
+            LandscapeBrowseLayout(
+                viewMode, visible, selected, search, searching, showQLaunch, loading, actions,
+                onSearch = { search = it },
+                onSearching = { searching = it; if (!it) search = "" },
+                onSort = { showSort = true },
+                onViews = { showViews = true },
+                onSelect = ::select,
+                onFocusSelect = { selectedPath = it.path },
+                onOpenSheet = { sheetGame = it },
+                onShowAll = { search = ""; searching = false; filterId = android.view.View.NO_ID }
+            )
+        } else if (viewMode != LibraryView.CAROUSEL) {
+            PortraitBrowseLayout(
+                viewMode, visible, selected, search, searching, showQLaunch, loading, actions,
+                onSearch = { search = it },
+                onSearching = { searching = it; if (!it) search = "" },
+                onSort = { showSort = true },
+                onViews = { showViews = true },
+                onSelect = ::select,
+                onFocusSelect = { selectedPath = it.path },
+                onOpenSheet = { sheetGame = it },
+                onShowAll = { search = ""; searching = false; filterId = android.view.View.NO_ID }
+            )
+        } else if (landscape) {
             LandscapeLayout(
                 visible, selected, search, searching, showQLaunch, loading, actions,
                 onSearch = { search = it },
                 onSearching = { searching = it; if (!it) search = "" },
                 onSort = { showSort = true },
+                onViews = { showViews = true },
                 onSelect = ::select,
                 onFocusSelect = { selectedPath = it.path },
                 onOpenSheet = { sheetGame = it },
@@ -172,6 +199,7 @@ fun ModernLibraryScreen(
                 onSearch = { search = it },
                 onSearching = { searching = it; if (!it) search = "" },
                 onSort = { showSort = true },
+                onViews = { showViews = true },
                 onSelect = ::select,
                 onFocusSelect = { selectedPath = it.path },
                 onOpenSheet = { sheetGame = it },
@@ -212,6 +240,18 @@ fun ModernLibraryScreen(
                 onDismiss = { sheetGame = null }
             )
         }
+        if (showViews) {
+            LemonSheet(
+                title = stringResource(R.string.library_view),
+                items = LibraryView.values().map { view ->
+                    SheetItem(stringResource(view.label), selected = viewMode == view) {
+                        viewMode = view
+                        preferences.edit().putInt(LibraryView.PREF, view.id).apply()
+                    }
+                },
+                onDismiss = { showViews = false }
+            )
+        }
         if (showSort) {
             LemonSheet(
                 title = stringResource(R.string.statistics_sort_by),
@@ -239,6 +279,7 @@ private fun LandscapeLayout(
     onSearch: (String) -> Unit,
     onSearching: (Boolean) -> Unit,
     onSort: () -> Unit,
+    onViews: () -> Unit,
     onSelect: (Game) -> Unit,
     onFocusSelect: (Game) -> Unit,
     onOpenSheet: (Game) -> Unit,
@@ -256,7 +297,7 @@ private fun LandscapeLayout(
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(horizontal = 36.dp, vertical = 12.dp)
     ) {
-        TopBar(search, searching, onSearch, onSearching, onSort, actions)
+        TopBar(search, searching, onSearch, onSearching, onSort, onViews, actions)
         Spacer(Modifier.height(10.dp))
 
         // The row of tiles takes whatever height is left after the title, buttons and shortcuts,
@@ -331,6 +372,7 @@ private fun PortraitLayout(
     onSearch: (String) -> Unit,
     onSearching: (Boolean) -> Unit,
     onSort: () -> Unit,
+    onViews: () -> Unit,
     onSelect: (Game) -> Unit,
     onFocusSelect: (Game) -> Unit,
     onOpenSheet: (Game) -> Unit,
@@ -342,7 +384,7 @@ private fun PortraitLayout(
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(horizontal = 18.dp, vertical = 8.dp)
     ) {
-        TopBar(search, searching, onSearch, onSearching, onSort, actions)
+        TopBar(search, searching, onSearch, onSearching, onSort, onViews, actions)
         Spacer(Modifier.height(12.dp))
         if (visible.isEmpty()) {
             EmptyState(actions, loading)
@@ -377,12 +419,13 @@ private fun PortraitLayout(
 }
 
 @Composable
-private fun TopBar(
+internal fun TopBar(
     search: String,
     searching: Boolean,
     onSearch: (String) -> Unit,
     onSearching: (Boolean) -> Unit,
     onSort: () -> Unit,
+    onViews: () -> Unit,
     actions: LibraryActions
 ) {
     Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -406,6 +449,7 @@ private fun TopBar(
                 LemonIconButton(R.drawable.ic_search, stringResource(R.string.home_search_games)) {
                     onSearching(true)
                 }
+                LemonIconButton(R.drawable.ic_view_grid, stringResource(R.string.library_view), onClick = onViews)
                 LemonIconButton(R.drawable.ic_filter, stringResource(R.string.statistics_sort_by), onClick = onSort)
                 LemonIconButton(R.drawable.ic_bar_chart, stringResource(R.string.statistics), onClick = actions.onStatistics)
                 LemonIconButton(R.drawable.ic_settings, stringResource(R.string.preferences_settings), onClick = actions.onSettings)
@@ -455,7 +499,7 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit, modifier
 }
 
 @Composable
-private fun HeroInfo(game: Game, actions: LibraryActions, centered: Boolean = false, onMore: () -> Unit) {
+internal fun HeroInfo(game: Game, actions: LibraryActions, centered: Boolean = false, onMore: () -> Unit) {
     val context = LocalContext.current
     val playtime = remember(game.path) { GameStatsUtils.buildAbbreviated(context, game) }
     val arrangement = if (centered) Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(12.dp)
@@ -504,7 +548,7 @@ private fun HeroInfo(game: Game, actions: LibraryActions, centered: Boolean = fa
 }
 
 @Composable
-private fun ShortcutRow(actions: LibraryActions, showQLaunch: Boolean, onShowAll: () -> Unit, tileHeight: Dp) {
+internal fun ShortcutRow(actions: LibraryActions, showQLaunch: Boolean, onShowAll: () -> Unit, tileHeight: Dp) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         val modifier = Modifier.weight(1f).height(tileHeight)
         ShortcutTile(R.drawable.ic_home, stringResource(R.string.lemon_all_games), modifier, onShowAll)
@@ -518,7 +562,7 @@ private fun ShortcutRow(actions: LibraryActions, showQLaunch: Boolean, onShowAll
 }
 
 @Composable
-private fun EmptyState(actions: LibraryActions, loading: Boolean) {
+internal fun EmptyState(actions: LibraryActions, loading: Boolean) {
     if (loading) {
         Box(Modifier.fillMaxSize())
         return
