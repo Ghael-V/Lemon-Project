@@ -1416,8 +1416,7 @@
     <string name="emulation_quick_save_state_failure">No se pudo guardar el estado</string>
     <string name="emulation_quick_load_state_success">Estado cargado</string>
     <string name="emulation_quick_load_state_failure">No se pudo cargar el estado</string>
-    <string name="emulation_quick_load_state_rolled_back">El juego no se reanudó tras la carga, así que se ha devuelto a donde estaba. Puede que ese guardado ya no encaje con el juego.</string>
-    <string name="emulation_quick_load_state_rollback_failed">El juego no se reanudó tras la carga y no se pudo devolver a su estado anterior. Ciérralo y empieza de nuevo.</string>
+    <string name="emulation_quick_load_state_incompatible">No se puede cargar: el juego ha cambiado desde que guardaste (suele pasar tras morir o entrar en una zona nueva). La carga rápida solo funciona en la misma situación en la que guardaste, y no se ha cambiado nada.</string>
     <string name="lemon_cheater">Lemon Cheater</string>
     <string name="lemon_cheater_value_hint">Valor</string>
     <string name="lemon_cheater_new_search">Nueva búsqueda</string>

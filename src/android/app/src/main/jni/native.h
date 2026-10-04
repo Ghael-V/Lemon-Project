@@ -50,18 +50,11 @@ public:
 
     /// What Quick Load did. The values are what the JNI call returns to Kotlin.
     enum class QuickLoadResult : int {
-        Failed = 0,         // nothing was restored (no quicksave, or it does not fit this game)
-        Loaded = 1,         // restored, and the game went on presenting frames
-        RolledBack = 2,     // restored, the game never resumed, so the previous state was put back
-        RollbackFailed = 3, // the game never resumed and the previous state could not be put back
+        Failed = 0,       // nothing was restored (no quicksave, or it does not fit this game)
+        Loaded = 1,       // restored
+        Incompatible = 2, // refused: the game freed memory the save holds since it was made
     };
     QuickLoadResult QuickLoadState();
-
-    /// Counts every frame the renderer presents; Quick Load watches it to tell a game that
-    /// resumed from one that froze.
-    void NotePresentedFrame() {
-        m_frames_presented.fetch_add(1, std::memory_order_relaxed);
-    }
     std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,
                                                        Core::MemorySearch::ValueType type,
                                                        float tolerance);
@@ -118,7 +111,6 @@ private:
     Core::SystemResultStatus m_load_result{Core::SystemResultStatus::ErrorNotInitialized};
     std::atomic<bool> m_is_running = false;
     std::atomic<bool> m_is_paused = false;
-    std::atomic<u64> m_frames_presented{0};
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};
     std::unique_ptr<FileSys::ManualContentProvider> m_manual_provider;
     int m_applet_id{1};

@@ -478,66 +478,18 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         m_system.Pause();
     }
 
-    // Safety net: keep where the game is right now, so a load that leaves the game frozen can be
-    // undone. Restoring an old state onto a game whose GPU/service state moved on can leave it
-    // waiting forever for something that will not come (the freeze after dying and respawning),
-    // and without this the only way out was to close the game and lose the session.
-    const std::string undo_path = GetQuickSavePath() + ".undo";
-    const bool have_undo = Core::SaveState::Capture(m_system, undo_path);
-    if (!have_undo) {
-        LOG_WARNING(Frontend, "Quick Load: could not keep the current state, no way back if the "
-                              "load does not resume");
-    }
+    Core::SaveState::RestoreFailure failure = Core::SaveState::RestoreFailure::Other;
+    const bool ok = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
 
-    const bool ok = Core::SaveState::Restore(m_system, GetQuickSavePath());
-    if (!ok) {
-        Common::FS::RemoveFile(undo_path);
-        if (!was_paused) {
-            m_system.Run();
-        }
-        return QuickLoadResult::Failed;
+    if (!was_paused) {
+        m_system.Run();
     }
-
-    if (was_paused) {
-        // The game is held paused by the user, so there is no way to see it resume.
-        Common::FS::RemoveFile(undo_path);
+    if (ok) {
         return QuickLoadResult::Loaded;
     }
-
-    m_system.Run();
-
-    // A game that resumed presents frames again within a moment. A stuck one shows only the few
-    // frames that were already queued, then nothing. Wait for a real run of frames, up to a limit.
-    static constexpr u64 FramesNeeded = 30;
-    static constexpr int MaxChecks = 80;
-    static constexpr auto CheckInterval = std::chrono::milliseconds(100);
-    const u64 frames_before = m_frames_presented.load(std::memory_order_relaxed);
-    bool resumed = false;
-    for (int check = 0; check < MaxChecks; check++) {
-        std::this_thread::sleep_for(CheckInterval);
-        if (m_frames_presented.load(std::memory_order_relaxed) - frames_before >= FramesNeeded) {
-            resumed = true;
-            break;
-        }
-    }
-
-    if (resumed) {
-        Common::FS::RemoveFile(undo_path);
-        return QuickLoadResult::Loaded;
-    }
-
-    LOG_ERROR(Frontend, "Quick Load: the game presented fewer than {} frames in {} ms after the "
-                        "restore, treating it as frozen",
-              FramesNeeded, MaxChecks * CheckInterval.count());
-    if (!have_undo) {
-        return QuickLoadResult::RollbackFailed;
-    }
-    m_system.Pause();
-    const bool back = Core::SaveState::Restore(m_system, undo_path);
-    m_system.Run();
-    Common::FS::RemoveFile(undo_path);
-    LOG_INFO(Frontend, "Quick Load: previous state {}", back ? "put back" : "could not be put back");
-    return back ? QuickLoadResult::RolledBack : QuickLoadResult::RollbackFailed;
+    return failure == Core::SaveState::RestoreFailure::MemoryLayoutChanged
+               ? QuickLoadResult::Incompatible
+               : QuickLoadResult::Failed;
 }
 
 std::vector<Core::MemorySearch::Match> EmulationSession::CheatSearch(

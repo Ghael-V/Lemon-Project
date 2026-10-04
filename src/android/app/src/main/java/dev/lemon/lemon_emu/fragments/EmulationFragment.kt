@@ -851,14 +851,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_quick_load_state -> {
-                    // The load waits to see the game resume (and undoes itself if it does not),
-                    // which can take seconds: never on the main thread.
+                    // Restoring about a gigabyte of memory takes a moment: not on the main thread.
                     val appContext = requireContext().applicationContext
                     Thread {
                         val message = when (NativeLibrary.quickLoadState()) {
                             NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
-                            NativeLibrary.QUICK_LOAD_ROLLED_BACK -> R.string.emulation_quick_load_state_rolled_back
-                            NativeLibrary.QUICK_LOAD_ROLLBACK_FAILED -> R.string.emulation_quick_load_state_rollback_failed
+                            NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
                             else -> R.string.emulation_quick_load_state_failure
                         }
                         activity?.runOnUiThread {

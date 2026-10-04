@@ -43,7 +43,16 @@ namespace Core::SaveState {
 // rewinding - for a typical short-lived wait (an IPC reply, a condvar signal)
 // this is a small, self-correcting discrepancy rather than a crash. See
 // GetWaitReasonForDebugging() in core/hle/kernel/k_thread.h.
-[[nodiscard]] bool Restore(Core::System& system, const std::string& path);
+enum class RestoreFailure {
+    Other,
+    // Memory the savestate holds is no longer mapped: the guest freed or moved it after the save
+    // (dying and respawning does this). Nothing was changed.
+    MemoryLayoutChanged,
+};
+
+// `failure`, when given, receives why a false return happened.
+[[nodiscard]] bool Restore(Core::System& system, const std::string& path,
+                           RestoreFailure* failure = nullptr);
 
 // Read-only: true if any live thread is currently waiting on a condition
 // variable or address arbiter - the one wait kind that depends on another
