@@ -97,19 +97,29 @@ android {
                         "-DBUILD_TESTING=OFF",
                         "-DYUZU_TESTS=OFF",
                         "-DDYNARMIC_TESTS=OFF",
-                        // Unused by CMake itself - GenerateSCMRev.cmake queries git directly.
-                        // This exists purely so this argument LIST changes whenever HEAD moves,
-                        // which forces AGP to treat the CMake configure step as out-of-date and
-                        // rerun it (regenerating scm_rev.cpp) on every build with a new commit.
-                        // Without it, AGP's own up-to-date check for the native configure task
-                        // has no way to know the git commit changed (git state isn't a tracked
-                        // Gradle task input), so it silently reuses a stale cached configure -
-                        // this is exactly why About screen / g_build_version was found frozen at
-                        // an old commit across several "Release"-type builds.
-                        "-DYUZU_GIT_COMMIT_HASH=${getGitCommitHash()}",
                         *extraCMakeArgs.toTypedArray()
                     )
                 )
+
+                // Unused by CMake itself - GenerateSCMRev.cmake queries git directly.
+                // This exists purely so this argument LIST changes whenever HEAD moves,
+                // which forces AGP to treat the CMake configure step as out-of-date and
+                // rerun it (regenerating scm_rev.cpp) on every build with a new commit.
+                // Without it, AGP's own up-to-date check for the native configure task
+                // has no way to know the git commit changed (git state isn't a tracked
+                // Gradle task input), so it silently reuses a stale cached configure -
+                // this is exactly why About screen / g_build_version was found frozen at
+                // an old commit across several "Release"-type builds.
+                //
+                // The price: AGP names its native build folder after a hash of these
+                // arguments, so every commit gets a NEW folder and recompiles the whole
+                // emulator (about 1,700 objects, ~20 minutes). A development build
+                // (-PfastDev=true, build.sh --fast) leaves the argument out: the folder
+                // stays the same, only the files that changed are rebuilt, and the version
+                // the app reports may lag behind the commit. Never use it for a release.
+                if ((project.findProperty("fastDev") as String?) != "true") {
+                    arguments.add("-DYUZU_GIT_COMMIT_HASH=${getGitCommitHash()}")
+                }
 
                 if (isNightly) {
                     arguments.addAll(listOf(
