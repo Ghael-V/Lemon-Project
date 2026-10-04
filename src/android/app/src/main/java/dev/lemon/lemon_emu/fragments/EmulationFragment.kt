@@ -726,6 +726,20 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         binding.surfaceEmulation.holder.addCallback(this)
         binding.doneControlConfig.setOnClickListener { stopConfiguringControls() }
 
+        // A tap on the game, beside an open menu, closes the menu. The overlay takes every touch
+        // on the game, so without this the tap only reached the controls and the menu stayed open.
+        // The tap that closes the menu is swallowed so it does not also press something in the game.
+        binding.surfaceInputOverlay.menuOutsideTapHandler = { event ->
+            if (binding.drawerLayout.isOpen) {
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    binding.drawerLayout.close()
+                }
+                true
+            } else {
+                false
+            }
+        }
+
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
                 binding.surfaceInputOverlay.dispatchTouchEvent(

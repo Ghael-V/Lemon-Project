@@ -225,7 +225,17 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
     }
 
+    /**
+     * Asked first for every touch: returns true when the touch was used to close the in-game menu
+     * (a tap on the game while the menu is open), so it must not also reach the controls.
+     */
+    var menuOutsideTapHandler: ((MotionEvent) -> Boolean)? = null
+
     override fun onTouch(v: View, event: MotionEvent): Boolean {
+        if (menuOutsideTapHandler?.invoke(event) == true) {
+            return true
+        }
+
         try {
             touchEventListener?.invoke(event)
         } catch (e: Exception) {}
