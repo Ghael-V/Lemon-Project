@@ -33,6 +33,9 @@ Options:
     -n, --nightly           Create a nightly build.
     -e, --experimental      Create an experimental build (own applicationId, coexists with
                             nightly/mainline on the same device).
+    -f, --fast              Development build: keeps the native build folder between commits so
+                            only changed files are recompiled. The version the app reports may
+                            lag behind the commit. Never for a release.
 
 Extra arguments are passed to CMake (e.g. -DCMAKE_OPTION_NAME=VALUE)
 Set the CCACHE variable to "true" to enable build caching.
@@ -67,6 +70,7 @@ while true; do
 		-b|--build-type) type "$2"; shift ;;
         -n|--nightly) NIGHTLY=true ;;
         -e|--experimental) EXPERIMENTAL=true ;;
+        -f|--fast) FAST=true ;;
 		-h|--help) usage ;;
 		*) break ;;
 	esac
@@ -152,6 +156,7 @@ echo "-- building..."
     -PYUZU_ANDROID_ARGS="$*" \
     -Pnightly="$NIGHTLY" \
     -Pexperimental="$EXPERIMENTAL" \
+    -PfastDev="${FAST:-false}" \
     --info
 
 if [ -n "${ANDROID_KEYSTORE_B64}" ]; then
