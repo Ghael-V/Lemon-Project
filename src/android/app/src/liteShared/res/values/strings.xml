@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: Copyright 2026 Lemon-Project -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Lemon Lite and Lemon Lite & Spoofed: the migration speaks of Lemon as a source and of
+     Lemon Lite as the destination. -->
+<resources>
+    <string name="lemon_welcome_feature_migrate">Bring your saves over from Lemon, Eden or Citron</string>
+    <string name="migrate_from_emulator_description">Bring your saves over from Lemon, Eden, Citron or yuzu without opening them (plus keys and firmware if Lemon Lite has none yet)</string>
+    <string name="migrate_no_sources">No compatible emulator found. Lemon, Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
+    <string name="migrate_found_conflicts">%1$d of those games already have a save in Lemon Lite.</string>
+    <string name="migrate_found_keys">Your keys will be imported too (Lemon Lite has none yet).</string>
+    <string name="migrate_found_firmware">Your firmware will be imported too (Lemon Lite has none yet).</string>
+    <string name="migrate_replace">Replace Lemon Lite saves</string>
+    <string name="migrate_keep">Keep Lemon Lite saves</string>
+    <string name="migrate_done">Imported: %1$d · Kept from Lemon Lite: %2$d · Failed: %3$d</string>
+    <string name="migrate_done_backup">The Lemon Lite saves that were replaced are backed up in %1$s</string>
+</resources>

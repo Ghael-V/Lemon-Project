@@ -267,6 +267,11 @@ android {
                 }
             }
             buildConfigField("boolean", "LITE", "true")
+            sourceSets {
+                getByName("lite") {
+                    res.srcDirs("src/liteShared/res")
+                }
+            }
 
             ndk {
                 abiFilters += listOf("arm64-v8a")
@@ -288,6 +293,11 @@ android {
                 }
             }
             buildConfigField("boolean", "LITE", "true")
+            sourceSets {
+                getByName("liteSpoofed") {
+                    res.srcDirs("src/liteShared/res")
+                }
+            }
 
             ndk {
                 abiFilters += listOf("arm64-v8a")

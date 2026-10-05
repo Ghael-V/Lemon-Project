@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: Copyright 2026 Lemon-Project -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Lemon Lite and Lemon Lite & Spoofed: the migration speaks of Lemon as a source and of
+     Lemon Lite as the destination. -->
+<resources>
+    <string name="lemon_welcome_feature_migrate">Trae tus partidas de Lemon, Eden o Citron</string>
+    <string name="migrate_from_emulator_description">Trae tus partidas guardadas desde Lemon, Eden, Citron o yuzu sin tener que abrirlos (y las claves y el firmware si Lemon Lite aún no los tiene)</string>
+    <string name="migrate_no_sources">No se ha encontrado ningún emulador compatible. Son compatibles Lemon, Eden, Citron, yuzu y otros emuladores basados en yuzu.</string>
+    <string name="migrate_found_conflicts">%1$d de esos juegos ya tienen partida en Lemon Lite.</string>
+    <string name="migrate_found_keys">También se importarán tus claves (Lemon Lite aún no tiene).</string>
+    <string name="migrate_found_firmware">También se importará tu firmware (Lemon Lite aún no tiene).</string>
+    <string name="migrate_replace">Reemplazar las de Lemon Lite</string>
+    <string name="migrate_keep">Conservar las de Lemon Lite</string>
+    <string name="migrate_done">Importadas: %1$d · Conservadas de Lemon Lite: %2$d · Con error: %3$d</string>
+    <string name="migrate_done_backup">Las partidas de Lemon Lite reemplazadas se han guardado en %1$s</string>
+</resources>

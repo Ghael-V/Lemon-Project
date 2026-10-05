@@ -32,12 +32,19 @@ object EmulatorMigration {
     private const val KEYS_DOCUMENT_ID = "root/keys/prod.keys"
     private const val FIRMWARE_DOCUMENT_ID = "root/nand/system/Contents/registered"
     private val TITLE_ID_REGEX = Regex("^[0-9A-Fa-f]{16}$")
+    private const val LEMON_PROVIDER = "dev.lemon.lemon_emu.features.DocumentProvider"
 
     // Device saves (per console, not per user) live under an all-zero user ID in both layouts.
     private const val DEVICE_USER_ID = "00000000000000000000000000000000"
     private const val DEVICE_SAVE_DIR = "/user/save/0000000000000000/$DEVICE_USER_ID/"
 
-    data class Source(val packageName: String, val label: String, val authority: String) {
+    data class Source(
+        val packageName: String,
+        val label: String,
+        val authority: String,
+        /** Another Lemon build (Lemon, Lemon Lite, Lemon Lite & Spoofed, nightly...). */
+        val isLemon: Boolean = false
+    ) {
         /**
          * Where the folder picker should open: the emulator's user folder. A root URI, not a
          * document URI - opening a document makes the picker call findDocumentPath(), which the
@@ -90,11 +97,13 @@ object EmulatorMigration {
                     // Some forks put a slogan after the name ("citron-neo: The switch fell off...").
                     packageManager.getApplicationLabel(info.applicationInfo).toString()
                         .substringBefore(':').trim(),
-                    info.authority
+                    info.authority,
+                    info.name == LEMON_PROVIDER
                 )
             }
             .distinctBy { it.packageName }
-            .sortedBy { it.label.lowercase() }
+            // Other Lemon builds first: whoever installs Lemon Lite most likely comes from Lemon.
+            .sortedWith(compareBy({ !it.isLemon }, { it.label.lowercase() }))
     }
 
     /** Null when the picked folder isn't the emulator's user folder itself. */
