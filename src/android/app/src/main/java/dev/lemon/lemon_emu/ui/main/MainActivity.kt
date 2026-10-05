@@ -5,6 +5,8 @@
 package dev.lemon.lemon_emu.ui.main
 
 import android.content.Intent
+import dev.lemon.lemon_emu.utils.GameLaunchUtils
+import dev.lemon.lemon_emu.HomeNavigationDirections
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
@@ -193,6 +195,27 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         setUpBundledDriver()
         setInsets()
         applyFullscreenPreference()
+
+        if (!firstTimeSetup && savedInstanceState == null) {
+            bootIntoQLaunchIfWanted(navHostFragment.navController)
+        }
+    }
+
+    // "Start in QLaunch": opening the app from the launcher boots the console's home menu right
+    // away. Once per process, so leaving QLaunch lands in the library instead of starting it again,
+    // and not for an app opened any other way (a game shortcut, a file to install).
+    private fun bootIntoQLaunchIfWanted(navController: NavController) {
+        val fromLauncher = intent?.action == Intent.ACTION_MAIN &&
+            intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+        if (bootedIntoQLaunch || !fromLauncher || !BooleanSetting.BOOT_INTO_QLAUNCH.getBoolean()) {
+            return
+        }
+        bootedIntoQLaunch = true
+        if (!NativeLibrary.isFirmwareAvailable() || !NativeLibrary.areKeysPresent()) {
+            return
+        }
+        val qlaunchGame = GameLaunchUtils.qlaunchGame() ?: return
+        navController.navigate(HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame))
     }
 
     // Off the main thread: copies the bundled driver zip and, the first time on a supported GPU,
@@ -597,4 +620,9 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 result = result
             )
         }
+
+    companion object {
+        /** Set once the app has booted into QLaunch in this process (see bootIntoQLaunchIfWanted). */
+        private var bootedIntoQLaunch = false
+    }
 }

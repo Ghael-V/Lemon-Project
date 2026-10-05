@@ -22,6 +22,7 @@ import dev.lemon.lemon_emu.HomeNavigationDirections
 import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
+import dev.lemon.lemon_emu.model.AppletInfo
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.widget.GameLauncherWidgetProvider
@@ -36,6 +37,22 @@ import kotlinx.coroutines.withContext
  * the "continue playing" quick-launch card.
  */
 object GameLaunchUtils {
+    /**
+     * QLaunch, the console's home menu, as something EmulationActivity can boot: null when the
+     * installed firmware does not have it. Marks it as the applet being run.
+     */
+    fun qlaunchGame(): Game? {
+        val appletPath = NativeLibrary.getAppletLaunchPath(AppletInfo.QLaunch.entryId)
+        if (appletPath.isEmpty()) {
+            return null
+        }
+        NativeLibrary.setCurrentAppletId(AppletInfo.QLaunch.appletId)
+        return Game(
+            title = LemonApplication.appContext.getString(R.string.qlaunch_applet),
+            path = appletPath
+        )
+    }
+
     fun launchGame(activity: AppCompatActivity, game: Game, navController: NavController) {
         val gameExists = DocumentFile.fromSingleUri(
             LemonApplication.appContext,

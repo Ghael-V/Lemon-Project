@@ -62,8 +62,10 @@ abstract class SettingsItem(
                 return NativeInput.getStyleIndex(0) != NpadStyleIndex.Handheld
             }
 
-            // Can't edit enable_qlaunch_button if firmware is not available
-            if (setting.key == BooleanSetting.ENABLE_QLAUNCH_BUTTON.key) {
+            // Can't edit enable_qlaunch_button or boot_into_qlaunch if firmware is not available
+            if (setting.key == BooleanSetting.ENABLE_QLAUNCH_BUTTON.key ||
+                setting.key == BooleanSetting.BOOT_INTO_QLAUNCH.key
+            ) {
                 return NativeLibrary.isFirmwareAvailable()
             }
 
@@ -995,6 +997,13 @@ abstract class SettingsItem(
                     BooleanSetting.ENABLE_QLAUNCH_BUTTON,
                     titleId = R.string.enable_qlaunch_button,
                     descriptionId = R.string.enable_qlaunch_button_description,
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.BOOT_INTO_QLAUNCH,
+                    titleId = R.string.boot_into_qlaunch,
+                    descriptionId = R.string.boot_into_qlaunch_description,
                 )
             )
             put(

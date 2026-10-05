@@ -47,6 +47,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
 
     ENABLE_FOLDER_BUTTON("enable_folder_button"),
     ENABLE_QLAUNCH_BUTTON("enable_qlaunch_button"),
+    BOOT_INTO_QLAUNCH("boot_into_qlaunch"),
 
     ENABLE_UPDATE_CHECKS("enable_update_checks"),
     JOYSTICK_REL_CENTER("joystick_rel_center"),

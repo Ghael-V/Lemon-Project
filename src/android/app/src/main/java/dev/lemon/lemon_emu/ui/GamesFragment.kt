@@ -37,7 +37,6 @@ import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.adapters.GameAdapter
 import dev.lemon.lemon_emu.databinding.FragmentGamesBinding
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
-import dev.lemon.lemon_emu.model.AppletInfo
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
@@ -520,8 +519,8 @@ class GamesFragment : Fragment() {
 
     private fun launchQLaunch() {
         try {
-            val appletPath = NativeLibrary.getAppletLaunchPath(AppletInfo.QLaunch.entryId)
-            if (appletPath.isEmpty()) {
+            val qlaunchGame = GameLaunchUtils.qlaunchGame()
+            if (qlaunchGame == null) {
                 Toast.makeText(
                     requireContext(),
                     R.string.applets_error_applet,
@@ -529,13 +528,6 @@ class GamesFragment : Fragment() {
                 ).show()
                 return
             }
-
-            NativeLibrary.setCurrentAppletId(AppletInfo.QLaunch.appletId)
-
-            val qlaunchGame = Game(
-                title = getString(R.string.qlaunch_applet),
-                path = appletPath
-            )
 
             val action = HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame)
             findNavController().navigate(action)
