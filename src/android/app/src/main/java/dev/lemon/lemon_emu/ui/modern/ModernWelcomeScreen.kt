@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.lemon.lemon_emu.BuildConfig
 import dev.lemon.lemon_emu.R
 
 /** The first screen of first-run setup: what Lemon is, then "Get started" into the steps. */
@@ -90,7 +91,9 @@ fun ModernWelcomeScreen(onStart: () -> Unit) {
             Spacer(Modifier.height(24.dp))
 
             val features = listOf(
-                R.drawable.ic_graphics to R.string.lemon_welcome_feature_driver,
+                // Lite doesn't carry the Lemon-Ade driver; it is about its lighter settings instead.
+                R.drawable.ic_graphics to
+                    if (BuildConfig.LITE) R.string.lemon_welcome_feature_lite else R.string.lemon_welcome_feature_driver,
                 R.drawable.ic_install to R.string.lemon_welcome_feature_migrate,
                 R.drawable.ic_save to R.string.lemon_welcome_feature_savestate
             )

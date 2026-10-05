@@ -78,6 +78,8 @@ android {
         targetSdk = 36
         versionName = getGitVersion()
         versionCode = autoVersion
+        // Lemon Lite and Lemon Lite & Spoofed set it to true.
+        buildConfigField("boolean", "LITE", "false")
 
         externalNativeBuild {
             cmake {
@@ -264,6 +266,7 @@ android {
                     arguments.add("-DLEMON_LITE=ON")
                 }
             }
+            buildConfigField("boolean", "LITE", "true")
 
             ndk {
                 abiFilters += listOf("arm64-v8a")
@@ -284,6 +287,7 @@ android {
                     arguments.addAll(listOf("-DLEMON_LITE=ON", "-DLEMON_SPOOFED=ON"))
                 }
             }
+            buildConfigField("boolean", "LITE", "true")
 
             ndk {
                 abiFilters += listOf("arm64-v8a")

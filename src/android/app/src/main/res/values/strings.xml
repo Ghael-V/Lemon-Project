@@ -271,6 +271,7 @@
     <string name="lemon_welcome_title">Welcome to Lemon</string>
     <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
     <string name="lemon_welcome_feature_driver">Lemon-Ade GPU driver built in</string>
+    <string name="lemon_welcome_feature_lite">Lighter settings for less powerful GPUs</string>
     <string name="lemon_welcome_feature_migrate">Bring your saves over from Eden or Citron</string>
     <string name="lemon_welcome_feature_savestate">Quick save in any game</string>
     <string name="lemon_welcome_start">Get started</string>

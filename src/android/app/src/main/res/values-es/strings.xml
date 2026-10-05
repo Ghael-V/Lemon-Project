@@ -260,6 +260,7 @@
     <string name="lemon_welcome_title">Bienvenido a Lemon</string>
     <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
     <string name="lemon_welcome_feature_driver">Controlador de GPU Lemon-Ade integrado</string>
+    <string name="lemon_welcome_feature_lite">Ajustes ligeros para GPUs menos potentes</string>
     <string name="lemon_welcome_feature_migrate">Trae tus partidas de Eden o Citron</string>
     <string name="lemon_welcome_feature_savestate">Guardado rápido en cualquier juego</string>
     <string name="lemon_welcome_start">Empezar</string>
