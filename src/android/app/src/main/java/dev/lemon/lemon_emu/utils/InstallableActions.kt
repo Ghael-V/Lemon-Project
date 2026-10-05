@@ -162,7 +162,7 @@ object InstallableActions {
                 } else {
                     firmwarePath.deleteRecursively()
                     cacheFirmwareDir.copyRecursively(firmwarePath, overwrite = true)
-                    NativeLibrary.initializeSystem(true)
+                    GameHelper.reinitializeSystem()
                     homeViewModel.setCheckKeys(true)
                     activity.getString(R.string.save_file_imported_success)
                 }
@@ -190,7 +190,7 @@ object InstallableActions {
             val messageToShow: Any = try {
                 if (firmwarePath.exists()) {
                     firmwarePath.deleteRecursively()
-                    NativeLibrary.initializeSystem(true)
+                    GameHelper.reinitializeSystem()
                     homeViewModel.setCheckKeys(true)
                     activity.getString(R.string.firmware_uninstalled_success)
                 } else {
@@ -388,7 +388,7 @@ object InstallableActions {
                 )
             }
 
-            NativeLibrary.initializeSystem(true)
+            GameHelper.reinitializeSystem()
             NativeConfig.initializeGlobalConfig()
             gamesViewModel.reloadGames(false)
             driverViewModel.reloadDriverData()
