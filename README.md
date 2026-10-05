@@ -71,8 +71,9 @@ public under the GPL.
 
 Most of Lemon's additions are Android-side features layered on top of unchanged core emulation, plus changes to
 what gets built, how, and the app's branding/UX. The one exception is savestate: making Quick Save/Quick Load work
-reliably on real games required real changes to the emulated kernel itself (how a thread parked mid-syscall is
-captured and restored) — see [Features](#features) below.
+on real games required real changes to the emulated kernel and services themselves (how a thread parked
+mid-syscall is captured and restored, and undoing what the game changed outside its memory since the save) — see
+[Features](#features) below.
 
 ## Features
 
@@ -88,17 +89,19 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   needing a premade cheat code.
 - **Input macros** — record a sequence of on-screen controller presses with their timing and play it back, looped
   or once, for repetitive farming/grinding or practicing a sequence.
-- **Quick Save / Quick Load (experimental)** — same-session savestate. Required a real fix in the emulated kernel
-  itself: a guest thread parked mid-syscall (waiting on a condvar, an IPC reply, a timer...) lives inside a host
-  fiber whose true resume point isn't in the register/memory snapshot a savestate captures, so a naive restore left
-  it resuming into a world that no longer matched what it expected and the game aborted. Restore now leaves any
-  still-waiting thread's own context and stack untouched, and retries around waits that depend on another guest
-  thread instead of forcing them. Verified working repeatedly on real, demanding titles, but still not 100%
-  reliable in every game/moment.
+- **Quick Save / Quick Load (experimental)** — same-session savestate that also survives dying, respawning and
+  moving on in the game. A save waits for a settled moment; a load undoes what the game changed since the save
+  outside its own memory (GPU buffers and mappings, thread stacks, files and other objects services handed out,
+  threads destroyed and created again) and only then rewinds the memory and the threads. Threads parked
+  mid-syscall keep the host fiber they live in, and services cannot answer a request while a save or a load
+  runs. When something since the save cannot be undone yet, the load says so and changes nothing. Verified on
+  Super Mario 3D World and Garfield; other games may still find something it cannot undo.
 - **Controller layout presets** — a "Diseño del mando" entry in the pause menu with one-tap presets (default, big
   buttons, swapped D-pad/stick) plus quick access to the existing drag-and-resize edit mode, which used to be
   buried two menus deep with no indication it existed.
 - **Controller layout per game** — move and resize the on-screen controls for one game only, or for all of them.
+- **Start in QLaunch** — with the firmware installed, opening Lemon boots straight into the console's home menu
+  (once per launch: leaving it takes you to the library).
 - **Reset all settings** — a red card at the bottom of Settings that puts every setting back to a fresh install's
   defaults, optionally also deleting every game's custom settings. Game folders, storage locations and each game's
   add-on choices are kept (unless the games' settings are deleted too).
@@ -106,7 +109,8 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   explanation of every setting.
 - **Game usage stats** — automatic per-game playtime, last-played time and session count, surfaced as a
   "Continue playing" shortcut on the games list and a sortable ranking on a dedicated Statistics screen.
-- **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library.
+- **Carousel/grid/list browsing** with per-card usage badges, favorites, and search/filtering across your library;
+  a progress bar while the library is scanned and pull down to refresh.
 - **In-app updates** — checks Lemon's own server on launch (falling back to the GitHub mirror when it can't be
   reached), on demand from the About screen too, and can download/install the new APK directly, with no path
   (missing release, no connection) that crashes the app. A one-time "What's new" notice follows an update.
@@ -122,6 +126,17 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.0.1** — **Quick Load survives dying** (and moving on in the game): it now undoes what the game changed
+  since the save — GPU buffers and mappings, thread stacks, open files and other service objects, worker threads
+  destroyed and created again — instead of refusing or freezing; it also no longer fails now and then when a
+  service answered mid-load. Still experimental. **Grid and list views** for big libraries, a **scan progress bar**
+  (including the one-time decompression of a solid `.nsz`, which used to look like an empty library for minutes)
+  and pull down to refresh. **Start in QLaunch** option. A tap on the game closes the in-game menu. **Enable Legacy
+  Rescale Pass** is listed under Hacks: it fixes the colored lines in Luigi's Mansion 3 (thanks to Elegant Demise
+  for finding it). Updates: only a newer version is offered, and only a release with an APK for your build. Fixes:
+  stopping a macro mid-way left its buttons pressed; installing or removing firmware, or importing data, during a
+  library scan could crash; the CPU summary on chips this build does not know (Snapdragon 8 Elite Gen 5); fewer
+  repeated warnings in the log; a missing TAS folder is created instead of logging an error.
 - **v1.0.0** — Lemon has its own home: the code, the releases and the updates now live at
   [git.lemon-emu.org](https://git.lemon-emu.org/lemon/Lemon-Project) (GitHub is a mirror) and there is a website,
   [lemon-emu.org](https://lemon-emu.org), with a settings guide and an FAQ. A new interface: launcher-style library,
@@ -134,8 +149,9 @@ consolidated build going forward instead of splitting fixes across three branche
   that travels with the vertices could not be followed by the shader compiler, so those draws were silently
   dropped; draws are now split by texture); FIFA 23 stuck at the splash screen (the network service lacked an
   `Ioctl` call); updates and DLC bundled in `.nsz` files showing the wrong version and no DLC; motion controls on
-  every screen rotation, so they work on foldables and tablets held landscape. Known issue: in FIFA 23 the faces
-  of some players can show wrong colors.
+  every screen rotation, so they work on foldables and tablets held landscape. A card-based first-run setup, and
+  more Turnip sources in the driver downloader. Known issue: in FIFA 23 the faces of some players can show wrong
+  colors.
 - **v0.3.5** — Coming from Eden, Citron or yuzu: Lemon imports your saves (plus keys and firmware if it has none)
   without opening the other emulator, from the first-run setup or the top of Settings. Android 12 support. The
   Lemon-Ade driver ships inside the app and is picked automatically on the Adreno 830, with an automatic fallback to
