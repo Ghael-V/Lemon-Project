@@ -181,6 +181,12 @@ public:
         return m_thread_id;
     }
 
+    // Savestate restore only: a worker the guest destroyed and created again after the save is
+    // given back the id the saved memory knows it by.
+    void SetThreadIdForRestore(u64 thread_id) {
+        m_thread_id = thread_id;
+    }
+
     void ContinueIfHasKernelWaiters(KernelCore& kernel) {
         if (GetNumKernelWaiters() > 0) {
             Continue(kernel);
@@ -958,6 +964,12 @@ public:
     bool IsWaitingForConditionVariable() const {
         return m_condvar_tree != nullptr;
     }
+
+    // Savestate restore only: moves this thread, asleep on a condition variable, to another
+    // condition variable (and the mutex and tag it releases and takes back), as if it had gone to
+    // sleep there. False if it is not asleep on a condition variable.
+    bool RetargetConditionVariableForRestore(KernelCore& kernel, KProcessAddress address,
+                                             u64 cv_key, u32 value);
 
     void SetAddressArbiter(ConditionVariableThreadTree* tree, u64 address) {
         ASSERT(m_waiting_lock_info == nullptr);

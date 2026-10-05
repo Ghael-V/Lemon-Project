@@ -157,6 +157,17 @@ public:
 
     void UnmapAllHandles(NvCore::SessionId session_id);
 
+    // Quick Load support (see Core::SaveState::UndoJournal): removes a handle outright, unmapping it if needed.
+    void RemoveHandleForRestore(Handle::Id handle);
+
+    // Quick Load support: creates an unallocated handle under a given id.
+    std::shared_ptr<Handle> RecreateHandleForRestore(Handle::Id id, u64 size);
+
+    // Quick Load support: the id the next created handle gets.
+    void SetNextHandleIdForRestore(Handle::Id id) {
+        next_handle_id.store(id);
+    }
+
 private:
     std::list<std::shared_ptr<Handle>> unmap_queue{};
     std::mutex unmap_queue_lock{}; //!< Protects access to `unmap_queue`

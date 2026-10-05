@@ -1166,6 +1166,7 @@ add_library(core STATIC
     reporter.h
     savestate.cpp
     savestate.h
+    savestate_undo_journal.h
     tools/freezer.cpp
     tools/freezer.h
     tools/renderdoc.cpp

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstring>
+#include <optional>
 
 #include "common/alignment.h"
 #include "common/assert.h"
@@ -16,6 +17,7 @@
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/service/nvdrv/core/container.h"
 #include "core/hle/service/nvdrv/core/nvmap.h"
+#include "core/savestate_undo_journal.h"
 #include "core/hle/service/nvdrv/devices/ioctl_serialization.h"
 #include "core/hle/service/nvdrv/devices/nvmap.h"
 #include "core/memory.h"
@@ -27,7 +29,9 @@ namespace Service::Nvidia::Devices {
 nvmap::nvmap(Core::System& system_, NvCore::Container& container_)
     : nvdevice{system_}, container{container_}, file{container.GetNvMapFile()} {}
 
-nvmap::~nvmap() = default;
+nvmap::~nvmap() {
+    Core::SaveState::UndoJournal::Gpu().Invalidate();
+}
 
 NvResult nvmap::Ioctl1(DeviceFD fd, Ioctl command, std::span<const u8> input,
                        std::span<u8> output) {
@@ -93,6 +97,12 @@ NvResult nvmap::IocCreate(IocCreateParams& params) {
     handle_description->orig_size = params.size; // Orig size is the unaligned size
     params.handle = handle_description->id;
     LOG_DEBUG(Service_NVDRV, "handle: {}, size: {:#x}", handle_description->id, params.size);
+    Core::SaveState::UndoJournal::Gpu().Record("nvmap create", [this, id = handle_description->id] {
+        file.RemoveHandleForRestore(id);
+        // Undone newest first, so the oldest creation sets this last: the id the save had next.
+        file.SetNextHandleIdForRestore(id);
+        return true;
+    });
 
     return NvResult::Success;
 }
@@ -139,6 +149,21 @@ NvResult nvmap::IocAlloc(IocAllocParams& params, DeviceFD fd) {
                                              handle_description->size,
                                              Kernel::KMemoryPermission::None, true, false)
                .IsSuccess());
+    Core::SaveState::UndoJournal::Gpu().Record(
+        "nvmap alloc", [this, process, id = params.handle, address = handle_description->address,
+         size = handle_description->size] {
+            auto handle = file.GetHandle(id);
+            if (!handle || handle->pins > 0) {
+                return false;
+            }
+            if (process->GetPageTable().UnlockForDeviceAddressSpace(address, size).IsError()) {
+                return false;
+            }
+            std::scoped_lock lock(handle->mutex);
+            handle->allocated = false;
+            handle->address = 0;
+            return true;
+        });
     return result;
 }
 
@@ -186,6 +211,15 @@ NvResult nvmap::IocFromId(IocFromIdParams& params) {
         return result;
     }
     params.handle = handle_description->id;
+    Core::SaveState::UndoJournal::Gpu().Record("nvmap from id", [this, id = params.id] {
+        auto handle = file.GetHandle(id);
+        if (!handle) {
+            return false;
+        }
+        std::scoped_lock lock(handle->mutex);
+        handle->dupes--;
+        return handle->dupes > 0;
+    });
     return NvResult::Success;
 }
 
@@ -242,12 +276,64 @@ NvResult nvmap::IocFree(IocFreeParams& params, DeviceFD fd) {
         return NvResult::Success;
     }
 
+    // What the handle was, so a Quick Load can bring it back (see Core::SaveState::UndoJournal).
+    struct Snapshot {
+        u64 size;
+        u64 orig_size;
+        u32 align;
+        NvCore::NvMap::Handle::Flags flags;
+        u8 kind;
+        u64 address;
+        NvCore::SessionId session_id;
+        s32 dupes;
+        bool allocated;
+    };
+    std::optional<Snapshot> snapshot;
+    if (auto h = file.GetHandle(params.handle)) {
+        std::scoped_lock lock(h->mutex);
+        snapshot = Snapshot{h->size,  h->orig_size, static_cast<u32>(h->align), h->flags,
+                            h->kind,  h->address,   h->session_id, h->dupes, h->allocated};
+    }
+
     if (auto freeInfo{file.FreeHandle(params.handle, false)}) {
         auto process = container.GetSession(sessions[fd])->process;
         if (freeInfo->can_unlock) {
             ASSERT(process->GetPageTable()
                        .UnlockForDeviceAddressSpace(freeInfo->address, freeInfo->size)
                        .IsSuccess());
+        }
+        auto& journal = Core::SaveState::UndoJournal::Gpu();
+        const bool removed = file.GetHandle(params.handle) == nullptr;
+        if (snapshot && removed && freeInfo->can_unlock && snapshot->allocated &&
+            snapshot->dupes == 1) {
+            journal.Record("nvmap free", [this, process, id = params.handle, s = *snapshot] {
+                if (file.GetHandle(id)) {
+                    return false;
+                }
+                auto handle = file.RecreateHandleForRestore(id, s.size);
+                handle->orig_size = s.orig_size;
+                if (handle->Alloc(s.flags, s.align, s.kind, s.address, s.session_id) !=
+                    NvResult::Success) {
+                    return false;
+                }
+                bool is_out_io{};
+                return process->GetPageTable()
+                    .LockForMapDeviceAddressSpace(&is_out_io, handle->address, handle->size,
+                                                  Kernel::KMemoryPermission::None, true, false)
+                    .IsSuccess();
+            });
+        } else if (snapshot && !removed && snapshot->dupes > 1) {
+            journal.Record("nvmap free (duplicate)", [this, id = params.handle] {
+                auto handle = file.GetHandle(id);
+                if (!handle) {
+                    return false;
+                }
+                std::scoped_lock lock(handle->mutex);
+                handle->dupes++;
+                return true;
+            });
+        } else {
+            journal.Invalidate();
         }
         params.address = freeInfo->address;
         params.size = static_cast<u32>(freeInfo->size);

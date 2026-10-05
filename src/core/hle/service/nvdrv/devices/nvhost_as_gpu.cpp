@@ -5,6 +5,7 @@
 // SPDX-FileCopyrightText: 2021 Skyline Team and Contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -15,6 +16,7 @@
 #include "core/core.h"
 #include "core/hle/service/nvdrv/core/container.h"
 #include "core/hle/service/nvdrv/core/nvmap.h"
+#include "core/savestate_undo_journal.h"
 #include "core/hle/service/nvdrv/devices/ioctl_serialization.h"
 #include "core/hle/service/nvdrv/devices/nvhost_as_gpu.h"
 #include "core/hle/service/nvdrv/devices/nvhost_gpu.h"
@@ -30,7 +32,9 @@ nvhost_as_gpu::nvhost_as_gpu(Core::System& system_, Module& module_, NvCore::Con
     : nvdevice{system_}, module{module_}, container{core}, nvmap{core.GetNvMapFile()}, vm{},
       gmmu{} {}
 
-nvhost_as_gpu::~nvhost_as_gpu() = default;
+nvhost_as_gpu::~nvhost_as_gpu() {
+    Core::SaveState::UndoJournal::Gpu().Invalidate();
+}
 
 NvResult nvhost_as_gpu::Ioctl1(DeviceFD fd, Ioctl command, std::span<const u8> input,
                                std::span<u8> output) {
@@ -142,6 +146,7 @@ NvResult nvhost_as_gpu::AllocAsEx(IoctlAllocAsEx& params) {
     system.GPU().InitAddressSpace(*gmmu);
     vm.initialised = true;
 
+    Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
     return NvResult::Success;
 }
 
@@ -195,6 +200,7 @@ NvResult nvhost_as_gpu::AllocateSpace(IoctlAllocSpace& params) {
         .big_pages = params.page_size != VM::YUZU_PAGESIZE,
     };
 
+    Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
     return NvResult::Success;
 }
 
@@ -246,6 +252,7 @@ NvResult nvhost_as_gpu::FreeSpace(IoctlFreeSpace& params) {
 
         allocator.Free(u32(params.offset >> page_size_bits), u32(allocation.size >> page_size_bits));
         allocation_map.erase(params.offset);
+        Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
         return NvResult::Success;
     }
     return NvResult::BadValue;
@@ -294,6 +301,7 @@ NvResult nvhost_as_gpu::Remap(std::span<IoctlRemapEntry> entries) {
         }
     }
 
+    Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
     return NvResult::Success;
 }
 
@@ -321,6 +329,7 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
             u64 gpu_address = u64(params.offset + params.buffer_offset);
             VAddr device_address{mapping.ptr + params.buffer_offset};
             gmmu->Map(gpu_address, device_address, params.mapping_size, Tegra::PTEKind(params.kind), mapping.big_page);
+            Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
             return NvResult::Success;
         } else {
             LOG_WARNING(Service_NVDRV, "Cannot remap an unmapped GPU address space region: {:#x}", params.offset);
@@ -360,7 +369,9 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
         gmmu->Map(params.offset, device_address, size, static_cast<Tegra::PTEKind>(params.kind), use_big_pages);
 
         alloc->second.mappings.push_back(params.offset);
-        mapping_map.insert_or_assign(params.offset, Mapping(params.handle, device_address, params.offset, size, true, use_big_pages, alloc->second.sparse));
+        Mapping mapping(params.handle, device_address, params.offset, size, true, use_big_pages, alloc->second.sparse);
+        mapping.kind = params.kind;
+        mapping_map.insert_or_assign(params.offset, mapping);
     } else {
         auto& allocator{big_page ? *vm.big_page_allocator : *vm.small_page_allocator};
         u32 page_size{big_page ? vm.big_page_size : VM::YUZU_PAGESIZE};
@@ -372,43 +383,108 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
             return NvResult::InsufficientMemory;
         }
         gmmu->Map(params.offset, device_address, Common::AlignUp(size, page_size), Tegra::PTEKind(params.kind), big_page);
-        mapping_map.insert_or_assign(params.offset, Mapping(params.handle, device_address, params.offset, size, false, big_page, false));
+        Mapping mapping(params.handle, device_address, params.offset, size, false, big_page, false);
+        mapping.kind = params.kind;
+        mapping_map.insert_or_assign(params.offset, mapping);
     }
 
     map_buffer_offsets.insert(params.offset);
+    Core::SaveState::UndoJournal::Gpu().Record("gpu map", [this, offset = params.offset] {
+        std::scoped_lock undo_lock(mutex);
+        const auto it = mapping_map.find(offset);
+        if (it == mapping_map.end()) {
+            return false;
+        }
+        if (it->second.fixed) {
+            // The inverse of the push_back above.
+            auto alloc{allocation_map.upper_bound(offset)};
+            if (alloc-- != allocation_map.begin()) {
+                auto& list = alloc->second.mappings;
+                if (const auto pos = std::find(list.begin(), list.end(), offset); pos != list.end()) {
+                    list.erase(pos);
+                }
+            }
+        }
+        UnmapLocked(offset);
+        return true;
+    });
 
     return NvResult::Success;
 }
 
 NvResult nvhost_as_gpu::UnmapBuffer(IoctlUnmapBuffer& params) {
     std::scoped_lock lock(mutex);
-    if (auto const offset_it = map_buffer_offsets.find(params.offset); offset_it != map_buffer_offsets.end()) {
+    if (map_buffer_offsets.contains(params.offset)) {
         LOG_DEBUG(Service_NVDRV, "called, offset={:#x}", params.offset);
         if (!vm.initialised) {
             return NvResult::BadValue;
         }
-
-        auto const it = mapping_map.find(params.offset);
-        auto const mapping = it->second;
-        if (!mapping.fixed) {
-            auto& allocator{mapping.big_page ? *vm.big_page_allocator : *vm.small_page_allocator};
-            u32 page_size_bits{mapping.big_page ? vm.big_page_size_bits : VM::PAGE_SIZE_BITS};
-            allocator.Free(u32(mapping.offset >> page_size_bits), u32(mapping.size >> page_size_bits));
-        }
-
-        // Sparse mappings shouldn't be fully unmapped, just returned to their sparse state
-        // Only FreeSpace can unmap them fully
-        if (mapping.sparse_alloc) {
-            gmmu->MapSparse(params.offset, mapping.size, mapping.big_page);
+        const auto mapping = mapping_map.find(params.offset)->second;
+        // Where in its handle the mapping starts, read while the handle is still pinned.
+        const DAddr handle_base = nvmap.GetHandleAddress(mapping.handle);
+        UnmapLocked(params.offset);
+        if (handle_base == 0 || mapping.ptr < handle_base) {
+            Core::SaveState::UndoJournal::Gpu().Invalidate();
         } else {
-            gmmu->Unmap(params.offset, mapping.size);
+            Core::SaveState::UndoJournal::Gpu().Record(
+                "gpu unmap", [this, mapping, buffer_offset = mapping.ptr - handle_base] {
+                    std::scoped_lock undo_lock(mutex);
+                    return RemapForRestoreLocked(mapping, buffer_offset);
+                });
         }
-
-        nvmap.UnpinHandle(mapping.handle);
-        mapping_map.erase(params.offset);
-        map_buffer_offsets.erase(params.offset);
     }
     return NvResult::Success;
+}
+
+void nvhost_as_gpu::UnmapLocked(u64 offset) {
+    auto const it = mapping_map.find(offset);
+    auto const mapping = it->second;
+    if (!mapping.fixed) {
+        auto& allocator{mapping.big_page ? *vm.big_page_allocator : *vm.small_page_allocator};
+        u32 page_size_bits{mapping.big_page ? vm.big_page_size_bits : VM::PAGE_SIZE_BITS};
+        allocator.Free(u32(mapping.offset >> page_size_bits), u32(mapping.size >> page_size_bits));
+    }
+
+    // Sparse mappings shouldn't be fully unmapped, just returned to their sparse state
+    // Only FreeSpace can unmap them fully
+    if (mapping.sparse_alloc) {
+        gmmu->MapSparse(offset, mapping.size, mapping.big_page);
+    } else {
+        gmmu->Unmap(offset, mapping.size);
+    }
+
+    nvmap.UnpinHandle(mapping.handle);
+    mapping_map.erase(offset);
+    map_buffer_offsets.erase(offset);
+}
+
+bool nvhost_as_gpu::RemapForRestoreLocked(const Mapping& mapping, u64 buffer_offset) {
+    if (mapping_map.contains(mapping.offset) || !nvmap.GetHandle(mapping.handle)) {
+        return false;
+    }
+    const DAddr base = nvmap.PinHandle(mapping.handle, false);
+    if (base == 0) {
+        return false;
+    }
+    const DAddr device_address = base + buffer_offset;
+    if (mapping.fixed) {
+        gmmu->Map(mapping.offset, device_address, mapping.size,
+                  static_cast<Tegra::PTEKind>(mapping.kind), mapping.big_page);
+    } else {
+        // The exact inverse of the Free in UnmapLocked.
+        auto& allocator{mapping.big_page ? *vm.big_page_allocator : *vm.small_page_allocator};
+        const u32 page_size{mapping.big_page ? vm.big_page_size : VM::YUZU_PAGESIZE};
+        const u32 page_size_bits{mapping.big_page ? vm.big_page_size_bits : VM::PAGE_SIZE_BITS};
+        allocator.AllocateFixed(u32(mapping.offset >> page_size_bits),
+                                u32(mapping.size >> page_size_bits));
+        gmmu->Map(mapping.offset, device_address, Common::AlignUp(mapping.size, page_size),
+                  static_cast<Tegra::PTEKind>(mapping.kind), mapping.big_page);
+    }
+    Mapping restored = mapping;
+    restored.ptr = device_address;
+    mapping_map.insert_or_assign(mapping.offset, restored);
+    map_buffer_offsets.insert(mapping.offset);
+    return true;
 }
 
 NvResult nvhost_as_gpu::BindChannel(IoctlBindChannel& params) {

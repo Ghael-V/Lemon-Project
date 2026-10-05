@@ -7,6 +7,7 @@
 // Parts of this implementation were based on:
 // https://cs.android.com/android/platform/superproject/+/android-5.1.1_r38:frameworks/native/libs/gui/BufferQueueCore.cpp
 
+#include "core/savestate.h"
 #include "common/assert.h"
 
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
@@ -56,6 +57,8 @@ void BufferQueueCore::SignalDequeueCondition() {
 }
 
 bool BufferQueueCore::WaitForDequeueCondition(std::unique_lock<std::mutex>& lk) {
+    // A Quick Load may run while this waits (see Core::SaveState::ServiceGateRelease).
+    Core::SaveState::ServiceGateRelease gate;
     dequeue_condition.wait(lk, [&] { return dequeue_possible.load(); });
     dequeue_possible.store(false);
 

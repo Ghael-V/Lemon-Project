@@ -58,6 +58,18 @@ public:
         R_SUCCEED();
     }
 
+    // Savestate support: calls f(index, linear_id, object) for every used entry.
+    template <typename F>
+    void ForEachEntry(KernelCore& kernel, F&& f) const {
+        KScopedDisableDispatch dd{kernel};
+        KScopedSpinLock lk(m_lock);
+        for (s32 i = 0; i < static_cast<s32>(m_table_size); ++i) {
+            if (m_objects[i] != nullptr) {
+                f(i, static_cast<u32>(m_entry_infos[i].GetLinearId()), m_objects[i]);
+            }
+        }
+    }
+
     size_t GetTableSize() const {
         return m_table_size;
     }

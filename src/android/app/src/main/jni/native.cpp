@@ -440,12 +440,14 @@ std::string GetQuickSavePath() {
 }
 } // namespace
 
-bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target) {
+bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target,
+                                         std::chrono::steady_clock::time_point deadline) {
     static constexpr int MaxAttempts = 100;
     static constexpr auto Step = std::chrono::milliseconds(30);
     std::vector<u32> previous;
     int equal_in_a_row = 0;
-    for (int attempt = 0; attempt < MaxAttempts; attempt++) {
+    for (int attempt = 0; attempt < MaxAttempts && std::chrono::steady_clock::now() < deadline;
+         attempt++) {
         const std::vector<u32> now = Core::SaveState::WaitSignature(m_system);
         const bool arbiter = Core::SaveState::HasRiskyPendingWaits(m_system);
         equal_in_a_row = (now == previous) ? equal_in_a_row + 1 : 0;
@@ -453,7 +455,8 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
 
         bool good = false;
         if (!arbiter) {
-            good = target != nullptr ? (now == *target) : equal_in_a_row >= 2;
+            good = target != nullptr ? Core::SaveState::SignaturesMatch(*target, now)
+                                     : equal_in_a_row >= 2;
         }
         if (good) {
             return true;
@@ -502,6 +505,9 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     // refuses, see RestoreFailure::NotSettled): so wait, try, and wait again if it was refused
     // for that reason.
     static constexpr int MaxTries = 20;
+    // However many tries that takes, the player is not kept waiting much longer than this: up to
+    // a minute could go by before (20 tries of up to 3 s each).
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
     Core::SaveState::RestoreFailure failure = Core::SaveState::RestoreFailure::Other;
     bool restored = false;
     bool no_safe_moment = false;
@@ -517,7 +523,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
             }
             return QuickLoadResult::Failed; // no usable save
         }
-        if (!WaitForSafeMoment(!was_paused, &saved_signature)) {
+        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline)) {
             no_safe_moment = true;
             break;
         }
@@ -526,7 +532,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
             break;
         }
-        if (attempt + 1 == MaxTries) {
+        if (attempt + 1 == MaxTries || std::chrono::steady_clock::now() >= deadline) {
             no_safe_moment = true;
         }
     }

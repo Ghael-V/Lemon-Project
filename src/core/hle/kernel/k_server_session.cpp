@@ -1351,8 +1351,9 @@ Result KServerSession::OnRequest(KernelCore& kernel, KSessionRequest* request) {
         R_SUCCEED_IF(request->GetEvent() != nullptr);
 
         // This is a synchronous request, so we should wait for our request to complete.
-        GetCurrentThread(kernel).SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
+        // After BeginWait, which clears the reason when it sets the state.
         GetCurrentThread(kernel).BeginWait(kernel, std::addressof(wait_queue));
+        GetCurrentThread(kernel).SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
     }
 
     return GetCurrentThread(kernel).GetWaitResult();

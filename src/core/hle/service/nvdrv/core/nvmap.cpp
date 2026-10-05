@@ -325,6 +325,33 @@ std::optional<NvMap::FreeInfo> NvMap::FreeHandle(Handle::Id handle, bool interna
     return freeInfo;
 }
 
+void NvMap::RemoveHandleForRestore(Handle::Id handle) {
+    auto handle_description{GetHandle(handle)};
+    if (!handle_description) {
+        return;
+    }
+    {
+        std::scoped_lock lock(handle_description->mutex);
+        if (handle_description->d_address) {
+            std::scoped_lock queueLock(unmap_queue_lock);
+            UnmapHandle(*handle_description);
+        } else if (handle_description->unmap_queue_entry) {
+            std::scoped_lock queueLock(unmap_queue_lock);
+            unmap_queue.erase(*handle_description->unmap_queue_entry);
+            handle_description->unmap_queue_entry.reset();
+        }
+        handle_description->pins = 0;
+    }
+    std::scoped_lock lock(handles_lock);
+    handles.erase(handle);
+}
+
+std::shared_ptr<NvMap::Handle> NvMap::RecreateHandleForRestore(Handle::Id id, u64 size) {
+    auto handle_description{std::make_shared<Handle>(size, id)};
+    AddHandle(handle_description);
+    return handle_description;
+}
+
 void NvMap::UnmapAllHandles(NvCore::SessionId session_id) {
     auto handles_copy = [&] {
         std::scoped_lock lk{handles_lock};
