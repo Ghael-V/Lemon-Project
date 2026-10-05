@@ -110,6 +110,17 @@ public:
         (void)chunk->Record(command);
     }
 
+    /// Records a command into the upload command buffer, which is executed before the main one in
+    /// the same submission. That buffer is only begun (and submitted) when something uses it.
+    template <typename T>
+        requires std::is_invocable_v<T, vk::CommandBuffer>
+    void RecordUpload(T&& c) {
+        this->RecordWithUploadBuffer(
+            [this, command = std::move(c)](vk::CommandBuffer, vk::CommandBuffer) {
+                command(WorkerUploadCommandBuffer());
+            });
+    }
+
     template <typename T>
         requires std::is_invocable_v<T, vk::CommandBuffer>
     void Record(T&& c) {
@@ -285,6 +296,9 @@ private:
 
     void AllocateWorkerCommandBuffer();
 
+    /// Worker thread: the upload command buffer of the current submission, begun on first use.
+    vk::CommandBuffer WorkerUploadCommandBuffer();
+
     u64 SubmitExecution(VkSemaphore signal_semaphore, VkSemaphore wait_semaphore);
 
     void AllocateNewContext();
@@ -305,6 +319,7 @@ private:
 
     vk::CommandBuffer current_cmdbuf;
     vk::CommandBuffer current_upload_cmdbuf;
+    bool upload_cmdbuf_begun = false; ///< Worker thread: current_upload_cmdbuf has been begun.
 
     DeferredClear deferred_clear;
 
