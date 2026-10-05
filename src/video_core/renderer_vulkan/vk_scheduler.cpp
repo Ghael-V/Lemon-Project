@@ -330,13 +330,26 @@ void Scheduler::AllocateWorkerCommandBuffer() {
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         .pInheritanceInfo = nullptr,
     });
-    current_upload_cmdbuf = vk::CommandBuffer(command_pool->Commit(), device.GetDispatchLoader());
-    current_upload_cmdbuf.Begin({
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr,
-    });
+    // The upload buffer waits until something records into it: most submissions have no
+    // reordered uploads, and every begin of a reused command buffer resets it, which some drivers
+    // (Qualcomm's) pay for by freeing and later re-allocating all of its memory.
+    current_upload_cmdbuf = vk::CommandBuffer(VK_NULL_HANDLE, device.GetDispatchLoader());
+    upload_cmdbuf_begun = false;
+}
+
+vk::CommandBuffer Scheduler::WorkerUploadCommandBuffer() {
+    if (!upload_cmdbuf_begun) {
+        current_upload_cmdbuf =
+            vk::CommandBuffer(command_pool->Commit(), device.GetDispatchLoader());
+        current_upload_cmdbuf.Begin({
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .pInheritanceInfo = nullptr,
+        });
+        upload_cmdbuf_begun = true;
+    }
+    return current_upload_cmdbuf;
 }
 
 u64 Scheduler::SubmitExecution(VkSemaphore signal_semaphore, VkSemaphore wait_semaphore) {
@@ -345,15 +358,20 @@ u64 Scheduler::SubmitExecution(VkSemaphore signal_semaphore, VkSemaphore wait_se
 
     const u64 signal_value = master_semaphore->NextTick();
     RecordWithUploadBuffer([signal_semaphore, wait_semaphore, signal_value,
-                            this](vk::CommandBuffer cmdbuf, vk::CommandBuffer upload_cmdbuf) {
-        static constexpr VkMemoryBarrier WRITE_BARRIER{
-            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-            .pNext = nullptr,
-            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
-        };
-        upload_cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, WRITE_BARRIER);
-        upload_cmdbuf.End();
+                            this](vk::CommandBuffer cmdbuf, vk::CommandBuffer) {
+        // Runs on the worker thread, after every command of this submission.
+        vk::CommandBuffer upload_cmdbuf = current_upload_cmdbuf;
+        if (upload_cmdbuf_begun) {
+            static constexpr VkMemoryBarrier WRITE_BARRIER{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+            };
+            upload_cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                          VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, WRITE_BARRIER);
+            upload_cmdbuf.End();
+        }
         cmdbuf.End();
 
         if (on_submit) {

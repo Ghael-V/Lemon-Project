@@ -22,24 +22,27 @@ CommandPool::CommandPool(MasterSemaphore& master_semaphore_, const Device& devic
 CommandPool::~CommandPool() = default;
 
 void CommandPool::Allocate(size_t begin, size_t end) {
-    // Command buffers are going to be committed, recorded, executed every single usage cycle.
-    // They are also going to be reset when committed.
-    Pool& pool = pools.emplace_back();
-    pool.handle = device.GetLogical().CreateCommandPool({
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .pNext = nullptr,
-        .flags =
-            VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = device.GetGraphicsFamily(),
-    });
-    pool.cmdbufs = pool.handle.Allocate(COMMAND_BUFFER_POOL_SIZE);
+    // Command buffers are committed, recorded and executed every single usage cycle. Each one has
+    // a pool of its own, reset as a whole when the buffer is committed again: an implicit
+    // per-buffer reset (vkBeginCommandBuffer on a RESET_COMMAND_BUFFER pool) made Qualcomm's
+    // driver free all of the buffer's memory and allocate it again during the next recording.
+    for (size_t i = begin; i < end; ++i) {
+        Pool& pool = pools.emplace_back();
+        pool.handle = device.GetLogical().CreateCommandPool({
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+            .queueFamilyIndex = device.GetGraphicsFamily(),
+        });
+        pool.cmdbufs = pool.handle.Allocate(1);
+    }
 }
 
 VkCommandBuffer CommandPool::Commit() {
     const size_t index = CommitResource();
-    const auto pool_index = index / COMMAND_BUFFER_POOL_SIZE;
-    const auto sub_index = index % COMMAND_BUFFER_POOL_SIZE;
-    return pools[pool_index].cmdbufs[sub_index];
+    Pool& pool = pools[index];
+    pool.handle.Reset();
+    return pool.cmdbufs[0];
 }
 
 } // namespace Vulkan
