@@ -490,7 +490,7 @@
     <!-- About screen strings -->
     <string name="gaia_is_not_real">Gaia no es real</string>
     <string name="copied_to_clipboard">Copiado al portapapeles</string>
-    <string name="about_app_description">Un emulador privado de Nintendo Switch, exclusivo para Android, hecho para GPUs Adreno</string>
+    <string name="about_app_description">Un emulador de Nintendo Switch, exclusivo para Android, hecho para GPUs Adreno</string>
     <string name="contributors">Colaboradores</string>
     <string name="contributors_description">Las personas y proyectos sobre los que se construye Lemon</string>
     <string name="patrons_thanks">¡Gracias a nuestros mecenas, Xefir y HungNguYen, por apoyar Lemon!</string>
