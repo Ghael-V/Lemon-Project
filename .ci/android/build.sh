@@ -25,7 +25,8 @@ Options:
     -r, --release        	Enable update checker. If set, sets the DEVEL bool variable to false.
                          	By default, DEVEL is true.
     -t, --target <FLAVOR> 	Build flavor (variable: TARGET)
-                          	Valid values are: standard, lite, lite-spoofed, legacy, optimized
+                          	Valid values are: standard, lite, lite-spoofed, legacy, optimized,
+                          	or all (standard, lite and lite-spoofed, the three a release ships)
                           	Default: standard
     -b, --build-type <TYPE>	Build type (variable: TYPE)
                           	Valid values are: Release, RelWithDebInfo, Debug
@@ -97,20 +98,31 @@ fi
 TARGET_LOWER=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
 
 case "$TARGET_LOWER" in
-	lite) FLAVOR=Lite ;;
-	lite-spoofed) FLAVOR=LiteSpoofed ;;
-	legacy) FLAVOR=Legacy ;;
-	optimized) FLAVOR=GenshinSpoof ;;
-	standard) FLAVOR=Mainline ;;
-	*) die "Invalid build flavor $TARGET."
+	all) TARGETS="standard lite lite-spoofed" ;;
+	*) TARGETS="$TARGET_LOWER" ;;
 esac
+
+flavor_of() {
+	case "$1" in
+		lite) echo Lite ;;
+		lite-spoofed) echo LiteSpoofed ;;
+		legacy) echo Legacy ;;
+		optimized) echo GenshinSpoof ;;
+		standard) echo Mainline ;;
+		*) return 1 ;;
+	esac
+}
 
 case "$TYPE" in
 	RelWithDebInfo|Release|Debug) ;;
 	*) die "Invalid build type $TYPE."
 esac
 
-LOWER_FLAVOR=$(echo "$FLAVOR" | sed 's/./\L&/')
+GRADLE_TASKS=
+for t in $TARGETS; do
+	FLAVOR=$(flavor_of "$t") || die "Invalid build flavor $t."
+	GRADLE_TASKS="$GRADLE_TASKS copy${FLAVOR}${TYPE}Outputs"
+done
 LOWER_TYPE=$(echo "$TYPE" | sed 's/./\L&/')
 
 if [ -n "${ANDROID_KEYSTORE_B64}" ]; then
@@ -151,7 +163,8 @@ fi
 
 echo "-- building..."
 
-./gradlew "copy${FLAVOR}${TYPE}Outputs" \
+# shellcheck disable=SC2086 # one word per task
+./gradlew $GRADLE_TASKS \
     -Dorg.gradle.caching="${CCACHE}" \
     -Dorg.gradle.parallel="${CCACHE}" \
     -Dorg.gradle.workers.max="${NUM_JOBS}" \
@@ -172,21 +185,23 @@ echo "-- Done! APK and AAB artifacts are in ${ARTIFACTS_DIR}"
 # (src/common/net/net.cpp), so the suffix here must match the one that variant looks for, and the
 # name carries no spaces or "&" (GitHub rewrites them). Only a commit that carries a tag gets that
 # name: "git describe --abbrev=0" handed an untagged commit the previous release's tag.
-case "$TARGET_LOWER" in
-    standard) RELEASE_PREFIX=Lemon; RELEASE_SUFFIX=standard ;;
-    lite) RELEASE_PREFIX=Lemon-Lite; RELEASE_SUFFIX=lite ;;
-    lite-spoofed) RELEASE_PREFIX=Lemon-Lite-Spoofed; RELEASE_SUFFIX=lite-spoofed ;;
-    *) RELEASE_PREFIX= ;;
-esac
-if [ "$DEVEL" != "true" ] && [ -n "$RELEASE_PREFIX" ]; then
-    RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
-    RELEASE_FILE="${RELEASE_PREFIX}-${RELEASE_TAG}-${RELEASE_SUFFIX}.apk"
+RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+for t in $TARGETS; do
+    case "$t" in
+        standard) RELEASE_PREFIX=Lemon; RELEASE_SUFFIX=standard ;;
+        lite) RELEASE_PREFIX=Lemon-Lite; RELEASE_SUFFIX=lite ;;
+        lite-spoofed) RELEASE_PREFIX=Lemon-Lite-Spoofed; RELEASE_SUFFIX=lite-spoofed ;;
+        *) continue ;;
+    esac
+    [ "$DEVEL" != "true" ] || continue
     if [ -z "$RELEASE_TAG" ]; then
         echo "-- This commit has no tag: no ${RELEASE_PREFIX}-<tag>-${RELEASE_SUFFIX}.apk was made"
-    else
-        cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" "${ARTIFACTS_DIR}/${RELEASE_FILE}"
-        echo "-- Release file: ${RELEASE_FILE}"
+        continue
     fi
-fi
+    LOWER_FLAVOR=$(flavor_of "$t" | sed 's/./\L&/')
+    RELEASE_FILE="${RELEASE_PREFIX}-${RELEASE_TAG}-${RELEASE_SUFFIX}.apk"
+    cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" "${ARTIFACTS_DIR}/${RELEASE_FILE}"
+    echo "-- Release file: ${RELEASE_FILE}"
+done
 
 ls -l "${ARTIFACTS_DIR}/"
