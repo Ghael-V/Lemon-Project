@@ -944,8 +944,16 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
             return alignment > 1 && (offset % alignment) != 0;
         }
     }();
+    // A small uniform buffer the CPU has rewritten since its last upload is streamed even while the
+    // frame-wide statistic below keeps the cached path: the cached path would copy it into the
+    // host buffer, and that copy can't be moved ahead of the draws already using the buffer, so it
+    // ends the render pass and starts it again - on every draw that changes it (thousands of times
+    // a second in big games, each one costly on mobile drivers).
+    const bool small_and_dirty = has_host_buffer && size <= DEFAULT_SKIP_CACHE_SIZE &&
+                                 memory_tracker.IsRegionCpuModified(device_addr, size);
     const bool use_fast_buffer = needs_alignment_stream
-        || (has_host_buffer && size <= channel_state->uniform_buffer_skip_cache_size
+        || (has_host_buffer
+            && (size <= channel_state->uniform_buffer_skip_cache_size || small_and_dirty)
             && !memory_tracker.IsRegionGpuModified(device_addr, size));
     if (use_fast_buffer) {
         if constexpr (IS_OPENGL) {
