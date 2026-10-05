@@ -585,11 +585,11 @@
     <string name="update_checking">Checking for updates…</string>
     <string name="update_none">No newer version found, or the update server could not be reached.</string>
     <string name="update_open_page">Open download page</string>
-    <string name="whats_new_title">What\'s new in Lemon 1.0</string>
-    <string name="whats_new_body">• A new interface: a launcher-style library, a quick in-game panel with a performance card and full controller navigation.\n• On-screen controller layout per game.\n• Lemon Cheater now searches floats.\n• Fixes: FIFA\'s missing indicators, shadows and text, FIFA 23 start-up, updates and DLC inside .nsz files, and gyro controls on foldables.\n• GPU Mode is now Accurate by default, which fixes flickering textures in some games.\n• A red \"Reset all settings\" card at the bottom of Settings.\n• A new website with a settings guide and an FAQ: lemon-emu.org</string>
+    <string name="whats_new_title">What\'s new in Lemon 1.0.1</string>
+    <string name="whats_new_body">• Quick Load survives dying: save, die or move on, load, and you are back where you saved. Still experimental: if a game did something it cannot undo yet, the load tells you and changes nothing.\n• Start in QLaunch: opening Lemon boots straight into the console\'s home menu (Settings → App Settings, needs the firmware).\n• A progress bar while your library is scanned, and pull down to refresh.\n• Enable Legacy Rescale Pass (Graphics → Hacks) fixes the colored lines in Luigi\'s Mansion 3 when scaled.\n• Fixes: only newer updates are offered, stopping a macro no longer leaves buttons pressed, and installing firmware during a library scan no longer crashes.</string>
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_read_more">Read more</string>
-    <string name="whats_new_link">https://lemon-emu.org/#fixes</string>
+    <string name="whats_new_link">https://lemon-emu.org/#features</string>
     <string name="join_discord_button">Join our Discord</string>
     <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
     <string name="buymeacoffee_link_button">Buy me a coffee</string>
