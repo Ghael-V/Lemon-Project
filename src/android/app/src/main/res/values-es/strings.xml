@@ -493,6 +493,7 @@
     <string name="about_app_description">Un emulador privado de Nintendo Switch, exclusivo para Android, hecho para GPUs Adreno</string>
     <string name="contributors">Colaboradores</string>
     <string name="contributors_description">Las personas y proyectos sobre los que se construye Lemon</string>
+    <string name="patrons_thanks">¡Gracias a nuestros mecenas, Xefir y HungNguYen, por apoyar Lemon!</string>
     <string name="logo_credit">Logo diseñado por Madeleine, que lo hizo de forma desinteresada y con muchísima paciencia. ¡Mil gracias, Madeleine!</string>
     <string name="licenses_description">Proyectos que hacen que Lemon para Android sea posible</string>
     <string name="build">Compilación</string>

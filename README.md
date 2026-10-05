@@ -62,12 +62,11 @@ core developed by the yuzu community and the projects that followed it, trimmed 
 and run it on a single Adreno-equipped Android device: no Qt/desktop/CLI targets, no multi-platform CI, no
 Mali/PowerVR-specific code paths.
 
-Started as a personal build for the maintainer's own device(s); builds are now published on the
-[Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of Lemon's own server and the app checks
-for new ones on launch (with the GitHub mirror as a fallback). It's
-still a small, personal-scale project rather than a community one — there's a [Discord](https://discord.com/invite/PEE7Q5TVM5)
-for feedback and support, but it isn't actively looking for external contributions; the source and releases are
-public under the GPL.
+Started as a personal build for the maintainer's own device(s), Lemon is now made by **Team Lemon**: Ghael, Seak
+and Sidgey. Builds are published on the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of
+Lemon's own server and the app checks for new ones on launch (with the GitHub mirror as a fallback). It's still a
+small project — there's a [Discord](https://discord.com/invite/PEE7Q5TVM5) for feedback and support, but it isn't
+actively looking for external contributions; the source and releases are public under the GPL.
 
 Most of Lemon's additions are Android-side features layered on top of unchanged core emulation, plus changes to
 what gets built, how, and the app's branding/UX. The one exception is savestate: making Quick Save/Quick Load work
@@ -261,6 +260,8 @@ This project stands on the open-source work of the yuzu community and of the pro
 - Ryubing
 
 And everyone who continues or has contributed to any of them. <3
+
+Thanks to our patrons, Xefir and HungNguYen, for supporting Lemon. <3
 
 A very special thank you to Madeleine, who designed Lemon's logo for free and put up with endless
 rounds of changes with a lot of patience. Thank you, Madeleine! <3
