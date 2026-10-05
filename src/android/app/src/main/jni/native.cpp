@@ -1055,8 +1055,25 @@ void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_initializeGpuDriver(JNIEnv*
     return access(KgslPath, F_OK) == 0;
 }
 
+[[maybe_unused]] static bool CheckMaliPresent() {
+    constexpr auto MaliPath{"/dev/mali0"};
+
+    return access(MaliPath, F_OK) == 0;
+}
+
 [[maybe_unused]] bool SupportsCustomDriver() {
-    return android_get_device_api_level() >= 28 && CheckKgslPresent();
+    if (android_get_device_api_level() < 28) {
+        return false;
+    }
+#ifdef LEMON_LITE
+    // Lemon Lite also loads Mesa PanVK builds that talk to the Mali kernel driver (mali_kbase).
+    // adrenotools' custom-driver path only swaps the vulkan.* HAL the system loader opens, so it
+    // isn't tied to Adreno; its KGSL helpers (turbo, GPU mappings) stay Adreno-only.
+    if (CheckMaliPresent()) {
+        return true;
+    }
+#endif
+    return CheckKgslPresent();
 }
 
 jboolean JNICALL Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_supportsCustomDriverLoading(
@@ -1064,6 +1081,15 @@ jboolean JNICALL Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_supportsCustomD
 #ifdef ARCHITECTURE_arm64
     // If the KGSL device exists custom drivers can be loaded using adrenotools
     return SupportsCustomDriver();
+#else
+    return false;
+#endif
+}
+
+jboolean JNICALL Java_dev_lemon_lemon_1emu_utils_GpuDriverHelper_hasKgslDevice(JNIEnv* env,
+                                                                                jobject instance) {
+#ifdef ARCHITECTURE_arm64
+    return CheckKgslPresent();
 #else
     return false;
 #endif

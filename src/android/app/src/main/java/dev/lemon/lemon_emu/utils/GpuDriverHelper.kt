@@ -261,7 +261,10 @@ object GpuDriverHelper {
         return GpuDriverMetadata()
     }
 
+    /** Custom drivers: Adreno (KGSL), plus Mali (mali_kbase) in Lemon Lite. */
     external fun supportsCustomDriverLoading(): Boolean
+
+    private external fun hasKgslDevice(): Boolean
 
     external fun getSystemDriverInfo(
         surface: Surface = Surface(SurfaceTexture(true)),
@@ -273,9 +276,10 @@ object GpuDriverHelper {
         hookLibPath: String
     ): String?
 
+    /** Adreno only (the Freedreno/Turnip options); custom drivers in general: supportsCustomDriverLoading(). */
     fun isAdrenoGpu(): Boolean {
         return try {
-            supportsCustomDriverLoading()
+            hasKgslDevice() && supportsCustomDriverLoading()
         } catch (e: Throwable) {
             // Catches Throwable (not just Exception): a call before the native library is
             // fully linked throws UnsatisfiedLinkError, which is an Error and was previously

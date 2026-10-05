@@ -56,8 +56,14 @@ class DriverFetcherFragment : Fragment() {
     private val adrenoModel: Int
         get() = parseAdrenoModel()
 
+    // Mali (Lemon Lite) has no tested recommendation yet: the badge names the experimental PanVK
+    // builds listed below, and "install recommended" stays off (findRecommendedInstall).
     private val recommendedDriver: String
-        get() = driverMap.firstOrNull { adrenoModel in it.first }?.second ?: "Unsupported"
+        get() = if (!GpuDriverHelper.isAdrenoGpu()) {
+            "PanVK Kbase (experimental)"
+        } else {
+            driverMap.firstOrNull { adrenoModel in it.first }?.second ?: "Unsupported"
+        }
 
     enum class SortMode {
         Default, PublishTime,
@@ -68,7 +74,11 @@ class DriverFetcherFragment : Fragment() {
         val path: String = "",
         val sort: Int = 0,
         val useTagName: Boolean = false,
-        val sortMode: SortMode = SortMode.Default
+        val sortMode: SortMode = SortMode.Default,
+        /** Only release files ending like this are drivers (null: every file). */
+        val assetSuffix: String? = null,
+        /** A Mali driver (PanVK): listed on Mali devices instead of the Adreno ones. */
+        val forMali: Boolean = false
     )
 
     private val repoList: List<DriverRepo> = listOf(
@@ -81,7 +91,19 @@ class DriverFetcherFragment : Fragment() {
         DriverRepo("Whitebelyash Turnip", "whitebelyash/freedreno_turnip-CI", sort=5, false, SortMode.PublishTime),
         DriverRepo("StevenMXZ Turnip", "StevenMXZ/Adreno-Tools-Drivers", 6, false, SortMode.PublishTime),
         DriverRepo("Balemuni Apex Turnip", "Balemuni/Balemunis-Aurora", 7, false, SortMode.PublishTime),
+        // Mesa PanVK talking to the Mali kernel driver (mali_kbase). Experimental, Mali-G615 first.
+        // The repo also publishes apps and a glibc build; only the .adpkg.zip is the Android driver.
+        DriverRepo(
+            "PanVK Kbase (Mali)", "zenithblue-oss/panvk-kbase-android", 20, false,
+            SortMode.PublishTime, assetSuffix = ".adpkg.zip", forMali = true
+        ),
     )
+
+    // Adreno devices get the Turnip builds, Mali devices (Lemon Lite) the PanVK ones.
+    private val visibleRepos: List<DriverRepo> by lazy {
+        val mali = !GpuDriverHelper.isAdrenoGpu()
+        repoList.filter { it.forMali == mali }
+    }
 
     private val driverMap = listOf(
         IntRange(Integer.MIN_VALUE, 9) to "Unsupported",
@@ -175,12 +197,13 @@ class DriverFetcherFragment : Fragment() {
     private fun fetchDrivers() {
         binding.loadingIndicator.isVisible = true
 
-        repoList.forEach { driver ->
+        visibleRepos.forEach { driver ->
             val name = driver.name
             val path = driver.path
             val useTagName = driver.useTagName
             val sortMode = driver.sortMode
             val sort = driver.sort
+            val assetSuffix = driver.assetSuffix
 
             CoroutineScope(Dispatchers.Main).launch {
                 val request =
@@ -195,7 +218,7 @@ class DriverFetcherFragment : Fragment() {
                             }
 
                             val body = response.body?.string() ?: return@withContext
-                            releases = Release.fromJsonArray(body, useTagName, sortMode)
+                            releases = Release.fromJsonArray(body, useTagName, sortMode, assetSuffix)
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
@@ -228,7 +251,7 @@ class DriverFetcherFragment : Fragment() {
                     withContext(Dispatchers.Main) {
                         driverGroupAdapter.updateDriverGroups(fetchedDriverGroups)
 
-                        if (fetchedDriverGroups.size >= repoList.size) {
+                        if (fetchedDriverGroups.size >= visibleRepos.size) {
                             binding.loadingIndicator.isVisible = false
                             binding.buttonInstallRecommended.isEnabled =
                                 findRecommendedInstall() != null
@@ -415,7 +438,8 @@ class DriverFetcherFragment : Fragment() {
             fun fromJsonArray(
                 jsonString: String,
                 useTagName: Boolean,
-                sortMode: SortMode
+                sortMode: SortMode,
+                assetSuffix: String? = null
             ): ArrayList<Release> {
                 val mapper = jacksonObjectMapper()
 
@@ -429,6 +453,15 @@ class DriverFetcherFragment : Fragment() {
                     if (rootNode.isArray) {
                         rootNode.forEach { node ->
                             val release = fromJson(node, useTagName)
+                            if (assetSuffix != null) {
+                                release.artifacts = release.artifacts.filter {
+                                    it.name.endsWith(assetSuffix, ignoreCase = true)
+                                }
+                                // Releases of something else in the same repo (apps, tools).
+                                if (release.artifacts.isEmpty()) {
+                                    return@forEach
+                                }
+                            }
 
                             if (latestRelease == null && !release.prerelease) {
                                 latestRelease = release
