@@ -97,6 +97,16 @@ class DriverFetcherFragment : Fragment() {
             "PanVK Kbase (Mali)", "zenithblue-oss/panvk-kbase-android", 20, false,
             SortMode.PublishTime, assetSuffix = ".adpkg.zip", forMali = true
         ),
+        // Mali-G720 builds; each release also carries a manifest and checksums.
+        DriverRepo(
+            "PanVK G720 (Mali)", "wonderkast02/panvk-g720-kbase-csf", 21, false,
+            SortMode.PublishTime, assetSuffix = ".zip", forMali = true
+        ),
+        // Mali-G52 (Bifrost, v7) builds; the package carries its own libc++_shared and libdrm.
+        DriverRepo(
+            "PanVK G52 (Mali)", "LukeValen/panvk-mali-g52", 22, false,
+            SortMode.PublishTime, assetSuffix = ".zip", forMali = true
+        ),
     )
 
     // Adreno devices get the Turnip builds, Mali devices (Lemon Lite) the PanVK ones.
