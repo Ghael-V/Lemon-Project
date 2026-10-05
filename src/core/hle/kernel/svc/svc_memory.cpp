@@ -7,6 +7,7 @@
 #include "core/core.h"
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/svc.h"
+#include "core/savestate_undo_journal.h"
 
 namespace Kernel::Svc {
 namespace {
@@ -142,7 +143,13 @@ Result MapMemory(Core::System& system, u64 dst_addr, u64 src_addr, u64 size) {
         return result;
     }
 
-    R_RETURN(page_table.MapMemory(dst_addr, src_addr, size));
+    R_TRY(page_table.MapMemory(dst_addr, src_addr, size));
+    // A Quick Load undoes this (see Core::SaveState::UndoJournal): a thread stack is such a mapping.
+    Core::SaveState::UndoJournal::Memory().Record(
+        "map memory", [&page_table, dst_addr, src_addr, size] {
+            return page_table.UnmapMemory(dst_addr, src_addr, size).IsSuccess();
+        });
+    R_SUCCEED();
 }
 
 /// Unmaps a region that was previously mapped with svcMapMemory
@@ -157,7 +164,13 @@ Result UnmapMemory(Core::System& system, u64 dst_addr, u64 src_addr, u64 size) {
         return result;
     }
 
-    R_RETURN(page_table.UnmapMemory(dst_addr, src_addr, size));
+    R_TRY(page_table.UnmapMemory(dst_addr, src_addr, size));
+    auto& journal = Core::SaveState::UndoJournal::Memory();
+    journal.Record("unmap memory", [&page_table, dst_addr, src_addr, size] {
+        return page_table.MapMemory(dst_addr, src_addr, size).IsSuccess();
+    });
+    journal.NoteRestoredRange(dst_addr, size);
+    R_SUCCEED();
 }
 
 Result SetMemoryPermission64(Core::System& system, uint64_t address, uint64_t size,

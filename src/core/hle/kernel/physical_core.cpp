@@ -151,8 +151,11 @@ void PhysicalCore::RunThread(KernelCore& kernel, Kernel::KThread* thread) {
 
         // Handle system calls.
         if (supervisor_call) {
-            // Perform call.
+            // Perform call. While inside it, the thread's saved context still holds the arguments,
+            // not the results (a savestate tells such a thread apart by this flag).
+            thread->SetIsCallingSvc();
             Svc::Call(system, interface->GetSvcNumber());
+            thread->ClearIsCallingSvc();
             return;
         }
 

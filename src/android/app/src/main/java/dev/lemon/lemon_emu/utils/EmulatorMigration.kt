@@ -202,7 +202,7 @@ object EmulatorMigration {
                 firmwareDir.deleteRecursively()
                 firmwareDir.mkdirs()
                 copyTree(context, plan.treeUri, FIRMWARE_DOCUMENT_ID, firmwareDir)
-                NativeLibrary.initializeSystem(true)
+                GameHelper.reinitializeSystem()
                 firmwareImported = NativeLibrary.isFirmwareAvailable()
             } catch (e: Exception) {
                 Log.error("[EmulatorMigration] firmware: ${e.message}")

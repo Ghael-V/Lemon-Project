@@ -16,6 +16,7 @@
 #include <vector>
 #include <boost/container/static_vector.hpp>
 
+#include "core/savestate_undo_journal.h"
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "common/concepts.h"
@@ -103,6 +104,8 @@ public:
     void ConvertToDomain() {
         domain_handlers = {session_handler};
         is_domain = true;
+        // Not undoable by a Quick Load (see Core::SaveState::UndoJournal).
+        Core::SaveState::UndoJournal::Services().Invalidate();
     }
 
     void ConvertToDomainOnRequestEnd() {
@@ -127,6 +130,21 @@ public:
 
     void CloseDomainHandler(std::size_t index) {
         if (index < DomainHandlerCount()) {
+            // A Quick Load puts the object back under its id: the restored game may still use it
+            // (Garfield closes files it streams; using one after a load got no answer at all, and
+            // the game aborted on the missing reply, 2010-0212).
+            if (domain_handlers[index] != nullptr) {
+                Core::SaveState::UndoJournal::Services().Record(
+                    "domain object close",
+                    [this, alive = std::weak_ptr<bool>(alive_token), index,
+                     handler = domain_handlers[index]] {
+                        if (alive.expired() || index >= domain_handlers.size()) {
+                            return false;
+                        }
+                        domain_handlers[index] = handler;
+                        return true;
+                    });
+            }
             domain_handlers[index] = nullptr;
         } else {
             ASSERT_MSG(false, "Unexpected handler index {}", index);
@@ -140,6 +158,16 @@ public:
 
     void AppendDomainHandler(SessionRequestHandlerPtr&& handler) {
         domain_handlers.emplace_back(std::move(handler));
+        // An object opened after the save does not exist for the restored game.
+        Core::SaveState::UndoJournal::Services().Record(
+            "domain object open",
+            [this, alive = std::weak_ptr<bool>(alive_token), index = domain_handlers.size() - 1] {
+                if (alive.expired() || index >= domain_handlers.size()) {
+                    return false;
+                }
+                domain_handlers[index] = nullptr;
+                return true;
+            });
     }
 
     void SetSessionHandler(SessionRequestHandlerPtr&& handler) {
@@ -173,6 +201,8 @@ private:
     bool is_initialized_for_sm{};
     SessionRequestHandlerPtr session_handler;
     std::vector<SessionRequestHandlerPtr> domain_handlers;
+    // Expires with this manager, so a pending Quick Load undo step can tell it is gone.
+    std::shared_ptr<bool> alive_token = std::make_shared<bool>(true);
 
 private:
     Kernel::KernelCore& kernel;

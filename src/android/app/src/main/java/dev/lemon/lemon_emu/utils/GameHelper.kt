@@ -41,6 +41,17 @@ object GameHelper {
     val scanProgress: StateFlow<ScanProgress?> get() = _scanProgress
     private val _scanProgress = MutableStateFlow<ScanProgress?>(null)
 
+    /**
+     * Rebuilds the emulator's file system and content providers (after installing or removing
+     * firmware, or importing data). Waits for a library scan in progress to end first: rebuilding
+     * frees the content providers the scan is reading, which crashed the app (SIGBUS in
+     * ContentProviderUnion::GetEntryRaw). Call it off the main thread, a scan can take minutes.
+     */
+    @Synchronized
+    fun reinitializeSystem() {
+        NativeLibrary.initializeSystem(true)
+    }
+
     // A scan clears and refills the native content provider, so two running at once (a library
     // reload plus CustomSettingsHandler's lookup) would each wipe what the other registered.
     @Synchronized

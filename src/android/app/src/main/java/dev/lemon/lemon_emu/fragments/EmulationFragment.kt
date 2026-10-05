@@ -43,6 +43,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
+import java.util.concurrent.atomic.AtomicBoolean
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -142,6 +143,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     // `handler`, whose overlay auto-hide code wipes every pending message on each touch - that used
     // to silently kill the first-frame watcher and leave the loading screen up forever.
     private val pollHandler = Handler(Looper.getMainLooper())
+
+    private val quickStateRunning = AtomicBoolean(false)
 
     private var controllerInputReceived = false
     private var hasPhysicalControllerConnected = false
@@ -840,35 +843,27 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
                 R.id.menu_quick_save_state -> {
                     // It may wait a moment for a safe point to save at: not on the main thread.
-                    val appContext = requireContext().applicationContext
-                    Thread {
-                        val message = when (NativeLibrary.quickSaveState()) {
+                    runQuickState(R.string.emulation_quick_save_state_working, Toast.LENGTH_SHORT) {
+                        when (NativeLibrary.quickSaveState()) {
                             NativeLibrary.QUICK_SAVE_SAVED -> R.string.emulation_quick_save_state_success
                             NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
                             else -> R.string.emulation_quick_save_state_failure
                         }
-                        activity?.runOnUiThread {
-                            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
-                        }
-                    }.start()
+                    }
                     binding.inGameMenu.requestFocus()
                     true
                 }
 
                 R.id.menu_quick_load_state -> {
                     // Restoring about a gigabyte of memory takes a moment: not on the main thread.
-                    val appContext = requireContext().applicationContext
-                    Thread {
-                        val message = when (NativeLibrary.quickLoadState()) {
+                    runQuickState(R.string.emulation_quick_load_state_working, Toast.LENGTH_LONG) {
+                        when (NativeLibrary.quickLoadState()) {
                             NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
                             NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
                             NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
                             else -> R.string.emulation_quick_load_state_failure
                         }
-                        activity?.runOnUiThread {
-                            Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
-                        }
-                    }.start()
+                    }
                     binding.inGameMenu.requestFocus()
                     true
                 }
@@ -1776,6 +1771,29 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         super.onPause()
+    }
+
+    /**
+     * Runs a Quick Save or Quick Load off the main thread: says it started (they can take a few
+     * seconds) and shows the result. A second tap while one is running is ignored, so taps do not
+     * queue up one load after another.
+     */
+    private fun runQuickState(workingMessage: Int, resultLength: Int, action: () -> Int) {
+        if (!quickStateRunning.compareAndSet(false, true)) {
+            return
+        }
+        val appContext = requireContext().applicationContext
+        Toast.makeText(appContext, workingMessage, Toast.LENGTH_SHORT).show()
+        Thread {
+            val message = try {
+                action()
+            } finally {
+                quickStateRunning.set(false)
+            }
+            activity?.runOnUiThread {
+                Toast.makeText(appContext, message, resultLength).show()
+            }
+        }.start()
     }
 
     override fun onDestroyView() {

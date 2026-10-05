@@ -1,29 +1,43 @@
 // SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
+#include <shared_mutex>
 #include <span>
+#include <thread>
 #include <vector>
 
+#include "common/alignment.h"
 #include "common/div_ceil.h"
 #include "common/fs/file.h"
 #include "common/fs/fs.h"
 #include "common/logging.h"
 #include "core/core.h"
+#include "core/hle/kernel/k_auto_object.h"
+#include "core/hle/kernel/k_handle_table.h"
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/k_thread.h"
 #include "core/hle/kernel/svc_types.h"
 #include "core/memory.h"
 #include "core/memory_region_scan.h"
 #include "core/savestate.h"
+#include "core/savestate_undo_journal.h"
 
 namespace Core::SaveState {
 
 namespace {
 
 constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
-constexpr u32 CurrentVersion = 3; // 3: the wait signature follows the thread count
+// 3: the wait signature follows the thread count
+// 4: the thread ids, the memory map and the thread handles follow the thread contexts
+// 5: the signature of a thread blocked on a user-mode lock includes that lock
+// 6: the signature tells whether a thread is inside a kernel call
+// 7: no lock address in the signature; IPC waits are recorded as such
+// 8: the signature includes what a waiting thread waits for
+constexpr u32 CurrentVersion = 8;
 
 // Regions are stored in fixed-size chunks, each preceded by a one-byte flag: 1 if the whole
 // chunk is zero (skip writing/reading the actual bytes), 0 if it isn't (bytes follow as
@@ -36,23 +50,289 @@ constexpr u32 CurrentVersion = 3; // 3: the wait signature follows the thread co
 constexpr size_t ChunkSize = 4096;
 constexpr std::array<u8, ChunkSize> ZeroChunk{};
 
+// What the guest's memory refers to by name, as it was at the save: Restore() puts the live kernel
+// back under those names. Measured on Super Mario 3D World, dying and respawning changes exactly
+// this and nothing else: four worker threads are destroyed and created again with new ids and
+// new stacks (same thread-local storage, same argument), and the handles the guest holds for them
+// are new too - and the kernel hands the recycled thread objects out in another order, so the
+// handle value saved for the thread in a slot now belongs to a different thread's object.
+constexpr u32 NoHandle = 0xFFFFFFFF;
+
+struct SavedThread {
+    u64 id;
+    u64 tls;
+    u32 handle_index; // NoHandle when the process holds no handle to this thread
+    u32 handle_linear_id;
+};
+
+struct SavedBlock {
+    u64 address;
+    u64 size;
+    u32 state;
+    u32 permission;
+    u32 attribute;
+    u32 padding;
+};
+
+// The handle a thread is held under in the process' handle table, if any.
+struct ThreadHandle {
+    u32 index;
+    u32 linear_id;
+};
+
+std::vector<ThreadHandle> CollectThreadHandles(Core::System& system, Kernel::KProcess& process,
+                                               const std::vector<Kernel::KThread*>& threads) {
+    std::vector<ThreadHandle> handles(threads.size(), ThreadHandle{NoHandle, 0});
+    process.GetHandleTable().ForEachEntry(
+        system.Kernel(), [&](s32 index, u32 linear_id, Kernel::KAutoObject* object) {
+            for (size_t i = 0; i < threads.size(); i++) {
+                if (static_cast<Kernel::KAutoObject*>(threads[i]) == object) {
+                    handles[i] = {static_cast<u32>(index), linear_id};
+                    break;
+                }
+            }
+        });
+    return handles;
+}
+
+// Handle values of the saved world and what they are in the live one, for the same thread slot.
+using HandleMap = std::vector<std::pair<u32, u32>>;
+
+constexpr u32 MutexWaitersFlag = 0x40000000;
+
+u32 EncodeHandleValue(u32 index, u32 linear_id) {
+    return index | (linear_id << 15);
+}
+
+// Replaces, in memory about to be written back, every 4-byte word that is a saved handle value
+// with the live one. Both worlds have to agree on the names of things: threads asleep in a kernel
+// wait are not restored and keep the live handle values in their own stacks, while everything
+// restored holds the saved ones - when the guest later compared or used the two (a mutex owner
+// tag, a handle passed to the kernel) the game froze or aborted with "invalid handle".
+size_t TranslateHandles(u8* data, size_t size, const HandleMap& map, u32 low, u32 high) {
+    size_t replaced = 0;
+    for (size_t offset = 0; offset + sizeof(u32) <= size; offset += sizeof(u32)) {
+        u32 word;
+        std::memcpy(&word, data + offset, sizeof(word));
+        if ((word & ~MutexWaitersFlag) < low || (word & ~MutexWaitersFlag) > high) {
+            continue;
+        }
+        // A user-mode mutex word is the owner's handle, plus a flag in bit 30 when threads wait.
+        const u32 flag = word & MutexWaitersFlag;
+        const u32 handle = word & ~MutexWaitersFlag;
+        for (const auto& [saved, live] : map) {
+            if (handle == saved) {
+                const u32 replacement = live | flag;
+                std::memcpy(data + offset, &replacement, sizeof(replacement));
+                replaced++;
+                break;
+            }
+        }
+    }
+    return replaced;
+}
+
+// True for a thread asleep in a kernel wait with a recorded reason (see Restore).
+bool IsParkedInKernel(Kernel::KThread& thread) {
+    // A thread waiting for a service's answer is restored like a running one, as it always was
+    // (the kernel did not record that reason until now): the main thread of most games waits there
+    // at nearly every moment, and its saved registers are what the restored memory goes with.
+    const auto reason = thread.GetWaitReasonForDebugging();
+    return reason != Kernel::ThreadWaitReasonForDebugging::None &&
+           reason != Kernel::ThreadWaitReasonForDebugging::IPC;
+}
+
+// Writes the 4 KiB chunks of `data` that differ from guest memory, in runs. A false return means
+// part of the range is not mapped.
+bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
+                  std::vector<u8>& live, u64& written) {
+    live.resize(size);
+    if (!memory.ReadBlockUnsafe(address, live.data(), size)) {
+        return memory.WriteBlock(address, data, size);
+    }
+    bool ok = true;
+    u64 run_start = 0;
+    bool in_run = false;
+    for (u64 offset = 0; offset < size + ChunkSize; offset += ChunkSize) {
+        const bool differs =
+            offset < size &&
+            std::memcmp(live.data() + offset, data + offset,
+                        static_cast<size_t>(std::min<u64>(ChunkSize, size - offset))) != 0;
+        if (differs && !in_run) {
+            run_start = offset;
+            in_run = true;
+        } else if (!differs && in_run) {
+            const u64 run_end = std::min(offset, size);
+            ok = memory.WriteBlock(address + run_start, data + run_start, run_end - run_start) && ok;
+            written += run_end - run_start;
+            in_run = false;
+        }
+    }
+    return ok;
+}
+
+std::vector<SavedThread> CollectThreads(Core::System& system, Kernel::KProcess& process) {
+    std::vector<Kernel::KThread*> threads;
+    for (auto& thread : process.GetThreadList()) {
+        threads.push_back(std::addressof(thread));
+    }
+    const auto handles = CollectThreadHandles(system, process, threads);
+    std::vector<SavedThread> saved;
+    for (size_t i = 0; i < threads.size(); i++) {
+        saved.push_back({threads[i]->GetThreadId(), threads[i]->GetTlsAddress().GetValue(),
+                         handles[i].index, handles[i].linear_id});
+    }
+    return saved;
+}
+
+// Every block of the process that is not free, in address order.
+std::vector<SavedBlock> CollectBlocks(Kernel::KProcess& process) {
+    std::vector<SavedBlock> blocks;
+    auto& page_table = process.GetPageTable();
+    const auto end = page_table.GetAddressSpaceStart() + page_table.GetAddressSpaceSize();
+    auto address = page_table.GetAddressSpaceStart();
+    while (address < end) {
+        Kernel::KMemoryInfo info{};
+        Kernel::Svc::PageInfo page_info{};
+        if (page_table.QueryInfo(&info, &page_info, address).IsError()) {
+            break;
+        }
+        if ((info.m_state & Kernel::KMemoryState::Mask) != Kernel::KMemoryState::Free) {
+            blocks.push_back({info.m_address, info.m_size, static_cast<u32>(info.m_state),
+                              static_cast<u32>(info.m_permission),
+                              static_cast<u32>(info.m_attribute), 0});
+        }
+        const Common::ProcessAddress next = info.m_address + info.m_size;
+        if (next <= address) {
+            break;
+        }
+        address = next;
+    }
+    return blocks;
+}
+
 } // namespace
+
+std::shared_timed_mutex& ServiceReplyGate() {
+    static std::shared_timed_mutex gate;
+    return gate;
+}
+
+namespace {
+thread_local ServiceGateHold* t_gate_hold = nullptr;
+
+// Takes the gate exclusively for a save or a load. Polled rather than waited for: a waiting writer
+// would hold back every service meanwhile. A service in the middle of an answer is let finish.
+bool TakeServiceGate(std::unique_lock<std::shared_timed_mutex>& gate) {
+    for (int attempt = 0; attempt < 500 && !gate.try_lock(); attempt++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return gate.owns_lock();
+}
+} // namespace
+
+ServiceGateHold::ServiceGateHold() : previous{t_gate_hold} {
+    ServiceReplyGate().lock_shared();
+    t_gate_hold = this;
+}
+
+ServiceGateHold::~ServiceGateHold() {
+    if (held) {
+        ServiceReplyGate().unlock_shared();
+    }
+    t_gate_hold = previous;
+}
+
+ServiceGateRelease::ServiceGateRelease() : hold{t_gate_hold} {
+    if (hold != nullptr && hold->held) {
+        ServiceReplyGate().unlock_shared();
+        hold->held = false;
+    } else {
+        hold = nullptr;
+    }
+}
+
+ServiceGateRelease::~ServiceGateRelease() {
+    if (hold != nullptr) {
+        ServiceReplyGate().lock_shared();
+        hold->held = true;
+    }
+}
 
 std::vector<u32> WaitSignature(Core::System& system) {
     std::vector<u32> signature;
     if (auto* process = system.ApplicationProcess()) {
         for (auto& thread : process->GetThreadList()) {
-            // The kernel state (running/waiting/...) as well as the wait reason: a thread blocked
-            // in a kernel lock is Waiting with no reason recorded, and a save/load pair that
-            // disagreed only on that (the main thread waiting at the save, runnable at the load)
-            // froze the game while the reason-only signature said "same".
+            // The kernel state (running/waiting/...) as well as the wait reason: a save/load pair
+            // that disagreed only on the state (the main thread waiting at the save, runnable at
+            // the load) froze the game while a reason-only signature said "same".
             const u32 state = static_cast<u32>(static_cast<u16>(thread.GetState()) &
                                                static_cast<u16>(Kernel::ThreadState::Mask));
-            signature.push_back((state << 8) |
-                                static_cast<u32>(thread.GetWaitReasonForDebugging()));
+            u32 word = (state << 8) | static_cast<u32>(thread.GetWaitReasonForDebugging());
+            // Whether it is inside a kernel call: its saved registers then still hold the call's
+            // arguments, and the call writes its results when the thread resumes. A thread caught
+            // runnable at the instruction after a call is inside it or already past it, and the two
+            // cannot be swapped: restoring the registers of one onto the other gave the main thread
+            // of Super Mario 3D World its request's session handle as the call's result.
+            if (thread.IsCallingSvc()) {
+                word |= 0x80;
+            }
+            // And what it waits for. A thread restored onto a wait for another object stays there:
+            // in Garfield a worker sat on one condition variable at the save and on another at the
+            // load, the restored game signalled the first one and then waited forever for the
+            // worker to finish.
+            const auto reason = thread.GetWaitReasonForDebugging();
+            if (state == static_cast<u32>(Kernel::ThreadState::Waiting)) {
+                u64 what = 0;
+                if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
+                    reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+                    what = thread.GetAddressKey().GetValue();
+                } else if (reason == Kernel::ThreadWaitReasonForDebugging::Synchronization &&
+                           thread.IsCallingSvc()) {
+                    // WaitSynchronization(handles = x1, count = x2), as the call was made.
+                    const auto& context = thread.GetContext();
+                    const u64 count = context.r[2];
+                    if (count > 0 && count <= 64) {
+                        auto& memory = system.ApplicationMemory();
+                        what = count;
+                        for (u64 i = 0; i < count; i++) {
+                            what = what * 0x100000001B3ULL ^ memory.Read32(context.r[1] + i * 4);
+                        }
+                    }
+                }
+                const u64 folded = what ^ (what >> 16) ^ (what >> 32) ^ (what >> 48);
+                word |= static_cast<u32>(folded & 0xFFFF) << 16;
+            }
+            signature.push_back(word);
         }
     }
     return signature;
+}
+
+namespace {
+// A thread asleep on a condition variable, inside the call: it can be moved to another one.
+bool IsMovableConditionVariableWait(u32 word) {
+    return (word & 0x7F) == static_cast<u32>(Kernel::ThreadWaitReasonForDebugging::ConditionVar) &&
+           (word & 0x80) != 0 &&
+           ((word >> 8) & 0xFF) == static_cast<u32>(Kernel::ThreadState::Waiting);
+}
+} // namespace
+
+bool SignaturesMatch(const std::vector<u32>& saved, const std::vector<u32>& live) {
+    if (saved.size() != live.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < saved.size(); i++) {
+        if (saved[i] == live[i]) {
+            continue;
+        }
+        // Asleep on another condition variable than at the save: Restore moves it back.
+        if ((saved[i] & 0xFFFF) == (live[i] & 0xFFFF) && IsMovableConditionVariableWait(saved[i])) {
+            continue;
+        }
+        return false;
+    }
+    return true;
 }
 
 bool ReadSavedSignature(const std::string& path, std::vector<u32>& out) {
@@ -76,6 +356,13 @@ bool Capture(Core::System& system, const std::string& path) {
     auto* process = system.ApplicationProcess();
     if (process == nullptr) {
         LOG_ERROR(Core, "SaveState::Capture: no application process");
+        return false;
+    }
+
+    // No service may write an answer into the game's memory while it is being copied.
+    std::unique_lock gate{ServiceReplyGate(), std::defer_lock};
+    if (!TakeServiceGate(gate)) {
+        LOG_WARNING(Core, "SaveState::Capture: a service is still answering a request");
         return false;
     }
 
@@ -106,6 +393,13 @@ bool Capture(Core::System& system, const std::string& path) {
          (thread_count == 0 || file.WriteSpan<u32>(signature) == signature.size());
     ok = ok && file.WriteSpan<Kernel::Svc::ThreadContext>(thread_contexts) ==
                    thread_contexts.size();
+
+    const auto threads = CollectThreads(system, *process);
+    ok = ok && threads.size() == thread_count &&
+         (thread_count == 0 || file.WriteSpan<SavedThread>(threads) == threads.size());
+    const auto blocks = CollectBlocks(*process);
+    ok = ok && file.WriteObject(static_cast<u32>(blocks.size()));
+    ok = ok && (blocks.empty() || file.WriteSpan<SavedBlock>(blocks) == blocks.size());
 
     const auto region_count = static_cast<u32>(regions.size());
     ok = ok && file.WriteObject(region_count);
@@ -183,6 +477,11 @@ bool Capture(Core::System& system, const std::string& path) {
         return false;
     }
 
+    // From now on, remember how to put back to this moment what a savestate does not hold.
+    UndoJournal::Memory().Start();
+    UndoJournal::Gpu().Start();
+    UndoJournal::Services().Start();
+
     LOG_INFO(Core,
               "SaveState::Capture: saved {} thread(s), {} region(s) to '{}' ({} byte(s) written, "
               "{} zero byte(s) skipped, {:.1f}% saved)",
@@ -197,6 +496,17 @@ bool Capture(Core::System& system, const std::string& path) {
 bool Restore(Core::System& system, const std::string& path, RestoreFailure* failure) {
     if (failure != nullptr) {
         *failure = RestoreFailure::Other;
+    }
+    // No service may answer a request while the restore runs (see ServiceReplyGate); the threads
+    // are compared once it is closed.
+    std::unique_lock gate{ServiceReplyGate(), std::defer_lock};
+    if (!TakeServiceGate(gate)) {
+        LOG_WARNING(Core,
+                    "SaveState::Restore: a service is still answering a request, refusing for now");
+        if (failure != nullptr) {
+            *failure = RestoreFailure::NotSettled;
+        }
+        return false;
     }
     auto* process = system.ApplicationProcess();
     if (process == nullptr) {
@@ -258,10 +568,11 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // Refuse, before touching anything, when the threads are not waiting the way they were at the
     // save: see WaitSignature. The caller normally waits for this to hold; this keeps any other
     // caller from restoring onto a game caught mid-transition.
-    if (WaitSignature(system) != saved_signature) {
+    const std::vector<u32> live_signature = WaitSignature(system);
+    if (!SignaturesMatch(saved_signature, live_signature)) {
         LOG_WARNING(Core,
-                    "SaveState::Restore: the guest's threads are not waiting as they were at the save "
-                    "(some are waking or sleeping), refusing for now");
+                    "SaveState::Restore: the guest's threads are not waiting as they were at the "
+                    "save (some are waking or sleeping), refusing for now");
         if (failure != nullptr) {
             *failure = RestoreFailure::NotSettled;
         }
@@ -273,6 +584,85 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         file.ReadSpan<Kernel::Svc::ThreadContext>(thread_contexts) != thread_contexts.size()) {
         LOG_ERROR(Core, "SaveState::Restore: truncated thread contexts in '{}'", path);
         return false;
+    }
+
+    std::vector<SavedThread> saved_threads(thread_count);
+    std::vector<SavedBlock> saved_blocks;
+    {
+        u32 block_count = 0;
+        bool read_ok = thread_count == 0 ||
+                       file.ReadSpan<SavedThread>(saved_threads) == saved_threads.size();
+        read_ok = read_ok && file.ReadObject(block_count) && block_count <= 1'000'000;
+        if (read_ok) {
+            saved_blocks.resize(block_count);
+            read_ok = block_count == 0 ||
+                      file.ReadSpan<SavedBlock>(saved_blocks) == saved_blocks.size();
+        }
+        if (!read_ok) {
+            LOG_ERROR(Core, "SaveState::Restore: truncated world section in '{}'", path);
+            return false;
+        }
+    }
+
+    // The thread slots are matched by position, so each live thread must be the one the save
+    // holds in that position: same thread-local storage (a recreated worker gets the same one
+    // back, which is how a new thread is told apart from an unrelated one).
+    for (u32 i = 0; i < thread_count; i++) {
+        if (live_threads[i]->GetTlsAddress().GetValue() != saved_threads[i].tls) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread {} is not the thread the save holds there, "
+                        "refusing '{}'",
+                        i, path);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::MemoryLayoutChanged;
+            }
+            return false;
+        }
+    }
+
+    // Threads asleep on another condition variable than at the save (same call, same instruction):
+    // they get their saved registers and stack and are moved back onto the saved condition
+    // variable, so they wait exactly where the restored memory has them waiting. Without this, a
+    // worker of Garfield asleep on another condition variable was never woken by the restored game.
+    std::vector<bool> move_wait(thread_count, false);
+    for (u32 i = 0; i < thread_count; i++) {
+        if (saved_signature[i] == live_signature[i]) {
+            continue;
+        }
+        if (!live_threads[i]->IsWaitingForConditionVariable() ||
+            live_threads[i]->GetContext().pc != thread_contexts[i].pc) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread {} cannot be moved to its saved wait, refusing "
+                        "for now",
+                        i);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
+            return false;
+        }
+        move_wait[i] = true;
+    }
+
+    // Saved handle value -> live handle value of each thread slot's own handle.
+    HandleMap handle_map;
+    u32 handle_low = 0xFFFFFFFF;
+    u32 handle_high = 0;
+    {
+        const auto live_handles = CollectThreadHandles(system, *process, live_threads);
+        for (u32 i = 0; i < thread_count; i++) {
+            if (saved_threads[i].handle_index == NoHandle || live_handles[i].index == NoHandle) {
+                continue;
+            }
+            const u32 saved_value = EncodeHandleValue(saved_threads[i].handle_index,
+                                                      saved_threads[i].handle_linear_id);
+            const u32 live_value =
+                EncodeHandleValue(live_handles[i].index, live_handles[i].linear_id);
+            if (saved_value != live_value) {
+                handle_map.emplace_back(saved_value, live_value);
+                handle_low = std::min(handle_low, saved_value);
+                handle_high = std::max(handle_high, saved_value);
+            }
+        }
     }
 
     u32 region_count = 0;
@@ -332,11 +722,11 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // between jobs is normal and harmless to leave untouched); what matters for a frozen
     // restore is whether something CRITICAL to game-loop progress is among them.
     std::array<u32, 7> wait_reason_counts{};
-    for (auto* thread : live_threads) {
-        const auto reason = thread->GetWaitReasonForDebugging();
-        if (reason != Kernel::ThreadWaitReasonForDebugging::None) {
+    for (u32 i = 0; i < thread_count; i++) {
+        auto* thread = live_threads[i];
+        if (IsParkedInKernel(*thread) && !move_wait[i]) {
             sleeping_stack_tops.push_back(thread->GetUserStackTop().GetValue());
-            wait_reason_counts[static_cast<size_t>(reason)]++;
+            wait_reason_counts[static_cast<size_t>(thread->GetWaitReasonForDebugging())]++;
         }
     }
     LOG_INFO(Core,
@@ -352,34 +742,50 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // process' own live layout.
     const auto is_excluded_stack = [&](u64 address, u64 size) {
         return std::any_of(sleeping_stack_tops.begin(), sleeping_stack_tops.end(),
-                            [&](u64 stack_top) {
-                                return stack_top > address && stack_top <= address + size;
-                            });
+                           [&](u64 stack_top) {
+                               return stack_top > address && stack_top <= address + size;
+                           });
     };
 
     auto& memory = system.ApplicationMemory();
 
-    // Refuse, before writing anything, a savestate whose memory the guest has since freed.
-    // Every Quick Load that froze Super Mario 3D World had this (the same three regions: 4 KiB and
-    // two of 32 KiB, unmapped each time the game died and respawned), and every one that worked had
-    // none. Skipping the missing regions and carrying on, as this used to do, rewound the rest of
-    // memory and the thread contexts onto a guest whose own bookkeeping no longer matched: it
-    // resumed into a world that is gone and never presented another frame. Refusing leaves the
-    // game running exactly as it was.
+    // What the guest changed since the save in state a savestate does not hold is undone before the
+    // memory is written (see UndoJournal): memory it mapped or unmapped, such as the stacks of
+    // threads it destroyed and created again, the GPU memory bookkeeping and the objects services
+    // handed out, which the restored memory refers to by value. When something since the save
+    // cannot be undone (or nothing was recorded, as for a save from an earlier run), or memory the
+    // save holds is gone and the undo would not bring it back, the load is refused here, before
+    // anything changed: restoring onto such a guest left it resuming into a world that no longer
+    // existed (Super Mario 3D World after dying, before the stacks were undone) and never
+    // presenting another frame.
+    auto& memory_journal = UndoJournal::Memory();
+    auto& gpu_journal = UndoJournal::Gpu();
+    auto& services_journal = UndoJournal::Services();
+    if (!memory_journal.CanUndo() || !gpu_journal.CanUndo() || !services_journal.CanUndo()) {
+        LOG_WARNING(Core,
+                    "SaveState::Restore: refusing '{}': the changes since the save cannot be "
+                    "undone (memory journal {}, GPU journal {}, services journal {})",
+                    path, memory_journal.CanUndo() ? "ok" : "unusable",
+                    gpu_journal.CanUndo() ? "ok" : "unusable",
+                    services_journal.CanUndo() ? "ok" : "unusable");
+        if (failure != nullptr) {
+            *failure = RestoreFailure::MemoryLayoutChanged;
+        }
+        return false;
+    }
     {
         u32 lost_regions = 0;
         for (const auto& [address, size] : region_ranges) {
-            if (is_excluded_stack(address, size)) {
+            if (is_excluded_stack(address, size) ||
+                memory.IsValidVirtualAddressRange(address, size) ||
+                memory_journal.WillRestore(address, size)) {
                 continue;
             }
-            if (!memory.IsValidVirtualAddressRange(address, size)) {
-                if (lost_regions < 4) {
-                    LOG_WARNING(Core,
-                                "SaveState::Restore: {} byte(s) at {:#x} are no longer mapped",
-                                size, address);
-                }
-                lost_regions++;
+            if (lost_regions < 4) {
+                LOG_WARNING(Core, "SaveState::Restore: {} byte(s) at {:#x} are no longer mapped",
+                            size, address);
             }
+            lost_regions++;
         }
         if (lost_regions > 0) {
             LOG_WARNING(Core,
@@ -392,13 +798,37 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             return false;
         }
     }
+    {
+        const size_t memory_steps = memory_journal.Size();
+        const size_t gpu_steps = gpu_journal.Size();
+        const size_t services_steps = services_journal.Size();
+        const bool memory_ok = memory_journal.UndoAll();
+        const bool gpu_ok = gpu_journal.UndoAll();
+        const bool services_ok = services_journal.UndoAll();
+        if (!memory_ok || !gpu_ok || !services_ok) {
+            LOG_ERROR(Core,
+                      "SaveState::Restore: undoing the changes since the save failed in part "
+                      "(memory {}, GPU {}, services {})",
+                      memory_ok ? "ok" : "failed", gpu_ok ? "ok" : "failed",
+                      services_ok ? "ok" : "failed");
+        }
+        if (memory_steps > 0 || gpu_steps > 0 || services_steps > 0) {
+            LOG_INFO(Core,
+                     "SaveState::Restore: undid {} memory mapping, {} GPU memory and {} service "
+                     "object change(s) since the save",
+                     memory_steps, gpu_steps, services_steps);
+        }
+    }
 
+    std::vector<u8> live_buffer;
+    u64 written_bytes = 0;
     std::vector<u8> buffer;
     // Read back with a single ReadSpan() per region - same reasoning as Capture()'s encoded
     // buffer, avoids one small fread() per 4K chunk.
     std::vector<u8> encoded;
     u32 sleeping_stack_regions = 0;
     u32 unmapped_regions = 0;
+    size_t translated_words = 0;
     for (u32 i = 0; i < region_count; i++) {
         u64 address = 0;
         u64 size = 0;
@@ -437,6 +867,11 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             }
         }
 
+        if (!handle_map.empty() && !is_excluded_stack(address, size)) {
+            translated_words += TranslateHandles(buffer.data(), buffer.size(), handle_map,
+                                                 handle_low, handle_high);
+        }
+
         if (is_excluded_stack(address, size)) {
             LOG_DEBUG(Core,
                        "SaveState::Restore: leaving {} byte(s) at {:#x} untouched - owned by a "
@@ -446,21 +881,14 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             continue;
         }
 
-        // WriteBlockUnsafe(), not WriteBlock() - same reasoning as Capture()'s read: skip
-        // the per-chunk GPU rasterizer cache sync so restoring several GB in one pass
-        // doesn't wreck rendering performance for the rest of the session.
-        //
-        // A false return here means part of this region is no longer mapped - a legitimate
-        // runtime memory-layout change between capture and restore (e.g. a heap allocation
-        // freed by whatever the guest did in between, confirmed via a real repro: dying in
-        // Super Mario 3D World between Quick Save and Quick Load unmaps part of a captured
-        // region every time), not file corruption. WalkBlock() already wrote every page in
-        // this region that IS still mapped; only the unmapped pages within it were skipped.
-        // Treating this the same as a truncated/corrupt file - aborting the whole restore -
-        // left the rest of memory partially reverted and thread contexts completely
-        // untouched (that loop only runs after this one finishes). Skip this region like an
-        // excluded sleeping-thread stack instead and keep going.
-        if (!memory.WriteBlockUnsafe(address, buffer.data(), size)) {
+        // A region that is (in part) still not mapped after the undo above is skipped; the pages of
+        // it that are mapped were written.
+        // Only what differs from the memory as it is now is written, through WriteBlock() so the
+        // GPU emulation is told those pages changed. Writing everything that way also told it that
+        // every page changed, including the ones backing what the GPU itself drew or computed when
+        // the level loaded, which it then threw away and reloaded from guest memory that never
+        // held it (Garfield: the HUD came back, the 3D scene stayed black).
+        if (!WriteChanged(memory, address, buffer.data(), size, live_buffer, written_bytes)) {
             LOG_WARNING(Core,
                        "SaveState::Restore: {} byte(s) at {:#x} are no longer fully mapped - "
                        "skipping (already-mapped pages within this region were still written)",
@@ -474,14 +902,68 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // so a truncated/corrupt file never leaves the guest half-restored. Same exclusion
     // as above: a still-sleeping thread's context is left exactly as its live fiber
     // expects to find it.
+    u32 rewound_parked = 0;
     for (size_t i = 0; i < live_threads.size(); i++) {
-        if (live_threads[i]->GetWaitReasonForDebugging() !=
-            Kernel::ThreadWaitReasonForDebugging::None) {
-            continue;
+        if (IsParkedInKernel(*live_threads[i])) {
+            // A sleeping thread keeps its live registers and stack, except one asleep in the same
+            // kernel call as at the save that is either a thread the guest destroyed and created
+            // again since (same instruction, same lock and condition variable) or one moved back to
+            // its saved condition variable (move_wait). It gets its saved registers: when it wakes,
+            // the kernel finishes that call and resumes it from them, so it carries on in the saved
+            // world, on its saved stack, instead of in the later one - where a recreated worker of
+            // Super Mario 3D World had already finished the job the restored main thread handed it
+            // again, and went back to sleep without doing it (the game then waited forever).
+            const auto& live = live_threads[i]->GetContext();
+            const auto& saved = thread_contexts[i];
+            const bool recreated = live_threads[i]->GetThreadId() != saved_threads[i].id;
+            const bool same_wait =
+                live.pc == saved.pc && live.r[0] == saved.r[0] && live.r[1] == saved.r[1];
+            if (!(recreated && same_wait) && !move_wait[i]) {
+                continue;
+            }
+            rewound_parked++;
         }
-        live_threads[i]->GetContext() = thread_contexts[i];
+        auto& context = live_threads[i]->GetContext();
+        context = thread_contexts[i];
+        for (auto& value : context.r) {
+            for (const auto& [saved, live] : handle_map) {
+                if (value == saved) {
+                    value = live;
+                    break;
+                }
+            }
+        }
+        // WaitProcessWideKeyAtomic(mutex = x0, condition variable = x1, tag = x2).
+        if (move_wait[i] &&
+            !live_threads[i]->RetargetConditionVariableForRestore(
+                system.Kernel(), Common::ProcessAddress(context.r[0]),
+                Common::AlignDown(context.r[1], sizeof(u32)), static_cast<u32>(context.r[2]))) {
+            LOG_ERROR(Core, "SaveState::Restore: thread {} could not be moved to its saved wait", i);
+        }
     }
 
+    if (rewound_parked > 0) {
+        LOG_INFO(Core, "SaveState::Restore: {} sleeping thread(s) given their saved registers",
+                 rewound_parked);
+    }
+
+    // Give the live threads and their handles the names the restored memory knows them by.
+    u32 renamed_threads = 0;
+    for (u32 i = 0; i < thread_count; i++) {
+        if (live_threads[i]->GetThreadId() != saved_threads[i].id) {
+            live_threads[i]->SetThreadIdForRestore(saved_threads[i].id);
+            renamed_threads++;
+        }
+    }
+    if (renamed_threads > 0 || !handle_map.empty()) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: {} thread id(s) put back, {} thread handle(s) renamed in {} "
+                 "memory word(s)",
+                 renamed_threads, handle_map.size(), translated_words);
+    }
+
+    LOG_INFO(Core, "SaveState::Restore: {} byte(s) differed from the live memory and were written",
+             written_bytes);
     LOG_INFO(Core,
               "SaveState::Restore: loaded {} thread(s), {} region(s) from '{}' ({} region(s) left "
               "untouched - {} thread(s) still asleep in a kernel wait, {} region(s) skipped - no "
@@ -498,7 +980,8 @@ bool HasRiskyPendingWaits(Core::System& system) {
     }
 
     for (auto& thread : process->GetThreadList()) {
-        if (thread.GetWaitReasonForDebugging() == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+        if (thread.GetWaitReasonForDebugging() ==
+            Kernel::ThreadWaitReasonForDebugging::Arbitration) {
             return true;
         }
     }

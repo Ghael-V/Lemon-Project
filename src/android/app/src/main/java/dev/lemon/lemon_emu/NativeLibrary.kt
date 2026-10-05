@@ -202,7 +202,7 @@ object NativeLibrary {
 
     const val QUICK_LOAD_FAILED = 0 // nothing was restored
     const val QUICK_LOAD_LOADED = 1 // restored
-    const val QUICK_LOAD_INCOMPATIBLE = 2 // refused: the game freed memory the save holds
+    const val QUICK_LOAD_INCOMPATIBLE = 2 // refused: a change since the save cannot be undone
     const val QUICK_LOAD_NO_SAFE_MOMENT = 3 // a lock handoff never ended; nothing was changed
 
     /**

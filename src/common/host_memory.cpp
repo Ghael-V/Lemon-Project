@@ -777,7 +777,7 @@ void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap)
         // mmap(MAP_FIXED, PROT_NONE) below (Impl::Unmap only re-clamps when virtual_base is
         // null), which would remap host pages past this reservation, and DeviceMemory is reused
         // across game sessions (Core::System::Impl::ReinitializeIfNecessary) - so clamp.
-        LOG_ERROR(Common_Memory,
+        LOG_DEBUG(Common_Memory,
                   "Unmap out of range: virtual_offset={:#x} length={:#x} virtual_size={:#x} - clamping",
                   virtual_offset, length, virtual_size);
         length = virtual_offset < virtual_size ? virtual_size - virtual_offset : 0;

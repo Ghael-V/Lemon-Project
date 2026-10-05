@@ -5,6 +5,9 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <shared_mutex>
+
+#include "core/savestate.h"
 #include "common/scope_exit.h"
 
 #include "core/core.h"
@@ -354,6 +357,8 @@ Result ServerManager::OnPortEvent(Port* server) {
 }
 
 Result ServerManager::OnSessionEvent(Session* session) {
+    // A Quick Load must not run while a request is received or answered (see ServiceReplyGate).
+    Core::SaveState::ServiceGateHold gate;
     Result res = ResultSuccess;
 
     // Try to receive a message.
@@ -426,6 +431,7 @@ Result ServerManager::OnDeferralEvent() {
     this->LinkToDeferredList(std::addressof(*m_deferral_holder));
 
     // For each session, try again to complete the request.
+    Core::SaveState::ServiceGateHold gate;
     for (auto* session : deferrals) {
         R_ASSERT(this->CompleteSyncRequest(session));
     }

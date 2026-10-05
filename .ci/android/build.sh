@@ -169,10 +169,13 @@ echo "-- Done! APK and AAB artifacts are in ${ARTIFACTS_DIR}"
 # "app-<flavor>-<type>.apk". The in-app updater finds a variant's APK by the END of the name
 # (src/common/net/net.cpp), so the suffix here must match the one that variant looks for, and the
 # name carries no spaces or "&" (GitHub rewrites them). Only the standard variant is named so far;
-# other variants get their name when they become real products.
+# other variants get their name when they become real products. Only a commit that carries a tag
+# gets that name: "git describe --abbrev=0" handed an untagged commit the previous release's tag.
 if [ "$DEVEL" != "true" ] && [ "$TARGET_LOWER" = "standard" ]; then
-    RELEASE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-    if [ -n "$RELEASE_TAG" ]; then
+    RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+    if [ -z "$RELEASE_TAG" ]; then
+        echo "-- This commit has no tag: no Lemon-<tag>-standard.apk was made"
+    else
         cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" \
             "${ARTIFACTS_DIR}/Lemon-${RELEASE_TAG}-standard.apk"
         echo "-- Release file: Lemon-${RELEASE_TAG}-standard.apk"
