@@ -780,9 +780,14 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     }
     // If games are using a small index count, we can assume these are full screen quads.
     // Usually these shaders are only used once for building textures so we can assume they
-    // can't be built async
+    // can't be built async.
+    // The count is the current draw's: the index and vertex counts are never reset, so the one the
+    // draw doesn't use is whatever an earlier draw left, and looking at both made big scene draws
+    // wait for their shader too. Indirect draws keep the old guess.
     const auto& draw_state = maxwell3d->draw_manager.draw_state;
-    if (draw_state.index_buffer.count <= 6 || draw_state.vertex_buffer.count <= 6) {
+    const u32 count = draw_vertex_count.value_or(
+        (std::min)(draw_state.index_buffer.count, draw_state.vertex_buffer.count));
+    if (count <= 6) {
         return pipeline;
     }
     return nullptr;

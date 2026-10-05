@@ -334,6 +334,9 @@ void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
     SCOPE_EXIT {
         split_attribute_handles = false;
     };
+    const auto& state = maxwell3d->draw_manager.draw_state;
+    pipeline_cache.SetDrawVertexCount(is_indexed ? state.index_buffer.count
+                                                 : state.vertex_buffer.count);
     PrepareDraw(is_indexed, [this, is_indexed, instance_count] {
         const auto& draw_state = maxwell3d->draw_manager.draw_state;
         const u32 num_instances{instance_count};
@@ -393,6 +396,7 @@ void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
 void RasterizerVulkan::DrawIndirect() {
     const auto& params = maxwell3d->draw_manager.indirect_state;
     buffer_cache.SetDrawIndirect(&params);
+    pipeline_cache.SetDrawVertexCount(std::nullopt);
     PrepareDraw(params.is_indexed, [this, &params] {
         const auto indirect_buffer = buffer_cache.GetDrawIndirectBuffer();
         const auto& buffer = indirect_buffer.first;
