@@ -82,7 +82,11 @@ std::vector<Asset> Release::GetPlatformAssets() const {
 #ifdef ARCHITECTURE_x86_64
     find_asset("Standard", {"chromeos.apk"});
 #elif defined(ARCHITECTURE_arm64)
-#ifdef YUZU_LEGACY
+#ifdef LEMON_SPOOFED
+    find_asset("Standard", {"lite-spoofed.apk"});
+#elif defined(LEMON_LITE)
+    find_asset("Standard", {"lite.apk"});
+#elif defined(YUZU_LEGACY)
     find_asset("Standard", {"legacy.apk"});
 #elif defined(GENSHIN_SPOOF)
     find_asset("Standard", {"optimized.apk"});

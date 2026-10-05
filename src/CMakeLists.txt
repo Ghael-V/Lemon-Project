@@ -39,6 +39,16 @@ if (GENSHIN_SPOOF)
     add_compile_definitions(GENSHIN_SPOOF)
 endif()
 
+# Lemon Lite and Lemon Lite & Spoofed (android only)
+if (LEMON_LITE)
+    message(STATUS "Making Lemon Lite build")
+    add_compile_definitions(LEMON_LITE)
+endif()
+if (LEMON_SPOOFED)
+    message(STATUS "Making Lemon Lite & Spoofed build")
+    add_compile_definitions(LEMON_SPOOFED)
+endif()
+
 # Build ID (mingw only right now)
 # Pretty much just refers to the CI "target" for this build
 if (NOT BUILD_ID)

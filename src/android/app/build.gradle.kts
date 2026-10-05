@@ -250,6 +250,46 @@ android {
             }
         }
 
+        // Lemon Lite: lighter default settings for weaker GPUs, no bundled Lemon-Ade (that driver is
+        // only picked on the Adreno 830). Own package, so it installs next to Lemon.
+        create("lite") {
+            dimension = "version"
+            minSdk = 31
+            manifestPlaceholders += mapOf("appNameBase" to "Lemon Lite")
+            resValue("string", "app_name_suffixed", "Lemon Lite")
+            applicationId = "dev.lemon.lemon_emulator.lite"
+
+            externalNativeBuild {
+                cmake {
+                    arguments.add("-DLEMON_LITE=ON")
+                }
+            }
+
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
+
+        // Lemon Lite & Spoofed: Lemon Lite under AnTuTu's package name, which some phone makers
+        // (MediaTek devices above all) give their full performance profile.
+        create("liteSpoofed") {
+            dimension = "version"
+            minSdk = 31
+            manifestPlaceholders += mapOf("appNameBase" to "Lemon Lite Spoofed")
+            resValue("string", "app_name_suffixed", "Lemon Lite Spoofed")
+            applicationId = "com.antutu.ABenchMark"
+
+            externalNativeBuild {
+                cmake {
+                    arguments.addAll(listOf("-DLEMON_LITE=ON", "-DLEMON_SPOOFED=ON"))
+                }
+            }
+
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
+
         create("genshinSpoof") {
             dimension = "version"
             minSdk = 35

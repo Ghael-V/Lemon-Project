@@ -340,8 +340,14 @@ struct Values {
 
     // Graphics Settings
     ResolutionScalingInfo resolution_info{};
+    // Lemon Lite starts with lighter defaults for weaker GPUs; every one can still be changed.
+#ifdef LEMON_LITE
+    SwitchableSetting<ResolutionSetup> resolution_setup{linkage, ResolutionSetup::Res3_4X,
+                                                        "resolution_setup", Category::Renderer};
+#else
     SwitchableSetting<ResolutionSetup> resolution_setup{linkage, ResolutionSetup::Res1X,
                                                         "resolution_setup", Category::Renderer};
+#endif
 
     SwitchableSetting<VSyncMode, true> vsync_mode{linkage,
                                                   VSyncMode::Fifo,
@@ -352,7 +358,12 @@ struct Values {
                                                   true};
 
     SwitchableSetting<ScalingFilter> scaling_filter{linkage,
+#ifdef LEMON_LITE
+                                                    // Smooths the 0.75x picture on its way up to the screen.
+                                                    ScalingFilter::Bilinear,
+#else
                                                     ScalingFilter::NearestNeighbor,
+#endif
                                                     "scaling_filter",
                                                     Category::Renderer,
                                                     Specialization::Default,
@@ -502,15 +513,24 @@ struct Values {
 
     SwitchableSetting<GpuAccuracy, true> gpu_accuracy{linkage,
                                                       // Accurate everywhere. Fast makes some games flicker
-                                                      // (confirmed on Garfield and Dragon Ball, Adreno 830).
+                                                      // (confirmed on Garfield and Dragon Ball, Adreno 830);
+                                                      // Lemon Lite trades that for speed.
+#ifdef LEMON_LITE
+                                                      GpuAccuracy::Low,
+#else
                                                       GpuAccuracy::High,
+#endif
                                                       "gpu_accuracy",
                                                       Category::RendererAdvanced,
                                                       Specialization::Default,
                                                       true,
                                                       true};
 
+#ifdef LEMON_LITE
+    GpuAccuracy current_gpu_accuracy{GpuAccuracy::Low};
+#else
     GpuAccuracy current_gpu_accuracy{GpuAccuracy::High};
+#endif
 
     SwitchableSetting<DmaAccuracy, true> dma_accuracy{linkage,
                                                       DmaAccuracy::Default,
@@ -661,8 +681,14 @@ struct Values {
                                                        true,
                                                        true};
 
+#ifdef LEMON_LITE
+    // Lite: draws wait for no shader (less stutter; some objects can be missing while they build).
+    SwitchableSetting<bool> use_asynchronous_shaders{linkage, true, "use_asynchronous_shaders",
+                                                     Category::RendererHacks};
+#else
     SwitchableSetting<bool> use_asynchronous_shaders{linkage, false, "use_asynchronous_shaders",
                                                      Category::RendererHacks};
+#endif
 
     SwitchableSetting<GpuUnswizzleSize> gpu_unswizzle_texture_size{linkage,
                                                   GpuUnswizzleSize::Large,

@@ -25,7 +25,7 @@ Options:
     -r, --release        	Enable update checker. If set, sets the DEVEL bool variable to false.
                          	By default, DEVEL is true.
     -t, --target <FLAVOR> 	Build flavor (variable: TARGET)
-                          	Valid values are: legacy, optimized, standard
+                          	Valid values are: standard, lite, lite-spoofed, legacy, optimized
                           	Default: standard
     -b, --build-type <TYPE>	Build type (variable: TYPE)
                           	Valid values are: Release, RelWithDebInfo, Debug
@@ -97,6 +97,8 @@ fi
 TARGET_LOWER=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
 
 case "$TARGET_LOWER" in
+	lite) FLAVOR=Lite ;;
+	lite-spoofed) FLAVOR=LiteSpoofed ;;
 	legacy) FLAVOR=Legacy ;;
 	optimized) FLAVOR=GenshinSpoof ;;
 	standard) FLAVOR=Mainline ;;
@@ -168,17 +170,22 @@ echo "-- Done! APK and AAB artifacts are in ${ARTIFACTS_DIR}"
 # The file a release is published as: "Lemon-<tag>-<variant>.apk" instead of Gradle's
 # "app-<flavor>-<type>.apk". The in-app updater finds a variant's APK by the END of the name
 # (src/common/net/net.cpp), so the suffix here must match the one that variant looks for, and the
-# name carries no spaces or "&" (GitHub rewrites them). Only the standard variant is named so far;
-# other variants get their name when they become real products. Only a commit that carries a tag
-# gets that name: "git describe --abbrev=0" handed an untagged commit the previous release's tag.
-if [ "$DEVEL" != "true" ] && [ "$TARGET_LOWER" = "standard" ]; then
+# name carries no spaces or "&" (GitHub rewrites them). Only a commit that carries a tag gets that
+# name: "git describe --abbrev=0" handed an untagged commit the previous release's tag.
+case "$TARGET_LOWER" in
+    standard) RELEASE_PREFIX=Lemon; RELEASE_SUFFIX=standard ;;
+    lite) RELEASE_PREFIX=Lemon-Lite; RELEASE_SUFFIX=lite ;;
+    lite-spoofed) RELEASE_PREFIX=Lemon-Lite-Spoofed; RELEASE_SUFFIX=lite-spoofed ;;
+    *) RELEASE_PREFIX= ;;
+esac
+if [ "$DEVEL" != "true" ] && [ -n "$RELEASE_PREFIX" ]; then
     RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+    RELEASE_FILE="${RELEASE_PREFIX}-${RELEASE_TAG}-${RELEASE_SUFFIX}.apk"
     if [ -z "$RELEASE_TAG" ]; then
-        echo "-- This commit has no tag: no Lemon-<tag>-standard.apk was made"
+        echo "-- This commit has no tag: no ${RELEASE_PREFIX}-<tag>-${RELEASE_SUFFIX}.apk was made"
     else
-        cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" \
-            "${ARTIFACTS_DIR}/Lemon-${RELEASE_TAG}-standard.apk"
-        echo "-- Release file: Lemon-${RELEASE_TAG}-standard.apk"
+        cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" "${ARTIFACTS_DIR}/${RELEASE_FILE}"
+        echo "-- Release file: ${RELEASE_FILE}"
     fi
 fi
 
