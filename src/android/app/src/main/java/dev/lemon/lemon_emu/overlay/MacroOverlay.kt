@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.OverlayMacroPanelBinding
 import dev.lemon.lemon_emu.features.input.NativeInput
+import dev.lemon.lemon_emu.features.input.model.NativeButton
+import dev.lemon.lemon_emu.features.input.model.NativeAnalog
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 
 /**
@@ -148,24 +150,53 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         }
 
         playbackJob = scope.launch {
-            do {
-                for (macroEvent in macro) {
-                    delay(macroEvent.delayMs)
-                    when (macroEvent) {
-                        is MacroRecorder.Event.Button -> NativeInput.onOverlayButtonEvent(
-                            macroEvent.port,
-                            macroEvent.button,
-                            macroEvent.action
-                        )
-                        is MacroRecorder.Event.Joystick -> NativeInput.onOverlayJoystickEvent(
-                            macroEvent.port,
-                            macroEvent.stick,
-                            macroEvent.x,
-                            macroEvent.y
-                        )
+            // What the macro is holding right now, so stopping it in the middle (or a recording
+            // that ends with a button down) does not leave a button pressed or a stick pushed.
+            val held = mutableSetOf<Pair<Int, NativeButton>>()
+            val pushed = mutableSetOf<Pair<Int, NativeAnalog>>()
+            try {
+                do {
+                    for (macroEvent in macro) {
+                        delay(macroEvent.delayMs)
+                        when (macroEvent) {
+                            is MacroRecorder.Event.Button -> {
+                                NativeInput.onOverlayButtonEvent(
+                                    macroEvent.port,
+                                    macroEvent.button,
+                                    macroEvent.action
+                                )
+                                val key = macroEvent.port to macroEvent.button
+                                if (macroEvent.action == NativeInput.ButtonState.PRESSED) {
+                                    held.add(key)
+                                } else {
+                                    held.remove(key)
+                                }
+                            }
+                            is MacroRecorder.Event.Joystick -> {
+                                NativeInput.onOverlayJoystickEvent(
+                                    macroEvent.port,
+                                    macroEvent.stick,
+                                    macroEvent.x,
+                                    macroEvent.y
+                                )
+                                val key = macroEvent.port to macroEvent.stick
+                                if (macroEvent.x == 0f && macroEvent.y == 0f) {
+                                    pushed.remove(key)
+                                } else {
+                                    pushed.add(key)
+                                }
+                            }
+                        }
                     }
+                } while (binding.macroRepeatSwitch.isChecked)
+            } finally {
+                held.forEach { (port, button) ->
+                    NativeInput.onOverlayButtonEvent(port, button, NativeInput.ButtonState.RELEASED)
                 }
-            } while (binding.macroRepeatSwitch.isChecked)
+                pushed.forEach { (port, stick) ->
+                    NativeInput.onOverlayJoystickEvent(port, stick, 0f, 0f)
+                }
+            }
 
             playbackJob = null
             updateStatus()
