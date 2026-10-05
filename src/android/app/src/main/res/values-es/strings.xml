@@ -1218,6 +1218,8 @@
     <string name="enable_folder_button_description">Mostrar el botón para añadir carpetas de juegos</string>
     <string name="enable_qlaunch_button">QLaunch</string>
     <string name="enable_qlaunch_button_description">Mostrar el botón para ejecutar QLaunch</string>
+    <string name="boot_into_qlaunch">Iniciar en QLaunch</string>
+    <string name="boot_into_qlaunch_description">Al abrir Lemon desde el lanzador se inicia QLaunch, el menú principal de la consola. Necesita el firmware.</string>
 
     <!-- App Language -->
     <string name="app_language">Idioma de la aplicación</string>

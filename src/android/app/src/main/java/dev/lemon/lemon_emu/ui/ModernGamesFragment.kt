@@ -38,7 +38,6 @@ import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
-import dev.lemon.lemon_emu.model.AppletInfo
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
@@ -210,13 +209,11 @@ class ModernGamesFragment : Fragment() {
 
     private fun launchQLaunch() {
         try {
-            val appletPath = NativeLibrary.getAppletLaunchPath(AppletInfo.QLaunch.entryId)
-            if (appletPath.isEmpty()) {
+            val qlaunchGame = GameLaunchUtils.qlaunchGame()
+            if (qlaunchGame == null) {
                 Toast.makeText(requireContext(), R.string.applets_error_applet, Toast.LENGTH_SHORT).show()
                 return
             }
-            NativeLibrary.setCurrentAppletId(AppletInfo.QLaunch.appletId)
-            val qlaunchGame = Game(title = getString(R.string.qlaunch_applet), path = appletPath)
             findNavController().navigate(HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame))
         } catch (e: Exception) {
             Toast.makeText(
