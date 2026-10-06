@@ -60,7 +60,7 @@ class DriverFetcherFragment : Fragment() {
     // builds listed below, and "install recommended" stays off (findRecommendedInstall).
     private val recommendedDriver: String
         get() = if (!GpuDriverHelper.isAdrenoGpu()) {
-            "PanVK Kbase (experimental)"
+            if (visibleRepos.isEmpty()) "No PanVK build for this GPU yet" else "PanVK (experimental)"
         } else {
             driverMap.firstOrNull { adrenoModel in it.first }?.second ?: "Unsupported"
         }
@@ -78,7 +78,9 @@ class DriverFetcherFragment : Fragment() {
         /** Only release files ending like this are drivers (null: every file). */
         val assetSuffix: String? = null,
         /** A Mali driver (PanVK): listed on Mali devices instead of the Adreno ones. */
-        val forMali: Boolean = false
+        val forMali: Boolean = false,
+        /** Only listed when the GPU name contains this (a PanVK build is made for one Mali). */
+        val forGpu: String? = null
     )
 
     private val repoList: List<DriverRepo> = listOf(
@@ -94,25 +96,29 @@ class DriverFetcherFragment : Fragment() {
         // Mesa PanVK talking to the Mali kernel driver (mali_kbase). Experimental, Mali-G615 first.
         // The repo also publishes apps and a glibc build; only the .adpkg.zip is the Android driver.
         DriverRepo(
-            "PanVK Kbase (Mali)", "zenithblue-oss/panvk-kbase-android", 20, false,
-            SortMode.PublishTime, assetSuffix = ".adpkg.zip", forMali = true
+            "PanVK G615 (Mali, Android 15+)", "zenithblue-oss/panvk-kbase-android", 20, false,
+            SortMode.PublishTime, assetSuffix = ".adpkg.zip", forMali = true, forGpu = "G615"
         ),
         // Mali-G720 builds; each release also carries a manifest and checksums.
         DriverRepo(
-            "PanVK G720 (Mali)", "wonderkast02/panvk-g720-kbase-csf", 21, false,
-            SortMode.PublishTime, assetSuffix = ".zip", forMali = true
+            "PanVK G720 (Mali, Android 15+)", "wonderkast02/panvk-g720-kbase-csf", 21, false,
+            SortMode.PublishTime, assetSuffix = ".zip", forMali = true, forGpu = "G720"
         ),
         // Mali-G52 (Bifrost, v7) builds; the package carries its own libc++_shared and libdrm.
         DriverRepo(
-            "PanVK G52 (Mali)", "LukeValen/panvk-mali-g52", 22, false,
-            SortMode.PublishTime, assetSuffix = ".zip", forMali = true
+            "PanVK G52 (Mali, Android 9+)", "LukeValen/panvk-mali-g52", 22, false,
+            SortMode.PublishTime, assetSuffix = ".zip", forMali = true, forGpu = "G52"
         ),
     )
 
-    // Adreno devices get the Turnip builds, Mali devices (Lemon Lite) the PanVK ones.
+    // Adreno devices get the Turnip builds, Mali devices (Lemon Lite) the PanVK builds made for their
+    // GPU: a build for another Mali installs but doesn't start games.
     private val visibleRepos: List<DriverRepo> by lazy {
         val mali = !GpuDriverHelper.isAdrenoGpu()
-        repoList.filter { it.forMali == mali }
+        val gpu = gpuModel.orEmpty()
+        repoList.filter { repo ->
+            repo.forMali == mali && (repo.forGpu == null || gpu.contains(repo.forGpu, ignoreCase = true))
+        }
     }
 
     private val driverMap = listOf(
@@ -205,6 +211,11 @@ class DriverFetcherFragment : Fragment() {
     }
 
     private fun fetchDrivers() {
+        // A Mali GPU no PanVK build is made for yet: nothing to fetch (the badge says so).
+        if (visibleRepos.isEmpty()) {
+            binding.loadingIndicator.isVisible = false
+            return
+        }
         binding.loadingIndicator.isVisible = true
 
         visibleRepos.forEach { driver ->
