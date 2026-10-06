@@ -1806,6 +1806,8 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstr
 void Java_dev_lemon_lemon_1emu_NativeLibrary_logDeviceInfo(JNIEnv* env, jclass clazz) {
     LOG_INFO(Frontend, "Lemon Version: {}-{}", Common::g_scm_branch, Common::g_scm_desc);
     LOG_INFO(Frontend, "Host OS: Android API level {}", android_get_device_api_level());
+    // 16 KiB pages (newer Android 15+ devices) change what host memory mappings may look like.
+    LOG_INFO(Frontend, "Host page size: {} bytes", sysconf(_SC_PAGESIZE));
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_submitInlineKeyboardText(JNIEnv* env, jclass clazz,
