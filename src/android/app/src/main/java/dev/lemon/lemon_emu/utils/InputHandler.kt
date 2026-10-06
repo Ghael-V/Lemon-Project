@@ -84,10 +84,12 @@ object InputHandler {
             else -> return false
         }
 
-        var controllerData = androidControllers[event.device.controllerNumber]
+        // Key events injected by the system or the on-screen keyboard have no input device.
+        val device = event.device ?: return false
+        var controllerData = androidControllers[device.controllerNumber]
         if (controllerData == null) {
             updateControllerData()
-            controllerData = androidControllers[event.device.controllerNumber] ?: return false
+            controllerData = androidControllers[device.controllerNumber] ?: return false
         }
 
         NativeInput.onGamePadButtonEvent(
@@ -113,9 +115,10 @@ object InputHandler {
     }
 
     fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        val device = event.device ?: return false
         val controllerData =
-            androidControllers[event.device.controllerNumber] ?: return false
-        event.device.motionRanges.forEach {
+            androidControllers[device.controllerNumber] ?: return false
+        device.motionRanges.forEach {
             NativeInput.onGamePadAxisEvent(
                 controllerData.getGUID(),
                 controllerData.getPort(),
