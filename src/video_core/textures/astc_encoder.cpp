@@ -636,4 +636,22 @@ void Encode4x4(std::span<const u8> rgba, u32 width, u32 height, u32 depth, std::
     workers.WaitForRequests();
 }
 
+std::vector<u32> MakeGpuTables() {
+    std::vector<u32> tables;
+    tables.reserve(1024 + 5 * 243);
+    for (const EndpointRange& range : {RANGE_32, RANGE_48, RANGE_192, RANGE_256}) {
+        const EndpointTable& table = TableFor(range);
+        for (u32 target = 0; target < 256; ++target) {
+            tables.push_back(table.value[target] | (u32{table.m[target]} << 8) |
+                             (u32{table.trit[target]} << 16));
+        }
+    }
+    for (const auto& by_count : Trits().t) {
+        for (const u8 t : by_count) {
+            tables.push_back(t);
+        }
+    }
+    return tables;
+}
+
 } // namespace Tegra::Texture::ASTC

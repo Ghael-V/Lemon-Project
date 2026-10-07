@@ -12,6 +12,8 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <tuple>
+
 #include <boost/container/small_vector.hpp>
 #include <bit>
 #include <numeric>
@@ -945,6 +947,10 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
     VideoCore::Surface::SetBcnAstcRecompression(
         !device.IsOptimalBcnSupported() && device.IsOptimalAstcSupported() &&
         Settings::values.bcn_astc_recompression.GetValue());
+    if (VideoCore::Surface::IsBcnRecompressedToAstc(PixelFormat::BC1_RGBA_UNORM)) {
+        bcn_astc_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
+                              compute_pass_descriptor_queue, memory_allocator);
+    }
     if (Settings::values.accelerate_astc.GetValue() == Settings::AstcDecodeMode::Gpu) {
         astc_decoder_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                                   compute_pass_descriptor_queue, memory_allocator);
@@ -1980,6 +1986,14 @@ void Image::AllocateComputeUnswizzleBuffer(u32 max_slices) {
 
 void Image::UploadMemory(VkBuffer buffer, VkDeviceSize offset,
                          std::span<const VideoCommon::BufferImageCopy> copies) {
+    // BCn stored as ASTC: the staging buffer holds the texels decoded to RGBA8, encode them first.
+    boost::container::small_vector<VideoCommon::BufferImageCopy, 16> astc_copies;
+    if (runtime != nullptr && runtime->bcn_astc_pass &&
+        VideoCore::Surface::IsBcnRecompressedToAstc(info.format)) {
+        astc_copies.assign(copies.begin(), copies.end());
+        std::tie(buffer, offset) = runtime->bcn_astc_pass->Encode(buffer, offset, astc_copies);
+        copies = astc_copies;
+    }
     // TODO: Move this to another API
     if (ENABLE_MSAA_RESOLVE_CONSUME && runtime != nullptr) {
         runtime->InvalidateResolveShadow(Handle());

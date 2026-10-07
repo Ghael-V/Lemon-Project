@@ -34,7 +34,6 @@
 #include "video_core/texture_cache/samples_helper.h"
 #include "video_core/texture_cache/util.h"
 #include "video_core/textures/astc.h"
-#include "video_core/textures/astc_encoder.h"
 #include "video_core/textures/bcn.h"
 #include "video_core/textures/decoders.h"
 
@@ -59,7 +58,6 @@ using Tegra::Texture::UnswizzleTexture;
 using VideoCore::Surface::BytesPerBlock;
 using VideoCore::Surface::DefaultBlockHeight;
 using VideoCore::Surface::DefaultBlockWidth;
-using VideoCore::Surface::IsBcnRecompressedToAstc;
 using VideoCore::Surface::IsCopyCompatible;
 using VideoCore::Surface::IsPixelFormatASTC;
 using VideoCore::Surface::IsViewCompatible;
@@ -610,17 +608,6 @@ u32 CalculateConvertedSizeBytes(const ImageInfo& info) noexcept {
         return info.size.width * BytesPerBlock(info.format);
     }
     static constexpr Extent2D TILE_SIZE{1, 1};
-    if (IsBcnRecompressedToAstc(info.format)) {
-        // ASTC 4x4: 16 bytes per 4x4 block, one byte per texel of the aligned size.
-        u32 output_size = 0;
-        for (s32 i = 0; i < info.resources.levels; i++) {
-            const auto mip_size = AdjustMipSize(info.size, i);
-            const u32 plane_dim =
-                Common::AlignUp(mip_size.width, 4U) * Common::AlignUp(mip_size.height, 4U);
-            output_size += plane_dim * mip_size.depth * info.resources.layers;
-        }
-        return output_size;
-    }
     if (IsPixelFormatASTC(info.format) && Settings::values.astc_recompression.GetValue() !=
                                               Settings::AstcRecompression::Uncompressed) {
         const u32 bpp_div =
@@ -995,22 +982,6 @@ void ConvertImage(std::span<const u8> input, const ImageInfo& info, std::span<u8
                 (aligned_plane_dim * copy.image_extent.depth * copy.image_subresource.num_layers) /
                 bpp_div;
             output_offset += static_cast<u32>(copy.buffer_size);
-        } else if (IsBcnRecompressedToAstc(info.format)) {
-            // Decode to RGBA8, then recompress to ASTC 4x4 (one block per 4x4 texels).
-            const u32 width = copy.image_extent.width;
-            const u32 height = copy.image_extent.height;
-            const u32 slices = copy.image_subresource.num_layers * copy.image_extent.depth;
-            decode_scratch.resize_destructive(static_cast<size_t>(width) * height * slices * 4);
-            DecompressBCn(input_offset, decode_scratch, copy, info.format);
-            const u32 astc_size =
-                Common::AlignUp(width, 4U) * Common::AlignUp(height, 4U) * slices;
-            Tegra::Texture::ASTC::Encode4x4(decode_scratch, width, height, slices,
-                                            output.subspan(output_offset, astc_size));
-            copy.buffer_size = astc_size;
-            output_offset += astc_size;
-            copy.buffer_row_length = Common::AlignUp(mip_size.width, 4U);
-            copy.buffer_image_height = Common::AlignUp(mip_size.height, 4U);
-            continue;
         } else {
             DecompressBCn(input_offset, output.subspan(output_offset), copy, info.format);
             output_offset += copy.image_extent.width * copy.image_extent.height *
