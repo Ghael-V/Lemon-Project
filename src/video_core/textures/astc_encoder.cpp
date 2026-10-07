@@ -382,26 +382,36 @@ void EndpointsOnAxis(const Texels<N>& texels, const Color<N>& mean, const Color<
     }
 }
 
-/// Picks the closest weight for every texel; returns the squared error.
+/// Picks the closest weight for every texel; returns the squared error. The weight is guessed
+/// from the projection on the line and only its neighbours are compared.
 template <std::size_t N>
 float PickWeights(const Texels<N>& texels, const Color<N>& e0, const Color<N>& e1, u32 weight_bits,
                   std::array<u32, 16>& weights) {
-    const u32 levels = 1u << weight_bits;
-    std::array<Color<N>, 32> palette;
-    for (u32 q = 0; q < levels; ++q) {
-        const float t = static_cast<float>(UnquantizeWeight(q, weight_bits)) / 64.0f;
-        for (std::size_t i = 0; i < N; ++i) {
-            palette[q][i] = e0[i] + (e1[i] - e0[i]) * t;
-        }
+    const u32 top = (1u << weight_bits) - 1;
+    Color<N> d;
+    for (std::size_t c = 0; c < N; ++c) {
+        d[c] = e1[c] - e0[c];
     }
+    const float dd = Dot(d, d);
     float error = 0.0f;
     for (std::size_t i = 0; i < 16; ++i) {
-        float best = DistanceSquared(texels[i], palette[0]);
-        u32 best_q = 0;
-        for (u32 q = 1; q < levels; ++q) {
-            const float d = DistanceSquared(texels[i], palette[q]);
-            if (d < best) {
-                best = d;
+        Color<N> offset;
+        for (std::size_t c = 0; c < N; ++c) {
+            offset[c] = texels[i][c] - e0[c];
+        }
+        const float t = dd > 0.0f ? std::clamp(Dot(offset, d) / dd, 0.0f, 1.0f) : 0.0f;
+        const u32 guess = static_cast<u32>(std::round(t * static_cast<float>(top)));
+        float best = std::numeric_limits<float>::max();
+        u32 best_q = guess;
+        for (u32 q = guess > 0 ? guess - 1 : 0; q <= std::min(guess + 1, top); ++q) {
+            const float w = static_cast<float>(UnquantizeWeight(q, weight_bits)) / 64.0f;
+            Color<N> decoded;
+            for (std::size_t c = 0; c < N; ++c) {
+                decoded[c] = e0[c] + (e1[c] - e0[c]) * w;
+            }
+            const float dist = DistanceSquared(texels[i], decoded);
+            if (dist < best) {
+                best = dist;
                 best_q = q;
             }
         }

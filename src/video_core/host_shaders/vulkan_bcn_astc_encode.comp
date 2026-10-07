@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // GPU version of the ASTC 4x4 encoder in video_core/textures/astc_encoder.cpp, which documents
-// the method; keep the two in step. One invocation encodes one block of RGBA8 texels.
+// the method and the block layouts; keep the two in step. One invocation encodes one block of
+// RGBA8 texels. Arrays live in globals and are never passed to functions: GLSL copies array
+// arguments, which on mobile GPUs spills everything to memory.
 
 #version 460 core
 
@@ -29,7 +31,6 @@ layout(push_constant) uniform PushConstants {
     uint output_offset; // in blocks
 };
 
-// Endpoint ranges, indexing the tables.
 const uint RANGE_32 = 0;
 const uint RANGE_48 = 1;
 const uint RANGE_192 = 2;
@@ -40,15 +41,16 @@ const uint CEM_RGBA_DIRECT = 12;
 
 const uint TRIT_TABLE = 1024;
 
-vec4 px[16];
-uint words[4];
+vec4 px[16];         // the block
+vec4 data[16];       // texels of the line being fitted (unused channels zero)
+uint weights[16];    // weights of the current fit
+uint scratch[16];    // weights of a trial fit
+uint best_w[16];     // weights of the chosen layout (colour plane)
+uint best_wa[16];    // alpha plane weights of the chosen layout
+uint words[4];       // the output block
 
 uint RangeBits(uint range) {
     return range == RANGE_32 ? 5 : range == RANGE_48 ? 4 : range == RANGE_192 ? 6 : 8;
-}
-
-bool RangeIsTrit(uint range) {
-    return range == RANGE_48 || range == RANGE_192;
 }
 
 uint UnquantizeWeight(uint value, uint bits) {
@@ -73,7 +75,7 @@ vec4 Quantize(vec4 c, uint range, vec4 mask) {
     return result * mask;
 }
 
-void PrincipalAxis(vec4 data[16], vec4 mask, out vec4 mean, out vec4 axis) {
+void PrincipalAxis(vec4 mask, out vec4 mean, out vec4 axis) {
     mean = vec4(0.0);
     vec4 lo = vec4(255.0);
     vec4 hi = vec4(0.0);
@@ -82,7 +84,7 @@ void PrincipalAxis(vec4 data[16], vec4 mask, out vec4 mean, out vec4 axis) {
         lo = min(lo, data[i]);
         hi = max(hi, data[i]);
     }
-    mean /= 16.0;
+    mean *= 1.0 / 16.0;
     mat4 covariance = mat4(0.0);
     for (int i = 0; i < 16; ++i) {
         const vec4 d = data[i] - mean;
@@ -100,29 +102,37 @@ void PrincipalAxis(vec4 data[16], vec4 mask, out vec4 mean, out vec4 axis) {
     axis = normalize(axis);
 }
 
-float PickWeights(vec4 data[16], vec4 e0, vec4 e1, uint weight_bits, out uint weights[16]) {
-    const uint levels = 1u << weight_bits;
+/// Closest weight per texel of `data` into `out_weights` (weights or scratch); squared error.
+float PickWeights(vec4 e0, vec4 e1, uint weight_bits, bool into_scratch) {
+    const uint top = (1u << weight_bits) - 1;
+    const vec4 d = e1 - e0;
+    const float dd = dot(d, d);
     float error = 0.0;
     for (int i = 0; i < 16; ++i) {
+        const float t = dd > 0.0 ? clamp(dot(data[i] - e0, d) / dd, 0.0, 1.0) : 0.0;
+        const uint guess = uint(round(t * float(top)));
         float best = 3.4e38;
-        uint best_q = 0;
-        for (uint q = 0; q < levels; ++q) {
-            const float t = float(UnquantizeWeight(q, weight_bits)) / 64.0;
-            const vec4 d = data[i] - mix(e0, e1, t);
-            const float dist = dot(d, d);
+        uint best_q = guess;
+        for (uint q = (guess > 0 ? guess - 1 : 0); q <= min(guess + 1, top); ++q) {
+            const vec4 diff = data[i] - mix(e0, e1, float(UnquantizeWeight(q, weight_bits)) / 64.0);
+            const float dist = dot(diff, diff);
             if (dist < best) {
                 best = dist;
                 best_q = q;
             }
         }
-        weights[i] = best_q;
+        if (into_scratch) {
+            scratch[i] = best_q;
+        } else {
+            weights[i] = best_q;
+        }
         error += best;
     }
     return error;
 }
 
-bool RefineEndpoints(vec4 data[16], uint weights[16], uint weight_bits, inout vec4 e0,
-                     inout vec4 e1) {
+/// Least-squares endpoints for the current weights; false when they can't be solved.
+bool RefineEndpoints(uint weight_bits, out vec4 e0, out vec4 e1) {
     float aa = 0.0;
     float ab = 0.0;
     float bb = 0.0;
@@ -138,6 +148,8 @@ bool RefineEndpoints(vec4 data[16], uint weights[16], uint weight_bits, inout ve
         xb += t * data[i];
     }
     const float determinant = aa * bb - ab * ab;
+    e0 = vec4(0.0);
+    e1 = vec4(0.0);
     if (abs(determinant) < 1e-6) {
         return false;
     }
@@ -146,8 +158,9 @@ bool RefineEndpoints(vec4 data[16], uint weights[16], uint weight_bits, inout ve
     return true;
 }
 
-float FitLine(vec4 data[16], vec4 mean, vec4 axis, vec4 mask, uint weight_bits, uint range,
-              out vec4 e0, out vec4 e1, out uint weights[16]) {
+/// Fits a line through `data` for one layout; leaves its weights in `weights`.
+float FitLine(vec4 mean, vec4 axis, vec4 mask, uint weight_bits, uint range, out vec4 e0,
+              out vec4 e1) {
     float t_min = 0.0;
     float t_max = 0.0;
     for (int i = 0; i < 16; ++i) {
@@ -157,19 +170,20 @@ float FitLine(vec4 data[16], vec4 mean, vec4 axis, vec4 mask, uint weight_bits, 
     }
     e0 = Quantize(mean + axis * t_min, range, mask);
     e1 = Quantize(mean + axis * t_max, range, mask);
-    float error = PickWeights(data, e0, e1, weight_bits, weights);
-    vec4 r0 = e0;
-    vec4 r1 = e1;
-    if (RefineEndpoints(data, weights, weight_bits, r0, r1)) {
+    float error = PickWeights(e0, e1, weight_bits, false);
+    vec4 r0;
+    vec4 r1;
+    if (RefineEndpoints(weight_bits, r0, r1)) {
         r0 = Quantize(r0, range, mask);
         r1 = Quantize(r1, range, mask);
-        uint refined_weights[16];
-        const float refined_error = PickWeights(data, r0, r1, weight_bits, refined_weights);
+        const float refined_error = PickWeights(r0, r1, weight_bits, true);
         if (refined_error < error) {
             e0 = r0;
             e1 = r1;
-            weights = refined_weights;
             error = refined_error;
+            for (int i = 0; i < 16; ++i) {
+                weights[i] = scratch[i];
+            }
         }
     }
     return error;
@@ -193,110 +207,116 @@ void PutReversed(uint stream_position, uint value, uint bits) {
     }
 }
 
-void WriteEndpointSequence(uint values[8], uint count, uint range) {
+uint EndpointValue(vec4 e0, vec4 e1, uint index) {
+    const vec4 e = (index & 1) == 0 ? e0 : e1;
+    return uint(e[index / 2]);
+}
+
+void WriteEndpointSequence(vec4 e0, vec4 e1, uint count, uint range) {
     const uint bits = RangeBits(range);
     uint position = 17;
-    if (!RangeIsTrit(range)) {
+    if (range == RANGE_32 || range == RANGE_256) {
         for (uint i = 0; i < count; ++i) {
-            Put(position, (EndpointEntry(range, float(values[i])) >> 8) & 0xFF, bits);
+            const uint entry = EndpointEntry(range, float(EndpointValue(e0, e1, i)));
+            Put(position, (entry >> 8) & 0xFF, bits);
             position += bits;
         }
         return;
     }
-    const uint T_SHIFT[5] = uint[5](0, 2, 4, 5, 7);
-    const uint T_BITS[5] = uint[5](2, 2, 1, 2, 1);
+    // Trit blocks of five: m0 T[1:0] m1 T[3:2] m2 T[4] m3 T[6:5] m4 T[7].
     for (uint first = 0; first < count; first += 5) {
         const uint in_block = min(5u, count - first);
         uint index = 0;
         uint scale = 1;
         for (uint i = 0; i < in_block; ++i) {
-            index += ((EndpointEntry(range, float(values[first + i])) >> 16) & 0xFF) * scale;
+            const uint entry = EndpointEntry(range, float(EndpointValue(e0, e1, first + i)));
+            index += ((entry >> 16) & 0xFF) * scale;
             scale *= 3;
         }
         const uint t = tables[TRIT_TABLE + (in_block - 1) * 243 + index];
         for (uint i = 0; i < in_block; ++i) {
-            Put(position, (EndpointEntry(range, float(values[first + i])) >> 8) & 0xFF, bits);
+            const uint entry = EndpointEntry(range, float(EndpointValue(e0, e1, first + i)));
+            Put(position, (entry >> 8) & 0xFF, bits);
             position += bits;
-            Put(position, (t >> T_SHIFT[i]) & ((1u << T_BITS[i]) - 1), T_BITS[i]);
-            position += T_BITS[i];
+            const uint t_shift = i == 0 ? 0 : i == 1 ? 2 : i == 2 ? 4 : i == 3 ? 5 : 7;
+            const uint t_bits = (i == 2 || i == 4) ? 1 : 2;
+            Put(position, (t >> t_shift) & ((1u << t_bits) - 1), t_bits);
+            position += t_bits;
         }
     }
 }
 
+/// Packs the chosen layout from best_w / best_wa.
 void Write(uint block_mode, uint weight_bits, bool dual_plane, uint range, uint cem, vec4 e0,
-           vec4 e1, uint weights[16], uint alpha_weights[16]) {
+           vec4 e1) {
     // The decoder swaps (and blue-contracts) endpoints whose second colour sums lower than the
     // first, so store them the other way round and mirror the weights instead.
-    if (e1.r + e1.g + e1.b < e0.r + e0.g + e0.b) {
+    const bool swap = e1.r + e1.g + e1.b < e0.r + e0.g + e0.b;
+    if (swap) {
         const vec4 tmp = e0;
         e0 = e1;
         e1 = tmp;
-        const uint top = (1u << weight_bits) - 1;
-        for (int i = 0; i < 16; ++i) {
-            weights[i] = top - weights[i];
-            alpha_weights[i] = top - alpha_weights[i];
-        }
     }
-    const uint channels = cem == CEM_RGBA_DIRECT ? 4 : 3;
-    uint values[8];
-    for (uint c = 0; c < 4; ++c) {
-        values[c * 2] = uint(e0[c]);
-        values[c * 2 + 1] = uint(e1[c]);
-    }
+    const uint top = (1u << weight_bits) - 1;
     words = uint[4](0, 0, 0, 0);
     Put(0, block_mode, 11);
     Put(13, cem, 4);
-    WriteEndpointSequence(values, channels * 2, range);
-    const uint planes = dual_plane ? 2 : 1;
-    const uint weight_stream_bits = 16 * planes * weight_bits;
+    WriteEndpointSequence(e0, e1, cem == CEM_RGBA_DIRECT ? 8 : 6, range);
+    const uint weight_stream_bits = 16 * (dual_plane ? 2 : 1) * weight_bits;
     if (dual_plane) {
         Put(128 - weight_stream_bits - 2, 3, 2); // alpha on the second plane
     }
     uint position = 0;
     for (int i = 0; i < 16; ++i) {
-        PutReversed(position, weights[i], weight_bits);
+        PutReversed(position, swap ? top - best_w[i] : best_w[i], weight_bits);
         position += weight_bits;
         if (dual_plane) {
-            PutReversed(position, alpha_weights[i], weight_bits);
+            PutReversed(position, swap ? top - best_wa[i] : best_wa[i], weight_bits);
             position += weight_bits;
+        }
+    }
+}
+
+void KeepWeights(bool alpha_plane) {
+    for (int i = 0; i < 16; ++i) {
+        if (alpha_plane) {
+            best_wa[i] = weights[i];
+        } else {
+            best_w[i] = weights[i];
         }
     }
 }
 
 void EncodeOpaque() {
     const vec4 mask = vec4(1.0, 1.0, 1.0, 0.0);
-    vec4 rgb[16];
     for (int i = 0; i < 16; ++i) {
-        rgb[i] = px[i] * mask;
+        data[i] = px[i] * mask;
     }
     vec4 mean;
     vec4 axis;
-    PrincipalAxis(rgb, mask, mean, axis);
-    const uint MODES[4] = uint[4](0x042, 0x053, 0x242, 0x253);
-    const uint BITS[4] = uint[4](2, 3, 4, 5);
-    const uint RANGES[4] = uint[4](RANGE_256, RANGE_256, RANGE_192, RANGE_32);
+    PrincipalAxis(mask, mean, axis);
     float best_error = 3.4e38;
     uint best = 0;
-    vec4 best_e0;
-    vec4 best_e1;
-    uint best_weights[16];
-    for (uint layout_index = 0; layout_index < 4; ++layout_index) {
+    vec4 best_e0 = vec4(0.0);
+    vec4 best_e1 = vec4(0.0);
+    for (uint i = 0; i < 4; ++i) {
+        // Layouts: 4 levels/QUANT_256, 8/256, 16/192, 32/32.
+        const uint bits = i + 2;
+        const uint range = i < 2 ? RANGE_256 : i == 2 ? RANGE_192 : RANGE_32;
         vec4 e0;
         vec4 e1;
-        uint weights[16];
-        const float error = FitLine(rgb, mean, axis, mask, BITS[layout_index],
-                                    RANGES[layout_index], e0, e1, weights);
+        const float error = FitLine(mean, axis, mask, bits, range, e0, e1);
         if (error < best_error) {
             best_error = error;
-            best = layout_index;
+            best = i;
             best_e0 = e0;
             best_e1 = e1;
-            best_weights = weights;
+            KeepWeights(false);
         }
     }
-    uint unused[16] = uint[16](0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    Write(MODES[best], BITS[best], false, RANGES[best], CEM_RGB_DIRECT, best_e0, best_e1,
-          best_weights, unused);
+    const uint MODES[4] = uint[4](0x042, 0x053, 0x242, 0x253);
+    const uint range = best < 2 ? RANGE_256 : best == 2 ? RANGE_192 : RANGE_32;
+    Write(MODES[best], best + 2, false, range, CEM_RGB_DIRECT, best_e0, best_e1);
 }
 
 void EncodeTranslucent() {
@@ -305,80 +325,86 @@ void EncodeTranslucent() {
     uint best_bits = 0;
     bool best_dual = false;
     uint best_range = 0;
-    vec4 best_e0;
-    vec4 best_e1;
-    uint best_weights[16];
-    uint best_alpha_weights[16] = uint[16](0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    vec4 best_e0 = vec4(0.0);
+    vec4 best_e1 = vec4(0.0);
 
-    // Shared weights for colour and alpha.
+    // Shared weights for colour and alpha: 4 levels/QUANT_256 or 8/QUANT_192.
     const vec4 all = vec4(1.0);
+    for (int i = 0; i < 16; ++i) {
+        data[i] = px[i];
+    }
     vec4 mean;
     vec4 axis;
-    PrincipalAxis(px, all, mean, axis);
-    const uint SHARED_MODES[2] = uint[2](0x042, 0x053);
-    const uint SHARED_BITS[2] = uint[2](2, 3);
-    const uint SHARED_RANGES[2] = uint[2](RANGE_256, RANGE_192);
+    PrincipalAxis(all, mean, axis);
     for (uint i = 0; i < 2; ++i) {
+        const uint bits = i + 2;
+        const uint range = i == 0 ? RANGE_256 : RANGE_192;
         vec4 e0;
         vec4 e1;
-        uint weights[16];
-        const float error =
-            FitLine(px, mean, axis, all, SHARED_BITS[i], SHARED_RANGES[i], e0, e1, weights);
+        const float error = FitLine(mean, axis, all, bits, range, e0, e1);
         if (error < best_error) {
             best_error = error;
-            best_mode = SHARED_MODES[i];
-            best_bits = SHARED_BITS[i];
+            best_mode = i == 0 ? 0x042 : 0x053;
+            best_bits = bits;
             best_dual = false;
-            best_range = SHARED_RANGES[i];
+            best_range = range;
             best_e0 = e0;
             best_e1 = e1;
-            best_weights = weights;
+            KeepWeights(false);
         }
     }
 
-    // Alpha on its own plane.
+    // Alpha on its own plane: 2 levels/QUANT_256 or 4/QUANT_48.
     const vec4 rgb_mask = vec4(1.0, 1.0, 1.0, 0.0);
     const vec4 alpha_mask = vec4(1.0, 0.0, 0.0, 0.0);
-    vec4 rgb[16];
-    vec4 alpha[16];
-    for (int i = 0; i < 16; ++i) {
-        rgb[i] = px[i] * rgb_mask;
-        alpha[i] = vec4(px[i].a, 0.0, 0.0, 0.0);
-    }
     vec4 rgb_mean;
     vec4 rgb_axis;
     vec4 alpha_mean;
     vec4 alpha_axis;
-    PrincipalAxis(rgb, rgb_mask, rgb_mean, rgb_axis);
-    PrincipalAxis(alpha, alpha_mask, alpha_mean, alpha_axis);
-    const uint DUAL_MODES[2] = uint[2](0x441, 0x442);
-    const uint DUAL_BITS[2] = uint[2](1, 2);
-    const uint DUAL_RANGES[2] = uint[2](RANGE_256, RANGE_48);
+    for (int i = 0; i < 16; ++i) {
+        data[i] = vec4(px[i].a, 0.0, 0.0, 0.0);
+    }
+    PrincipalAxis(alpha_mask, alpha_mean, alpha_axis);
+    for (int i = 0; i < 16; ++i) {
+        data[i] = px[i] * rgb_mask;
+    }
+    PrincipalAxis(rgb_mask, rgb_mean, rgb_axis);
     for (uint i = 0; i < 2; ++i) {
+        const uint bits = i + 1;
+        const uint range = i == 0 ? RANGE_256 : RANGE_48;
+        for (int j = 0; j < 16; ++j) {
+            data[j] = px[j] * rgb_mask;
+        }
         vec4 c0;
         vec4 c1;
+        const float color_error = FitLine(rgb_mean, rgb_axis, rgb_mask, bits, range, c0, c1);
+        if (color_error >= best_error) {
+            continue;
+        }
+        uint color_weights[16];
+        for (int j = 0; j < 16; ++j) {
+            color_weights[j] = weights[j];
+            data[j] = vec4(px[j].a, 0.0, 0.0, 0.0);
+        }
         vec4 a0;
         vec4 a1;
-        uint color_weights[16];
-        uint alpha_weights[16];
-        const float error = FitLine(rgb, rgb_mean, rgb_axis, rgb_mask, DUAL_BITS[i],
-                                    DUAL_RANGES[i], c0, c1, color_weights) +
-                            FitLine(alpha, alpha_mean, alpha_axis, alpha_mask, DUAL_BITS[i],
-                                    DUAL_RANGES[i], a0, a1, alpha_weights);
+        const float error =
+            color_error + FitLine(alpha_mean, alpha_axis, alpha_mask, bits, range, a0, a1);
         if (error < best_error) {
             best_error = error;
-            best_mode = DUAL_MODES[i];
-            best_bits = DUAL_BITS[i];
+            best_mode = i == 0 ? 0x441 : 0x442;
+            best_bits = bits;
             best_dual = true;
-            best_range = DUAL_RANGES[i];
+            best_range = range;
             best_e0 = vec4(c0.rgb, a0.r);
             best_e1 = vec4(c1.rgb, a1.r);
-            best_weights = color_weights;
-            best_alpha_weights = alpha_weights;
+            for (int j = 0; j < 16; ++j) {
+                best_w[j] = color_weights[j];
+                best_wa[j] = weights[j];
+            }
         }
     }
-    Write(best_mode, best_bits, best_dual, best_range, CEM_RGBA_DIRECT, best_e0, best_e1,
-          best_weights, best_alpha_weights);
+    Write(best_mode, best_bits, best_dual, best_range, CEM_RGBA_DIRECT, best_e0, best_e1);
 }
 
 void main() {
