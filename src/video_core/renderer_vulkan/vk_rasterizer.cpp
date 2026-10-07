@@ -947,6 +947,22 @@ void RasterizerVulkan::OnCacheInvalidation(DAddr addr, u64 size) {
     pipeline_cache.InvalidateRegion(addr, size);
 }
 
+bool RasterizerVulkan::HasGpuWrittenImages(DAddr addr, u64 size) {
+    if (addr == 0 || size == 0) {
+        return false;
+    }
+    std::scoped_lock lock{texture_cache.mutex};
+    return texture_cache.IsRegionGpuModified(addr, size);
+}
+
+void RasterizerVulkan::DownloadGpuWrittenImages(DAddr addr, u64 size) {
+    if (addr == 0 || size == 0) {
+        return;
+    }
+    std::scoped_lock lock{texture_cache.mutex};
+    texture_cache.DownloadGpuModifiedImages(addr, size);
+}
+
 void RasterizerVulkan::InvalidateGPUCache() {
     gpu.InvalidateGPUCache();
 }
