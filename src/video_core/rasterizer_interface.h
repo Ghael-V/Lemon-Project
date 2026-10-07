@@ -111,6 +111,15 @@ public:
     /// Notify rasterizer that any caches of the specified region are desync with guest
     virtual void OnCacheInvalidation(PAddr addr, u64 size) = 0;
 
+    /// True if the region holds images the GPU drew whose contents guest memory doesn't have yet.
+    virtual bool HasGpuWrittenImages([[maybe_unused]] DAddr addr, [[maybe_unused]] u64 size) {
+        return false;
+    }
+
+    /// Copies the images the GPU drew in the region back to guest memory.
+    virtual void DownloadGpuWrittenImages([[maybe_unused]] DAddr addr,
+                                          [[maybe_unused]] u64 size) {}
+
     virtual bool OnCPUWrite(PAddr addr, u64 size) = 0;
 
     /// Sync memory between guest and host.
