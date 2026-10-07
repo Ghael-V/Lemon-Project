@@ -15,6 +15,7 @@
 #include "common/hex_util.h"
 #include "common/string_util.h"
 
+#include "core/hle/service/sockets/sfdnsres.h"
 #include "core/hle/service/ssl/ssl_backend.h"
 #include "core/internal_network/network.h"
 #include "core/internal_network/sockets.h"
@@ -157,7 +158,17 @@ public:
         socket = std::move(socket_in);
     }
 
-    Result SetHostName(const std::string& hostname) override {
+    Result SetHostName(const std::string& hostname_in) override {
+        std::string hostname = hostname_in;
+        // Some titles hand over the address they resolved instead of the name. When that address
+        // stands in for a Nintendo host (Nextendo Network), present the real name as the SNI.
+        if (const std::string redirected = RedirectedHostOfPeer();
+            !redirected.empty() && (hostname.empty() || hostname == PeerAddress())) {
+            hostname = redirected;
+        }
+        if (hostname.empty()) {
+            return ResultSuccess;
+        }
         if (!skip_cert_verification) {
             if (!SSL_set1_host(ssl, hostname.c_str())) {
                 LOG_ERROR(Service_SSL, "SSL_set1_host({}) failed", hostname);
@@ -169,6 +180,19 @@ public:
             return CheckOpenSSLErrors();
         }
         return ResultSuccess;
+    }
+
+    void SetAlpnProtocols(std::span<const u8> wire) override {
+        requested_alpn.assign(wire.begin(), wire.end());
+    }
+
+    s32 Pending() override {
+        return SSL_pending(ssl);
+    }
+
+    Result Peek(size_t* out_size, std::span<u8> data) override {
+        const int ret = SSL_peek_ex(ssl, data.data(), data.size(), out_size);
+        return HandleReturn("SSL_peek_ex", out_size, ret);
     }
 
     void SetVerifyOption(u32 option) override {
@@ -185,8 +209,18 @@ public:
     }
 
     Result DoHandshake() override {
+        if (nextendo_host.empty()) {
+            if (const std::string redirected = RedirectedHostOfPeer(); !redirected.empty()) {
+                nextendo_host = redirected;
+                PrepareNextendoHandshake(redirected);
+            }
+        }
+
         SSL_set_verify_result(ssl, X509_V_OK);
         const int ret = SSL_do_handshake(ssl);
+        if (!nextendo_host.empty()) {
+            LogNextendoHandshake(ret);
+        }
 
         if (!skip_cert_verification) {
             const long verify_result = SSL_get_verify_result(ssl);
@@ -210,12 +244,20 @@ public:
 
     Result Read(size_t* out_size, std::span<u8> data) override {
         const int ret = SSL_read_ex(ssl, data.data(), data.size(), out_size);
-        return HandleReturn("SSL_read_ex", out_size, ret);
+        const Result res = HandleReturn("SSL_read_ex", out_size, ret);
+        if (res == ResultSuccess) {
+            bytes_read += *out_size;
+        }
+        return res;
     }
 
     Result Write(size_t* out_size, std::span<const u8> data) override {
         const int ret = SSL_write_ex(ssl, data.data(), data.size(), out_size);
-        return HandleReturn("SSL_write_ex", out_size, ret);
+        const Result res = HandleReturn("SSL_write_ex", out_size, ret);
+        if (res == ResultSuccess) {
+            bytes_written += *out_size;
+        }
+        return res;
     }
 
     Result HandleReturn(const char* what, size_t* actual, int ret) {
@@ -267,8 +309,30 @@ public:
     }
 
     ~SSLConnectionBackendOpenSSL() {
+        if (!nextendo_host.empty()) {
+            LOG_INFO(Service_SSL, "Nextendo: TLS to {} closed, sent {} bytes, received {}{}",
+                     nextendo_host, bytes_written, bytes_read,
+                     got_read_eof ? ", server hung up" : "");
+        }
         // this is null-tolerant:
         SSL_free(ssl);
+    }
+
+    void LogNextendoHandshake(int ret) {
+        if (ret == 1) {
+            const unsigned char* alpn = nullptr;
+            unsigned int alpn_len = 0;
+            SSL_get0_alpn_selected(ssl, &alpn, &alpn_len);
+            LOG_INFO(Service_SSL, "Nextendo: TLS to {} established ({}, ALPN '{}')",
+                     nextendo_host, SSL_get_version(ssl),
+                     std::string_view{reinterpret_cast<const char*>(alpn), alpn_len});
+            return;
+        }
+        const int err = SSL_get_error(ssl, ret);
+        if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+            LOG_WARNING(Service_SSL, "Nextendo: TLS handshake with {} failed (SSL error {})",
+                        nextendo_host, err);
+        }
     }
 
     static void KeyLogCallback(const SSL* ssl, const char* line) {
@@ -344,10 +408,65 @@ public:
         }
     }
 
+    std::string PeerAddress() const {
+        if (!socket) {
+            return {};
+        }
+        const auto [peer, err] = socket->GetPeerName();
+        return err == Network::Errno::SUCCESS ? Network::IPv4AddressToString(peer.ip)
+                                              : std::string{};
+    }
+
+    std::string RedirectedHostOfPeer() const {
+        const std::string address = PeerAddress();
+        return address.empty() ? std::string{} : Service::Sockets::GetRedirectedHostForIp(address);
+    }
+
+    // Nextendo Network connection: make sure the SNI names the Nintendo host, and offer
+    // HTTP/1.1 only - NEX runs over a WebSocket upgrade that HTTP/2 would break. NPLN titles
+    // (gRPC) need the HTTP/2 they asked for. After citron-nextendo (Copyright 2026 citron
+    // Emulator Project).
+    void PrepareNextendoHandshake(const std::string& redirected_host) {
+        const char* sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+        if (sni == nullptr) {
+            SSL_set_tlsext_host_name(ssl, redirected_host.c_str());
+            sni = redirected_host.c_str();
+        }
+        const std::string host = Common::ToLower(std::string{sni});
+        const bool npln = host.find("npln") != std::string::npos ||
+                          host.find("gs.nintendo.net") != std::string::npos;
+
+        std::vector<u8> wire;
+        if (npln) {
+            for (size_t pos = 0; pos < requested_alpn.size();) {
+                const u8 len = requested_alpn[pos];
+                if (len == 0 || pos + 1 + len > requested_alpn.size()) {
+                    break;
+                }
+                const std::string_view proto{
+                    reinterpret_cast<const char*>(requested_alpn.data() + pos + 1), len};
+                if (proto == "h2" || proto == "http/1.1") {
+                    wire.insert(wire.end(), requested_alpn.begin() + pos,
+                                requested_alpn.begin() + pos + 1 + len);
+                }
+                pos += 1 + len;
+            }
+        }
+        if (wire.empty()) {
+            static constexpr std::string_view http11{"\x08http/1.1"};
+            wire.assign(http11.begin(), http11.end());
+        }
+        SSL_set_alpn_protos(ssl, wire.data(), static_cast<unsigned int>(wire.size()));
+    }
+
     SSL* ssl = nullptr;
     BIO* bio = nullptr;
     bool got_read_eof = false;
     bool skip_cert_verification = false;
+    std::vector<u8> requested_alpn;
+    std::string nextendo_host; ///< Set when this connection goes to a Nextendo server.
+    size_t bytes_read = 0;
+    size_t bytes_written = 0;
 
     std::shared_ptr<Network::SocketBase> socket;
 };

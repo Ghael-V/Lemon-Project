@@ -1261,6 +1261,16 @@
 
     <string name="airplane_mode">Modo avión</string>
     <string name="airplane_mode_description">Pasa el modo avión al sistema operativo Switch</string>
+    <string name="nextendo_network">Nextendo Network</string>
+    <string name="nextendo_network_description">Juego en línea en servidores de la comunidad</string>
+    <string name="nextendo_enable">Juego en línea con Nextendo Network</string>
+    <string name="nextendo_enable_description">Envía el tráfico en línea de los juegos a los servidores de Nextendo Network en lugar de a los de Nintendo. Necesita una cuenta de Nextendo.</string>
+    <string name="nextendo_sign_in">Iniciar sesión</string>
+    <string name="nextendo_sign_in_description">Abre nextendo.network en el navegador. Lemon nunca ve tu contraseña.</string>
+    <string name="nextendo_sign_in_failed">No se pudo iniciar sesión en Nextendo Network (%1$s)</string>
+    <string name="nextendo_sign_out">Cerrar sesión</string>
+    <string name="nextendo_signed_in_as">Sesión iniciada como %1$s</string>
+    <string name="nextendo_unavailable">Esta versión de Lemon aún no está registrada en Nextendo Network.</string>
 
     <string name="enable_overlay">Habilitar el applet de superposición</string>
     <string name="enable_overlay_description">Activa el applet integrado superpuesto de Horizon. Mantenga pulsado el botón de inicio durante 1 segundo para que aparezca.</string>

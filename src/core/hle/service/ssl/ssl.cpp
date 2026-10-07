@@ -17,6 +17,7 @@
 #include "core/hle/service/ssl/cert_store.h"
 #include "core/hle/service/ssl/ssl.h"
 #include "core/hle/service/ssl/ssl_backend.h"
+#include "core/hle/service/ssl/ssl_pending_registry.h"
 #include "core/internal_network/network.h"
 #include "core/internal_network/sockets.h"
 
@@ -88,8 +89,8 @@ public:
             {10, &ISslConnection::Read, "Read"},
             {11, &ISslConnection::Write, "Write"},
             {12, &ISslConnection::Pending, "Pending"},
-            {13, nullptr, "Peek"},
-            {14, nullptr, "Poll"},
+            {13, &ISslConnection::Peek, "Peek"},
+            {14, &ISslConnection::Poll, "Poll"},
             {15, nullptr, "GetVerifyCertError"},
             {16, nullptr, "GetNeededServerCertBufferSize"},
             {17, &ISslConnection::SetSessionCacheMode, "SetSessionCacheMode"},
@@ -123,6 +124,9 @@ public:
 
     ~ISslConnection() {
         shared_data->connection_count--;
+        if (socket) {
+            UnregisterPendingCheck(socket.get());
+        }
         if (fd_to_close.has_value()) {
             const s32 fd = *fd_to_close;
             if (!do_not_close_socket) {
@@ -176,6 +180,8 @@ private:
             }
             socket = std::move(*sock);
             backend->SetSocket(socket);
+            RegisterPendingCheck(socket.get(),
+                                 [this] { return did_handshake && backend->Pending() > 0; });
             return ResultSuccess;
         }
         LOG_ERROR(Service_SSL, "Failed to duplicate socket with fd {}", fd);
@@ -271,8 +277,7 @@ private:
     }
 
     Result PendingImpl(s32* out_pending) {
-        LOG_WARNING(Service_SSL, "(STUBBED) called.");
-        *out_pending = 0;
+        *out_pending = did_handshake ? backend->Pending() : 0;
         return ResultSuccess;
     }
 
@@ -380,6 +385,66 @@ private:
         rb.Push<s32>(pending_size);
     }
 
+    void Peek(HLERequestContext& ctx) {
+        // nn::websocket peeks at the HTTP upgrade reply; libcurl peeks a byte as a liveness check.
+        std::vector<u8> output_bytes(ctx.GetWriteBufferSize());
+        size_t actual_size{};
+        const Result res =
+            did_handshake ? backend->Peek(&actual_size, output_bytes) : ResultInternalError;
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(res);
+        if (res == ResultSuccess) {
+            output_bytes.resize(actual_size);
+            rb.Push(static_cast<u32>(actual_size));
+            ctx.WriteBuffer(output_bytes);
+        } else {
+            rb.Push(static_cast<u32>(0));
+        }
+    }
+
+    void Poll(HLERequestContext& ctx) {
+        // nn::ssl::PollEvent: Read = 1, Write = 2, Except = 4. Data already decrypted inside the
+        // backend counts as readable even when nothing more waits on the raw socket.
+        static constexpr u32 PollRead = 1, PollWrite = 2, PollExcept = 4;
+        IPC::RequestParser rp{ctx};
+        const u32 in_events = rp.Pop<u32>();
+        const u32 timeout_ms = rp.Pop<u32>();
+
+        u32 out_events = 0;
+        if (socket) {
+            if ((in_events & PollRead) && did_handshake && backend->Pending() > 0) {
+                out_events |= PollRead;
+            }
+            Network::PollEvents wanted{};
+            if (in_events & PollRead) {
+                wanted |= Network::PollEvents::In;
+            }
+            if (in_events & PollWrite) {
+                wanted |= Network::PollEvents::Out;
+            }
+            std::vector<Network::PollFD> fds{{socket.get(), wanted, Network::PollEvents{}}};
+            // Bounded so an idle connection can't hold the service thread; callers poll again.
+            const s32 wait = out_events ? 0 : static_cast<s32>((std::min)(timeout_ms, 50u));
+            if (Network::Poll(fds, wait).first > 0) {
+                const Network::PollEvents revents = fds[0].revents;
+                if ((in_events & PollRead) &&
+                    True(revents & (Network::PollEvents::In | Network::PollEvents::Hup))) {
+                    out_events |= PollRead;
+                }
+                if ((in_events & PollWrite) && True(revents & Network::PollEvents::Out)) {
+                    out_events |= PollWrite;
+                }
+                if (True(revents & (Network::PollEvents::Err | Network::PollEvents::Nval))) {
+                    out_events |= PollExcept;
+                }
+            }
+        }
+
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(ResultSuccess);
+        rb.Push<u32>(out_events);
+    }
+
     void SetSessionCacheMode(HLERequestContext& ctx) {
         IPC::RequestParser rp{ctx};
         const u32 mode = rp.Pop<u32>();
@@ -455,6 +520,7 @@ private:
     void SetNextAlpnProto(HLERequestContext& ctx) {
         const auto data = ctx.ReadBuffer(0);
         next_alpn_proto.assign(data.begin(), data.end());
+        backend->SetAlpnProtocols(next_alpn_proto);
 
         LOG_DEBUG(Service_SSL, "SetNextAlpnProto called, size={}", next_alpn_proto.size());
 

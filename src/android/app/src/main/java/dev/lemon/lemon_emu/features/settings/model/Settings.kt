@@ -30,7 +30,8 @@ object Settings {
         SECTION_CUSTOM_PATHS(R.string.preferences_custom_paths),
         SECTION_DEBUG(R.string.preferences_debug),
         SECTION_FREEDRENO(R.string.freedreno_settings_title),
-        SECTION_APPLETS(R.string.applets_menu);
+        SECTION_APPLETS(R.string.applets_menu),
+        SECTION_NEXTENDO(R.string.nextendo_network);
     }
 
     fun getPlayerString(player: Int): String =

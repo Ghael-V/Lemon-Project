@@ -1172,6 +1172,14 @@ abstract class SettingsItem(
 
             put(
                 SwitchSetting(
+                    BooleanSetting.ENABLE_NEXTENDO,
+                    titleId = R.string.nextendo_enable,
+                    descriptionId = R.string.nextendo_enable_description
+                )
+            )
+
+            put(
+                SwitchSetting(
                     BooleanSetting.ENABLE_OVERLAY,
                     titleId = R.string.enable_overlay,
                     descriptionId = R.string.enable_overlay_description

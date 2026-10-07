@@ -938,6 +938,12 @@ struct Values {
     Setting<std::string> network_interface{linkage, std::string(), "network_interface",
                                            Category::Network};
     SwitchableSetting<bool> airplane_mode{linkage, false, "airplane_mode", Category::Network};
+    // Nextendo Network: send the games' Nintendo traffic to the community servers instead.
+    Setting<bool> enable_nextendo{linkage, false, "enable_nextendo", Category::Network};
+    Setting<std::string> nextendo_server_ip{linkage, "51.178.29.194", "nextendo_server_ip",
+                                            Category::Network};
+    Setting<std::string> nextendo_nat_ip{linkage, "164.132.111.120", "nextendo_nat_ip",
+                                         Category::Network};
 
     // WebService
     Setting<std::string> web_api_url{linkage, "api.ynet-fun.xyz", "web_api_url",

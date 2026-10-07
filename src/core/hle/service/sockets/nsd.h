@@ -27,4 +27,7 @@ private:
     void GetApplicationServerEnvironmentType(HLERequestContext& ctx);
 };
 
+/// Applies the substitutions nsd makes to a service FQDN ("%" -> environment, account hosts).
+std::string ResolveNsdFqdn(const std::string& fqdn_in);
+
 } // namespace Service::Sockets

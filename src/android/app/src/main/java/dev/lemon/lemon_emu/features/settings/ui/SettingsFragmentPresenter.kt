@@ -28,6 +28,7 @@ import dev.lemon.lemon_emu.features.settings.model.ShortSetting
 import dev.lemon.lemon_emu.features.settings.model.StringSetting
 import dev.lemon.lemon_emu.features.settings.model.UShortSetting
 import dev.lemon.lemon_emu.features.settings.model.view.*
+import dev.lemon.lemon_emu.nextendo.NextendoAccount
 import dev.lemon.lemon_emu.utils.InputHandler
 import dev.lemon.lemon_emu.utils.LosslessScalingHelper
 import dev.lemon.lemon_emu.utils.NativeConfig
@@ -198,6 +199,7 @@ class SettingsFragmentPresenter(
             MenuTag.SECTION_DEBUG -> addDebugSettings(sl)
             MenuTag.SECTION_FREEDRENO -> addFreedrenoSettings(sl)
             MenuTag.SECTION_APPLETS -> addAppletSettings(sl)
+            MenuTag.SECTION_NEXTENDO -> addNextendoSettings(sl)
             MenuTag.SECTION_CUSTOM_PATHS -> addCustomPathsSettings(sl)
         }
         settingsList = sl
@@ -481,6 +483,14 @@ class SettingsFragmentPresenter(
                 )
             )
             if (!NativeConfig.isPerGameConfigLoaded()) {
+                add(
+                    SubmenuSetting(
+                        titleId = R.string.nextendo_network,
+                        descriptionId = R.string.nextendo_network_description,
+                        iconId = R.drawable.ic_network,
+                        menuKey = MenuTag.SECTION_NEXTENDO
+                    )
+                )
                 add(
                     SubmenuSetting(
                         titleId = R.string.preferences_custom_paths,
@@ -821,6 +831,63 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.ENABLE_OVERLAY.key)
         }
     }
+    private fun addNextendoSettings(sl: ArrayList<SettingsItem>) {
+        sl.apply {
+            add(BooleanSetting.ENABLE_NEXTENDO.key)
+            val username = NextendoAccount.username()
+            when {
+                !NextendoAccount.isAvailable -> add(
+                    RunnableSetting(
+                        titleId = R.string.nextendo_sign_in,
+                        descriptionId = R.string.nextendo_unavailable,
+                        isRunnable = false
+                    ) {}
+                )
+
+                username == null -> add(
+                    RunnableSetting(
+                        titleId = R.string.nextendo_sign_in,
+                        descriptionId = R.string.nextendo_sign_in_description,
+                        isRunnable = activity != null,
+                        iconId = R.drawable.ic_account_circle
+                    ) {
+                        val currentActivity = activity ?: return@RunnableSetting
+                        NextendoAccount.signIn(currentActivity) { error ->
+                            currentActivity.runOnUiThread {
+                                if (error != null) {
+                                    Toast.makeText(
+                                        currentActivity,
+                                        currentActivity.getString(
+                                            R.string.nextendo_sign_in_failed,
+                                            error
+                                        ),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                                loadSettingsList(true)
+                            }
+                        }
+                    }
+                )
+
+                else -> add(
+                    RunnableSetting(
+                        titleId = R.string.nextendo_sign_out,
+                        descriptionString = context.getString(
+                            R.string.nextendo_signed_in_as,
+                            username
+                        ),
+                        isRunnable = !NativeLibrary.isRunning(),
+                        iconId = R.drawable.ic_account_circle
+                    ) {
+                        NextendoAccount.signOut()
+                        loadSettingsList(true)
+                    }
+                )
+            }
+        }
+    }
+
     private fun addInputPlayer(sl: ArrayList<SettingsItem>, playerIndex: Int) {
         sl.apply {
             val connectedSetting = object : AbstractBooleanSetting {

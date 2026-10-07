@@ -1548,6 +1548,16 @@
 
     <string name="airplane_mode">Airplane Mode</string>
     <string name="airplane_mode_description">Passes Airplane Mode to the Switch OS</string>
+    <string name="nextendo_network">Nextendo Network</string>
+    <string name="nextendo_network_description">Online play on community servers</string>
+    <string name="nextendo_enable">Online play with Nextendo Network</string>
+    <string name="nextendo_enable_description">Sends the games\' online traffic to the Nextendo Network servers instead of Nintendo\'s. Needs a Nextendo account.</string>
+    <string name="nextendo_sign_in">Sign in</string>
+    <string name="nextendo_sign_in_description">Opens nextendo.network in your browser. Lemon never sees your password.</string>
+    <string name="nextendo_sign_in_failed">Could not sign in to Nextendo Network (%1$s)</string>
+    <string name="nextendo_sign_out">Sign out</string>
+    <string name="nextendo_signed_in_as">Signed in as %1$s</string>
+    <string name="nextendo_unavailable">This build of Lemon is not registered with Nextendo Network yet.</string>
 
     <string name="enable_overlay">Enable Overlay Applet</string>
     <string name="enable_overlay_description">Enables Horizon\'s built-in overlay applet. Press and hold the home button for 1 second to show it.</string>
