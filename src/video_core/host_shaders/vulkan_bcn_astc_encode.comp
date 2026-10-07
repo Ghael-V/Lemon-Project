@@ -3,8 +3,11 @@
 
 // GPU version of the ASTC 4x4 encoder in video_core/textures/astc_encoder.cpp, which documents
 // the method and the block layouts; keep the two in step. One invocation encodes one block of
-// RGBA8 texels. Arrays live in globals and are never passed to functions: GLSL copies array
-// arguments, which on mobile GPUs spills everything to memory.
+// RGBA8 texels.
+//
+// Per-invocation state is kept small so it stays in registers on mobile GPUs: texels stay packed
+// as RGBA8 and are unpacked where needed, weights are packed six to a word, and no array is ever
+// passed to a function (GLSL copies array arguments).
 
 #version 460 core
 
@@ -41,13 +44,34 @@ const uint CEM_RGBA_DIRECT = 12;
 
 const uint TRIT_TABLE = 1024;
 
-vec4 px[16];         // the block
-vec4 data[16];       // texels of the line being fitted (unused channels zero)
-uint weights[16];    // weights of the current fit
-uint scratch[16];    // weights of a trial fit
-uint best_w[16];     // weights of the chosen layout (colour plane)
-uint best_wa[16];    // alpha plane weights of the chosen layout
-uint words[4];       // the output block
+// Which channels a line is fitted on.
+const uint FIT_RGB = 0;
+const uint FIT_RGBA = 1;
+const uint FIT_ALPHA = 2; // alpha moved to .x
+
+uint px[16];      // the block, RGBA8
+uvec3 weights;    // weights of the current fit, 5 bits each, six per word
+uvec3 scratch;    // weights of a trial fit
+uvec3 best_w;     // weights of the chosen layout (colour plane)
+uvec3 best_wa;    // alpha plane weights of the chosen layout
+uvec4 words;      // the output block
+
+uint GetWeight(uvec3 packed, uint i) {
+    return bitfieldExtract(packed[i / 6], int((i % 6) * 5), 5);
+}
+
+void SetWeight(inout uvec3 packed, uint i, uint value) {
+    packed[i / 6] = bitfieldInsert(packed[i / 6], value, int((i % 6) * 5), 5);
+}
+
+vec4 Texel(uint i, uint fit) {
+    const vec4 color = vec4(px[i] & 0xFF, (px[i] >> 8) & 0xFF, (px[i] >> 16) & 0xFF, px[i] >> 24);
+    return fit == FIT_RGBA ? color : fit == FIT_RGB ? vec4(color.rgb, 0.0) : vec4(color.a, 0.0, 0.0, 0.0);
+}
+
+vec4 FitMask(uint fit) {
+    return fit == FIT_RGBA ? vec4(1.0) : fit == FIT_RGB ? vec4(1.0, 1.0, 1.0, 0.0) : vec4(1.0, 0.0, 0.0, 0.0);
+}
 
 uint RangeBits(uint range) {
     return range == RANGE_32 ? 5 : range == RANGE_48 ? 4 : range == RANGE_192 ? 6 : 8;
@@ -75,19 +99,21 @@ vec4 Quantize(vec4 c, uint range, vec4 mask) {
     return result * mask;
 }
 
-void PrincipalAxis(vec4 mask, out vec4 mean, out vec4 axis) {
+void PrincipalAxis(uint fit, out vec4 mean, out vec4 axis) {
+    const vec4 mask = FitMask(fit);
     mean = vec4(0.0);
     vec4 lo = vec4(255.0);
     vec4 hi = vec4(0.0);
-    for (int i = 0; i < 16; ++i) {
-        mean += data[i];
-        lo = min(lo, data[i]);
-        hi = max(hi, data[i]);
+    for (uint i = 0; i < 16; ++i) {
+        const vec4 t = Texel(i, fit);
+        mean += t;
+        lo = min(lo, t);
+        hi = max(hi, t);
     }
     mean *= 1.0 / 16.0;
     mat4 covariance = mat4(0.0);
-    for (int i = 0; i < 16; ++i) {
-        const vec4 d = data[i] - mean;
+    for (uint i = 0; i < 16; ++i) {
+        const vec4 d = Texel(i, fit) - mean;
         covariance += outerProduct(d, d);
     }
     axis = (hi - lo + 1e-3) * mask;
@@ -102,19 +128,20 @@ void PrincipalAxis(vec4 mask, out vec4 mean, out vec4 axis) {
     axis = normalize(axis);
 }
 
-/// Closest weight per texel of `data` into `out_weights` (weights or scratch); squared error.
-float PickWeights(vec4 e0, vec4 e1, uint weight_bits, bool into_scratch) {
+/// Closest weight per texel, guessed from the projection on the line; squared error.
+float PickWeights(uint fit, vec4 e0, vec4 e1, uint weight_bits, bool into_scratch) {
     const uint top = (1u << weight_bits) - 1;
     const vec4 d = e1 - e0;
     const float dd = dot(d, d);
     float error = 0.0;
-    for (int i = 0; i < 16; ++i) {
-        const float t = dd > 0.0 ? clamp(dot(data[i] - e0, d) / dd, 0.0, 1.0) : 0.0;
+    for (uint i = 0; i < 16; ++i) {
+        const vec4 t_color = Texel(i, fit);
+        const float t = dd > 0.0 ? clamp(dot(t_color - e0, d) / dd, 0.0, 1.0) : 0.0;
         const uint guess = uint(round(t * float(top)));
         float best = 3.4e38;
         uint best_q = guess;
         for (uint q = (guess > 0 ? guess - 1 : 0); q <= min(guess + 1, top); ++q) {
-            const vec4 diff = data[i] - mix(e0, e1, float(UnquantizeWeight(q, weight_bits)) / 64.0);
+            const vec4 diff = t_color - mix(e0, e1, float(UnquantizeWeight(q, weight_bits)) / 64.0);
             const float dist = dot(diff, diff);
             if (dist < best) {
                 best = dist;
@@ -122,9 +149,9 @@ float PickWeights(vec4 e0, vec4 e1, uint weight_bits, bool into_scratch) {
             }
         }
         if (into_scratch) {
-            scratch[i] = best_q;
+            SetWeight(scratch, i, best_q);
         } else {
-            weights[i] = best_q;
+            SetWeight(weights, i, best_q);
         }
         error += best;
     }
@@ -132,20 +159,21 @@ float PickWeights(vec4 e0, vec4 e1, uint weight_bits, bool into_scratch) {
 }
 
 /// Least-squares endpoints for the current weights; false when they can't be solved.
-bool RefineEndpoints(uint weight_bits, out vec4 e0, out vec4 e1) {
+bool RefineEndpoints(uint fit, uint weight_bits, out vec4 e0, out vec4 e1) {
     float aa = 0.0;
     float ab = 0.0;
     float bb = 0.0;
     vec4 xa = vec4(0.0);
     vec4 xb = vec4(0.0);
-    for (int i = 0; i < 16; ++i) {
-        const float t = float(UnquantizeWeight(weights[i], weight_bits)) / 64.0;
+    for (uint i = 0; i < 16; ++i) {
+        const float t = float(UnquantizeWeight(GetWeight(weights, i), weight_bits)) / 64.0;
         const float s = 1.0 - t;
+        const vec4 color = Texel(i, fit);
         aa += s * s;
         ab += s * t;
         bb += t * t;
-        xa += s * data[i];
-        xb += t * data[i];
+        xa += s * color;
+        xb += t * color;
     }
     const float determinant = aa * bb - ab * ab;
     e0 = vec4(0.0);
@@ -158,32 +186,31 @@ bool RefineEndpoints(uint weight_bits, out vec4 e0, out vec4 e1) {
     return true;
 }
 
-/// Fits a line through `data` for one layout; leaves its weights in `weights`.
-float FitLine(vec4 mean, vec4 axis, vec4 mask, uint weight_bits, uint range, out vec4 e0,
+/// Fits a line through the texels for one layout; leaves its weights in `weights`.
+float FitLine(uint fit, vec4 mean, vec4 axis, uint weight_bits, uint range, out vec4 e0,
               out vec4 e1) {
+    const vec4 mask = FitMask(fit);
     float t_min = 0.0;
     float t_max = 0.0;
-    for (int i = 0; i < 16; ++i) {
-        const float projection = dot(data[i] - mean, axis);
+    for (uint i = 0; i < 16; ++i) {
+        const float projection = dot(Texel(i, fit) - mean, axis);
         t_min = min(t_min, projection);
         t_max = max(t_max, projection);
     }
     e0 = Quantize(mean + axis * t_min, range, mask);
     e1 = Quantize(mean + axis * t_max, range, mask);
-    float error = PickWeights(e0, e1, weight_bits, false);
+    float error = PickWeights(fit, e0, e1, weight_bits, false);
     vec4 r0;
     vec4 r1;
-    if (RefineEndpoints(weight_bits, r0, r1)) {
+    if (RefineEndpoints(fit, weight_bits, r0, r1)) {
         r0 = Quantize(r0, range, mask);
         r1 = Quantize(r1, range, mask);
-        const float refined_error = PickWeights(r0, r1, weight_bits, true);
+        const float refined_error = PickWeights(fit, r0, r1, weight_bits, true);
         if (refined_error < error) {
             e0 = r0;
             e1 = r1;
             error = refined_error;
-            for (int i = 0; i < 16; ++i) {
-                weights[i] = scratch[i];
-            }
+            weights = scratch;
         }
     }
     return error;
@@ -258,7 +285,7 @@ void Write(uint block_mode, uint weight_bits, bool dual_plane, uint range, uint 
         e1 = tmp;
     }
     const uint top = (1u << weight_bits) - 1;
-    words = uint[4](0, 0, 0, 0);
+    words = uvec4(0);
     Put(0, block_mode, 11);
     Put(13, cem, 4);
     WriteEndpointSequence(e0, e1, cem == CEM_RGBA_DIRECT ? 8 : 6, range);
@@ -267,34 +294,22 @@ void Write(uint block_mode, uint weight_bits, bool dual_plane, uint range, uint 
         Put(128 - weight_stream_bits - 2, 3, 2); // alpha on the second plane
     }
     uint position = 0;
-    for (int i = 0; i < 16; ++i) {
-        PutReversed(position, swap ? top - best_w[i] : best_w[i], weight_bits);
+    for (uint i = 0; i < 16; ++i) {
+        const uint w = GetWeight(best_w, i);
+        PutReversed(position, swap ? top - w : w, weight_bits);
         position += weight_bits;
         if (dual_plane) {
-            PutReversed(position, swap ? top - best_wa[i] : best_wa[i], weight_bits);
+            const uint wa = GetWeight(best_wa, i);
+            PutReversed(position, swap ? top - wa : wa, weight_bits);
             position += weight_bits;
         }
     }
 }
 
-void KeepWeights(bool alpha_plane) {
-    for (int i = 0; i < 16; ++i) {
-        if (alpha_plane) {
-            best_wa[i] = weights[i];
-        } else {
-            best_w[i] = weights[i];
-        }
-    }
-}
-
 void EncodeOpaque() {
-    const vec4 mask = vec4(1.0, 1.0, 1.0, 0.0);
-    for (int i = 0; i < 16; ++i) {
-        data[i] = px[i] * mask;
-    }
     vec4 mean;
     vec4 axis;
-    PrincipalAxis(mask, mean, axis);
+    PrincipalAxis(FIT_RGB, mean, axis);
     float best_error = 3.4e38;
     uint best = 0;
     vec4 best_e0 = vec4(0.0);
@@ -305,18 +320,18 @@ void EncodeOpaque() {
         const uint range = i < 2 ? RANGE_256 : i == 2 ? RANGE_192 : RANGE_32;
         vec4 e0;
         vec4 e1;
-        const float error = FitLine(mean, axis, mask, bits, range, e0, e1);
+        const float error = FitLine(FIT_RGB, mean, axis, bits, range, e0, e1);
         if (error < best_error) {
             best_error = error;
             best = i;
             best_e0 = e0;
             best_e1 = e1;
-            KeepWeights(false);
+            best_w = weights;
         }
     }
-    const uint MODES[4] = uint[4](0x042, 0x053, 0x242, 0x253);
+    const uint mode = best == 0 ? 0x042 : best == 1 ? 0x053 : best == 2 ? 0x242 : 0x253;
     const uint range = best < 2 ? RANGE_256 : best == 2 ? RANGE_192 : RANGE_32;
-    Write(MODES[best], best + 2, false, range, CEM_RGB_DIRECT, best_e0, best_e1);
+    Write(mode, best + 2, false, range, CEM_RGB_DIRECT, best_e0, best_e1);
 }
 
 void EncodeTranslucent() {
@@ -327,21 +342,18 @@ void EncodeTranslucent() {
     uint best_range = 0;
     vec4 best_e0 = vec4(0.0);
     vec4 best_e1 = vec4(0.0);
+    best_wa = uvec3(0);
 
     // Shared weights for colour and alpha: 4 levels/QUANT_256 or 8/QUANT_192.
-    const vec4 all = vec4(1.0);
-    for (int i = 0; i < 16; ++i) {
-        data[i] = px[i];
-    }
     vec4 mean;
     vec4 axis;
-    PrincipalAxis(all, mean, axis);
+    PrincipalAxis(FIT_RGBA, mean, axis);
     for (uint i = 0; i < 2; ++i) {
         const uint bits = i + 2;
         const uint range = i == 0 ? RANGE_256 : RANGE_192;
         vec4 e0;
         vec4 e1;
-        const float error = FitLine(mean, axis, all, bits, range, e0, e1);
+        const float error = FitLine(FIT_RGBA, mean, axis, bits, range, e0, e1);
         if (error < best_error) {
             best_error = error;
             best_mode = i == 0 ? 0x042 : 0x053;
@@ -350,46 +362,31 @@ void EncodeTranslucent() {
             best_range = range;
             best_e0 = e0;
             best_e1 = e1;
-            KeepWeights(false);
+            best_w = weights;
         }
     }
 
     // Alpha on its own plane: 2 levels/QUANT_256 or 4/QUANT_48.
-    const vec4 rgb_mask = vec4(1.0, 1.0, 1.0, 0.0);
-    const vec4 alpha_mask = vec4(1.0, 0.0, 0.0, 0.0);
     vec4 rgb_mean;
     vec4 rgb_axis;
     vec4 alpha_mean;
     vec4 alpha_axis;
-    for (int i = 0; i < 16; ++i) {
-        data[i] = vec4(px[i].a, 0.0, 0.0, 0.0);
-    }
-    PrincipalAxis(alpha_mask, alpha_mean, alpha_axis);
-    for (int i = 0; i < 16; ++i) {
-        data[i] = px[i] * rgb_mask;
-    }
-    PrincipalAxis(rgb_mask, rgb_mean, rgb_axis);
+    PrincipalAxis(FIT_RGB, rgb_mean, rgb_axis);
+    PrincipalAxis(FIT_ALPHA, alpha_mean, alpha_axis);
     for (uint i = 0; i < 2; ++i) {
         const uint bits = i + 1;
         const uint range = i == 0 ? RANGE_256 : RANGE_48;
-        for (int j = 0; j < 16; ++j) {
-            data[j] = px[j] * rgb_mask;
-        }
         vec4 c0;
         vec4 c1;
-        const float color_error = FitLine(rgb_mean, rgb_axis, rgb_mask, bits, range, c0, c1);
+        const float color_error = FitLine(FIT_RGB, rgb_mean, rgb_axis, bits, range, c0, c1);
         if (color_error >= best_error) {
             continue;
         }
-        uint color_weights[16];
-        for (int j = 0; j < 16; ++j) {
-            color_weights[j] = weights[j];
-            data[j] = vec4(px[j].a, 0.0, 0.0, 0.0);
-        }
+        const uvec3 color_weights = weights;
         vec4 a0;
         vec4 a1;
         const float error =
-            color_error + FitLine(alpha_mean, alpha_axis, alpha_mask, bits, range, a0, a1);
+            color_error + FitLine(FIT_ALPHA, alpha_mean, alpha_axis, bits, range, a0, a1);
         if (error < best_error) {
             best_error = error;
             best_mode = i == 0 ? 0x441 : 0x442;
@@ -398,10 +395,8 @@ void EncodeTranslucent() {
             best_range = range;
             best_e0 = vec4(c0.rgb, a0.r);
             best_e1 = vec4(c1.rgb, a1.r);
-            for (int j = 0; j < 16; ++j) {
-                best_w[j] = color_weights[j];
-                best_wa[j] = weights[j];
-            }
+            best_w = color_weights;
+            best_wa = weights;
         }
     }
     Write(best_mode, best_bits, best_dual, best_range, CEM_RGBA_DIRECT, best_e0, best_e1);
@@ -424,10 +419,8 @@ void main() {
         for (uint x = 0; x < 4; ++x) {
             const uint sx = min(bx * 4 + x, width - 1);
             const uint texel = texels[input_offset + (slice * height + sy) * width + sx];
-            const vec4 color = vec4(texel & 0xFF, (texel >> 8) & 0xFF, (texel >> 16) & 0xFF,
-                                    texel >> 24);
-            px[y * 4 + x] = color;
-            opaque = opaque && color.a == 255.0;
+            px[y * 4 + x] = texel;
+            opaque = opaque && (texel >> 24) == 0xFF;
         }
     }
     if (opaque) {
@@ -435,5 +428,5 @@ void main() {
     } else {
         EncodeTranslucent();
     }
-    blocks[output_offset + block_index] = uvec4(words[0], words[1], words[2], words[3]);
+    blocks[output_offset + block_index] = words;
 }
