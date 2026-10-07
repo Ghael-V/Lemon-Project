@@ -215,6 +215,12 @@ SurfaceType GetFormatType(PixelFormat pixel_format);
 bool HasAlpha(PixelFormat pixel_format);
 bool IsPixelFormatASTC(PixelFormat format);
 bool IsPixelFormatBCn(PixelFormat format);
+
+/// Set once by the renderer: BCn textures it can't sample are recompressed to ASTC 4x4.
+void SetBcnAstcRecompression(bool enabled);
+
+/// True for the BCn formats stored as ASTC 4x4 (BC1, BC2, BC3, BC7) when recompression is on.
+bool IsBcnRecompressedToAstc(PixelFormat format);
 bool IsPixelFormatETC2(PixelFormat format);
 bool IsPixelFormatSRGB(PixelFormat format);
 bool IsPixelFormatInteger(PixelFormat format);

@@ -942,6 +942,9 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
     : device{device_}, scheduler{scheduler_}, memory_allocator{memory_allocator_},
       staging_buffer_pool{staging_buffer_pool_}, blit_image_helper{blit_image_helper_},
       render_pass_cache{render_pass_cache_}, resolution{Settings::values.resolution_info} {
+    VideoCore::Surface::SetBcnAstcRecompression(
+        !device.IsOptimalBcnSupported() && device.IsOptimalAstcSupported() &&
+        Settings::values.bcn_astc_recompression.GetValue());
     if (Settings::values.accelerate_astc.GetValue() == Settings::AstcDecodeMode::Gpu) {
         astc_decoder_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                                   compute_pass_descriptor_queue, memory_allocator);
@@ -959,6 +962,12 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
             if (VideoCore::Surface::IsViewCompatible(image_format, view_format, false, true)) {
                 const auto view_info =
                     MaxwellToVK::SurfaceFormat(device, FormatType::Optimal, true, view_format);
+                // A BCn image stored as ASTC can only be viewed as the other ASTC 4x4 format.
+                if (VideoCore::Surface::IsBcnRecompressedToAstc(image_format) &&
+                    view_info.format != VK_FORMAT_ASTC_4x4_UNORM_BLOCK &&
+                    view_info.format != VK_FORMAT_ASTC_4x4_SRGB_BLOCK) {
+                    continue;
+                }
                 view_formats[index_a].push_back(view_info.format);
             }
         }

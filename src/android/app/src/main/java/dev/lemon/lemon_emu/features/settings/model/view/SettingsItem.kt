@@ -933,6 +933,13 @@ abstract class SettingsItem(
             )
             put(
                 SwitchSetting(
+                    BooleanSetting.BCN_ASTC_RECOMPRESSION,
+                    titleId = R.string.bcn_astc_recompression,
+                    descriptionId = R.string.bcn_astc_recompression_description
+                )
+            )
+            put(
+                SwitchSetting(
                     BooleanSetting.BUFFER_REORDER_DISABLE,
                     titleId = R.string.buffer_reorder_disable,
                     descriptionId = R.string.buffer_reorder_disable_description
