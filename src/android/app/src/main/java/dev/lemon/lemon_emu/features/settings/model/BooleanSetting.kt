@@ -32,6 +32,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     USE_OPTIMIZED_VERTEX_BUFFERS("use_optimized_vertex_buffers"),
     ENABLE_GPU_BUFFER_READBACK("enable_gpu_buffer_readback"),
     SYNC_MEMORY_OPERATIONS("sync_memory_operations"),
+    BCN_ASTC_RECOMPRESSION("bcn_astc_recompression"),
     BUFFER_REORDER_DISABLE("disable_buffer_reorder"),
     RENDERER_DEBUG("debug"),
     RENDERER_PATCH_OLD_QCOM_DRIVERS("patch_old_qcom_drivers"),

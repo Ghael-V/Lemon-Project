@@ -574,6 +574,8 @@
     <string name="accelerate_astc">Método de decodificación ASTC</string>
     <string name="accelerate_astc_description">Elija cómo se descodifican las texturas comprimidas ASTC para el renderizado: CPU (lento, seguro), GPU (rápido, recomendado) o CPU Async (sin tirones, puede causar problemas)</string>
 
+    <string name="bcn_astc_recompression">Recomprimir texturas BCn a ASTC</string>
+    <string name="bcn_astc_recompression_description">En GPUs sin soporte de BCn (Mali, Xclipse), guarda las texturas BC1, BC2, BC3 y BC7 como ASTC en lugar de sin comprimir. Usa de 4 a 8 veces menos memoria en los juegos que las usan; los detalles finos pueden verse algo más suaves. No hace nada en GPUs que soportan BCn.</string>
     <string name="sync_memory_operations">Sincronizar operaciones de memoria</string>
     <string name="sync_memory_operations_description">Garantiza la consistencia de los datos entre las operaciones de computación y memoria. Esta opción debería solucionar problemas en algunos juegos, pero también puede reducir el rendimiento en algunos casos. Los juegos de Unreal Engine 4 a menudo ven los cambios más significativos de los mismos.</string>
     <string name="use_disk_shader_cache">Caché de sombreadores en el disco</string>

@@ -608,6 +608,11 @@ struct Values {
     SwitchableSetting<bool> enable_compute_pipelines{linkage, false, "enable_compute_pipelines",
                                                      Category::RendererAdvanced};
 
+    /// On GPUs without BCn support, store BC1/BC2/BC3/BC7 textures as ASTC 4x4 instead of
+    /// uncompressed RGBA8 (4 to 8 times less memory, some loss of detail).
+    SwitchableSetting<bool> bcn_astc_recompression{linkage, true, "bcn_astc_recompression",
+                                                   Category::RendererAdvanced};
+
     SwitchableSetting<bool> use_video_framerate{linkage, false, "use_video_framerate",
                                                 Category::RendererAdvanced};
 

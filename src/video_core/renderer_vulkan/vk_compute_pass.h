@@ -137,6 +137,30 @@ private:
     MemoryAllocator& memory_allocator;
 };
 
+/// Encodes RGBA8 texels (BCn textures decoded on the CPU) into ASTC 4x4 blocks, for GPUs that
+/// can't sample BCn. See video_core/textures/astc_encoder.cpp.
+class BcnAstcEncodePass final : public ComputePass {
+public:
+    explicit BcnAstcEncodePass(const Device& device_, Scheduler& scheduler_,
+                               DescriptorPool& descriptor_pool_,
+                               StagingBufferPool& staging_buffer_pool_,
+                               ComputePassDescriptorQueue& compute_pass_descriptor_queue_,
+                               MemoryAllocator& memory_allocator_);
+    ~BcnAstcEncodePass();
+
+    /// Encodes the tightly packed RGBA8 levels described by `copies` (at src_offset +
+    /// buffer_offset) and rewrites the copies to describe the ASTC blocks in the returned buffer.
+    std::pair<VkBuffer, VkDeviceSize> Encode(VkBuffer src_buffer, VkDeviceSize src_offset,
+                                             std::span<VideoCommon::BufferImageCopy> copies);
+
+private:
+    Scheduler& scheduler;
+    StagingBufferPool& staging_buffer_pool;
+    ComputePassDescriptorQueue& compute_pass_descriptor_queue;
+    vk::Buffer tables;
+    VkDeviceSize tables_size;
+};
+
 class BlockLinearUnswizzle3DPass final : public ComputePass {
 public:
     explicit BlockLinearUnswizzle3DPass(const Device& device_, Scheduler& scheduler_,

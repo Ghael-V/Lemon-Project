@@ -4,6 +4,8 @@
 // SPDX-FileCopyrightText: 2014 Citra Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <atomic>
+
 #include "common/common_types.h"
 #include "common/math_util.h"
 #include "common/settings.h"
@@ -329,6 +331,33 @@ bool IsPixelFormatBCn(PixelFormat format) {
     case PixelFormat::BC7_UNORM:
     case PixelFormat::BC6H_UFLOAT:
     case PixelFormat::BC6H_SFLOAT:
+    case PixelFormat::BC7_SRGB:
+        return true;
+    default:
+        return false;
+    }
+}
+
+namespace {
+std::atomic_bool bcn_astc_recompression{false};
+} // Anonymous namespace
+
+void SetBcnAstcRecompression(bool enabled) {
+    bcn_astc_recompression.store(enabled, std::memory_order_relaxed);
+}
+
+bool IsBcnRecompressedToAstc(PixelFormat format) {
+    if (!bcn_astc_recompression.load(std::memory_order_relaxed)) {
+        return false;
+    }
+    switch (format) {
+    case PixelFormat::BC1_RGBA_UNORM:
+    case PixelFormat::BC1_RGBA_SRGB:
+    case PixelFormat::BC2_UNORM:
+    case PixelFormat::BC2_SRGB:
+    case PixelFormat::BC3_UNORM:
+    case PixelFormat::BC3_SRGB:
+    case PixelFormat::BC7_UNORM:
     case PixelFormat::BC7_SRGB:
         return true;
     default:
