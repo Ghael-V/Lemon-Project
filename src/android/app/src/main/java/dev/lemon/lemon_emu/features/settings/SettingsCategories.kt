@@ -19,7 +19,9 @@ data class SettingsCategory(
     @DrawableRes val iconId: Int,
     val menuTag: MenuTag,
     /** Whether the category has options that can be set per game. */
-    val perGame: Boolean
+    val perGame: Boolean,
+    /** Whether anything in it can be used while a game runs (opened from the in-game menu). */
+    val inGame: Boolean = true
 )
 
 object SettingsCategories {
@@ -57,7 +59,8 @@ object SettingsCategories {
             R.string.settings_ingame_display_description,
             R.drawable.ic_overlay,
             MenuTag.SECTION_INGAME_DISPLAY,
-            perGame = true
+            // Overlays, screen layout and picture-in-picture are global options.
+            perGame = false
         ),
         SettingsCategory(
             R.string.settings_console,
@@ -78,7 +81,9 @@ object SettingsCategories {
             R.string.settings_content_description,
             R.drawable.ic_folder_open,
             MenuTag.SECTION_CONTENT,
-            perGame = false
+            perGame = false,
+            // Folders, data, verification and applets all need the emulation stopped.
+            inGame = false
         ),
         SettingsCategory(
             R.string.settings_help,
