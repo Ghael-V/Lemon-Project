@@ -700,6 +700,10 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView 
         cmdbuf.Draw(3, 1, 0, 0);
         cmdbuf.EndRenderPass();
     });
+    // The blit set its own pipeline, viewport and scissor: make the next draw set its own again,
+    // as every other helper here does. Without this the next draw could keep the blit's viewport
+    // (suspected cause of Crysis Remastered drawing its 256x256 minimap map over the full screen).
+    scheduler.InvalidateState();
 }
 
 void BlitImageHelper::BlitImpl(const Framebuffer* dst_framebuffer,
