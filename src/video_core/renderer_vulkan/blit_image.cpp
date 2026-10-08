@@ -679,16 +679,39 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, const ImageV
 void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView src_image_view,
                                 VkImage src_image, VkSampler src_sampler,
                                 const Region2D& dst_region, const Region2D& src_region,
-                                const Extent3D& src_size) {
+                                const Extent3D& src_size,
+                                const std::optional<VkRect2D>& scissor) {
     const BlitImagePipelineKey key{
         .renderpass = dst_framebuffer->RenderPass(),
         .operation = Tegra::Engines::Fermi2D::Operation::SrcCopy,
     };
     const VkPipelineLayout layout = *one_texture_pipeline_layout;
     const VkPipeline pipeline = FindOrEmplaceColorPipeline(key);
+
+    // Clip the destination rectangle to the scissor; the viewport keeps the full rectangle so
+    // the texture coordinates are unchanged.
+    std::optional<VkRect2D> clip;
+    if (scissor) {
+        const s64 x0 = (std::max)(s64{(std::min)(dst_region.start.x, dst_region.end.x)},
+                                  s64{scissor->offset.x});
+        const s64 y0 = (std::max)(s64{(std::min)(dst_region.start.y, dst_region.end.y)},
+                                  s64{scissor->offset.y});
+        const s64 x1 = (std::min)(s64{(std::max)(dst_region.start.x, dst_region.end.x)},
+                                  s64{scissor->offset.x} + scissor->extent.width);
+        const s64 y1 = (std::min)(s64{(std::max)(dst_region.start.y, dst_region.end.y)},
+                                  s64{scissor->offset.y} + scissor->extent.height);
+        if (x1 <= x0 || y1 <= y0) {
+            return; // Fully scissored out.
+        }
+        clip = VkRect2D{
+            .offset = {static_cast<s32>(x0), static_cast<s32>(y0)},
+            .extent = {static_cast<u32>(x1 - x0), static_cast<u32>(y1 - y0)},
+        };
+    }
+
     scheduler.RequestOutsideRenderPassOperationContext();
     scheduler.Record([this, dst_framebuffer, src_image_view, src_image, src_sampler, dst_region,
-                      src_region, src_size, pipeline, layout](vk::CommandBuffer cmdbuf) {
+                      src_region, src_size, pipeline, layout, clip](vk::CommandBuffer cmdbuf) {
         TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         BeginRenderPass(cmdbuf, dst_framebuffer);
         const VkDescriptorSet descriptor_set = one_texture_descriptor_allocator.Commit();
@@ -697,6 +720,9 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView 
         cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, descriptor_set,
                                   nullptr);
         BindBlitState(cmdbuf, layout, dst_region, src_region, src_size);
+        if (clip) {
+            cmdbuf.SetScissor(0, *clip);
+        }
         cmdbuf.Draw(3, 1, 0, 0);
         cmdbuf.EndRenderPass();
     });
