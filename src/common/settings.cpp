@@ -182,6 +182,13 @@ bool IsGPUFenceBehaviorStrict() {
     return values.gpu_fence_behavior.GetValue() == GpuFenceBehavior::Strict;
 }
 
+// Whether the guest only sees a fence once the host GPU has finished its work. Default behaves
+// as Balanced whatever the GPU accuracy: with Fast accuracy, signalling at once made many games
+// flicker (Garfield - Escape From Monday and others). Only Immediate skips the wait.
+bool IsGPUFenceDelayed() {
+    return values.gpu_fence_behavior.GetValue() != GpuFenceBehavior::Immediate;
+}
+
 bool IsFastmemEnabled() {
     if (values.cpu_accuracy.GetValue() == Settings::CpuAccuracy::Debugging)
         return bool(values.cpuopt_fastmem);
