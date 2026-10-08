@@ -25,6 +25,13 @@ data class SettingsCategory(
 object SettingsCategories {
     val all = listOf(
         SettingsCategory(
+            R.string.settings_lemon,
+            R.string.settings_lemon_description,
+            R.drawable.ic_palette,
+            MenuTag.SECTION_APP_SETTINGS,
+            perGame = false
+        ),
+        SettingsCategory(
             R.string.preferences_graphics,
             R.string.settings_graphics_description,
             R.drawable.ic_graphics,
@@ -71,13 +78,6 @@ object SettingsCategories {
             R.string.settings_content_description,
             R.drawable.ic_folder_open,
             MenuTag.SECTION_CONTENT,
-            perGame = false
-        ),
-        SettingsCategory(
-            R.string.settings_lemon,
-            R.string.settings_lemon_description,
-            R.drawable.ic_palette,
-            MenuTag.SECTION_APP_SETTINGS,
             perGame = false
         ),
         SettingsCategory(
