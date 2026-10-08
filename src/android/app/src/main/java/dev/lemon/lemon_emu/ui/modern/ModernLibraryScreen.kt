@@ -63,6 +63,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -428,31 +429,67 @@ internal fun TopBar(
     onViews: () -> Unit,
     actions: LibraryActions
 ) {
-    Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+    val logo = @Composable {
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
             modifier = Modifier.size(56.dp)
         )
-        if (searching) {
-            SearchField(search, onSearch, Modifier.weight(1f).padding(horizontal = 8.dp))
-            LemonIconButton(R.drawable.ic_clear, stringResource(android.R.string.cancel)) {
-                onSearching(false)
+    }
+    val title = @Composable { modifier: Modifier ->
+        BasicText(
+            text = stringResource(R.string.lemon_library),
+            style = LemonType.Display,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier.padding(start = 4.dp)
+        )
+    }
+    val buttons = @Composable {
+        LemonIconButton(R.drawable.ic_search, stringResource(R.string.home_search_games)) {
+            onSearching(true)
+        }
+        LemonIconButton(R.drawable.ic_view_grid, stringResource(R.string.library_view), onClick = onViews)
+        LemonIconButton(R.drawable.ic_filter, stringResource(R.string.statistics_sort_by), onClick = onSort)
+        LemonIconButton(R.drawable.ic_bar_chart, stringResource(R.string.statistics), onClick = actions.onStatistics)
+        LemonIconButton(R.drawable.ic_settings, stringResource(R.string.preferences_settings), onClick = actions.onSettings)
+    }
+    val searchBar = @Composable { modifier: Modifier ->
+        SearchField(search, onSearch, modifier)
+        LemonIconButton(R.drawable.ic_clear, stringResource(android.R.string.cancel)) {
+            onSearching(false)
+        }
+    }
+
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 600.dp) {
+            // Phones in portrait: the title gets its own line, the buttons go underneath.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                    logo()
+                    title(Modifier.weight(1f))
+                }
+                Row(
+                    Modifier.fillMaxWidth().height(48.dp),
+                    horizontalArrangement = if (searching) Arrangement.Start else Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (searching) {
+                        searchBar(Modifier.weight(1f).padding(end = 8.dp))
+                    } else {
+                        buttons()
+                    }
+                }
             }
         } else {
-            BasicText(
-                text = stringResource(R.string.lemon_library),
-                style = LemonType.Display,
-                modifier = Modifier.weight(1f).padding(start = 4.dp)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                LemonIconButton(R.drawable.ic_search, stringResource(R.string.home_search_games)) {
-                    onSearching(true)
+            Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                logo()
+                if (searching) {
+                    searchBar(Modifier.weight(1f).padding(horizontal = 8.dp))
+                } else {
+                    title(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { buttons() }
                 }
-                LemonIconButton(R.drawable.ic_view_grid, stringResource(R.string.library_view), onClick = onViews)
-                LemonIconButton(R.drawable.ic_filter, stringResource(R.string.statistics_sort_by), onClick = onSort)
-                LemonIconButton(R.drawable.ic_bar_chart, stringResource(R.string.statistics), onClick = actions.onStatistics)
-                LemonIconButton(R.drawable.ic_settings, stringResource(R.string.preferences_settings), onClick = actions.onSettings)
             }
         }
     }
