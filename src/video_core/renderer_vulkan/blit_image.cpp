@@ -563,10 +563,8 @@ void RecordShaderReadBarrier(Scheduler& scheduler, const ImageView& image_view) 
     });
 }
 
-void BeginRenderPass(vk::CommandBuffer& cmdbuf, const Framebuffer* framebuffer) {
-    const VkRenderPass render_pass = framebuffer->RenderPass();
-    const VkFramebuffer framebuffer_handle = framebuffer->Handle();
-    const VkExtent2D render_area = framebuffer->RenderArea();
+void BeginRenderPass(vk::CommandBuffer& cmdbuf, VkRenderPass render_pass,
+                     VkFramebuffer framebuffer_handle, VkExtent2D render_area) {
     const VkRenderPassBeginInfo renderpass_bi{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .pNext = nullptr,
@@ -686,11 +684,18 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView 
     };
     const VkPipelineLayout layout = *one_texture_pipeline_layout;
     const VkPipeline pipeline = FindOrEmplaceColorPipeline(key);
+    // Read the framebuffer now: by the time the worker runs this, the texture cache may have
+    // retired it (moved into its delayed-destruction ring), leaving a null handle behind - Turnip
+    // then crashed in vkCmdBeginRenderPass (Crysis Remastered, DrawTexture).
+    const VkRenderPass render_pass = dst_framebuffer->RenderPass();
+    const VkFramebuffer framebuffer_handle = dst_framebuffer->Handle();
+    const VkExtent2D render_area = dst_framebuffer->RenderArea();
     scheduler.RequestOutsideRenderPassOperationContext();
-    scheduler.Record([this, dst_framebuffer, src_image_view, src_image, src_sampler, dst_region,
-                      src_region, src_size, pipeline, layout](vk::CommandBuffer cmdbuf) {
+    scheduler.Record([this, render_pass, framebuffer_handle, render_area, src_image_view,
+                      src_image, src_sampler, dst_region, src_region, src_size, pipeline,
+                      layout](vk::CommandBuffer cmdbuf) {
         TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        BeginRenderPass(cmdbuf, dst_framebuffer);
+        BeginRenderPass(cmdbuf, render_pass, framebuffer_handle, render_area);
         const VkDescriptorSet descriptor_set = one_texture_descriptor_allocator.Commit();
         UpdateOneTextureDescriptorSet(device, descriptor_set, src_sampler, src_image_view);
         cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
