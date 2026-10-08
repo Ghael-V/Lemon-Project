@@ -633,6 +633,7 @@
 
     <string name="renderer_screen_layout">Orientación</string>
     <string name="renderer_aspect_ratio">Relación de aspecto</string>
+    <string name="renderer_aspect_ratio_description">Para quitar las franjas laterales, elige «Llenar la pantalla». Los juegos dibujan una imagen 16:9, así que se estira salvo que instales el mod panorámico del juego.</string>
     <string name="vertical_alignment">Alineación vertical</string>
     <string name="picture_in_picture">Picture in Picture</string>
     <string name="picture_in_picture_description">Minimizar la ventana cuando esté en segundo plano</string>
@@ -1155,7 +1156,7 @@
     <string name="screen_layout_portrait">Retrato</string>
     <string name="screen_layout_reverse_portrait">Retrato inverso</string>
 
-    <string name="ratio_stretch">Ajustar a la ventana</string>
+    <string name="ratio_stretch">Llenar la pantalla (estirar)</string>
 
     <!-- CPU Accuracy -->
     <string name="cpu_accuracy_accurate">Preciso</string>
