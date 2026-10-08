@@ -733,6 +733,7 @@
 
     <string name="renderer_screen_layout">Orientation</string>
     <string name="renderer_aspect_ratio">Aspect ratio</string>
+    <string name="renderer_aspect_ratio_description">To get rid of the side bars, choose \"Fill the screen\". Games draw a 16:9 picture, so it gets stretched unless you install the game\'s widescreen mod.</string>
     <string name="vertical_alignment">Vertical alignment</string>
     <string name="picture_in_picture">Picture in Picture</string>
     <string name="picture_in_picture_description">Minimize window when placed in the background</string>
@@ -1405,7 +1406,7 @@
     <string name="ratio_force_four_three" translatable="false">4:3</string>
     <string name="ratio_force_twenty_one_nine" translatable="false">21:9</string>
     <string name="ratio_force_sixteen_ten" translatable="false">16:10</string>
-    <string name="ratio_stretch">Stretch to window</string>
+    <string name="ratio_stretch">Fill the screen (stretch)</string>
 
     <!-- CPU Backend -->
     <string name="cpu_backend_dynarmic" translatable="false">Dynarmic (JIT)</string>

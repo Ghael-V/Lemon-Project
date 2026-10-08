@@ -721,6 +721,7 @@ abstract class SettingsItem(
                 SingleChoiceSetting(
                     IntSetting.RENDERER_ASPECT_RATIO,
                     titleId = R.string.renderer_aspect_ratio,
+                    descriptionId = R.string.renderer_aspect_ratio_description,
                     choicesId = R.array.rendererAspectRatioNames,
                     valuesId = R.array.rendererAspectRatioValues
                 )
