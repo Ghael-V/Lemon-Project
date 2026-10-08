@@ -112,7 +112,7 @@ class WhatsNewDialogFragment : DialogFragment() {
     companion object {
         const val TAG = "WhatsNewDialogFragment"
         private const val PREF_SEEN = "whats_new_seen"
-        private const val CURRENT = "1.0.1"
+        private const val CURRENT = "1.1.0"
 
         private fun preferences(context: Context) =
             PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
