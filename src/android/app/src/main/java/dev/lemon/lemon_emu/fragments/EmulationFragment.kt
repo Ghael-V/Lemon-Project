@@ -948,8 +948,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_overlay_layout -> {
-                    showOverlayLayoutOptions()
+                R.id.menu_overlays -> {
+                    showOverlaysMenu()
                     true
                 }
 
@@ -2598,15 +2598,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         popup.menuInflater.inflate(R.menu.menu_overlay_options, popup.menu)
 
         popup.menu.apply {
-            findItem(R.id.menu_show_stats_overlay).isChecked =
-                BooleanSetting.SHOW_PERFORMANCE_OVERLAY.getBoolean()
-            findItem(R.id.menu_show_soc_overlay).isChecked =
-                BooleanSetting.SHOW_SOC_OVERLAY.getBoolean()
             findItem(R.id.menu_rel_stick_center).isChecked =
                 BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()
             findItem(R.id.menu_dpad_slide).isChecked = BooleanSetting.DPAD_SLIDE.getBoolean()
-            findItem(R.id.menu_show_overlay).isChecked =
-                BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
             findItem(R.id.menu_snap_to_grid).isChecked =
                 BooleanSetting.OVERLAY_SNAP_TO_GRID.getBoolean()
             findItem(R.id.menu_haptics).isChecked = BooleanSetting.HAPTIC_FEEDBACK.getBoolean()
@@ -2616,17 +2610,25 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         popup.setOnDismissListener { NativeConfig.saveGlobalConfig() }
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.menu_show_stats_overlay -> {
-                    it.isChecked = !it.isChecked
-                    BooleanSetting.SHOW_PERFORMANCE_OVERLAY.setBoolean(it.isChecked)
-                    updateShowStatsOverlay()
+                R.id.menu_edit_overlay -> {
+                    binding.drawerLayout.close()
+                    binding.surfaceInputOverlay.requestFocus()
+                    startConfiguringControls()
                     true
                 }
 
-                R.id.menu_show_soc_overlay -> {
-                    it.isChecked = !it.isChecked
-                    BooleanSetting.SHOW_SOC_OVERLAY.setBoolean(it.isChecked)
-                    updateSocOverlay()
+                R.id.menu_preset_default -> {
+                    applyOverlayPreset(OverlayPreset.Default)
+                    true
+                }
+
+                R.id.menu_preset_big -> {
+                    applyOverlayPreset(OverlayPreset.Big)
+                    true
+                }
+
+                R.id.menu_preset_swapped -> {
+                    applyOverlayPreset(OverlayPreset.Swapped)
                     true
                 }
 
@@ -2683,12 +2685,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_show_overlay -> {
-                    it.isChecked = !it.isChecked
-                    toggleOverlay(it.isChecked)
-                    true
-                }
-
                 R.id.menu_rel_stick_center -> {
                     it.isChecked = !it.isChecked
                     BooleanSetting.JOYSTICK_REL_CENTER.setBoolean(it.isChecked)
@@ -2726,43 +2722,41 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         popup.show()
     }
 
-    private fun showOverlayLayoutOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_layout) ?: menuAnchor ?: binding.inGameMenu
+    private fun applyOverlayPreset(preset: OverlayPreset) {
+        toggleOverlay(true)
+        beginOverlayEdit()
+        binding.surfaceInputOverlay.applyPreset(preset)
+        finishOverlayEdit()
+    }
+
+    // The performance and device info overlays, on their own: they have nothing to do with the
+    // touch controls.
+    private fun showOverlaysMenu() {
+        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlays) ?: menuAnchor ?: binding.inGameMenu
         val popup = PopupMenu(requireContext(), anchor)
 
-        popup.menuInflater.inflate(R.menu.menu_overlay_layout, popup.menu)
+        popup.menuInflater.inflate(R.menu.menu_overlays, popup.menu)
+        popup.menu.apply {
+            findItem(R.id.menu_show_stats_overlay).isChecked =
+                BooleanSetting.SHOW_PERFORMANCE_OVERLAY.getBoolean()
+            findItem(R.id.menu_show_soc_overlay).isChecked =
+                BooleanSetting.SHOW_SOC_OVERLAY.getBoolean()
+        }
 
         popup.setOnDismissListener { NativeConfig.saveGlobalConfig() }
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
-                R.id.menu_preset_default -> {
-                    toggleOverlay(true)
-                    beginOverlayEdit()
-                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Default)
-                    finishOverlayEdit()
+                R.id.menu_show_stats_overlay -> {
+                    it.isChecked = !it.isChecked
+                    BooleanSetting.SHOW_PERFORMANCE_OVERLAY.setBoolean(it.isChecked)
+                    updateShowStatsOverlay()
                     true
                 }
 
-                R.id.menu_preset_big -> {
-                    toggleOverlay(true)
-                    beginOverlayEdit()
-                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Big)
-                    finishOverlayEdit()
-                    true
-                }
-
-                R.id.menu_preset_swapped -> {
-                    toggleOverlay(true)
-                    beginOverlayEdit()
-                    binding.surfaceInputOverlay.applyPreset(OverlayPreset.Swapped)
-                    finishOverlayEdit()
-                    true
-                }
-
-                R.id.menu_edit_overlay -> {
-                    binding.drawerLayout.close()
-                    binding.surfaceInputOverlay.requestFocus()
-                    startConfiguringControls()
+                R.id.menu_show_soc_overlay -> {
+                    it.isChecked = !it.isChecked
+                    BooleanSetting.SHOW_SOC_OVERLAY.setBoolean(it.isChecked)
+                    updateSocOverlay()
                     true
                 }
 

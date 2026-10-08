@@ -2,14 +2,24 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/menu_show_stats_overlay"
-        android:title="@string/show_stats_overlay"
-        android:checkable="true" />
+        android:id="@+id/menu_edit_overlay"
+        android:title="@string/emulation_touch_overlay_edit" />
 
     <item
-        android:id="@+id/menu_show_soc_overlay"
-        android:title="@string/show_soc_overlay"
-        android:checkable="true" />
+        android:id="@+id/menu_overlay_presets"
+        android:title="@string/overlay_presets">
+        <menu>
+            <item
+                android:id="@+id/menu_preset_default"
+                android:title="@string/overlay_preset_default" />
+            <item
+                android:id="@+id/menu_preset_big"
+                android:title="@string/overlay_preset_big" />
+            <item
+                android:id="@+id/menu_preset_swapped"
+                android:title="@string/overlay_preset_swapped" />
+        </menu>
+    </item>
 
     <item
         android:id="@+id/menu_snap_to_grid"
@@ -23,11 +33,6 @@
     <item
         android:id="@+id/menu_toggle_controls"
         android:title="@string/emulation_toggle_controls" />
-
-    <item
-        android:id="@+id/menu_show_overlay"
-        android:title="@string/emulation_show_overlay"
-        android:checkable="true" />
 
     <item
         android:id="@+id/menu_rel_stick_center"
