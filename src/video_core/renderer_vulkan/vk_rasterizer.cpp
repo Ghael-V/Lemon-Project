@@ -495,8 +495,20 @@ void RasterizerVulkan::DrawTexture() {
                                     .y = ScaleSrc(draw_texture_state.src_y1)}};
     Extent3D src_size = {static_cast<u32>(ScaleSrc(texture.size.width)),
                          static_cast<u32>(ScaleSrc(texture.size.height)), texture.size.depth};
+    // DrawTexture rectangles go through the fragment pipeline, scissor included (Crysis
+    // Remastered clips its minimap this way).
+    std::optional<VkRect2D> scissor;
+    if (maxwell3d->regs.scissor_test[0].enable) {
+        u32 up_scale = 1;
+        u32 down_shift = 0;
+        if (dst_rescaling) {
+            up_scale = Settings::values.resolution_info.up_scale;
+            down_shift = Settings::values.resolution_info.down_shift;
+        }
+        scissor = GetScissorState(maxwell3d->regs, 0, up_scale, down_shift);
+    }
     blit_image.BlitColor(framebuffer, texture.RenderTarget(), texture.ImageHandle(),
-                         sampler->Handle(), dst_region, src_region, src_size);
+                         sampler->Handle(), dst_region, src_region, src_size, scissor);
 }
 
 void RasterizerVulkan::Clear(u32 layer_count) {
