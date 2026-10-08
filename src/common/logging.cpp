@@ -280,7 +280,8 @@ struct FileBackend final : public Backend {
 
         using namespace Common::Literals;
         // Prevent logs from exceeding a set maximum size in the event that log entries are spammed.
-        const auto write_limit = Settings::values.extended_logging.GetValue() ? 1_GiB : 100_MiB;
+        // Nobody can send a bigger log anyway (and it lives on the user's storage).
+        const auto write_limit = Settings::values.extended_logging.GetValue() ? 100_MiB : 20_MiB;
         const bool write_limit_exceeded = bytes_written > write_limit;
         if (entry.log_level >= Level::Error || write_limit_exceeded) {
             // Stop writing after the write limit is exceeded.
