@@ -268,6 +268,7 @@
     <string name="lemon_about_credits_body">Built on the work of the open-source emulation community, from yuzu to every project that came after it. Thank you.</string>
     <string name="lemon_tab_data">Data and saves</string>
     <string name="lemon_search_settings">Search settings</string>
+    <string name="settings_search_no_results">No settings match your search</string>
     <string name="lemon_welcome_title">Welcome to Lemon</string>
     <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
     <string name="lemon_welcome_feature_driver">Lemon-Ade GPU driver built in</string>
@@ -1553,6 +1554,37 @@
 
     <string name="airplane_mode">Airplane Mode</string>
     <string name="airplane_mode_description">Passes Airplane Mode to the Switch OS</string>
+    <!-- Settings categories -->
+    <string name="settings_graphics_description">Resolution, filters, image enhancements and GPU driver</string>
+    <string name="settings_performance">Performance</string>
+    <string name="settings_performance_description">Presets, speed limits and overclock</string>
+    <string name="settings_controls_description">Controllers, players and on-screen controls</string>
+    <string name="settings_ingame_display">In-game display</string>
+    <string name="settings_ingame_display_description">Performance and SoC overlays, screen layout and picture-in-picture</string>
+    <string name="settings_console">Console</string>
+    <string name="settings_console_description">Docked mode, language, region, clock, audio and user profiles</string>
+    <string name="settings_online">Online</string>
+    <string name="settings_online_description">Nextendo Network, local multiplayer and airplane mode</string>
+    <string name="settings_content">Content and data</string>
+    <string name="settings_content_description">Game folders, keys and firmware, saves and storage paths</string>
+    <string name="settings_lemon">Lemon</string>
+    <string name="settings_lemon_description">App language, look, updates and library buttons</string>
+    <string name="settings_help">Help</string>
+    <string name="settings_help_description">Share logs, system information and about Lemon</string>
+    <string name="settings_advanced_debug">Advanced and debug</string>
+    <string name="settings_advanced_debug_description">CPU options, logging and developer tools</string>
+    <string name="settings_graphics_advanced">Advanced graphics</string>
+    <string name="settings_graphics_advanced_description">Accuracy, textures, shaders, synchronization and Vulkan extensions</string>
+    <string name="settings_graphics_fixes">Game fixes</string>
+    <string name="settings_graphics_fixes_description">Workarounds for specific games: only change them if a game needs it</string>
+    <string name="settings_image_enhancements">Image enhancements</string>
+    <string name="settings_gpu_driver">GPU driver</string>
+    <string name="settings_shaders">Shaders</string>
+    <string name="settings_synchronization">Synchronization</string>
+    <string name="settings_speed_limit">Speed limit</string>
+    <string name="settings_local_multiplayer">Local multiplayer</string>
+    <string name="share_logs">Share logs</string>
+    <string name="share_logs_description">Send the emulator, GPU or crash log when reporting a problem</string>
     <string name="nextendo_network">Nextendo Network</string>
     <string name="nextendo_network_description">Online play on community servers</string>
     <string name="nextendo_enable">Online play with Nextendo Network</string>

@@ -19,8 +19,18 @@ import android.view.View
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.lerp
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,6 +92,7 @@ import dev.lemon.lemon_emu.features.settings.model.view.StringInputSetting
 import dev.lemon.lemon_emu.features.settings.model.view.StringSingleChoiceSetting
 import dev.lemon.lemon_emu.features.settings.model.view.SubmenuSetting
 import dev.lemon.lemon_emu.features.settings.model.view.SwitchSetting
+import dev.lemon.lemon_emu.features.settings.SettingsSearchIndex
 import dev.lemon.lemon_emu.model.HomeSetting
 import dev.lemon.lemon_emu.utils.PathUtil
 import java.time.Instant
@@ -99,21 +110,13 @@ import java.util.Locale
 @Composable
 fun ModernHomeSettings(
     options: List<HomeSetting>,
-    onOptionClick: (HomeSetting) -> Unit
+    onOptionClick: (HomeSetting) -> Unit,
+    onSearch: (String) -> List<SettingsSearchIndex.Entry>,
+    onResultClick: (SettingsSearchIndex.Entry) -> Unit
 ) {
-    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
-    val shown = remember(options, query) {
-        val term = query.trim().lowercase(Locale.getDefault())
-        if (term.isEmpty()) {
-            options
-        } else {
-            options.filter {
-                context.getString(it.titleId).lowercase(Locale.getDefault()).contains(term) ||
-                    context.getString(it.descriptionId).lowercase(Locale.getDefault()).contains(term)
-            }
-        }
-    }
+    // Typing searches every option at any depth, not just these cards.
+    val results = remember(query) { if (query.isBlank()) emptyList() else onSearch(query) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Column(Modifier.fillMaxSize().background(LemonColors.Background).padding(horizontal = 24.dp)) {
@@ -123,14 +126,78 @@ fun ModernHomeSettings(
             hint = stringResource(R.string.lemon_search_settings),
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
         )
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(if (landscape) 3 else 1),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 28.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(shown) { option -> HomeCard(option, onOptionClick) }
+        if (query.isBlank()) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(if (landscape) 3 else 1),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 28.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(options) { option -> HomeCard(option, onOptionClick) }
+            }
+        } else if (results.isEmpty()) {
+            BasicText(
+                stringResource(R.string.settings_search_no_results),
+                style = LemonType.Body.copy(color = LemonColors.TextMuted),
+                modifier = Modifier.padding(top = 24.dp, start = 6.dp)
+            )
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 28.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(results) { entry -> SearchResultRow(entry, onResultClick) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultRow(
+    entry: SettingsSearchIndex.Entry,
+    onClick: (SettingsSearchIndex.Entry) -> Unit
+) {
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = 18.dp,
+                glowColor = LemonColors.Lemon,
+                focusScale = 1.02f,
+                pressScale = 0.98f,
+                onClick = { onClick(entry) }
+            )
+            .clip(shape)
+            .background(LemonColors.Surface)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        BasicText(
+            entry.title,
+            style = LemonType.Button.copy(fontSize = 15.sp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (entry.path.isNotEmpty()) {
+            BasicText(
+                entry.path.joinToString(" › "),
+                style = LemonType.Label.copy(letterSpacing = 0.sp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        if (entry.description.isNotBlank()) {
+            BasicText(
+                entry.description,
+                style = LemonType.Body.copy(color = LemonColors.TextMuted),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }
@@ -259,7 +326,10 @@ fun ModernSettingsList(
     isRoot: Boolean,
     currentSection: String?,
     railSections: List<SubmenuSetting>,
-    actions: SettingsActions
+    actions: SettingsActions,
+    /** Position of a row to scroll to and flash (a search result), or -1. */
+    highlight: Int = -1,
+    onHighlightShown: () -> Unit = {}
 ) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val showRail = landscape && !isRoot && railSections.isNotEmpty()
@@ -271,7 +341,7 @@ fun ModernSettingsList(
         if (isRoot) {
             SectionGrid(items, actions)
         } else {
-            SectionList(items, tick, actions, Modifier.weight(1f))
+            SectionList(items, tick, actions, highlight, onHighlightShown, Modifier.weight(1f))
         }
     }
 }
@@ -387,8 +457,16 @@ private fun activate(item: SettingsItem, index: Int, actions: SettingsActions) {
 }
 
 /** One section: a title label per header, its rows together in one rounded card. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SectionList(items: List<SettingsItem>, tick: Int, actions: SettingsActions, modifier: Modifier) {
+private fun SectionList(
+    items: List<SettingsItem>,
+    tick: Int,
+    actions: SettingsActions,
+    highlight: Int,
+    onHighlightShown: () -> Unit,
+    modifier: Modifier
+) {
     // Group the rows under their headers.
     val groups = remember(items, tick) {
         val out = mutableListOf<Pair<String?, MutableList<Pair<SettingsItem, Int>>>>()
@@ -402,8 +480,27 @@ private fun SectionList(items: List<SettingsItem>, tick: Int, actions: SettingsA
         }
         out.filter { it.second.isNotEmpty() }
     }
+    val listState = rememberLazyListState()
+    val highlightRequester = remember { BringIntoViewRequester() }
+    val flash = remember { Animatable(0f) }
+    // A search result: put its group at the top, make sure the row itself is on screen (groups
+    // can be taller than the screen), then flash it. One coroutine, so the scrolls don't race.
+    LaunchedEffect(highlight) {
+        if (highlight < 0) return@LaunchedEffect
+        val groupIndex = groups.indexOfFirst { (_, rows) -> rows.any { it.second == highlight } }
+        if (groupIndex >= 0) {
+            listState.scrollToItem(groupIndex * 2)
+            withFrameNanos { }
+            highlightRequester.bringIntoView()
+            flash.animateTo(1f, tween(220))
+            delay(500)
+            flash.animateTo(0f, tween(1100))
+        }
+        onHighlightShown()
+    }
     LazyColumn(
         modifier.fillMaxHeight(),
+        state = listState,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -430,7 +527,18 @@ private fun SectionList(items: List<SettingsItem>, tick: Int, actions: SettingsA
                         if (rowIndex > 0) {
                             Box(Modifier.fillMaxWidth().height(1.dp).background(LemonColors.Outline.copy(alpha = 0.5f)))
                         }
-                        SettingRow(item, position, tick, actions)
+                        if (position == highlight) {
+                            SettingRow(
+                                item,
+                                position,
+                                tick,
+                                actions,
+                                flash = flash.value,
+                                modifier = Modifier.bringIntoViewRequester(highlightRequester)
+                            )
+                        } else {
+                            SettingRow(item, position, tick, actions)
+                        }
                     }
                 }
             }
@@ -440,7 +548,15 @@ private fun SectionList(items: List<SettingsItem>, tick: Int, actions: SettingsA
 }
 
 @Composable
-private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARAMETER") tick: Int, actions: SettingsActions) {
+private fun SettingRow(
+    item: SettingsItem,
+    position: Int,
+    @Suppress("UNUSED_PARAMETER") tick: Int,
+    actions: SettingsActions,
+    /** 0..1: how strongly the row is lit up, for a search result. */
+    flash: Float = 0f,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     when (item) {
         is FxToolbarSetting -> {
@@ -584,7 +700,7 @@ private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARA
     }
 
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
             .lemonInteractive(
@@ -596,7 +712,7 @@ private fun SettingRow(item: SettingsItem, position: Int, @Suppress("UNUSED_PARA
                 onLongClick = { actions.onLongClick(item, position) },
                 onClick = { if (enabled) onClick() }
             )
-            .background(LemonColors.Surface)
+            .background(lerp(LemonColors.Surface, LemonColors.Lemon, flash * 0.3f))
             .padding(horizontal = 18.dp, vertical = 12.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f },
         verticalAlignment = Alignment.CenterVertically,
