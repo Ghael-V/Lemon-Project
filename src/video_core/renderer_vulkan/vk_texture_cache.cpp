@@ -951,6 +951,9 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
         bcn_astc_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                               compute_pass_descriptor_queue, memory_allocator);
     }
+    LOG_INFO(Render_Vulkan, "BCn to ASTC recompression: {} (native BCn: {}, ASTC: {}, setting: {})",
+             bcn_astc_pass ? "on" : "off", device.IsOptimalBcnSupported(),
+             device.IsOptimalAstcSupported(), Settings::values.bcn_astc_recompression.GetValue());
     if (Settings::values.accelerate_astc.GetValue() == Settings::AstcDecodeMode::Gpu) {
         astc_decoder_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                                   compute_pass_descriptor_queue, memory_allocator);
@@ -1990,6 +1993,11 @@ void Image::UploadMemory(VkBuffer buffer, VkDeviceSize offset,
     boost::container::small_vector<VideoCommon::BufferImageCopy, 16> astc_copies;
     if (runtime != nullptr && runtime->bcn_astc_pass &&
         VideoCore::Surface::IsBcnRecompressedToAstc(info.format)) {
+        static std::atomic_bool logged_first{false};
+        if (!logged_first.exchange(true)) {
+            LOG_INFO(Render_Vulkan, "BCn to ASTC: first texture recompressed ({}x{})",
+                     info.size.width, info.size.height);
+        }
         astc_copies.assign(copies.begin(), copies.end());
         std::tie(buffer, offset) = runtime->bcn_astc_pass->Encode(buffer, offset, astc_copies);
         copies = astc_copies;
