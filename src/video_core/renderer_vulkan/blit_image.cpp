@@ -717,7 +717,10 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView 
     scheduler.Record([this, render_pass, framebuffer_handle, render_area, src_image_view,
                       src_image, src_sampler, dst_region, src_region, src_size, pipeline, layout,
                       clip](vk::CommandBuffer cmdbuf) {
-        TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        // Images stay in GENERAL everywhere (the descriptor below says so too): only make the
+        // earlier writes visible. Moving the source to SHADER_READ_ONLY_OPTIMAL left it there
+        // for good, so every later render pass used it in the wrong layout.
+        TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_GENERAL);
         BeginRenderPass(cmdbuf, render_pass, framebuffer_handle, render_area);
         const VkDescriptorSet descriptor_set = one_texture_descriptor_allocator.Commit();
         UpdateOneTextureDescriptorSet(device, descriptor_set, src_sampler, src_image_view);
