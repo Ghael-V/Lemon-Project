@@ -25,6 +25,7 @@ object DirectoryInitialization {
             initializeInternalStorage()
             NativeConfig.initializeGlobalConfig()
             NativeLibrary.initializeSystem(false)
+            userPath?.let { LastExitReason.record(LemonApplication.appContext, java.io.File(it, "log")) }
             NativeLibrary.reloadProfiles()
             migrateSettings()
             areDirectoriesReady = true
