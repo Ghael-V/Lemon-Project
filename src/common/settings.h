@@ -512,25 +512,18 @@ struct Values {
                                          linkage, 0, "bg_blue", Category::Renderer, Specialization::Default, true, true};
 
     SwitchableSetting<GpuAccuracy, true> gpu_accuracy{linkage,
-                                                      // Accurate everywhere. Fast makes some games flicker
-                                                      // (confirmed on Garfield and Dragon Ball, Adreno 830);
-                                                      // Lemon Lite trades that for speed.
-#ifdef LEMON_LITE
+                                                      // Fast. The flickering that once made Accurate the
+                                                      // default (Garfield, Dragon Ball) came from fences,
+                                                      // which now wait for the GPU under Fast too. Games
+                                                      // that still need Accurate set it per game.
                                                       GpuAccuracy::Low,
-#else
-                                                      GpuAccuracy::High,
-#endif
                                                       "gpu_accuracy",
                                                       Category::RendererAdvanced,
                                                       Specialization::Default,
                                                       true,
                                                       true};
 
-#ifdef LEMON_LITE
     GpuAccuracy current_gpu_accuracy{GpuAccuracy::Low};
-#else
-    GpuAccuracy current_gpu_accuracy{GpuAccuracy::High};
-#endif
 
     SwitchableSetting<DmaAccuracy, true> dma_accuracy{linkage,
                                                       DmaAccuracy::Default,
