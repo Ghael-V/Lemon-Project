@@ -1271,6 +1271,7 @@
     <string name="nextendo_sign_out">Cerrar sesión</string>
     <string name="nextendo_signed_in_as">Sesión iniciada como %1$s</string>
     <string name="nextendo_unavailable">Esta versión de Lemon aún no está registrada en Nextendo Network.</string>
+    <string name="nextendo_no_game_token">No se pudo conectar con Nextendo Network. El juego en línea no funcionará en esta sesión; revisa tu conexión y vuelve a abrir el juego.</string>
 
     <string name="enable_overlay">Habilitar el applet de superposición</string>
     <string name="enable_overlay_description">Activa el applet integrado superpuesto de Horizon. Mantenga pulsado el botón de inicio durante 1 segundo para que aparezca.</string>

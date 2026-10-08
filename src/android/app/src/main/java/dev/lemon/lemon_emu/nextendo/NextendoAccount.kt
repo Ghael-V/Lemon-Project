@@ -7,12 +7,16 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.widget.Toast
 import androidx.core.content.edit
 import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.NativeLibrary
+import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.utils.Log
 import java.io.BufferedReader
@@ -52,6 +56,7 @@ object NextendoAccount {
     private const val PREFS = "nextendo_account"
     private const val PREF_REFRESH_TOKEN = "refresh_token"
     private const val PREF_USERNAME = "username"
+    private const val PREF_GAME_TOKEN = "game_token"
     private const val KEY_ALIAS = "lemon_nextendo_account"
     private const val SIGN_IN_TIMEOUT_MS = 5 * 60 * 1000
 
@@ -113,6 +118,7 @@ object NextendoAccount {
         prefs.edit {
             remove(PREF_REFRESH_TOKEN)
             remove(PREF_USERNAME)
+            remove(PREF_GAME_TOKEN)
         }
         gameToken = null
         NativeLibrary.clearNextendoSession()
@@ -120,27 +126,51 @@ object NextendoAccount {
 
     /**
      * Called on the emulation thread right before a game boots: hands the game token to the
-     * emulated account service, fetching a fresh one when needed. Never throws.
+     * emulated account service, fetching a fresh one when needed. A network hiccup at boot falls
+     * back to the last token while it is still valid (they last 24 hours). Never throws.
      */
     fun prepareForBoot() {
         if (!isAvailable || !BooleanSetting.ENABLE_NEXTENDO.getBoolean() || username() == null) {
             NativeLibrary.clearNextendoSession()
             return
         }
-        try {
-            val token = gameToken?.takeIf {
-                it.expiresAtMs - System.currentTimeMillis() > TimeUnit.HOURS.toMillis(1)
-            } ?: fetchGameToken()
-            if (token == null) {
-                NativeLibrary.clearNextendoSession()
-                return
-            }
-            NativeLibrary.setNextendoSession(token.pid, token.username, token.nexToken)
-            Log.info("[Nextendo] Game token ready")
-        } catch (e: Exception) {
-            Log.warning("[Nextendo] Could not get a game token: ${e.javaClass.simpleName}")
-            NativeLibrary.clearNextendoSession()
+        val now = System.currentTimeMillis()
+        var token = (gameToken ?: loadGameToken())?.takeIf {
+            it.expiresAtMs - now > TimeUnit.HOURS.toMillis(1)
         }
+        for (attempt in 1..3) {
+            if (token != null || username() == null) {
+                break
+            }
+            try {
+                token = fetchGameToken()
+                if (token == null) {
+                    break // Refused by the server, not a network problem: retrying won't help.
+                }
+            } catch (e: Exception) {
+                Log.warning("[Nextendo] Game token attempt $attempt failed: ${e.javaClass.simpleName}")
+                Thread.sleep(1500L * attempt)
+            }
+        }
+        if (token == null) {
+            token = (gameToken ?: loadGameToken())?.takeIf {
+                it.expiresAtMs - System.currentTimeMillis() > TimeUnit.MINUTES.toMillis(5)
+            }
+        }
+        if (token == null) {
+            Log.warning("[Nextendo] No game token: online play is off for this session")
+            NativeLibrary.clearNextendoSession()
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(
+                    LemonApplication.appContext,
+                    R.string.nextendo_no_game_token,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            return
+        }
+        NativeLibrary.setNextendoSession(token.pid, token.username, token.nexToken)
+        Log.info("[Nextendo] Game token ready")
     }
 
     private fun runSignIn(activity: Activity): String? {
@@ -243,6 +273,7 @@ object NextendoAccount {
         val token = requestGameToken(accessToken)
         prefs.edit { putString(PREF_USERNAME, token?.username ?: "") }
         gameToken = token
+        token?.let { saveGameToken(it) }
         return if (token == null) "game token" else null
     }
 
@@ -260,6 +291,7 @@ object NextendoAccount {
             ?: return null
         return requestGameToken(accessToken)?.also { token ->
             gameToken = token
+            saveGameToken(token)
             prefs.edit { putString(PREF_USERNAME, token.username) }
         }
     }
@@ -313,31 +345,63 @@ object NextendoAccount {
     }
 
     private fun saveRefreshToken(token: String) {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
-        val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
-        val stored = Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + ":" +
-            Base64.encodeToString(encrypted, Base64.NO_WRAP)
-        prefs.edit { putString(PREF_REFRESH_TOKEN, stored) }
+        prefs.edit { putString(PREF_REFRESH_TOKEN, encrypt(token)) }
     }
 
     private fun loadRefreshToken(): String? {
         val stored = prefs.getString(PREF_REFRESH_TOKEN, null) ?: return null
-        return try {
-            val (iv, encrypted) = stored.split(':', limit = 2)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(
-                Cipher.DECRYPT_MODE,
-                secretKey(),
-                GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
-            )
-            String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
-        } catch (e: Exception) {
+        return decrypt(stored) ?: run {
             // The Keystore key is gone (app data restored on another device, for example).
             Log.warning("[Nextendo] Stored sign-in unreadable, signing out")
             signOut()
             null
         }
+    }
+
+    private fun saveGameToken(token: GameToken) {
+        val json = JSONObject()
+            .put("pid", token.pid)
+            .put("username", token.username)
+            .put("nex_token", token.nexToken)
+            .put("expires_at", token.expiresAtMs)
+        prefs.edit { putString(PREF_GAME_TOKEN, encrypt(json.toString())) }
+    }
+
+    private fun loadGameToken(): GameToken? {
+        val json = prefs.getString(PREF_GAME_TOKEN, null)?.let { decrypt(it) } ?: return null
+        return try {
+            JSONObject(json).let {
+                GameToken(
+                    pid = it.getLong("pid"),
+                    username = it.optString("username"),
+                    nexToken = it.getString("nex_token"),
+                    expiresAtMs = it.getLong("expires_at")
+                )
+            }.also { gameToken = it }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun encrypt(text: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
+        val encrypted = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + ":" +
+            Base64.encodeToString(encrypted, Base64.NO_WRAP)
+    }
+
+    private fun decrypt(stored: String): String? = try {
+        val (iv, encrypted) = stored.split(':', limit = 2)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            secretKey(),
+            GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
+        )
+        String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+    } catch (e: Exception) {
+        null
     }
 
     private fun secretKey(): SecretKey {
