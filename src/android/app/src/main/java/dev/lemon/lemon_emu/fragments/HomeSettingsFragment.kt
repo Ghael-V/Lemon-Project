@@ -47,6 +47,7 @@ import dev.lemon.lemon_emu.databinding.FragmentHomeSettingsBinding
 import dev.lemon.lemon_emu.features.DocumentProvider
 import dev.lemon.lemon_emu.features.fetcher.SpacingItemDecoration
 import dev.lemon.lemon_emu.features.settings.SettingsCategories
+import dev.lemon.lemon_emu.features.settings.SettingsSearchIndex
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
 import dev.lemon.lemon_emu.model.DriverViewModel
@@ -131,6 +132,16 @@ class HomeSettingsFragment : Fragment() {
                                 descriptionId = model.disabledMessageId
                             ).show(parentFragmentManager, MessageDialogFragment.TAG)
                         }
+                    },
+                    onSearch = { query -> SettingsSearchIndex.search(requireContext(), query) },
+                    onResultClick = { entry ->
+                        // The section scrolls to the row and flashes it once it is shown.
+                        SettingsSearchIndex.pendingTarget = entry.menuTag to entry.anchor
+                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
+                            null,
+                            entry.menuTag
+                        )
+                        binding.root.findNavController().navigate(action)
                     }
                 )
             }

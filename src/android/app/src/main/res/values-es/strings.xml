@@ -257,6 +257,7 @@
     <string name="lemon_about_credits_body">Construido sobre el trabajo de la comunidad de emulación de código abierto, desde yuzu hasta todos los proyectos que vinieron después. Gracias.</string>
     <string name="lemon_tab_data">Datos y guardado</string>
     <string name="lemon_search_settings">Buscar ajustes</string>
+    <string name="settings_search_no_results">Ningún ajuste coincide con la búsqueda</string>
     <string name="lemon_welcome_title">Bienvenido a Lemon</string>
     <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
     <string name="lemon_welcome_feature_driver">Controlador de GPU Lemon-Ade integrado</string>

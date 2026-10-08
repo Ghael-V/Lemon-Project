@@ -43,6 +43,7 @@ import com.google.android.material.transition.MaterialSharedAxis
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.FragmentSettingsBinding
 import dev.lemon.lemon_emu.features.input.NativeInput
+import dev.lemon.lemon_emu.features.settings.SettingsSearchIndex
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.features.settings.model.view.PathSetting
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
@@ -190,10 +191,50 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        // A search result opens its section directly; anything else drops a stale target.
+        if (SettingsSearchIndex.pendingTarget?.first != args.menuTag) {
+            SettingsSearchIndex.pendingTarget = null
+        }
+
         presenter.onViewCreated()
         setInsets()
         if (UiMode.isModern(requireContext())) {
             setupModernList()
+        }
+        settingsAdapter?.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() = showSearchTarget()
+            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = showSearchTarget()
+        })
+        showSearchTarget()
+    }
+
+    /** Row of a search result to scroll to and flash in the redesigned list, or -1. */
+    private val highlight = mutableIntStateOf(-1)
+
+    /** If a search result opened this section, bring its row into view and flash it, once. */
+    private fun showSearchTarget() {
+        val adapter = settingsAdapter ?: return
+        val (tag, anchor) = SettingsSearchIndex.pendingTarget ?: return
+        if (tag != args.menuTag || adapter.currentList.isEmpty()) {
+            return
+        }
+        SettingsSearchIndex.pendingTarget = null
+        // Same identity the index gives each row: its setting key, or its title.
+        val index = adapter.currentList.indexOfFirst { it.setting.key.ifEmpty { it.title } == anchor }
+        if (anchor.isEmpty() || index < 0) {
+            return
+        }
+        if (binding.listSettings.visibility == View.VISIBLE) {
+            val list = binding.listSettings
+            (list.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(index, 0)
+            list.post {
+                // The row's own ripple, pressed for a moment, marks it.
+                val row = list.findViewHolderForAdapterPosition(index)?.itemView ?: return@post
+                row.isPressed = true
+                row.postDelayed({ row.isPressed = false }, 700)
+            }
+        } else {
+            highlight.intValue = index
         }
     }
 
@@ -260,7 +301,9 @@ class SettingsFragment : Fragment() {
                     isRoot = args.menuTag == Settings.MenuTag.SECTION_ROOT,
                     currentSection = args.menuTag.name,
                     railSections = rail,
-                    actions = actions
+                    actions = actions,
+                    highlight = highlight.intValue,
+                    onHighlightShown = { highlight.intValue = -1 }
                 )
             }
         }

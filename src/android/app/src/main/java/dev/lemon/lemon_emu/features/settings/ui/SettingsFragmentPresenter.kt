@@ -45,7 +45,7 @@ import dev.lemon.lemon_emu.fragments.MessageDialogFragment
 
 class SettingsFragmentPresenter(
     private val settingsViewModel: SettingsViewModel,
-    private val adapter: SettingsAdapter,
+    private val adapter: SettingsAdapter?,
     private var menuTag: MenuTag,
     private var activity: FragmentActivity?
 ) {
@@ -178,8 +178,18 @@ class SettingsFragmentPresenter(
 
     @SuppressLint("NotifyDataSetChanged")
     fun loadSettingsList(notifyDataSetChanged: Boolean = false) {
+        settingsList = buildSettingsList(menuTag)
+        adapter?.submitList(settingsList) {
+            if (notifyDataSetChanged) {
+                adapter?.notifyDataSetChanged()
+            }
+        }
+    }
+
+    /** The items of a section, without showing them (also used to index the settings search). */
+    fun buildSettingsList(tag: MenuTag): ArrayList<SettingsItem> {
         val sl = ArrayList<SettingsItem>()
-        when (menuTag) {
+        when (tag) {
             MenuTag.SECTION_ROOT -> addConfigSettings(sl)
             MenuTag.SECTION_SYSTEM -> addSystemSettings(sl)
             MenuTag.SECTION_RENDERER -> addGraphicsSettings(sl)
@@ -212,12 +222,7 @@ class SettingsFragmentPresenter(
             MenuTag.SECTION_NEXTENDO -> addNextendoSettings(sl)
             MenuTag.SECTION_CUSTOM_PATHS -> addCustomPathsSettings(sl)
         }
-        settingsList = sl
-        adapter.submitList(settingsList) {
-            if (notifyDataSetChanged) {
-                adapter.notifyDataSetChanged()
-            }
-        }
+        return sl
     }
 
     private fun addPostProcessingSettings(sl: ArrayList<SettingsItem>) {
