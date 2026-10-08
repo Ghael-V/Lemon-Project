@@ -1015,6 +1015,7 @@ bool IsGPUFenceBehaviorDefault();
 bool IsGPUFenceBehaviorBalanced();
 bool IsGPUFenceBehaviorAccurate();
 bool IsGPUFenceBehaviorStrict();
+bool IsGPUFenceDelayed();
 
 bool IsFastmemEnabled();
 void SetNceEnabled(bool is_64bit);
