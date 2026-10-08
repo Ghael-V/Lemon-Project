@@ -63,12 +63,28 @@ NSD::NSD(Core::System& system_, const char* name) : ServiceFramework{system_, na
     RegisterHandlers(functions);
 }
 
+std::string ResolveNsdFqdn(const std::string& fqdn_in) {
+    // The real implementation substitutes the environment ("lp1" on retail) for the '%'
+    // placeholder and points the account front-ends at the BAAS host behind them.
+    // Mapping taken from citron-nextendo (Copyright 2026 citron Emulator Project).
+    if (fqdn_in == "api.accounts.nintendo.com" || fqdn_in == "accounts.nintendo.com") {
+        return "e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com";
+    }
+    if (fqdn_in == "e97b8a9d672e4ce4845ec6947cd66ef6-sb-api.accounts.nintendo.com" ||
+        fqdn_in == "e97b8a9d672e4ce4845ec6947cd66ef6-sb.accounts.nintendo.com") {
+        return "e97b8a9d672e4ce4845ec6947cd66ef6-sb.baas.nintendo.com";
+    }
+    std::string fqdn = fqdn_in;
+    if (const auto pos = fqdn.find('%'); pos != std::string::npos) {
+        fqdn.replace(pos, 1, "lp1");
+    }
+    return fqdn;
+}
+
 static std::string ResolveImpl(const std::string& fqdn_in) {
-    // The real implementation makes various substitutions.
-    // For now we just return the string as-is, which is good enough when not
-    // connecting to real Nintendo servers.
-    LOG_WARNING(Service, "(STUBBED) called, fqdn_in={}", fqdn_in);
-    return fqdn_in;
+    const std::string fqdn = ResolveNsdFqdn(fqdn_in);
+    LOG_DEBUG(Service, "called, fqdn_in={} fqdn_out={}", fqdn_in, fqdn);
+    return fqdn;
 }
 
 static Result ResolveCommon(const std::string& fqdn_in, std::array<char, 0x100>& fqdn_out) {

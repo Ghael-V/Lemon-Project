@@ -197,6 +197,14 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The Nextendo sign-in finishes in the browser; show the new state on the way back.
+        if (args.menuTag == Settings.MenuTag.SECTION_NEXTENDO) {
+            presenter.loadSettingsList(true)
+        }
+    }
+
     /**
      * The redesigned list. It draws what the classic adapter holds (same items, same handlers, same
      * dialogs) and falls back to the classic list for sections with row types it cannot draw yet.

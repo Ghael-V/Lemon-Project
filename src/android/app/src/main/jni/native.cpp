@@ -49,6 +49,7 @@ extern "C" {
 #include "common/fs/fs_util.h"
 #include "common/fs/path_util.h"
 #include "common/logging.h"
+#include "common/nextendo_session.h"
 #include "common/scm_rev.h"
 #include "common/scope_exit.h"
 #include "common/settings.h"
@@ -1874,6 +1875,20 @@ void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerInit(JNIEnv* env, jo
         LOG_WARNING(Frontend, "Failed to create play time directory");
 
     play_time_manager = std::make_unique<PlayTime::PlayTimeManager>();
+}
+
+void Java_dev_lemon_lemon_1emu_NativeLibrary_setNextendoSession(JNIEnv* env, jobject obj,
+                                                              jlong pid, jstring username,
+                                                              jstring nex_token) {
+    Common::Nextendo::SetSession({
+        .pid = static_cast<u64>(pid),
+        .username = Common::Android::GetJString(env, username),
+        .nex_token = Common::Android::GetJString(env, nex_token),
+    });
+}
+
+void Java_dev_lemon_lemon_1emu_NativeLibrary_clearNextendoSession(JNIEnv* env, jobject obj) {
+    Common::Nextendo::ClearSession();
 }
 
 void Java_dev_lemon_lemon_1emu_NativeLibrary_playTimeManagerStart(JNIEnv* env, jobject obj) {

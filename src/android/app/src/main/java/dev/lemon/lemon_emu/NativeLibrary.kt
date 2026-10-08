@@ -164,6 +164,14 @@ object NativeLibrary {
      */
     external fun run(path: String?, programIndex: Int, frontendInitiated: Boolean)
 
+    /**
+     * Hands the signed-in Nextendo Network account to the emulated account service. Kept in
+     * memory only; the PID and the token are credentials and must never be logged.
+     */
+    external fun setNextendoSession(pid: Long, username: String, nexToken: String)
+
+    external fun clearNextendoSession()
+
     // Surface Handling
     external fun surfaceChanged(surf: Surface?)
 

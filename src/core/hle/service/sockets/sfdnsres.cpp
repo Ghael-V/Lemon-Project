@@ -4,14 +4,19 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <mutex>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "common/nextendo_session.h"
+#include "common/settings.h"
 #include "common/string_util.h"
 #include "common/swap.h"
 #include "core/core.h"
 #include "core/hle/service/ipc_helpers.h"
+#include "core/hle/service/sockets/nsd.h"
 #include "core/hle/service/sockets/sfdnsres.h"
 #include "core/hle/service/sockets/sockets.h"
 #include "core/hle/service/sockets/sockets_translate.h"
@@ -30,8 +35,8 @@ SFDNSRES::SFDNSRES(Core::System& system_) : ServiceFramework{system_, "sfdnsres"
         {5, &SFDNSRES::GetGaiStringErrorRequest, "GetGaiStringErrorRequest"},
         {6, &SFDNSRES::GetAddrInfoRequest, "GetAddrInfoRequest"},
         {7, nullptr, "GetNameInfoRequest"},
-        {8, nullptr, "RequestCancelHandleRequest"},
-        {9, nullptr, "CancelRequest"},
+        {8, &SFDNSRES::RequestCancelHandleRequest, "RequestCancelHandleRequest"},
+        {9, &SFDNSRES::CancelRequest, "CancelRequest"},
         {10, &SFDNSRES::GetHostByNameRequestWithOptions, "GetHostByNameRequestWithOptions"},
         {11, nullptr, "GetHostByAddrRequestWithOptions"},
         {12, &SFDNSRES::GetAddrInfoRequestWithOptions, "GetAddrInfoRequestWithOptions"},
@@ -100,6 +105,71 @@ static bool IsBlockedHost(const std::string& host) {
     return std::any_of(
         blockedDomains.begin(), blockedDomains.end(),
         [&host](const std::string& domain) { return host.find(domain) != std::string::npos; });
+}
+
+// Nextendo Network: the community servers answer for Nintendo's own hosts (and Demonware, used
+// by the Activision/Blizzard titles), so those lookups resolve to them instead of being blocked.
+// Host rules follow citron-nextendo (Copyright 2026 citron Emulator Project).
+static bool IsHostOrSubdomain(std::string_view host, std::string_view domain) {
+    return host == domain ||
+           (host.size() > domain.size() && host.ends_with(domain) &&
+            host[host.size() - domain.size() - 1] == '.');
+}
+
+static std::optional<std::string> GetNextendoRedirect(const std::string& host) {
+    if (!Common::Nextendo::IsEnabled()) {
+        return std::nullopt;
+    }
+    // The NAT-type check talks to its own responder.
+    if (host.starts_with("nncs2-") && host.ends_with(".n.n.srv.nintendo.net")) {
+        return Settings::values.nextendo_nat_ip.GetValue();
+    }
+    static constexpr std::array<std::string_view, 5> redirected_domains{
+        "nintendo.net", "nintendo.com", "nintendowifi.net", "nintendo.co.jp", "demonware.net",
+    };
+    for (const auto domain : redirected_domains) {
+        if (IsHostOrSubdomain(host, domain)) {
+            return Settings::values.nextendo_server_ip.GetValue();
+        }
+    }
+    return std::nullopt;
+}
+
+static std::mutex redirected_hosts_mutex;
+static std::unordered_map<std::string, std::string> redirected_hosts;
+
+std::string GetRedirectedHostForIp(const std::string& ip) {
+    std::scoped_lock lock{redirected_hosts_mutex};
+    const auto it = redirected_hosts.find(ip);
+    return it != redirected_hosts.end() ? it->second : std::string{};
+}
+
+// Resolves the lookup's host, or the Nextendo server standing in for it. A redirected answer
+// keeps the real host as its canonical name: some titles build their requests from it.
+static std::variant<std::vector<Network::AddrInfo>, Network::GetAddrInfoError> ResolveHost(
+    const std::string& host, const std::optional<std::string>& service) {
+    const auto redirect = GetNextendoRedirect(host);
+    if (!redirect) {
+        return Network::GetAddressInfo(host, service);
+    }
+    auto res_v = Network::GetAddressInfo(*redirect, service);
+    if (auto* res = std::get_if<std::vector<Network::AddrInfo>>(&res_v)) {
+        std::scoped_lock lock{redirected_hosts_mutex};
+        for (Network::AddrInfo& addrinfo : *res) {
+            addrinfo.canon_name = host;
+            redirected_hosts[Network::IPv4AddressToString(addrinfo.addr.ip)] = host;
+        }
+        LOG_INFO(Network, "Nextendo: '{}' -> {}", host, *redirect);
+    }
+    return res_v;
+}
+
+static std::string ReadRequestedHost(HLERequestContext& ctx, bool use_nsd_resolve) {
+    std::string host = Common::StringFromBuffer(ctx.ReadBuffer(0));
+    if (use_nsd_resolve || host.find('%') != std::string::npos) {
+        host = ResolveNsdFqdn(host);
+    }
+    return host;
 }
 
 static NetDbError GetAddrInfoErrorToNetDbError(GetAddrInfoError result) {
@@ -198,17 +268,16 @@ static std::pair<u32, GetAddrInfoError> GetHostByNameRequestImpl(HLERequestConte
         "called with ignored parameters: use_nsd_resolve={}, cancel_handle={}, process_id={}",
         parameters.use_nsd_resolve, parameters.cancel_handle, parameters.process_id);
 
-    const auto host_buffer = ctx.ReadBuffer(0);
-    const std::string host = Common::StringFromBuffer(host_buffer);
+    const std::string host = ReadRequestedHost(ctx, parameters.use_nsd_resolve != 0);
     // For now, ignore options, which are in input buffer 1 for GetHostByNameRequestWithOptions.
 
     // Prevent resolution of Nintendo servers
-    if (IsBlockedHost(host)) {
+    if (!GetNextendoRedirect(host) && IsBlockedHost(host)) {
         LOG_WARNING(Network, "Resolution of hostname {} requested, returning EAI_AGAIN", host);
         return {0, GetAddrInfoError::AGAIN};
     }
 
-    auto res_v = Network::GetAddressInfo(host, /*service*/ std::nullopt);
+    auto res_v = ResolveHost(host, /*service*/ std::nullopt);
     if (auto* res = std::get_if<std::vector<Network::AddrInfo>>(&res_v)) {
         const std::vector<u8> data = SerializeAddrInfoAsHostEnt(*res, host);
         const u32 data_size = u32(data.size());
@@ -273,8 +342,11 @@ static std::vector<u8> SerializeAddrInfo(const std::vector<Network::AddrInfo>& v
         Append<u32_be>(data, 16); // ai_addrlen
         // ^ *not* sizeof(SerializedSockAddrIn), not that it matters since they're the same size
 
-        // ai_addr:
-        Append<u16_be>(data, static_cast<u16>(Translate(addrinfo.addr.family))); // sin_family
+        // ai_addr, a BSD sockaddr_in: sin_len comes first. Writing the family as one 16-bit
+        // value left sin_len at 0, and titles that copy this sockaddr into connect() as-is
+        // (Splatoon 3's gRPC stack, per citron-nextendo and Ryujinx-Nextendo) then dial 0.0.0.0.
+        Append<u8>(data, 16);                                                // sin_len
+        Append<u8>(data, static_cast<u8>(Translate(addrinfo.addr.family))); // sin_family
         // On the Switch, the following fields are passed through htonl despite
         // already being big-endian, so they end up as little-endian.
         Append<u16_le>(data, addrinfo.addr.portno);                            // sin_port
@@ -312,14 +384,10 @@ static std::pair<u32, GetAddrInfoError> GetAddrInfoRequestImpl(HLERequestContext
         "called with ignored parameters: use_nsd_resolve={}, cancel_handle={}, process_id={}",
         parameters.use_nsd_resolve, parameters.cancel_handle, parameters.process_id);
 
-    // TODO: If use_nsd_resolve is true, pass the name through NSD::Resolve
-    // before looking up.
-
-    const auto host_buffer = ctx.ReadBuffer(0);
-    const std::string host = Common::StringFromBuffer(host_buffer);
+    const std::string host = ReadRequestedHost(ctx, parameters.use_nsd_resolve != 0);
 
     // Prevent resolution of Nintendo servers
-    if (IsBlockedHost(host)) {
+    if (!GetNextendoRedirect(host) && IsBlockedHost(host)) {
         LOG_WARNING(Network, "Resolution of hostname {} requested, returning EAI_AGAIN", host);
         return {0, GetAddrInfoError::AGAIN};
     }
@@ -332,7 +400,7 @@ static std::pair<u32, GetAddrInfoError> GetAddrInfoRequestImpl(HLERequestContext
 
     // Serialized hints are also passed in a buffer, but are ignored for now.
 
-    auto res_v = Network::GetAddressInfo(host, service);
+    auto res_v = ResolveHost(host, service);
     if (auto* res = std::get_if<std::vector<Network::AddrInfo>>(&res_v)) {
         const std::vector<u8> data = SerializeAddrInfo(*res, host);
         const u32 data_size = u32(data.size());
@@ -396,6 +464,23 @@ void SFDNSRES::GetAddrInfoRequestWithOptions(HLERequestContext& ctx) {
         .netdb_error = GetAddrInfoErrorToNetDbError(emu_gai_err),
         .bsd_errno = GetAddrInfoErrorToErrno(emu_gai_err),
     });
+}
+
+// Lookups here complete synchronously, so there is never anything to cancel: hand out a dummy
+// handle and accept any cancellation (MK8D asks for a handle before going online).
+void SFDNSRES::RequestCancelHandleRequest(HLERequestContext& ctx) {
+    LOG_DEBUG(Service, "called");
+
+    IPC::ResponseBuilder rb{ctx, 3};
+    rb.Push(ResultSuccess);
+    rb.Push<u32>(0);
+}
+
+void SFDNSRES::CancelRequest(HLERequestContext& ctx) {
+    LOG_DEBUG(Service, "called");
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(ResultSuccess);
 }
 
 void SFDNSRES::ResolverSetOptionRequest(HLERequestContext& ctx) {
