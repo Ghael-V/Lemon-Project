@@ -299,10 +299,10 @@ struct Memory::Impl {
     }
 
     [[nodiscard]] inline const u8* GetSpan(const VAddr addr, const std::size_t size) const noexcept {
-        return (current_page_table->entries[addr >> YUZU_PAGEBITS].Block() == current_page_table->entries[(addr + size) >> YUZU_PAGEBITS].Block()) ? GetPointerSilent(addr) : nullptr;
+        return IsSameMapping(addr, addr + size) ? GetPointerSilent(addr) : nullptr;
     }
     [[nodiscard]] inline u8* GetSpan(const VAddr addr, const std::size_t size) noexcept {
-        return (current_page_table->entries[addr >> YUZU_PAGEBITS].Block() == current_page_table->entries[(addr + size) >> YUZU_PAGEBITS].Block()) ? GetPointerSilent(addr) : nullptr;
+        return IsSameMapping(addr, addr + size) ? GetPointerSilent(addr) : nullptr;
     }
 
     bool WriteBlockImpl(const Common::ProcessAddress addr, const void* buffer, const std::size_t size, bool unsafe) {
@@ -547,8 +547,7 @@ struct Memory::Impl {
 
             page_table.entries.ZeroRegion(base, end);
         } else {
-            auto current_block = block_count.fetch_add(1, std::memory_order_relaxed);
-            ASSERT(current_block != 65535);
+            const u16 current_block = NextBlock();
 
             page_table.entries.CommitRegion(base, end);
             while (base != end) {
@@ -775,7 +774,23 @@ struct Memory::Impl {
 #else
     Common::HostMemory* host_buffer{};
 #endif
-    std::atomic<u16> block_count = 0;
+    // Block ids let GetSpan hand out a direct pointer when both ends of a range lie in the same
+    // mapping. They are only 16 bits wide: once they run out (Mario & Luigi: Brothership gets
+    // there in seconds), later mappings get NoSpanBlock and GetSpan takes the safe path for
+    // them, instead of wrapping around and mistaking two unrelated mappings for one.
+    static constexpr u16 NoSpanBlock = 0xFFFF;
+    std::atomic<u32> block_count = 1;
+
+    u16 NextBlock() {
+        const u32 block = block_count.fetch_add(1, std::memory_order_relaxed);
+        return block < NoSpanBlock ? static_cast<u16>(block) : NoSpanBlock;
+    }
+
+    bool IsSameMapping(VAddr first, VAddr last) const {
+        const u16 block = current_page_table->entries[first >> YUZU_PAGEBITS].Block();
+        return block != NoSpanBlock &&
+               block == current_page_table->entries[last >> YUZU_PAGEBITS].Block();
+    }
 };
 
 Memory::Memory(Core::System& system_) : system{system_} {
