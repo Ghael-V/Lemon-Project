@@ -3,6 +3,9 @@
 
 #include "video_core/gpu_logging/gpu_logging.h"
 
+#include <algorithm>
+#include <filesystem>
+
 #include <fmt/format.h>
 #include <mutex>
 #include <thread>
@@ -583,6 +586,29 @@ void GPULogger::DumpStateToFile(const std::string& crash_reason) {
     const auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
         now.time_since_epoch()).count();
     const auto crash_dump_path = crashes_dir / fmt::format("crash_{}.gpu-dump", timestamp);
+
+    // Keep only the most recent dumps: one file per crash would otherwise pile up forever.
+    {
+        constexpr size_t MaxKeptDumps = 10;
+        std::vector<std::filesystem::path> dumps;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator(crashes_dir, ec)) {
+            if (entry.is_regular_file(ec) && entry.path().extension() == ".gpu-dump") {
+                dumps.push_back(entry.path());
+            }
+        }
+        if (dumps.size() >= MaxKeptDumps) {
+            // Names embed the timestamp, so lexical order is chronological for same-length names.
+            std::sort(dumps.begin(), dumps.end(), [](const auto& a, const auto& b) {
+                const auto sa = a.filename().string();
+                const auto sb = b.filename().string();
+                return sa.size() != sb.size() ? sa.size() < sb.size() : sa < sb;
+            });
+            for (size_t i = 0; i + MaxKeptDumps <= dumps.size(); ++i) {
+                std::filesystem::remove(dumps[i], ec);
+            }
+        }
+    }
 
     auto crash_file =
         std::make_unique<Common::FS::IOFile>(crash_dump_path, FileAccessMode::Write, FileType::TextFile);
