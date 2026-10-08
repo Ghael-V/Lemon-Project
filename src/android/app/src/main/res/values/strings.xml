@@ -1562,6 +1562,7 @@
     <string name="nextendo_sign_out">Sign out</string>
     <string name="nextendo_signed_in_as">Signed in as %1$s</string>
     <string name="nextendo_unavailable">This build of Lemon is not registered with Nextendo Network yet.</string>
+    <string name="nextendo_no_game_token">Could not connect to Nextendo Network. Online play won\'t work this session; check your connection and restart the game.</string>
 
     <string name="enable_overlay">Enable Overlay Applet</string>
     <string name="enable_overlay_description">Enables Horizon\'s built-in overlay applet. Press and hold the home button for 1 second to show it.</string>
