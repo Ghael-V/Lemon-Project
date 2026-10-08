@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/menu_show_stats_overlay"
+        android:title="@string/show_stats_overlay"
+        android:checkable="true" />
+
+    <item
+        android:id="@+id/menu_show_soc_overlay"
+        android:title="@string/show_soc_overlay"
+        android:checkable="true" />
+
+</menu>

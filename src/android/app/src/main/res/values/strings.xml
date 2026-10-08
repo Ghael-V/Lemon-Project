@@ -1153,6 +1153,7 @@
     <string name="emulation_touch_overlay_reset">Reset overlay</string>
     <string name="emulation_touch_overlay_edit">Edit overlay</string>
     <string name="emulation_overlay_layout">Controller layout</string>
+    <string name="overlay_presets">Layout presets</string>
     <string name="overlay_preset_default">Default</string>
     <string name="overlay_preset_big">Big buttons</string>
     <string name="overlay_preset_swapped">Swapped D-pad/stick</string>
@@ -1207,7 +1208,8 @@
     <string name="lemon_macro_no_macro">No macro recorded</string>
     <string name="lemon_macro_overlay_hidden_warning">The on-screen controller is hidden - recording only captures input from it, so nothing will be recorded until it\'s shown.</string>
     <string name="lemon_macro_show_overlay">Show on-screen controller</string>
-    <string name="emulation_input_overlay">Overlay options</string>
+    <string name="emulation_input_overlay">On-screen controls</string>
+    <string name="emulation_overlays">Overlays</string>
     <string name="load_amiibo">Load Amiibo</string>
     <string name="touchscreen">Touchscreen</string>
     <string name="lock_drawer">Lock drawer</string>

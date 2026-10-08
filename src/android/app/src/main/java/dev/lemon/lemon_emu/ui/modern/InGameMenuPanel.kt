@@ -323,7 +323,8 @@ private fun itemIcon(item: MenuItem): ImageBitmap? {
     val res = when (item.itemId) {
         R.id.menu_lemon_cheater -> R.drawable.ic_code
         R.id.menu_lemon_macro -> R.drawable.ic_record
-        R.id.menu_overlay_layout, R.id.menu_overlay_controls -> R.drawable.ic_overlay
+        R.id.menu_overlay_controls -> R.drawable.ic_overlay
+        R.id.menu_overlays -> R.drawable.ic_frames
         R.id.menu_settings, R.id.menu_settings_per_game -> R.drawable.ic_settings
         R.id.menu_quick_settings -> R.drawable.ic_options
         R.id.menu_controls -> R.drawable.ic_controller
