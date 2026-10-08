@@ -150,10 +150,13 @@ void GPULogger::Shutdown() {
     WriteToLog(stats);
 
     // Close file
-    if (gpu_log_file) {
-        gpu_log_file->Flush();
-        gpu_log_file->Close();
-        gpu_log_file.reset();
+    {
+        std::lock_guard lock(file_mutex);
+        if (gpu_log_file) {
+            gpu_log_file->Flush();
+            gpu_log_file->Close();
+            gpu_log_file.reset();
+        }
     }
 
     // Note: Crash handler is NOT shut down here - it remains active throughout app lifetime
@@ -692,16 +695,41 @@ bool GPULogger::IsInitialized() const {
 }
 
 void GPULogger::WriteToLog(const std::string& message) {
+    using namespace Common::Literals;
+    // At level "All" every Vulkan call is logged and the file grew past 100 MB in minutes. Keep
+    // each file under this size: the full one moves to lemon_gpu.log.prev.txt and a fresh one
+    // starts, so the most recent 20-40 MB are always on disk.
+    constexpr u64 MaxLogSize = 20_MiB;
+
+    std::lock_guard lock(file_mutex);
+    // Checked under the lock: a rotation swaps the file.
     if (!gpu_log_file || !gpu_log_file->IsOpen()) {
         return;
     }
-
-    std::lock_guard lock(file_mutex);
+    const u64 before = bytes_written;
     bytes_written += gpu_log_file->WriteString(message);
 
-    // Flush on errors or if we've written a lot
-    using namespace Common::Literals;
-    if (bytes_written % (1_MiB) == 0) {
+    if (bytes_written >= MaxLogSize) {
+        using namespace Common::FS;
+        const auto& log_dir = GetEdenPath(EdenPath::LogDir);
+        const auto gpu_log_path = log_dir / "lemon_gpu.log";
+        const auto prev_log_path = log_dir / "lemon_gpu.log.prev.txt";
+        gpu_log_file->Close();
+        RemoveFile(prev_log_path);
+        [[maybe_unused]] const bool renamed = RenameFile(gpu_log_path, prev_log_path);
+        gpu_log_file = std::make_unique<IOFile>(gpu_log_path, FileAccessMode::Write,
+                                                FileType::TextFile);
+        bytes_written = 0;
+        if (gpu_log_file->IsOpen()) {
+            bytes_written += gpu_log_file->WriteString(
+                "=== Lemon GPU log continued (size limit reached; the previous part is "
+                "lemon_gpu.log.prev.txt) ===\n");
+        }
+        return;
+    }
+
+    // Flush every MiB written.
+    if (before / 1_MiB != bytes_written / 1_MiB) {
         gpu_log_file->Flush();
     }
 }
