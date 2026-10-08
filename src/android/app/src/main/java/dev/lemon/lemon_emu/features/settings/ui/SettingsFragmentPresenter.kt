@@ -435,6 +435,9 @@ class SettingsFragmentPresenter(
                 if (perGame && !category.perGame) {
                     continue
                 }
+                if (NativeLibrary.isRunning() && !category.inGame) {
+                    continue
+                }
                 add(
                     SubmenuSetting(
                         titleId = category.titleId,
@@ -481,8 +484,9 @@ class SettingsFragmentPresenter(
         titleId: Int,
         descriptionId: Int,
         iconId: Int,
-        destination: SettingsSubscreen
-    ): RunnableSetting = actionSetting(titleId, descriptionId, iconId, runnableInGame = false) {
+        destination: SettingsSubscreen,
+        runnableInGame: Boolean = false
+    ): RunnableSetting = actionSetting(titleId, descriptionId, iconId, runnableInGame) {
         SettingsActions.openSubscreen(it, destination)
     }
 
@@ -723,8 +727,6 @@ class SettingsFragmentPresenter(
                     R.drawable.ic_two_users
                 ) { SettingsActions.openMultiplayer(it) }
             )
-            sl.add(StringSetting.WEB_USERNAME.key)
-            sl.add(StringSetting.WEB_TOKEN.key)
 
             sl.add(HeaderSetting(R.string.settings_console))
         }
@@ -808,7 +810,8 @@ class SettingsFragmentPresenter(
                     R.string.about,
                     R.string.about_description,
                     R.drawable.ic_info_outline,
-                    SettingsSubscreen.ABOUT
+                    SettingsSubscreen.ABOUT,
+                    runnableInGame = true
                 )
             )
         }
@@ -838,15 +841,18 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.SHOW_INPUT_OVERLAY.key)
             add(BooleanSetting.OVERLAY_SNAP_TO_GRID.key)
             add(IntSetting.OVERLAY_GRID_SIZE.key)
-            add(
-                LaunchableSetting(
-                    titleId = R.string.edit_overlay_layout,
-                    descriptionId = R.string.edit_overlay_layout_description,
-                    launchIntent = { context ->
-                        EmulationActivity.launchForOverlayEdit(context)
-                    }
+            // It starts its own emulation screen; in a game, the in-game menu edits the layout.
+            if (!NativeLibrary.isRunning()) {
+                add(
+                    LaunchableSetting(
+                        titleId = R.string.edit_overlay_layout,
+                        descriptionId = R.string.edit_overlay_layout_description,
+                        launchIntent = { context ->
+                            EmulationActivity.launchForOverlayEdit(context)
+                        }
+                    )
                 )
-            )
+            }
             add(HeaderSetting(R.string.input_overlay_behavior))
             add(BooleanSetting.ENABLE_INPUT_OVERLAY_AUTO_HIDE.key)
             add(IntSetting.INPUT_OVERLAY_AUTO_HIDE.key)
