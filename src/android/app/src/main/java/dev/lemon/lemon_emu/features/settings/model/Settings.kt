@@ -8,9 +8,16 @@ import dev.lemon.lemon_emu.LemonApplication
 
 object Settings {
     enum class MenuTag(val titleId: Int = 0) {
-        SECTION_ROOT(R.string.advanced_settings),
-        SECTION_SYSTEM(R.string.preferences_system),
+        SECTION_ROOT(R.string.preferences_settings),
+        SECTION_SYSTEM(R.string.settings_console),
         SECTION_RENDERER(R.string.preferences_graphics),
+        SECTION_GRAPHICS_ADVANCED(R.string.settings_graphics_advanced),
+        SECTION_GRAPHICS_FIXES(R.string.settings_graphics_fixes),
+        SECTION_PERFORMANCE(R.string.settings_performance),
+        SECTION_INGAME_DISPLAY(R.string.settings_ingame_display),
+        SECTION_ONLINE(R.string.settings_online),
+        SECTION_CONTENT(R.string.settings_content),
+        SECTION_HELP(R.string.settings_help),
         SECTION_FRAME_GEN(R.string.frame_gen),
         SECTION_POST_PROCESSING(R.string.post_processing),
         SECTION_PERFORMANCE_STATS(R.string.stats_overlay_options),
@@ -26,9 +33,9 @@ object Settings {
         SECTION_INPUT_PLAYER_SIX,
         SECTION_INPUT_PLAYER_SEVEN,
         SECTION_INPUT_PLAYER_EIGHT,
-        SECTION_APP_SETTINGS(R.string.app_settings),
+        SECTION_APP_SETTINGS(R.string.settings_lemon),
         SECTION_CUSTOM_PATHS(R.string.preferences_custom_paths),
-        SECTION_DEBUG(R.string.preferences_debug),
+        SECTION_DEBUG(R.string.settings_advanced_debug),
         SECTION_FREEDRENO(R.string.freedreno_settings_title),
         SECTION_APPLETS(R.string.applets_menu),
         SECTION_NEXTENDO(R.string.nextendo_network);
