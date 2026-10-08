@@ -305,7 +305,7 @@ std::vector<std::string> ListCubebSinkDevices(bool capture) {
     auto com_init_result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 #endif
 
-    if (cubeb_init(&ctx, "Eden Device Enumerator", nullptr) != CUBEB_OK) {
+    if (cubeb_init(&ctx, "Lemon Device Enumerator", nullptr) != CUBEB_OK) {
         LOG_CRITICAL(Audio_Sink, "cubeb_init failed");
         return {};
     }
@@ -395,7 +395,7 @@ bool IsCubebSuitable() {
 #endif
 
     // Init cubeb
-    if (cubeb_init(&ctx, "Eden Latency Getter", nullptr) != CUBEB_OK) {
+    if (cubeb_init(&ctx, "Lemon Latency Getter", nullptr) != CUBEB_OK) {
         LOG_ERROR(Audio_Sink, "Cubeb failed to init, it is not suitable.");
         return false;
     }
@@ -429,7 +429,7 @@ bool IsCubebSuitable() {
     // Test opening a device with standard parameters
     cubeb_devid output_device{0};
     cubeb_devid input_device{0};
-    std::string name{"Eden test"};
+    std::string name{"Lemon test"};
     cubeb_stream* stream{nullptr};
 
     if (cubeb_stream_init(ctx, &stream, name.c_str(), input_device, nullptr, output_device, &params,
