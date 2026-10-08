@@ -141,6 +141,11 @@ fun ModernAbout(versionText: String, actions: AboutActions) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     InfoCard(
+                        title = stringResource(R.string.team_lemon),
+                        body = stringResource(R.string.team_lemon_members) + "\n\n" + stringResource(R.string.patrons_thanks),
+                        onClick = { actions.onLink(R.string.team_link) }
+                    )
+                    InfoCard(
                         title = stringResource(R.string.licenses),
                         body = stringResource(R.string.licenses_description),
                         onClick = actions.onLicenses
