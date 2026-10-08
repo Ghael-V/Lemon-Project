@@ -62,6 +62,10 @@ object LastExitReason {
         ApplicationExitInfo.REASON_USER_STOPPED -> "USER_STOPPED"
         ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "DEPENDENCY_DIED"
         ApplicationExitInfo.REASON_OTHER -> "OTHER"
+        // Newer reasons, by value so older SDK stubs still compile.
+        14 -> "FREEZER"
+        15 -> "PACKAGE_STATE_CHANGE"
+        16 -> "PACKAGE_UPDATED"
         else -> "UNKNOWN ($reason)"
     }
 }
