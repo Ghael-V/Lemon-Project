@@ -57,10 +57,11 @@
 
 ## About
 
-Lemon is an Android-only Nintendo Switch emulator built for Adreno GPUs. It runs on the open-source emulation
-core developed by the yuzu community and the projects that followed it, trimmed down to just what's needed to build
-and run it on a single Adreno-equipped Android device: no Qt/desktop/CLI targets, no multi-platform CI, no
-Mali/PowerVR-specific code paths.
+Lemon is an Android-only Nintendo Switch emulator built for Adreno GPUs and, since 1.1, Mali GPUs too. It runs on
+the open-source emulation core developed by the yuzu community and the projects that followed it, trimmed down to
+just what's needed to build and run it on Android phones and handhelds: no Qt/desktop/CLI targets, no
+multi-platform CI, no PowerVR-specific code paths. It ships in three builds: **Lemon**, **Lemon Lite** (lighter
+defaults for Adreno 6xx/7xx and Mali) and **Lemon Lite & Spoofed** (Lite under a benchmark app's package name).
 
 Started as a personal build for the maintainer's own device(s), Lemon is now made by **Team Lemon**: Ghael, Seak
 and Sidgey. Builds are published on the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of
@@ -78,6 +79,16 @@ mid-syscall is captured and restored, and undoing what the game changed outside 
 
 Everything below is specific to Lemon, on top of the Switch emulation it inherits from Eden/yuzu:
 
+- **Online play on Nextendo Network** — sign in from Settings → Online (in the browser, Lemon never sees the
+  password) and supported games play online on Nextendo's servers; Mario Kart 8 Deluxe races work.
+- **Mali GPUs** — BCn textures, which Mali cannot sample, are recompressed to ASTC on the GPU instead of being
+  stored uncompressed (Funko Fusion: 958 MB → 179 MB). Lemon Lite's driver downloader offers experimental PanVK
+  builds for the Mali-G720 and Mali-G52, each only to its own GPU.
+- **Three builds** — Lemon, Lemon Lite (0.75x resolution and asynchronous shaders by default, no bundled driver)
+  and Lemon Lite & Spoofed. They install side by side; Lite can import keys, firmware, games and saves from Lemon.
+- **Settings in ten categories with search** — Lemon, Graphics, Performance, Controls, In-game display, Console,
+  Online, Content and data, Help, Advanced and debug, and a search on the settings home that finds any option at
+  any depth and scrolls to it.
 - **Redesigned interface** — a launcher-style library (carousel, grid or list), a quick in-game panel with a live
   performance card, redesigned Settings, About and Statistics screens, and full controller navigation, including
   gamepad shortcuts to open the in-game menu.
@@ -95,9 +106,8 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   mid-syscall keep the host fiber they live in, and services cannot answer a request while a save or a load
   runs. When something since the save cannot be undone yet, the load says so and changes nothing. Verified on
   Super Mario 3D World and Garfield; other games may still find something it cannot undo.
-- **Controller layout presets** — a "Diseño del mando" entry in the pause menu with one-tap presets (default, big
-  buttons, swapped D-pad/stick) plus quick access to the existing drag-and-resize edit mode, which used to be
-  buried two menus deep with no indication it existed.
+- **Controller layout presets** — the in-game menu's On-screen controls entry starts with Edit and one-tap layout
+  presets (default, big buttons, swapped D-pad/stick), ahead of the touch control options.
 - **Controller layout per game** — move and resize the on-screen controls for one game only, or for all of them.
 - **Start in QLaunch** — with the firmware installed, opening Lemon boots straight into the console's home menu
   (once per launch: leaving it takes you to the library).
@@ -125,6 +135,18 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.1.0** — Three builds: **Lemon**, **Lemon Lite** and **Lemon Lite & Spoofed**. **Online play on Nextendo
+  Network** (Mario Kart 8 Deluxe races). **Mali GPUs** supported: BCn textures recompressed to ASTC on the GPU, and
+  experimental PanVK drivers in Lite. **Settings in ten categories, with search.** **No more flickering in Fast GPU
+  mode**: Default GPU fence behavior now waits for the GPU (Balanced), so **Fast is the default GPU mode again**
+  (Immediate gives the old speed back for games that do not flicker). A simpler in-game menu. Fixes: Crysis
+  Remastered no longer crashes and its minimap stays in its corner (DrawTexture blit read a released framebuffer and
+  left stale dynamic state); TOTK grass no longer vanishes (NCE page invalidation threw away GPU-written images);
+  memory block ids no longer wrap (Mario & Luigi: Brothership); the multiplayer nickname is remembered again;
+  sockaddr length in getsockname/getpeername/accept/recvfrom; input events without a device; asynchronous shaders
+  look at the current draw; fewer render-pass breaks for small uniform buffers; capped and rotated logs, the reason
+  the system ended the previous run, and "Lemon" instead of "Eden" in logs. From this release the APKs are signed
+  with Lemon's own key through APK Signature Scheme v3 key rotation, so installs update in place.
 - **v1.0.1** — **Quick Load survives dying** (and moving on in the game): it now undoes what the game changed
   since the save — GPU buffers and mappings, thread stacks, open files and other service objects, worker threads
   destroyed and created again — instead of refusing or freezing; it also no longer fails now and then when a
