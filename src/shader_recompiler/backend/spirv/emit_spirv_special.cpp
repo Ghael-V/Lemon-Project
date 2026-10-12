@@ -93,24 +93,24 @@ void AlphaTest(EmitContext& ctx) {
 void EmitPrologue(EmitContext& ctx) {
     if (ctx.gs_dedup) {
         // This invocation is one of the copies the driver runs per output vertex. The copies of a
-        // primitive share its id: the first to swap its slot's stale generation for this draw's
-        // does the side effects, the others skip them.
+        // primitive share its id: the first to raise its slot to this draw's generation does the
+        // side effects, the others skip them. Generations only grow, so a late copy from an
+        // earlier draw can't take a slot back from a later one.
         const Id primitive{ctx.OpLoad(ctx.U32[1], ctx.primitive_id)};
-        const Id slot{ctx.OpBitwiseAnd(ctx.U32[1], primitive, ctx.Const(GS_SCRATCH_NUM_SLOTS - 1))};
-        const Id pointer{ctx.OpAccessChain(ctx.storage_types.U32.element,
-                                           ctx.ssbos[ctx.gs_scratch_ssbo].U32,
-                                           ctx.u32_zero_value, slot)};
         const Id generation_pointer{
             ctx.OpAccessChain(ctx.TypePointer(spv::StorageClass::PushConstant, ctx.U32[1]),
                               ctx.gs_generation_block, ctx.Const(ctx.gs_generation_member))};
         const Id generation{ctx.OpLoad(ctx.U32[1], generation_pointer)};
+        const Id draw_base{ctx.OpIMul(ctx.U32[1], generation, ctx.Const(GS_SCRATCH_DRAW_STRIDE))};
+        const Id slot{ctx.OpBitwiseAnd(ctx.U32[1], ctx.OpIAdd(ctx.U32[1], primitive, draw_base),
+                                       ctx.Const(GS_SCRATCH_NUM_SLOTS - 1))};
+        const Id pointer{ctx.OpAccessChain(ctx.storage_types.U32.element,
+                                           ctx.ssbos[ctx.gs_scratch_ssbo].U32,
+                                           ctx.u32_zero_value, slot)};
         const Id scope{ctx.Const(static_cast<u32>(spv::Scope::Device))};
-        const Id relaxed{ctx.u32_zero_value};
-        const Id tag{ctx.OpAtomicLoad(ctx.U32[1], pointer, scope, relaxed)};
-        const Id witness{ctx.OpAtomicCompareExchange(ctx.U32[1], pointer, scope, relaxed, relaxed,
-                                                     generation, tag)};
-        ctx.gs_is_first = ctx.OpLogicalAnd(ctx.U1, ctx.OpINotEqual(ctx.U1, tag, generation),
-                                           ctx.OpIEqual(ctx.U1, witness, tag));
+        const Id previous{
+            ctx.OpAtomicUMax(ctx.U32[1], pointer, scope, ctx.u32_zero_value, generation)};
+        ctx.gs_is_first = ctx.OpULessThan(ctx.U1, previous, generation);
     }
     if (ctx.stage == Stage::VertexB) {
         const Id zero{ctx.Const(0.0f)};

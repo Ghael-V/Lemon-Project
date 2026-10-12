@@ -44,6 +44,9 @@ constexpr u32 ATTRIBUTE_HANDLE_CBUF_INDEX = 0xFFFF;
 constexpr u32 GS_SCRATCH_CBUF_INDEX = 0xFFFE;
 /// Words in that buffer: one claim per primitive id, modulo this.
 constexpr u32 GS_SCRATCH_NUM_SLOTS = 1U << 22;
+/// Each draw starts its primitives this many slots after the previous one, so draws that run at
+/// the same time on the GPU don't claim the same slots.
+constexpr u32 GS_SCRATCH_DRAW_STRIDE = 1U << 18;
 
 enum class TexturePixelFormat {
     A8B8G8R8_UNORM,
