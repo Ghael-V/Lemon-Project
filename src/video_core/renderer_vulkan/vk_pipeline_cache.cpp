@@ -404,6 +404,8 @@ PipelineCache::PipelineCache(Tegra::MaxwellDeviceMemoryManager& device_memory_,
                                             driver_id == VK_DRIVER_ID_MESA_TURNIP;
     profile.gs_replicates_side_effects = gs_replicates_side_effects;
     host_info.gs_replicates_side_effects = gs_replicates_side_effects;
+    LOG_INFO(Render_Vulkan, "Geometry shader side effects once per primitive: {} (driver id {})",
+             gs_replicates_side_effects, static_cast<int>(driver_id));
 
     if (device.GetMaxVertexInputAttributes() < Maxwell::NumVertexAttributes) {
         LOG_WARNING(Render_Vulkan, "maxVertexInputAttributes is too low: {} < {}",

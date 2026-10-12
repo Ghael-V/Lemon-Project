@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 
+#include "common/logging.h"
 #include "common/settings.h"
 #include "shader_recompiler/exception.h"
 #include "shader_recompiler/frontend/ir/basic_block.h"
@@ -91,20 +92,24 @@ void AddGeometryScratchBuffer(IR::Program& program, const HostTranslateInfo& hos
     if (program.stage != Stage::Geometry || !host_info.gs_replicates_side_effects) {
         return;
     }
-    const auto has_side_effects = [&] {
-        for (IR::Block* const block : program.blocks) {
-            for (const IR::Inst& inst : block->Instructions()) {
-                if (IR::IsGeometrySideEffect(inst.GetOpcode())) {
-                    return true;
-                }
-            }
+    size_t side_effects{};
+    for (IR::Block* const block : program.blocks) {
+        for (const IR::Inst& inst : block->Instructions()) {
+            side_effects += IR::IsGeometrySideEffect(inst.GetOpcode()) ? 1 : 0;
         }
-        return false;
-    };
-    auto& descs{program.info.storage_buffers_descriptors};
-    if (!has_side_effects() || descs.size() >= descs.capacity()) {
+    }
+    if (side_effects == 0) {
         return;
     }
+    auto& descs{program.info.storage_buffers_descriptors};
+    if (descs.size() >= descs.capacity()) {
+        LOG_WARNING(Shader, "Geometry shader with {} memory side effects has no room for its "
+                            "scratch buffer",
+                    side_effects);
+        return;
+    }
+    LOG_INFO(Shader, "Geometry shader with {} memory side effects claims its primitives",
+             side_effects);
     program.info.gs_scratch_ssbo = static_cast<u32>(descs.size());
     descs.push_back({
         .cbuf_index = GS_SCRATCH_CBUF_INDEX,
