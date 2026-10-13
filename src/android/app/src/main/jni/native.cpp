@@ -301,6 +301,7 @@ void EmulationSession::ShutdownEmulation() {
     }
 
     m_is_running = false;
+    m_is_paused = false;
 
     // Unload user input.
     m_system.HIDCore().UnloadInputDevices();
@@ -325,13 +326,19 @@ void EmulationSession::ShutdownEmulation() {
 
 void EmulationSession::PauseEmulation() {
     std::scoped_lock lock(m_mutex);
-    m_system.Pause();
+    // While the game still loads (the app pauses on any onPause, e.g. a second tap on the game)
+    // the kernel may not exist yet: only remember it, RunEmulation starts paused.
+    if (m_is_running) {
+        m_system.Pause();
+    }
     m_is_paused = true;
 }
 
 void EmulationSession::UnPauseEmulation() {
     std::scoped_lock lock(m_mutex);
-    m_system.Run();
+    if (m_is_running) {
+        m_system.Run();
+    }
     m_is_paused = false;
 }
 
@@ -355,7 +362,12 @@ void EmulationSession::RunEmulation() {
         LoadDiskCacheProgress(VideoCore::LoadCallbackStage::Complete, 0, 0);
     }
 
-    void(m_system.Run());
+    {
+        std::scoped_lock lock(m_mutex);
+        if (!m_is_paused) {
+            void(m_system.Run());
+        }
+    }
 
     if (m_system.DebuggerEnabled()) {
         m_system.InitializeDebugger();
