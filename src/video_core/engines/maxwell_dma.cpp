@@ -127,30 +127,35 @@ void MaxwellDMA::Launch() {
             const auto dst_kind = memory_manager.GetPageKind(regs.offset_out);
             const bool is_src_pitch = IsPitchKind(src_kind);
             const bool is_dst_pitch = IsPitchKind(dst_kind);
+            // Copied 16 bytes at a time (one GOB row segment of the block linear side). A length
+            // that is not a multiple of 16 used to copy the whole last segment, writing up to 15
+            // bytes past the end of the destination (Kingdom Hearts HD 1.5+2.5 does this for every
+            // frame of its videos); the last segment now copies only what is left of the line.
             if (!is_src_pitch && is_dst_pitch) {
-                UNIMPLEMENTED_IF(regs.line_length_in % 16 != 0);
                 UNIMPLEMENTED_IF(regs.offset_in % 16 != 0);
                 UNIMPLEMENTED_IF(regs.offset_out % 16 != 0);
                 read_buffer.resize_destructive(16);
                 for (u32 offset = 0; offset < regs.line_length_in; offset += 16) {
+                    const u32 size = (std::min)(16U, regs.line_length_in - offset);
                     Tegra::Memory::GpuGuestMemoryScoped<
                         u8, Tegra::Memory::GuestMemoryFlags::SafeReadCachedWrite>
                         tmp_write_buffer(memory_manager,
                                          convert_linear_2_blocklinear_addr(regs.offset_in + offset),
-                                         16, &read_buffer);
-                    tmp_write_buffer.SetAddressAndSize(regs.offset_out + offset, 16);
+                                         size, &read_buffer);
+                    tmp_write_buffer.SetAddressAndSize(regs.offset_out + offset, size);
                 }
             } else if (is_src_pitch && !is_dst_pitch) {
-                UNIMPLEMENTED_IF(regs.line_length_in % 16 != 0);
                 UNIMPLEMENTED_IF(regs.offset_in % 16 != 0);
                 UNIMPLEMENTED_IF(regs.offset_out % 16 != 0);
                 read_buffer.resize_destructive(16);
                 for (u32 offset = 0; offset < regs.line_length_in; offset += 16) {
+                    const u32 size = (std::min)(16U, regs.line_length_in - offset);
                     Tegra::Memory::GpuGuestMemoryScoped<
                         u8, Tegra::Memory::GuestMemoryFlags::SafeReadCachedWrite>
-                        tmp_write_buffer(memory_manager, regs.offset_in + offset, 16, &read_buffer);
+                        tmp_write_buffer(memory_manager, regs.offset_in + offset, size,
+                                         &read_buffer);
                     tmp_write_buffer.SetAddressAndSize(
-                        convert_linear_2_blocklinear_addr(regs.offset_out + offset), 16);
+                        convert_linear_2_blocklinear_addr(regs.offset_out + offset), size);
                 }
             } else {
                 if (!accelerate.BufferCopy(regs.offset_in, regs.offset_out, regs.line_length_in)) {
