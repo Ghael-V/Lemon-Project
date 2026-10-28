@@ -1081,8 +1081,10 @@ void Config::SetArrayIndex(const int index) {
 
     const int array_index = index + 1;
 
-    // You can't exceed the known max size of the array by more than 1
-    ASSERT(array_stack.front().size + 1 >= array_index);
+    // You can't exceed the known max size of the array by more than 1. The array is the innermost
+    // one: a game's list of disabled add-ons is nested in the list of games, and checking the outer
+    // list fired whenever a game had more disabled add-ons than there were games before it.
+    ASSERT(array_stack.back().size + 1 >= array_index);
 
     // Change the config array size to the current index since you may want
     // to reduce the number of elements that you read back from the config
