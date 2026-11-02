@@ -94,14 +94,22 @@ fun Modifier.lemonInteractive(
         animationSpec = tween(260),
         label = "lemonSelectedGlow"
     )
-    val pulse by rememberInfiniteTransition(label = "lemonPulse").animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Reverse),
-        label = "lemonPulseValue"
-    )
-
-    val glow = maxOf(focusGlow * 0.9f, selectedGlow * pulse * 0.75f)
+    // Only a selected item pulses, and the glow is worked out while drawing. An endless pulse on
+    // every item, read here, recomposed the whole in-game menu on every display frame while a game
+    // ran, even with its drawer closed: most of a CPU core.
+    val pulse = if (selected) {
+        rememberInfiniteTransition(label = "lemonPulse").animateFloat(
+            initialValue = 0.65f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                tween(1400, easing = LinearEasing),
+                RepeatMode.Reverse
+            ),
+            label = "lemonPulseValue"
+        )
+    } else {
+        null
+    }
 
     this
         .graphicsLayer {
@@ -109,6 +117,7 @@ fun Modifier.lemonInteractive(
             scaleY = scale
         }
         .drawBehind {
+            val glow = maxOf(focusGlow * 0.9f, selectedGlow * (pulse?.value ?: 1f) * 0.75f)
             if (glow > 0.01f) {
                 drawIntoCanvas { canvas ->
                     val paint = android.graphics.Paint().apply {
