@@ -42,7 +42,12 @@ struct GPU::Impl {
           shader_notify{std::make_unique<VideoCore::ShaderNotify>()}, is_async{is_async_},
           gpu_thread{system_, is_async_}, scheduler{std::make_unique<Control::Scheduler>(gpu)} {}
 
-    ~Impl() = default;
+    ~Impl() {
+        // The renderer finishes its last GPU work on the way out, which still writes to the bound
+        // channel's 3D engine state. The channels are declared after it and would be freed first,
+        // so let go of the renderer while they still exist.
+        renderer.reset();
+    }
 
     std::shared_ptr<Control::ChannelState> CreateChannel(s32 channel_id) {
         auto channel_state = std::make_shared<Tegra::Control::ChannelState>(channel_id);
