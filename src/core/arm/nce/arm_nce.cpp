@@ -26,6 +26,7 @@ namespace {
 
 struct sigaction g_orig_bus_action;
 struct sigaction g_orig_segv_action;
+struct sigaction g_orig_ill_action;
 
 // Verify assembly offsets.
 using NativeExecutionParameters = Kernel::KThread::NativeExecutionParameters;
@@ -174,12 +175,39 @@ bool ArmNce::HandleGuestAccessFault(GuestContext* guest_ctx, void* raw_info, voi
     return HandleFailedGuestFault(guest_ctx, raw_info, raw_context);
 }
 
+bool ArmNce::HandleGuestIllegalInstruction(GuestContext* guest_ctx, void* raw_info,
+                                           void* raw_context) {
+    // The game ran an instruction the CPU doesn't take, usually its own trap after an error it
+    // can't go on from (a wait that fails while the game is being shut down, for one). Stop that
+    // thread as for a jump to a bad address, instead of taking the whole app down with it.
+    guest_ctx->esr_el1.fetch_or(static_cast<u64>(HaltReason::PrefetchAbort));
+
+    // Forcibly mark the context as locked, as HandleFailedGuestFault does.
+    auto& thread_params = guest_ctx->parent->m_running_thread->GetNativeExecutionParameters();
+    thread_params.lock.store(SpinLockLocked);
+
+    // Return to host.
+    SaveGuestContext(guest_ctx, raw_context);
+    return false;
+}
+
 void ArmNce::HandleHostAlignmentFault(int sig, void* raw_info, void* raw_context) {
     return g_orig_bus_action.sa_sigaction(sig, static_cast<siginfo_t*>(raw_info), raw_context);
 }
 
 void ArmNce::HandleHostAccessFault(int sig, void* raw_info, void* raw_context) {
     return g_orig_segv_action.sa_sigaction(sig, static_cast<siginfo_t*>(raw_info), raw_context);
+}
+
+void ArmNce::HandleHostIllegalInstruction(int sig, void* raw_info, void* raw_context) {
+    if ((g_orig_ill_action.sa_flags & SA_SIGINFO) != 0) {
+        return g_orig_ill_action.sa_sigaction(sig, static_cast<siginfo_t*>(raw_info), raw_context);
+    }
+    if (g_orig_ill_action.sa_handler != SIG_DFL && g_orig_ill_action.sa_handler != SIG_IGN) {
+        return g_orig_ill_action.sa_handler(sig);
+    }
+    // No handler before ours: the instruction runs again on return and takes the default action.
+    signal(sig, SIG_DFL);
 }
 
 void ArmNce::LockThread(Kernel::KThread* thread) {
@@ -307,6 +335,7 @@ void ArmNce::Initialize() {
         sigaddset(&signal_mask, BreakFromRunCodeSignal);
         sigaddset(&signal_mask, GuestAlignmentFaultSignal);
         sigaddset(&signal_mask, GuestAccessFaultSignal);
+        sigaddset(&signal_mask, GuestIllegalInstructionSignal);
 
         struct sigaction return_to_run_code_action {};
         return_to_run_code_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
@@ -336,6 +365,14 @@ void ArmNce::Initialize() {
             reinterpret_cast<HandlerType>(&ArmNce::GuestAccessFaultSignalHandler);
         access_fault_action.sa_mask = signal_mask;
         Common::SigAction(GuestAccessFaultSignal, &access_fault_action, &g_orig_segv_action);
+
+        struct sigaction illegal_instruction_action {};
+        illegal_instruction_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+        illegal_instruction_action.sa_sigaction =
+            reinterpret_cast<HandlerType>(&ArmNce::GuestIllegalInstructionSignalHandler);
+        illegal_instruction_action.sa_mask = signal_mask;
+        Common::SigAction(GuestIllegalInstructionSignal, &illegal_instruction_action,
+                          &g_orig_ill_action);
     });
 }
 
