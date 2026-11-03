@@ -1468,7 +1468,10 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     }
     {
         u32 lost_regions = 0;
-        // Every page mapped, or mapped again by the undo or for a thread created again.
+        // Every page mapped, or mapped again by the undo or for a thread created again. Checked
+        // page by page for a region only partly unmapped since the save: a game unmapped and mapped
+        // parts of a 64 KiB region again within a few milliseconds, the rest stayed mapped, and
+        // the region was neither all mapped nor all mapped again by the undo.
         const auto will_be_mapped = [&](u64 address, u64 size) {
             for (u64 page = Common::AlignDown(address, GuestPageSize); page < address + size;
                  page += GuestPageSize) {
@@ -1483,8 +1486,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         for (const auto& [address, size] : region_ranges) {
             if (is_excluded_stack(address, size) ||
                 memory.IsValidVirtualAddressRange(address, size) ||
-                memory_journal.WillRestore(address, size) ||
-                (!recreated_tls_pages.empty() && will_be_mapped(address, size))) {
+                memory_journal.WillRestore(address, size) || will_be_mapped(address, size)) {
                 continue;
             }
             if (lost_regions < 4) {
