@@ -435,7 +435,8 @@ void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
             PrepareImageView(color_buffer_id, true, is_clear && IsFullClear(color_buffer_id));
         }
         const ImageViewId depth_buffer_id = render_targets.depth_buffer_id;
-        PrepareImageView(depth_buffer_id, true, is_clear && IsFullClear(depth_buffer_id));
+        PrepareImageView(depth_buffer_id, is_clear || IsDepthStencilWritable(),
+                         is_clear && IsFullClear(depth_buffer_id));
         return;
     }
 
@@ -452,7 +453,8 @@ void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
     }
     const ImageViewId depth_buffer_id = render_targets.depth_buffer_id;
 
-    PrepareImageView(depth_buffer_id, true, is_clear && IsFullClear(depth_buffer_id));
+    PrepareImageView(depth_buffer_id, is_clear || IsDepthStencilWritable(),
+                     is_clear && IsFullClear(depth_buffer_id));
 
     for (size_t index = 0; index < NUM_RT; ++index) {
         render_targets.draw_buffers[index] = static_cast<u8>(maxwell3d->regs.rt_control.Map(index));
@@ -2555,6 +2557,19 @@ bool TextureCache<P>::IsGuestMemoryStale(DAddr cpu_addr, size_t size) {
         }
     }
     return false;
+}
+
+template <class P>
+bool TextureCache<P>::IsDepthStencilWritable() const {
+    const auto& regs = maxwell3d->regs;
+    if (regs.depth_write_enabled != 0) {
+        return true;
+    }
+    if (regs.stencil_enable == 0) {
+        return false;
+    }
+    return regs.stencil_front_mask != 0 ||
+           (regs.stencil_two_side_enable != 0 && regs.stencil_back_mask != 0);
 }
 
 template <class P>

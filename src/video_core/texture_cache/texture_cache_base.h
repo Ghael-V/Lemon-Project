@@ -415,6 +415,11 @@ private:
     /// Uses the overlaps JoinImages found.
     [[nodiscard]] bool IsGuestMemoryStale(DAddr cpu_addr, size_t size);
 
+    /// Returns true if the current draw state can write the bound depth/stencil buffer. A draw
+    /// that can't (depth writes off, no stencil writes) leaves it unmodified, so images aliasing
+    /// it, like a texture sampling it at a slightly different size, don't need copying again.
+    [[nodiscard]] bool IsDepthStencilWritable() const;
+
     [[nodiscard]] std::pair<u32, u32> PrepareDmaImage(ImageId dst_id, GPUVAddr base_addr,
                                                       bool mark_as_modified);
 
