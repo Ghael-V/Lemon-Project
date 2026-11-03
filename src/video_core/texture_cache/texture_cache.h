@@ -1735,8 +1735,17 @@ ImageId TextureCache<P>::JoinImages(const ImageInfo& info, GPUVAddr gpu_addr, DA
         DeleteImage(overlap_id);
     }
 
-    // TODO: Only upload what we need
-    RefreshContents(new_image, new_image_id);
+    if (IsGuestMemoryStale(new_image.cpu_addr, new_image.guest_size_bytes)) {
+        // Images the GPU drew cover all of this memory, and it holds none of what they drew: an
+        // upload would only bring in what the CPU wrote before. What the new image gets from them
+        // comes from the copies below.
+        new_image.flags &= ~ImageFlagBits::CpuModified;
+        TrackImage(new_image, new_image_id);
+        runtime.TransitionImageLayout(new_image);
+    } else {
+        // TODO: Only upload what we need
+        RefreshContents(new_image, new_image_id);
+    }
 
     if (can_rescale) {
         ScaleUp(new_image);
@@ -2784,6 +2793,37 @@ std::pair<FramebufferId, ImageViewId> TextureCache<P>::RenderTargetFromImage(
         .is_rescaled = is_rescaled,
     });
     return {framebuffer_id, view_id};
+}
+
+template <class P>
+bool TextureCache<P>::IsGuestMemoryStale(DAddr cpu_addr, size_t size) {
+    // The ranges of the overlapping images the GPU drew into and the CPU hasn't written to since.
+    // A download or a CPU write clears GpuModified or sets CpuModified on every image it touches.
+    boost::container::small_vector<std::pair<DAddr, DAddr>, 16> drawn;
+    for (const ImageId overlap_id : join_overlaps_found) {
+        const ImageBase& overlap = slot_images[overlap_id];
+        if (False(overlap.flags & ImageFlagBits::GpuModified) ||
+            True(overlap.flags & ImageFlagBits::CpuModified)) {
+            continue;
+        }
+        drawn.emplace_back(overlap.cpu_addr, overlap.cpu_addr + overlap.guest_size_bytes);
+    }
+    if (drawn.empty()) {
+        return false;
+    }
+    std::ranges::sort(drawn);
+    DAddr covered_to = cpu_addr;
+    const DAddr end = cpu_addr + size;
+    for (const auto& [begin, range_end] : drawn) {
+        if (begin > covered_to) {
+            return false;
+        }
+        covered_to = (std::max)(covered_to, range_end);
+        if (covered_to >= end) {
+            return true;
+        }
+    }
+    return false;
 }
 
 template <class P>
