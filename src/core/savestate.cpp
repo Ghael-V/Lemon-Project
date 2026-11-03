@@ -1318,11 +1318,16 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     //
     // A thread the game started again since the save (another thread id in the same slot) cannot be
     // left as it is: its registers and stack are those of a thread the save never had, and its
-    // stack may have been mapped after the save, which the undo below takes away. Asleep in
-    // SleepThread, which holds nothing in the kernel, it gets its saved registers and stack even
-    // when its call's arguments differ; in any other wait they have to match, or the load waits.
-    // A worker the game started again in the same slot, asleep in SleepThread with another
-    // timeout, was left with its live stack, which the undo unmapped: it crashed when it woke.
+    // stack may have been mapped after the save, which the undo below takes away. In any wait but
+    // SleepThread its call's arguments have to match, or the load waits. A worker the game started
+    // again in the same slot, asleep in SleepThread with another timeout, was left with its live
+    // stack, which the undo unmapped: it crashed when it woke.
+    //
+    // Asleep in SleepThread at the save and now, any thread gets its saved registers and stack:
+    // the call holds nothing in the kernel and returns nothing, and its wait does not say where
+    // the thread sleeps. A worker sleeps in several places for different times; one left in a
+    // later sleep than the saved one woke in the restored memory on its later stack, jumped into
+    // that stack and ran there from then on.
     std::vector<bool> started_again(thread_count, false);
     std::vector<bool> rewind_parked(thread_count, false);
     for (u32 i = 0; i < thread_count; i++) {
@@ -1338,8 +1343,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                 Kernel::ThreadWaitReasonForDebugging::Sleep &&
             saved_threads[i].svc_id == static_cast<u32>(Kernel::Svc::SvcId::SleepThread);
         rewind_parked[i] =
-            live.pc == saved.pc && ((started_again[i] && in_sleep_thread) ||
-                                    (live.r[0] == saved.r[0] && live.r[1] == saved.r[1]));
+            live.pc == saved.pc &&
+            (in_sleep_thread || (live.r[0] == saved.r[0] && live.r[1] == saved.r[1]));
     }
     const auto region_holds = [](const std::pair<u64, u64>& region, u64 stack_top) {
         return stack_top > region.first && stack_top <= region.first + region.second;
