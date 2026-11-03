@@ -77,6 +77,13 @@ void ThreadManager::TickGPU(bool is_async) {
     PushCommand(GPUTickCommand(), false, is_async);
 }
 
+void ThreadManager::WakeForSyncRequest() {
+    // Pushed as with asynchronous GPU even when it's synchronous: there the push would block
+    // until the thread got to this command, after the rest of the command list it is running,
+    // although the request itself already ran after the list's next draw.
+    PushCommand(GPUTickCommand(), false, true);
+}
+
 void ThreadManager::InvalidateRegion(DAddr addr, u64 size) {
     rasterizer->OnCacheInvalidation(addr, size);
 }
