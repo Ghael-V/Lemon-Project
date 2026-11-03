@@ -672,19 +672,34 @@ void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size) {
         decltype(runtime.DownloadStagingBuffer(0)) map;
         decltype(FixSmallVectorADL(FullDownloadCopies(std::declval<ImageInfo>()))) copies;
     };
+    // In batches: a batch's staging memory is only free for the next once the GPU finished it,
+    // and a save copies back every image drawn since the last one. Right after a game started
+    // that was over 700 images and 1.5 GB at once, more than some devices had to spare.
     boost::container::small_vector<PendingDownload, 16> downloads;
+    size_t batch_bytes = 0;
+    const auto finish_batch = [&] {
+        runtime.Finish();
+        for (auto& download : downloads) {
+            const Image& image = slot_images[download.image_id];
+            SwizzleImage(*gpu_memory, image.gpu_addr, image.info, download.copies,
+                         download.map.mapped_span, swizzle_data_buffer);
+        }
+        downloads.clear();
+        batch_bytes = 0;
+    };
     for (const ImageId image_id : images) {
         Image& image = slot_images[image_id];
         auto map = runtime.DownloadStagingBuffer(image.unswizzled_size_bytes);
         auto copies = FixSmallVectorADL(FullDownloadCopies(image.info));
         image.DownloadMemory(map, copies);
         downloads.push_back({image_id, std::move(map), std::move(copies)});
+        batch_bytes += image.unswizzled_size_bytes;
+        if (batch_bytes >= MAX_DOWNLOAD_BATCH_BYTES) {
+            finish_batch();
+        }
     }
-    runtime.Finish();
-    for (auto& download : downloads) {
-        const Image& image = slot_images[download.image_id];
-        SwizzleImage(*gpu_memory, image.gpu_addr, image.info, download.copies,
-                     download.map.mapped_span, swizzle_data_buffer);
+    if (!downloads.empty()) {
+        finish_batch();
     }
 }
 
