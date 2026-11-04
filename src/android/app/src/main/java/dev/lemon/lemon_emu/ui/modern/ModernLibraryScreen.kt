@@ -16,13 +16,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -586,14 +589,20 @@ internal fun HeroInfo(game: Game, actions: LibraryActions, centered: Boolean = f
 
 @Composable
 internal fun ShortcutRow(actions: LibraryActions, showQLaunch: Boolean, onShowAll: () -> Unit, tileHeight: Dp) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        val modifier = Modifier.weight(1f).height(tileHeight)
-        ShortcutTile(R.drawable.ic_home, stringResource(R.string.lemon_all_games), modifier, onShowAll)
-        ShortcutTile(R.drawable.ic_folder_open, stringResource(R.string.lemon_game_folders), modifier, actions.onManageFolders)
-        ShortcutTile(R.drawable.ic_install, stringResource(R.string.lemon_install_content), modifier, actions.onInstallContent)
-        ShortcutTile(R.drawable.ic_add, stringResource(R.string.add_games), modifier, actions.onAddGames)
+    // At least tileHeight, all as tall as the tallest: with a large system font the icon and label
+    // need more. The labels share one size, the largest at which all of them fit.
+    val labelFit = remember { LabelFit() }
+    Row(
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        val modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = tileHeight)
+        ShortcutTile(R.drawable.ic_home, stringResource(R.string.lemon_all_games), modifier, labelFit, onShowAll)
+        ShortcutTile(R.drawable.ic_folder_open, stringResource(R.string.lemon_game_folders), modifier, labelFit, actions.onManageFolders)
+        ShortcutTile(R.drawable.ic_install, stringResource(R.string.lemon_manage_data), modifier, labelFit, actions.onInstallContent)
+        ShortcutTile(R.drawable.ic_add, stringResource(R.string.add_games), modifier, labelFit, actions.onAddGames)
         if (showQLaunch) {
-            ShortcutTile(R.drawable.ic_controller, stringResource(R.string.qlaunch_applet), modifier, actions.onLaunchQLaunch)
+            ShortcutTile(R.drawable.ic_controller, stringResource(R.string.qlaunch_applet), modifier, labelFit, actions.onLaunchQLaunch)
         }
     }
 }

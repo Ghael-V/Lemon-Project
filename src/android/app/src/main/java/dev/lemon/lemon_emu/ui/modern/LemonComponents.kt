@@ -22,7 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +38,10 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.lemon.lemon_emu.model.Game
@@ -173,12 +179,27 @@ fun GameTile(
     }
 }
 
+/** A label size tiles share: made smaller while any of their labels does not fit on one line. */
+class LabelFit(start: TextUnit = 14.sp) {
+    var size by mutableStateOf(start)
+        private set
+
+    // One step down from the size a label did not fit at. Several labels that did not fit at the
+    // same size take that one step together, not a step each.
+    fun shrinkFrom(laidOut: TextUnit) {
+        if (size == laidOut && size > 10.sp) {
+            size = laidOut * 0.95f
+        }
+    }
+}
+
 /** Big glassy shortcut tile used in the row at the bottom of the library. */
 @Composable
 fun ShortcutTile(
     iconRes: Int,
     label: String,
     modifier: Modifier = Modifier,
+    labelFit: LabelFit? = null,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
@@ -193,7 +214,7 @@ fun ShortcutTile(
             .clip(shape)
             .background(LemonColors.SurfaceRaised.copy(alpha = 0.55f))
             .border(1.dp, LemonColors.Text.copy(alpha = 0.16f), shape)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -204,10 +225,20 @@ fun ShortcutTile(
             modifier = Modifier.size(28.dp)
         )
         Spacer(Modifier.height(8.dp))
+        // One line, made smaller until it fits: wrapped at a space, only the label's first word
+        // showed ("Game" for "Game folders"), from the left edge.
+        val fit = labelFit ?: remember(label) { LabelFit() }
         BasicText(
             text = label,
-            style = LemonType.Button.copy(fontSize = 14.sp),
-            maxLines = 1
+            style = LemonType.Button.copy(fontSize = fit.size, textAlign = TextAlign.Center),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { result ->
+                if (result.hasVisualOverflow) {
+                    fit.shrinkFrom(result.layoutInput.style.fontSize)
+                }
+            }
         )
     }
 }

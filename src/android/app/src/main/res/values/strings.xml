@@ -254,7 +254,7 @@
     <string name="lemon_view_details">View details</string>
     <string name="lemon_all_games">All games</string>
     <string name="lemon_game_folders">Game folders</string>
-    <string name="lemon_install_content">Install content</string>
+    <string name="lemon_manage_data">Manage data</string>
     <string name="lemon_more_options">More options</string>
     <string name="lemon_stat_games">Games</string>
     <string name="lemon_stat_playtime">Total playtime</string>
