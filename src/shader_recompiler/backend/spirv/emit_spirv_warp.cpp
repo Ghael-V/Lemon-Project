@@ -271,6 +271,14 @@ Id EmitQuadBroadcast(EmitContext& ctx, Id value, Id lane) {
 }
 
 Id EmitQuadSwap(EmitContext& ctx, Id value, Id direction) {
+    // A plain shuffle with the lane id xor the mask doesn't swap within the 2x2 quad on every
+    // driver (Adreno pairs other pixels), so use a real quad swap where quad operations exist.
+    if (ctx.profile.support_quad_shuffles) {
+        const Id result{
+            ctx.OpGroupNonUniformQuadBroadcast(ctx.U32[1], SubgroupScope(ctx), value, direction)};
+        ctx.quad_swap_ids.push_back(result.value);
+        return result;
+    }
     const Id xor_mask{ctx.OpIAdd(ctx.U32[1], direction, ctx.Const(1u))};
     return ctx.OpGroupNonUniformShuffleXor(ctx.U32[1], SubgroupScope(ctx), value, xor_mask);
 }

@@ -577,6 +577,28 @@ void SetupCapabilities(const Profile& profile, const Info& info, EmitContext& ct
     }
 }
 
+// Sirit has no OpGroupNonUniformQuadSwap: quad swaps are emitted as quad broadcasts, which have
+// the same operands, and their opcode is changed here (as Eden does, #4508).
+void PatchQuadSwaps(std::vector<u32>& code, std::span<const u32> quad_swap_ids) {
+    if (quad_swap_ids.empty()) {
+        return;
+    }
+    constexpr size_t header_words = 5;
+    for (size_t offset = header_words; offset + 2 < code.size();) {
+        const u32 word_count{code[offset] >> 16};
+        if (word_count == 0) {
+            return;
+        }
+        const auto opcode{static_cast<spv::Op>(code[offset] & 0xFFFFu)};
+        if (opcode == spv::Op::OpGroupNonUniformQuadBroadcast &&
+            std::ranges::find(quad_swap_ids, code[offset + 2]) != quad_swap_ids.end()) {
+            code[offset] =
+                (code[offset] & 0xFFFF0000u) | static_cast<u32>(spv::Op::OpGroupNonUniformQuadSwap);
+        }
+        offset += word_count;
+    }
+}
+
 void PatchPhiNodes(IR::Program& program, EmitContext& ctx) {
             // Flatten all leading PHIs from each block into a vector
             std::vector<IR::Inst*> phi_instructions;
@@ -617,7 +639,9 @@ std::vector<u32> EmitSPIRV(const Profile& profile, const RuntimeInfo& runtime_in
     SetupCapabilities(profile, program.info, ctx);
     SetupTransformFeedbackCapabilities(ctx, main);
     PatchPhiNodes(program, ctx);
-    return ctx.Assemble();
+    std::vector<u32> code{ctx.Assemble()};
+    PatchQuadSwaps(code, ctx.quad_swap_ids);
+    return code;
 }
 
 Id EmitPhi(EmitContext& ctx, IR::Inst* inst) {
