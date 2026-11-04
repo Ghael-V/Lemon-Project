@@ -61,6 +61,12 @@ constexpr u32 CurrentVersion = 10;
 constexpr size_t ChunkSize = 4096;
 constexpr u64 GuestPageSize = 0x1000;
 constexpr std::array<u8, ChunkSize> ZeroChunk{};
+// Capture() and Restore() go through a region this much at a time, so neither holds a whole region
+// in memory: the game's heap is one region of a few GB, and two or three copies of it at once made
+// Android kill the emulator on a device with less memory to spare. A multiple of ChunkSize.
+constexpr u64 SliceSize = 32ULL << 20;
+// How much of a region's flag+data stream Restore() reads from the file at a time.
+constexpr size_t ReadBlockSize = 8 << 20;
 
 // What the guest's memory refers to by name, as it was at the save: Restore() puts the live kernel
 // back under those names. Measured on Super Mario 3D World, dying and respawning changes exactly
@@ -408,6 +414,56 @@ bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64
     }
     return ok;
 }
+
+// Reads one region's flag+data stream from the file a block at a time.
+class EncodedReader {
+public:
+    EncodedReader(const Common::FS::IOFile& file_, std::vector<u8>& block_, u64 size)
+        : file{file_}, block{block_}, left{size} {
+        block.resize(ReadBlockSize);
+    }
+
+    // Makes `count` bytes available at Data(); false if the stream ends before that.
+    bool Fill(size_t count) {
+        if (end - pos >= count) {
+            return true;
+        }
+        std::memmove(block.data(), block.data() + pos, end - pos);
+        end -= pos;
+        pos = 0;
+        const auto want = static_cast<size_t>(std::min<u64>(left, block.size() - end));
+        if (want > 0) {
+            if (file.ReadSpan<u8>(std::span<u8>(block.data() + end, want)) != want) {
+                left = 0;
+                return false;
+            }
+            end += want;
+            left -= want;
+        }
+        return end - pos >= count;
+    }
+
+    const u8* Data() const {
+        return block.data() + pos;
+    }
+
+    void Advance(size_t count) {
+        pos += count;
+    }
+
+    // Moves the file past what is left of the stream.
+    bool SkipRest() {
+        return left == 0 ||
+               file.Seek(static_cast<s64>(left), Common::FS::SeekOrigin::CurrentPosition);
+    }
+
+private:
+    const Common::FS::IOFile& file;
+    std::vector<u8>& block;
+    u64 left;
+    size_t pos = 0;
+    size_t end = 0;
+};
 
 std::vector<SavedThread> CollectThreads(Core::System& system, Kernel::KProcess& process) {
     std::vector<Kernel::KThread*> threads;
@@ -997,10 +1053,9 @@ bool Capture(Core::System& system, const std::string& path) {
     ok = ok && file.WriteObject(region_count);
 
     std::vector<u8> buffer;
-    // Built up in memory and flushed with a single WriteSpan() per region, same call count as
-    // the old one-big-write approach - writing the flag+data stream one tiny piece at a time
-    // instead (one fwrite() per 4K chunk, ~800k+ calls for a real capture) made Capture() slow
-    // enough to look like a hang.
+    // Built up in memory and flushed with a single WriteSpan() per slice - writing the flag+data
+    // stream one tiny piece at a time instead (one fwrite() per 4K chunk, ~800k+ calls for a real
+    // capture) made Capture() slow enough to look like a hang.
     std::vector<u8> encoded;
     u64 data_bytes = 0;
     u64 zero_bytes = 0;
@@ -1009,43 +1064,62 @@ bool Capture(Core::System& system, const std::string& path) {
             break;
         }
 
-        buffer.resize(region.size);
-        // ReadBlockUnsafe(), not ReadBlock() - the regular path calls
-        // HandleRasterizerDownload() per chunk to sync with the GPU emulation's cache, and
-        // a savestate capture reads the whole multi-GB scannable footprint in one pass. The
-        // Lemon Cheater hit this exact issue first (see memory_search.cpp): forcing that
-        // much cache invalidation in one go visibly wrecks the game's own rendering
-        // performance in a way that persists until the game is reloaded, even though the
-        // capture itself never writes anything.
-        if (!memory.ReadBlockUnsafe(region.address, buffer.data(), region.size)) {
-            LOG_ERROR(Core, "SaveState::Capture: failed to read {} bytes at {:#x}", region.size,
-                       region.address);
-            ok = false;
-            break;
-        }
-
-        encoded.clear();
-        encoded.reserve(region.size + (region.size + ChunkSize - 1) / ChunkSize);
-        for (u64 offset = 0; offset < region.size; offset += ChunkSize) {
-            const size_t chunk_len =
-                static_cast<size_t>(std::min<u64>(ChunkSize, region.size - offset));
-            const u8* chunk = buffer.data() + offset;
-            const bool is_zero = std::memcmp(chunk, ZeroChunk.data(), chunk_len) == 0;
-
-            encoded.push_back(static_cast<u8>(is_zero ? 1 : 0));
-            if (is_zero) {
-                zero_bytes += chunk_len;
-            } else {
-                encoded.insert(encoded.end(), chunk, chunk + chunk_len);
-                data_bytes += chunk_len;
-            }
-        }
-
-        const auto encoded_size = static_cast<u64>(encoded.size());
         ok = ok && file.WriteObject(region.address);
         ok = ok && file.WriteObject(region.size);
-        ok = ok && file.WriteObject(encoded_size);
-        ok = ok && file.WriteSpan<u8>(encoded) == encoded.size();
+        // A region larger than a slice gets its stream's size once it is done. Each seek back costs
+        // a write to storage, and a game can have thousands of small regions, so those are
+        // written in one go.
+        const bool sliced = region.size > SliceSize;
+        const s64 size_position = sliced ? file.Tell() : 0;
+        u64 encoded_size = 0;
+        if (sliced) {
+            ok = ok && size_position >= 0 && file.WriteObject(encoded_size);
+        }
+        for (u64 slice = 0; ok && slice < region.size; slice += SliceSize) {
+            const u64 slice_size = std::min(SliceSize, region.size - slice);
+            const u64 slice_address = region.address + slice;
+            buffer.resize(slice_size);
+            // ReadBlockUnsafe(), not ReadBlock() - the regular path calls
+            // HandleRasterizerDownload() per chunk to sync with the GPU emulation's cache, and
+            // a savestate capture reads the whole multi-GB scannable footprint in one pass. The
+            // Lemon Cheater hit this exact issue first (see memory_search.cpp): forcing that
+            // much cache invalidation in one go visibly wrecks the game's own rendering
+            // performance in a way that persists until the game is reloaded, even though the
+            // capture itself never writes anything.
+            if (!memory.ReadBlockUnsafe(slice_address, buffer.data(), slice_size)) {
+                LOG_ERROR(Core, "SaveState::Capture: failed to read {} bytes at {:#x}", slice_size,
+                          slice_address);
+                ok = false;
+                break;
+            }
+
+            encoded.clear();
+            encoded.reserve(slice_size + (slice_size + ChunkSize - 1) / ChunkSize);
+            for (u64 offset = 0; offset < slice_size; offset += ChunkSize) {
+                const size_t chunk_len =
+                    static_cast<size_t>(std::min<u64>(ChunkSize, slice_size - offset));
+                const u8* chunk = buffer.data() + offset;
+                const bool is_zero = std::memcmp(chunk, ZeroChunk.data(), chunk_len) == 0;
+
+                encoded.push_back(static_cast<u8>(is_zero ? 1 : 0));
+                if (is_zero) {
+                    zero_bytes += chunk_len;
+                } else {
+                    encoded.insert(encoded.end(), chunk, chunk + chunk_len);
+                    data_bytes += chunk_len;
+                }
+            }
+
+            if (!sliced) {
+                ok = ok && file.WriteObject(static_cast<u64>(encoded.size()));
+            }
+            encoded_size += encoded.size();
+            ok = ok && file.WriteSpan<u8>(encoded) == encoded.size();
+        }
+        if (sliced) {
+            ok = ok && file.Seek(size_position) && file.WriteObject(encoded_size) &&
+                 file.Seek(0, Common::FS::SeekOrigin::End);
+        }
     }
 
     file.Close();
@@ -1628,8 +1702,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     std::vector<u8> live_buffer;
     u64 written_bytes = 0;
     std::vector<u8> buffer;
-    // Read back with a single ReadSpan() per region - same reasoning as Capture()'s encoded
-    // buffer, avoids one small fread() per 4K chunk.
+    // Read back a block at a time - same reasoning as Capture()'s encoded buffer, avoids one small
+    // fread() per 4K chunk.
     std::vector<u8> encoded;
     u32 sleeping_stack_regions = 0;
     u32 unmapped_regions = 0;
@@ -1643,64 +1717,75 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             return false;
         }
 
-        encoded.resize(encoded_size);
-        if (file.ReadSpan<u8>(encoded) != encoded_size) {
+        if (is_excluded_stack(address, size)) {
+            LOG_DEBUG(Core,
+                      "SaveState::Restore: leaving {} byte(s) at {:#x} untouched - owned by a "
+                      "thread still asleep in a kernel wait",
+                      size, address);
+            sleeping_stack_regions++;
+            if (!file.Seek(static_cast<s64>(encoded_size),
+                           Common::FS::SeekOrigin::CurrentPosition)) {
+                LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
+                return false;
+            }
+            continue;
+        }
+
+        EncodedReader reader{file, encoded, encoded_size};
+        bool fully_mapped = true;
+        for (u64 slice = 0; slice < size; slice += SliceSize) {
+            const u64 slice_size = std::min(SliceSize, size - slice);
+            buffer.resize(slice_size);
+            for (u64 offset = 0; offset < slice_size; offset += ChunkSize) {
+                const size_t chunk_len =
+                    static_cast<size_t>(std::min<u64>(ChunkSize, slice_size - offset));
+                if (!reader.Fill(1)) {
+                    LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
+                    return false;
+                }
+
+                const u8 flag = *reader.Data();
+                reader.Advance(1);
+                u8* chunk = buffer.data() + offset;
+                if (flag != 0) {
+                    std::memset(chunk, 0, chunk_len);
+                } else {
+                    if (!reader.Fill(chunk_len)) {
+                        LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
+                        return false;
+                    }
+                    std::memcpy(chunk, reader.Data(), chunk_len);
+                    reader.Advance(chunk_len);
+                }
+            }
+
+            if (!handle_map.empty()) {
+                translated_words += TranslateHandles(buffer.data(), buffer.size(), handle_map,
+                                                     handle_low, handle_high);
+            }
+
+            // Only what differs from the memory as it is now is written, through WriteBlock() so
+            // the GPU emulation is told those pages changed. Writing everything that way also told
+            // it that every page changed, including the ones backing what the GPU itself drew or
+            // computed when the level loaded, which it then threw away and reloaded from guest
+            // memory that never held it (Garfield: the HUD came back, the 3D scene stayed black).
+            fully_mapped = WriteChanged(memory, address + slice, buffer.data(), slice_size,
+                                        live_buffer, written_bytes, live_message_buffers) &&
+                           fully_mapped;
+        }
+        if (!reader.SkipRest()) {
             LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
             return false;
         }
 
-        buffer.resize(size);
-        size_t encoded_pos = 0;
-        for (u64 offset = 0; offset < size; offset += ChunkSize) {
-            const size_t chunk_len = static_cast<size_t>(std::min<u64>(ChunkSize, size - offset));
-            if (encoded_pos >= encoded.size()) {
-                LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
-                return false;
-            }
-
-            const u8 flag = encoded[encoded_pos++];
-            u8* chunk = buffer.data() + offset;
-            if (flag != 0) {
-                std::memset(chunk, 0, chunk_len);
-            } else {
-                if (encoded_pos + chunk_len > encoded.size()) {
-                    LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
-                    return false;
-                }
-                std::memcpy(chunk, encoded.data() + encoded_pos, chunk_len);
-                encoded_pos += chunk_len;
-            }
-        }
-
-        if (!handle_map.empty() && !is_excluded_stack(address, size)) {
-            translated_words += TranslateHandles(buffer.data(), buffer.size(), handle_map,
-                                                 handle_low, handle_high);
-        }
-
-        if (is_excluded_stack(address, size)) {
-            LOG_DEBUG(Core,
-                       "SaveState::Restore: leaving {} byte(s) at {:#x} untouched - owned by a "
-                       "thread still asleep in a kernel wait",
-                       size, address);
-            sleeping_stack_regions++;
-            continue;
-        }
-
         // A region that is (in part) still not mapped after the undo above is skipped; the pages of
         // it that are mapped were written.
-        // Only what differs from the memory as it is now is written, through WriteBlock() so the
-        // GPU emulation is told those pages changed. Writing everything that way also told it that
-        // every page changed, including the ones backing what the GPU itself drew or computed when
-        // the level loaded, which it then threw away and reloaded from guest memory that never
-        // held it (Garfield: the HUD came back, the 3D scene stayed black).
-        if (!WriteChanged(memory, address, buffer.data(), size, live_buffer, written_bytes,
-                          live_message_buffers)) {
+        if (!fully_mapped) {
             LOG_WARNING(Core,
                        "SaveState::Restore: {} byte(s) at {:#x} are no longer fully mapped - "
                        "skipping (already-mapped pages within this region were still written)",
                        size, address);
             unmapped_regions++;
-            continue;
         }
     }
 
