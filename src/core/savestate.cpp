@@ -676,14 +676,22 @@ bool IsReissuedWait(u32 saved_word, u32 saved_svc_id) {
 }
 
 // The timeout (in ns) a thread asleep in a kernel call at the save made the call with, for the
-// calls that take one in x3 (WaitSynchronization, WaitProcessWideKeyAtomic, WaitForAddress).
-std::optional<s64> SavedCallTimeout(u32 saved_svc_id, const Kernel::Svc::ThreadContext& context) {
+// calls that take one (WaitSynchronization, WaitProcessWideKeyAtomic, WaitForAddress). A 64-bit
+// game passes it in x3; a 32-bit game splits it over two registers, r0 (low half) and r3 for
+// WaitSynchronization, r3 and r4 for the others. Read from r3 alone, a 32-bit game's "no timeout"
+// (-1) became 4294 ms, and threads waiting for good woke timed out 4.3 s after the load.
+std::optional<s64> SavedCallTimeout(u32 saved_svc_id, const Kernel::Svc::ThreadContext& context,
+                                    bool is_64bit) {
     using Kernel::Svc::SvcId;
+    const auto split = [&context](size_t low, size_t high) {
+        return static_cast<s64>((context.r[low] & 0xFFFFFFFF) | (context.r[high] << 32));
+    };
     switch (static_cast<SvcId>(saved_svc_id)) {
     case SvcId::WaitSynchronization:
+        return is_64bit ? static_cast<s64>(context.r[3]) : split(0, 3);
     case SvcId::WaitProcessWideKeyAtomic:
     case SvcId::WaitForAddress:
-        return static_cast<s64>(context.r[3]);
+        return is_64bit ? static_cast<s64>(context.r[3]) : split(3, 4);
     default:
         return std::nullopt;
     }
@@ -1751,7 +1759,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         // would have. A worker asleep with a timeout, where at the save it waited without one,
         // woke timed out right after the load, and the game aborted on that result (2001-0117).
         if (plan.slots[i] == SlotPlan::AsSaved && IsParkedInKernel(*live_threads[i])) {
-            if (const auto timeout = SavedCallTimeout(saved_threads[i].svc_id, context)) {
+            if (const auto timeout =
+                    SavedCallTimeout(saved_threads[i].svc_id, context, process->Is64Bit())) {
                 auto& kernel = system.Kernel();
                 const s64 now = kernel.HardwareTimer().GetTick();
                 const s64 was = live_threads[i]->SetWaitTimeoutForRestore(kernel, *timeout);
