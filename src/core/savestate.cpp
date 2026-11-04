@@ -6,6 +6,7 @@
 #include <bit>
 #include <chrono>
 #include <cstring>
+#include <iterator>
 #include <optional>
 #include <shared_mutex>
 #include <span>
@@ -20,6 +21,7 @@
 #include "common/logging.h"
 #include "common/scope_exit.h"
 #include "core/core.h"
+#include "core/device_memory.h"
 #include "core/hle/ipc.h"
 #include "core/hle/kernel/k_auto_object.h"
 #include "core/hle/kernel/k_handle_table.h"
@@ -378,12 +380,77 @@ bool WriteExcept(Core::Memory::Memory& memory, u64 address, const u8* data, u64 
     return ok;
 }
 
+// Where the backing of guest memory was given back to the system (see
+// HostMemory::DiscardBackingRegion), found once for a whole save or load while the game is paused.
+// Asking for each page instead took seconds for a game whose memory is scattered over the backing:
+// each answer scans the backing up to the end of the run.
+class BackingHoles {
+public:
+    explicit BackingHoles(Common::HostMemory& backing) {
+        const size_t size = backing.BackingSize();
+        for (size_t offset = 0; offset < size;) {
+            const auto run = backing.FindBackingRun(offset);
+            if (!run || run->second <= offset) {
+                break; // can't be told: the rest reads as usual
+            }
+            if (run->first) {
+                holes.emplace_back(offset, run->second);
+            }
+            offset = run->second;
+        }
+    }
+
+    bool Contains(size_t offset) const {
+        const auto next = std::ranges::upper_bound(holes, offset, {}, &Hole::first);
+        return next != holes.begin() && offset < std::prev(next)->second;
+    }
+
+private:
+    using Hole = std::pair<size_t, size_t>;
+    std::vector<Hole> holes;
+};
+
+// Reads guest memory like ReadBlockUnsafe(), except that pages whose backing was given back to the
+// system read as zero without being touched: reading one would make it resident again, and most
+// of a game's heap is never written.
+bool ReadSkippingHoles(Core::System& system, const BackingHoles& holes, u64 address, u8* out,
+                       u64 size) {
+    auto& memory = system.ApplicationMemory();
+    auto& backing = system.DeviceMemory().buffer;
+    const u8* const base = backing.BackingBasePointer();
+    bool ok = true;
+    u64 read_from = 0;
+    for (u64 pos = 0; pos < size;) {
+        const u64 page_end = std::min(size, Common::AlignDown(address + pos, GuestPageSize) +
+                                                GuestPageSize - address);
+        const u8* const ptr = memory.GetPointerSilent(address + pos);
+        const bool hole = ptr != nullptr && ptr >= base && ptr < base + backing.BackingSize() &&
+                          holes.Contains(static_cast<size_t>(ptr - base));
+        if (hole) {
+            if (pos > read_from) {
+                ok =
+                    memory.ReadBlockUnsafe(address + read_from, out + read_from, pos - read_from) &&
+                    ok;
+            }
+            std::memset(out + pos, 0, page_end - pos);
+            read_from = page_end;
+        }
+        pos = page_end;
+    }
+    if (size > read_from) {
+        ok = memory.ReadBlockUnsafe(address + read_from, out + read_from, size - read_from) && ok;
+    }
+    return ok;
+}
+
 // Writes the 4 KiB chunks of `data` that differ from guest memory, in runs, leaving the `keep`
 // ranges as they are. A false return means part of the range is not mapped.
-bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
-                  std::vector<u8>& live, u64& written, std::span<const std::pair<u64, u64>> keep) {
+bool WriteChanged(Core::System& system, const BackingHoles& holes, u64 address, const u8* data,
+                  u64 size, std::vector<u8>& live, u64& written,
+                  std::span<const std::pair<u64, u64>> keep) {
+    auto& memory = system.ApplicationMemory();
     live.resize(size);
-    if (!memory.ReadBlockUnsafe(address, live.data(), size)) {
+    if (!ReadSkippingHoles(system, holes, address, live.data(), size)) {
         return WriteExcept(memory, address, data, size, keep);
     }
     bool ok = true;
@@ -956,7 +1023,6 @@ bool Capture(Core::System& system, const std::string& path) {
         return false;
     }
 
-    auto& memory = system.ApplicationMemory();
     auto& page_table = process->GetPageTable();
 
     std::vector<Kernel::Svc::ThreadContext> thread_contexts;
@@ -1004,6 +1070,7 @@ bool Capture(Core::System& system, const std::string& path) {
     std::vector<u8> encoded;
     u64 data_bytes = 0;
     u64 zero_bytes = 0;
+    const BackingHoles holes{system.DeviceMemory().buffer};
     for (const auto& region : regions) {
         if (!ok) {
             break;
@@ -1017,7 +1084,7 @@ bool Capture(Core::System& system, const std::string& path) {
         // much cache invalidation in one go visibly wrecks the game's own rendering
         // performance in a way that persists until the game is reloaded, even though the
         // capture itself never writes anything.
-        if (!memory.ReadBlockUnsafe(region.address, buffer.data(), region.size)) {
+        if (!ReadSkippingHoles(system, holes, region.address, buffer.data(), region.size)) {
             LOG_ERROR(Core, "SaveState::Capture: failed to read {} bytes at {:#x}", region.size,
                        region.address);
             ok = false;
@@ -1625,6 +1692,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                  live_message_buffers.size());
     }
 
+    const BackingHoles holes{system.DeviceMemory().buffer};
     std::vector<u8> live_buffer;
     u64 written_bytes = 0;
     std::vector<u8> buffer;
@@ -1693,7 +1761,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         // every page changed, including the ones backing what the GPU itself drew or computed when
         // the level loaded, which it then threw away and reloaded from guest memory that never
         // held it (Garfield: the HUD came back, the 3D scene stayed black).
-        if (!WriteChanged(memory, address, buffer.data(), size, live_buffer, written_bytes,
+        if (!WriteChanged(system, holes, address, buffer.data(), size, live_buffer, written_bytes,
                           live_message_buffers)) {
             LOG_WARNING(Core,
                        "SaveState::Restore: {} byte(s) at {:#x} are no longer fully mapped - "

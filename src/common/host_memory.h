@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 
@@ -54,11 +55,28 @@ public:
 
     void ClearBackingRegion(size_t physical_offset, size_t length, u32 fill_value);
 
+    /**
+     * Gives the pages of a page-aligned backing range back to the system: they read as zero and
+     * take no memory until written. False where the platform can't, the range then unchanged.
+     */
+    bool DiscardBackingRegion(size_t physical_offset, size_t length);
+
+    /**
+     * Finds the run of backing memory that starts at an offset: whether it is a hole (pages given
+     * back to the system, which read as zero, and which a read would make resident) and where the
+     * run ends. Empty where that can't be told.
+     */
+    std::optional<std::pair<bool, size_t>> FindBackingRun(size_t physical_offset);
+
     [[nodiscard]] u8* BackingBasePointer() noexcept {
         return backing_base;
     }
     [[nodiscard]] const u8* BackingBasePointer() const noexcept {
         return backing_base;
+    }
+
+    [[nodiscard]] size_t BackingSize() const noexcept {
+        return backing_size;
     }
 
     [[nodiscard]] u8* VirtualBasePointer() noexcept {

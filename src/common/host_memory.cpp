@@ -25,6 +25,7 @@
 #include "common/scope_exit.h"
 
 #if defined(__linux__)
+#include <linux/falloc.h>
 #include <sys/random.h>
 #elif defined(__APPLE__)
 #include <sys/types.h>
@@ -648,6 +649,32 @@ public:
         ASSERT_MSG(ret == 0, "mprotect failed: {}", strerror(errno));
     }
 
+#if defined(__linux__)
+    bool Discard(size_t offset, size_t length) {
+        return fd >= 0 && fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                                    static_cast<off_t>(offset), static_cast<off_t>(length)) == 0;
+    }
+
+    std::optional<std::pair<bool, size_t>> FindRun(size_t offset) {
+        if (fd < 0) {
+            return std::nullopt;
+        }
+        const off_t data = lseek(fd, static_cast<off_t>(offset), SEEK_DATA);
+        if (data < 0) {
+            // No data at or after the offset: a hole up to the end.
+            return errno == ENXIO ? std::optional{std::pair{true, backing_size}} : std::nullopt;
+        }
+        if (static_cast<size_t>(data) > offset) {
+            return std::pair{true, static_cast<size_t>(data)};
+        }
+        const off_t hole = lseek(fd, static_cast<off_t>(offset), SEEK_HOLE);
+        if (hole < 0) {
+            return std::nullopt;
+        }
+        return std::pair{false, static_cast<size_t>(hole)};
+    }
+#endif
+
     void EnableDirectMappedAddress() {
         virtual_base = nullptr;
     }
@@ -805,7 +832,38 @@ void HostMemory::Protect(size_t virtual_offset, size_t length, MemoryPermission 
 }
 
 void HostMemory::ClearBackingRegion(size_t physical_offset, size_t length, u32 fill_value) {
+    // Zero whole pages by giving them back to the system where it can: a memset would make every
+    // page of a game's heap resident at once, though most of a heap is never touched. Small ranges
+    // (thread stacks, small mappings, made and dropped all the time) are cheaper to memset.
+    constexpr size_t MinDiscardSize = 0x10000;
+    if (fill_value == 0 && length >= MinDiscardSize) {
+        const size_t begin = AlignUp(physical_offset, PageAlignment);
+        const size_t end = AlignDown(physical_offset + length, PageAlignment);
+        if (begin < end && DiscardBackingRegion(begin, end - begin)) {
+            std::memset(backing_base + physical_offset, 0, begin - physical_offset);
+            std::memset(backing_base + end, 0, physical_offset + length - end);
+            return;
+        }
+    }
     std::memset(backing_base + physical_offset, fill_value, length);
+}
+
+bool HostMemory::DiscardBackingRegion(size_t physical_offset, size_t length) {
+#if defined(__linux__)
+    if (impl) {
+        return impl->Discard(physical_offset, length);
+    }
+#endif
+    return false;
+}
+
+std::optional<std::pair<bool, size_t>> HostMemory::FindBackingRun(size_t physical_offset) {
+#if defined(__linux__)
+    if (impl) {
+        return impl->FindRun(physical_offset);
+    }
+#endif
+    return std::nullopt;
 }
 
 void HostMemory::EnableDirectMappedAddress() {
