@@ -70,6 +70,7 @@ public:
         NoSafeMoment = 3, // a lock handoff was in progress for the whole wait; nothing was changed
         GameLoading = 4,  // threads of the save ended and are not back yet; nothing was changed
         NotThisSession = 5, // no save made since the game started; nothing was changed
+        MovedPast = 6, // the game has moved past the save, no look will match it; nothing changed
     };
     QuickLoadResult QuickLoadState();
     std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,

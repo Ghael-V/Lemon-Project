@@ -819,6 +819,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     bool restored = false;
     bool no_safe_moment = false;
     bool threads_missing = false;
+    bool moved_past = false;
     std::optional<QuickStateAudioHold> audio_hold;
     for (int attempt = 0; attempt < MaxTries; attempt++) {
         m_system.Pause();
@@ -848,6 +849,10 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
             // saved in: the game is between scenes (a death screen can end a level's workers
             // until the level loads again).
             threads_missing = check.ended_blocked;
+            // Or the save holds a thread that had already ended then, and the game has moved on:
+            // waiting will not help (seen when a save made during a game's opening video was loaded
+            // after it), only a new save will.
+            moved_past = check.moved_past;
             break;
         }
 
@@ -881,7 +886,13 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     }
     if (no_safe_moment) {
         LOG_WARNING(Frontend, "Quick Load: no safe moment found{}, nothing was changed",
-                    threads_missing ? " (threads of the save have ended since)" : "");
+                    moved_past        ? " (a thread that had ended at the save is in the way: "
+                                        "the game has moved past the save)"
+                    : threads_missing ? " (threads of the save have ended since)"
+                                      : "");
+        if (moved_past) {
+            return QuickLoadResult::MovedPast;
+        }
         return threads_missing ? QuickLoadResult::GameLoading : QuickLoadResult::NoSafeMoment;
     }
     if (restored) {

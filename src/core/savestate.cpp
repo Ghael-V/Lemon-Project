@@ -619,6 +619,7 @@ struct LoadPlan {
     std::vector<Kernel::KThread*> extra; // live threads in a slot the save does not have
     bool ok = true;
     bool ended_blocked = false; // a saved thread has ended and cannot be created again
+    bool moved_past = false;    // see LoadCheck::moved_past
     std::string blocked;        // for the log
 };
 
@@ -810,6 +811,9 @@ LoadPlan PlanLoad(Core::System& system, Kernel::KProcess& process,
         if (thread == nullptr) {
             plan.ended_blocked = true;
         }
+        if (StateOf(saved_signature[i]) == static_cast<u32>(Kernel::ThreadState::Terminated)) {
+            plan.moved_past = true;
+        }
         if (!plan.blocked.empty()) {
             plan.blocked += "; ";
         }
@@ -848,6 +852,7 @@ LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signatur
     check.ok = plan.ok;
     check.ended = static_cast<u32>(std::ranges::count(plan.live, nullptr));
     check.ended_blocked = plan.ended_blocked;
+    check.moved_past = plan.moved_past;
     check.rebuilt = static_cast<u32>(std::ranges::count_if(plan.slots, [](SlotPlan slot) {
         return slot == SlotPlan::Reuse || slot == SlotPlan::Recreate;
     }));
