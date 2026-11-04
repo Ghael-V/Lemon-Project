@@ -192,7 +192,8 @@ object NativeLibrary {
     external fun pauseEmulation()
 
     /**
-     * Captures CPU register state and process memory to a single quicksave slot.
+     * Captures CPU register state and process memory to a new quicksave slot after the last one;
+     * the oldest slots are deleted to keep as many as IntSetting.QUICK_SAVE_SLOTS says.
      * Same-session only - does not survive closing the game. Returns one of the QUICK_SAVE_*
      * results; it can wait up to about three seconds for a safe moment.
      */
@@ -201,10 +202,11 @@ object NativeLibrary {
     const val QUICK_SAVE_FAILED = 0 // the save could not be written
     const val QUICK_SAVE_SAVED = 1 // saved
     const val QUICK_SAVE_NO_SAFE_MOMENT = 2 // a lock handoff never ended; nothing was saved
+    const val QUICK_SAVE_NO_SPACE = 3 // not enough free storage; nothing was saved
 
     /**
-     * Restores CPU register state and process memory from the quicksave slot. Returns one of the
-     * QUICK_LOAD_* results.
+     * Restores CPU register state and process memory from the last quicksave slot. Returns one of
+     * the QUICK_LOAD_* results.
      */
     external fun quickLoadState(): Int
 
@@ -214,6 +216,28 @@ object NativeLibrary {
     const val QUICK_LOAD_NO_SAFE_MOMENT = 3 // a lock handoff never ended; nothing was changed
     const val QUICK_LOAD_GAME_LOADING = 4 // threads of the save are not back yet; nothing was changed
     const val QUICK_LOAD_NOT_THIS_SESSION = 5 // no save made since the game started
+
+    /**
+     * Loads the quicksave slot [id] (see getQuickSaveSlots) like quickLoadState. Once loaded, the
+     * slots after it are deleted, and it is the last one.
+     */
+    external fun quickLoadSlot(id: Long): Int
+
+    /**
+     * The quicksave slots, oldest first (quickLoadState loads the last one): three numbers each,
+     * its id, when it was made (Unix ms) and whether it can still be loaded (1 or 0). Quick: does
+     * not wait for a save or load.
+     */
+    external fun getQuickSaveSlots(): LongArray
+
+    /** Where the picture of the quicksave slot [id] is kept. */
+    external fun quickSaveThumbnailPath(id: Long): String
+
+    /**
+     * The game's picture at the last quicksave, as RGBA of getAppletCaptureWidth() by
+     * getAppletCaptureHeight(), handed over once; empty if there is none.
+     */
+    external fun takeQuickSaveThumbnail(): ByteArray
 
     /**
      * Scans all live guest process memory for a 4-byte value. [valueType] 0 reads memory as a

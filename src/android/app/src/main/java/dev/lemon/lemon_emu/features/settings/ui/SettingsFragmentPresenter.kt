@@ -500,6 +500,9 @@ class SettingsFragmentPresenter(
             add(IntSetting.AUDIO_OUTPUT_ENGINE.key)
             add(ByteSetting.AUDIO_VOLUME.key)
 
+            add(HeaderSetting(R.string.emulation_quick_save_state))
+            add(IntSetting.QUICK_SAVE_SLOTS.key)
+
             add(HeaderSetting(R.string.applets_menu))
             add(IntSetting.SWKBD_APPLET.key)
             add(BooleanSetting.ENABLE_OVERLAY.key)

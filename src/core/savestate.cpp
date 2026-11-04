@@ -6,6 +6,8 @@
 #include <bit>
 #include <chrono>
 #include <cstring>
+#include <map>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <span>
@@ -471,6 +473,30 @@ thread_local ServiceGateHold* t_gate_hold = nullptr;
 bool TakeServiceGate(std::unique_lock<std::shared_timed_mutex>& gate) {
     return CloseServiceGate(gate, std::chrono::milliseconds(500));
 }
+
+// The saves made by Capture, by file: the moment each was made (UndoJournal::Mark), which a load
+// of it undoes the journals back to, and whether a load of an earlier save went back past it.
+struct SaveMark {
+    u64 mark;
+    bool loaded_past;
+};
+std::mutex save_marks_mutex;
+std::map<std::string, SaveMark> save_marks;
+
+std::optional<SaveMark> FindSaveMark(const std::string& path) {
+    std::scoped_lock lock{save_marks_mutex};
+    const auto it = save_marks.find(path);
+    if (it == save_marks.end() || !UndoJournal::InThisRun(it->second.mark)) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+// Whether the three journals can undo everything since the save made at `mark`.
+bool CanUndoTo(u64 mark) {
+    return UndoJournal::Memory().CanUndoTo(mark) && UndoJournal::Gpu().CanUndoTo(mark) &&
+           UndoJournal::Services().CanUndoTo(mark);
+}
 } // namespace
 
 bool CloseServiceGate(std::unique_lock<std::shared_timed_mutex>& gate,
@@ -855,9 +881,22 @@ LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signatur
     return check;
 }
 
-bool HasSaveFromThisSession() {
-    return UndoJournal::Memory().IsRecording() && UndoJournal::Gpu().IsRecording() &&
-           UndoJournal::Services().IsRecording();
+bool HasSaveFromThisSession(const std::string& path) {
+    const auto save = FindSaveMark(path);
+    return save && !save->loaded_past;
+}
+
+bool CanStillLoad(const std::string& path) {
+    const auto save = FindSaveMark(path);
+    return save && !save->loaded_past && CanUndoTo(save->mark);
+}
+
+void DiscardSave(const std::string& path) {
+    std::scoped_lock lock{save_marks_mutex};
+    save_marks.erase(path);
+    if (Common::FS::Exists(path) && !Common::FS::RemoveFile(path)) {
+        LOG_WARNING(Core, "SaveState::DiscardSave: could not delete '{}'", path);
+    }
 }
 
 bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vector<u64>* tls,
@@ -1069,10 +1108,23 @@ bool Capture(Core::System& system, const std::string& path) {
         return false;
     }
 
-    // From now on, remember how to put back to this moment what a savestate does not hold.
-    UndoJournal::Memory().Start();
-    UndoJournal::Gpu().Start();
-    UndoJournal::Services().Start();
+    // From now on, remember how to put back to this moment what a savestate does not hold. What
+    // was recorded before the oldest other save that can still be loaded is no longer needed.
+    const u64 mark = UndoJournal::Mark();
+    u64 keep_from = mark;
+    {
+        std::scoped_lock lock{save_marks_mutex};
+        for (const auto& [other_path, other] : save_marks) {
+            if (other_path != path && !other.loaded_past && UndoJournal::InThisRun(other.mark) &&
+                CanUndoTo(other.mark)) {
+                keep_from = std::min(keep_from, other.mark);
+            }
+        }
+        save_marks[path] = {mark, false};
+    }
+    UndoJournal::Memory().Start(mark, keep_from);
+    UndoJournal::Gpu().Start(mark, keep_from);
+    UndoJournal::Services().Start(mark, keep_from);
 
     LOG_INFO(Core,
               "SaveState::Capture: saved {} thread(s), {} region(s) to '{}' ({} byte(s) written, "
@@ -1454,13 +1506,24 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     auto& memory_journal = UndoJournal::Memory();
     auto& gpu_journal = UndoJournal::Gpu();
     auto& services_journal = UndoJournal::Services();
-    if (!memory_journal.CanUndo() || !gpu_journal.CanUndo() || !services_journal.CanUndo()) {
+    const auto save = FindSaveMark(path);
+    if (!save || save->loaded_past) {
+        LOG_WARNING(Core, "SaveState::Restore: refusing '{}': {}", path,
+                    save ? "a load of an earlier save went back past it"
+                         : "it was not made since the game started");
+        if (failure != nullptr) {
+            *failure = RestoreFailure::MemoryLayoutChanged;
+        }
+        return false;
+    }
+    const u64 mark = save->mark;
+    if (!CanUndoTo(mark)) {
         LOG_WARNING(Core,
                     "SaveState::Restore: refusing '{}': the changes since the save cannot be "
                     "undone (memory journal {}, GPU journal {}, services journal {})",
-                    path, memory_journal.CanUndo() ? "ok" : "unusable",
-                    gpu_journal.CanUndo() ? "ok" : "unusable",
-                    services_journal.CanUndo() ? "ok" : "unusable");
+                    path, memory_journal.CanUndoTo(mark) ? "ok" : "unusable",
+                    gpu_journal.CanUndoTo(mark) ? "ok" : "unusable",
+                    services_journal.CanUndoTo(mark) ? "ok" : "unusable");
         if (failure != nullptr) {
             *failure = RestoreFailure::MemoryLayoutChanged;
         }
@@ -1473,7 +1536,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             for (u64 page = Common::AlignDown(address, GuestPageSize); page < address + size;
                  page += GuestPageSize) {
                 if (!memory.IsValidVirtualAddress(page) &&
-                    !memory_journal.WillRestore(page, GuestPageSize) &&
+                    !memory_journal.WillRestore(page, GuestPageSize, mark) &&
                     std::ranges::find(recreated_tls_pages, page) == recreated_tls_pages.end()) {
                     return false;
                 }
@@ -1483,7 +1546,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         for (const auto& [address, size] : region_ranges) {
             if (is_excluded_stack(address, size) ||
                 memory.IsValidVirtualAddressRange(address, size) ||
-                memory_journal.WillRestore(address, size) ||
+                memory_journal.WillRestore(address, size, mark) ||
                 (!recreated_tls_pages.empty() && will_be_mapped(address, size))) {
                 continue;
             }
@@ -1519,14 +1582,24 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         }
     }
     {
-        const size_t memory_steps = memory_journal.Size();
-        const size_t gpu_steps = gpu_journal.Size();
-        const size_t services_steps = services_journal.Size();
+        const size_t memory_steps = memory_journal.Size(mark);
+        const size_t gpu_steps = gpu_journal.Size(mark);
+        const size_t services_steps = services_journal.Size(mark);
         // Newest first across the three journals, not one journal after the other: see
         // UndoJournal::UndoAllTogether.
         const std::vector<bool> undone = UndoJournal::UndoAllTogether(
             {std::addressof(memory_journal), std::addressof(gpu_journal),
-             std::addressof(services_journal)});
+             std::addressof(services_journal)},
+            mark);
+        // Saves made after this one are gone with what was undone.
+        {
+            std::scoped_lock lock{save_marks_mutex};
+            for (auto& [other_path, other] : save_marks) {
+                if (other.mark > mark) {
+                    other.loaded_past = true;
+                }
+            }
+        }
         const bool memory_ok = undone[0];
         const bool gpu_ok = undone[1];
         const bool services_ok = undone[2];

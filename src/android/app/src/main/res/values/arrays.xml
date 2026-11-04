@@ -321,6 +321,19 @@
         <item>2</item>
     </integer-array>
 
+    <string-array name="quickSaveSlotsNames">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <integer-array name="quickSaveSlotsValues">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </integer-array>
+
     <string-array name="statsPosition">
         <item>@string/overlay_position_top_left</item>
         <item>@string/overlay_position_center_top</item>

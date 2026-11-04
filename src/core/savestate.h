@@ -20,6 +20,7 @@ namespace Core::SaveState {
 // scannable memory to a file at `path`, and starts following, in UndoJournal, the changes the game
 // then makes to state the file does not hold. The caller must have paused the system and waited for
 // a settled moment (see WaitSignature). Same session only: the journals do not outlive the app.
+// Saves to different files are followed side by side (Quick Save slots).
 [[nodiscard]] bool Capture(Core::System& system, const std::string& path);
 
 // Restores a file written by Capture(): undoes the changes followed since the save (memory
@@ -151,10 +152,18 @@ struct LoadCheck {
                                   const std::vector<u64>& saved_tls,
                                   const std::vector<u32>& saved_svc, bool allow_rebuild);
 
-// Whether a save was made since the game started: a save made before it (an earlier run of the
-// game, or of the app) cannot be loaded, as nothing that changed since was followed (see
-// UndoJournal).
-[[nodiscard]] bool HasSaveFromThisSession();
+// Whether the file at `path` holds a save made since the game started: a save made before it (an
+// earlier run of the game, or of the app) cannot be loaded, as nothing that changed since was
+// followed (see UndoJournal). Nor can a save that a load of an earlier save went back past: what
+// changed between the two was undone, not kept to be done again.
+[[nodiscard]] bool HasSaveFromThisSession(const std::string& path);
+
+// HasSaveFromThisSession, and everything the game changed since the save can still be undone: a
+// load of it is not refused for that (it can still have to wait for the game's threads).
+[[nodiscard]] bool CanStillLoad(const std::string& path);
+
+// Deletes the save at `path`, file included.
+void DiscardSave(const std::string& path);
 
 // Reads the signature stored in a savestate file without loading anything else, and the
 // thread-local storage address of each saved thread if asked, with (when `svc` is also given) the

@@ -81,6 +81,11 @@ namespace AndroidSettings {
                                                          Settings::Category::Android};
         Settings::Setting<std::string> hotkey_quick_load{linkage, "", "hotkey_quick_load",
                                                          Settings::Category::Android};
+        Settings::Setting<std::string> hotkey_load_slot{linkage, "", "hotkey_load_slot",
+                                                        Settings::Category::Android};
+        // How many Quick Saves are kept (1 to 4), each about the size of the game's memory.
+        Settings::Setting<s32> quick_save_slots{linkage, 2, "quick_save_slots",
+                                                Settings::Category::Android};
         Settings::Setting<std::string> hotkey_toggle_stats_overlay{
             linkage, "", "hotkey_toggle_stats_overlay", Settings::Category::Android};
         Settings::Setting<std::string> hotkey_toggle_soc_overlay{

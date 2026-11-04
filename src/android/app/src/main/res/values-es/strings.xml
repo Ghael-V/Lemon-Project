@@ -1464,6 +1464,23 @@
     <string name="loader_requires_firmware_description"><![CDATA[Es posible que este juego necesite el firmware para funcionar bien y no tienes ninguno instalado. Instala el firmware antes de iniciarlo, o pulsa \"Aceptar\" para iniciarlo de todos modos.]]></string>
     <string name="emulation_quick_save_state">Guardado rápido</string>
     <string name="emulation_quick_load_state">Carga rápida</string>
+    <string name="emulation_load_slot">Cargar guardado</string>
+    <string name="emulation_load_slot_title">Cargar un guardado</string>
+    <string name="emulation_load_slot_gone">No se puede cargar. El juego ya ha avanzado más allá de este guardado.</string>
+    <string name="emulation_load_slot_just_now">Ahora mismo</string>
+    <string name="emulation_load_slot_quick_load">Carga rápida · %1$s</string>
+    <string name="emulation_load_slot_yesterday_at">ayer, %1$s</string>
+    <string name="emulation_load_slot_confirm_title">¿Cargar el guardado de %1$s?</string>
+    <plurals name="emulation_load_slot_confirm_message">
+        <item quantity="one">Las cargas solo pueden retroceder, así que se borrará el guardado que hiciste después de este.</item>
+        <item quantity="many">Las cargas solo pueden retroceder, así que se borrarán los %d guardados que hiciste después de este.</item>
+        <item quantity="other">Las cargas solo pueden retroceder, así que se borrarán los %d guardados que hiciste después de este.</item>
+    </plurals>
+    <string name="emulation_load_slot_load">Cargar</string>
+    <string name="emulation_quick_save_state_no_space">No hay espacio suficiente para un guardado rápido</string>
+    <string name="hotkey_load_slot">Cargar guardado</string>
+    <string name="quick_save_slots">Guardados rápidos que conservar</string>
+    <string name="quick_save_slots_description">Cuántos guardados rápidos conservar. Cada uno ocupa de 1 a 2 GB de almacenamiento.</string>
     <string name="hotkeys">Atajos del mando</string>
     <string name="hotkeys_need_controller">Los atajos necesitan un mando físico</string>
     <string name="hotkey_toggle_stats_overlay">Mostrar u ocultar las estadísticas de rendimiento</string>
@@ -1483,7 +1500,7 @@
     <string name="emulation_quick_state_no_safe_moment">El juego está ocupado. Espera y vuelve a intentarlo.</string>
     <string name="emulation_quick_load_state_incompatible">No se puede cargar: desde que guardaste, el juego hizo algo que la carga rápida todavía no sabe deshacer. No se ha cambiado nada.</string>
     <string name="emulation_quick_load_state_game_loading">El juego está cargando. Espera y vuelve a intentarlo.</string>
-    <string name="emulation_quick_load_state_not_this_session">No hay ningún guardado de esta sesión</string>
+    <string name="emulation_quick_load_state_not_this_session">No hay guardados de esta sesión</string>
     <string name="emulation_quick_save_state_working">Guardando…</string>
     <string name="emulation_quick_load_state_working">Cargando…</string>
     <string name="emulation_quick_save_state_still_working">El guardado sigue en curso…</string>

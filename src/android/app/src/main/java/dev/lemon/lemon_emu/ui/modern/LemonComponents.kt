@@ -26,6 +26,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,6 +37,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.lemon.lemon_emu.model.Game
@@ -180,6 +182,17 @@ fun ShortcutTile(
     label: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
+) = ShortcutTile(iconRes, label, 14.sp, LemonColors.Text, modifier, onClick)
+
+/** [ShortcutTile] with its label in [labelSize] and its icon in [iconColor]. */
+@Composable
+fun ShortcutTile(
+    iconRes: Int,
+    label: String,
+    labelSize: TextUnit,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
     Column(
@@ -200,13 +213,13 @@ fun ShortcutTile(
         Image(
             painter = painterResource(iconRes),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(LemonColors.Text),
+            colorFilter = ColorFilter.tint(iconColor),
             modifier = Modifier.size(28.dp)
         )
         Spacer(Modifier.height(8.dp))
         BasicText(
             text = label,
-            style = LemonType.Button.copy(fontSize = 14.sp),
+            style = LemonType.Button.copy(fontSize = labelSize),
             maxLines = 1
         )
     }

@@ -32,10 +32,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -48,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.model.Game
 
@@ -106,11 +109,13 @@ private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, 
     val pause = items.firstOrNull { it.itemId == R.id.menu_pause_emulation }
     val quickSave = items.firstOrNull { it.itemId == R.id.menu_quick_save_state }
     val quickLoad = items.firstOrNull { it.itemId == R.id.menu_quick_load_state }
+    val loadSlot = items.firstOrNull { it.itemId == R.id.menu_load_slot }
     val exit = items.firstOrNull { it.itemId == R.id.menu_exit }
     val special = setOf(
         R.id.menu_pause_emulation,
         R.id.menu_quick_save_state,
         R.id.menu_quick_load_state,
+        R.id.menu_load_slot,
         R.id.menu_exit
     )
     val rest = items.filter { it.itemId !in special }
@@ -137,15 +142,51 @@ private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, 
         }
 
         if (quickSave != null || quickLoad != null) {
+            // Save and load, then Load slot, which lists the saves kept: greyed out while there is
+            // none. A save can finish while the panel is open.
+            var hasSlots by remember(version) {
+                mutableStateOf(NativeLibrary.getQuickSaveSlots().isNotEmpty())
+            }
+            LaunchedEffect(version) {
+                while (true) {
+                    delay(500)
+                    hasSlots = NativeLibrary.getQuickSaveSlots().isNotEmpty()
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 quickSave?.let {
-                    ShortcutTile(R.drawable.ic_save, it.title?.toString().orEmpty(), Modifier.weight(1f).height(62.dp)) {
+                    ShortcutTile(
+                        R.drawable.ic_save,
+                        it.title?.toString().orEmpty(),
+                        12.sp,
+                        LemonColors.Lemon,
+                        Modifier.weight(1f).height(62.dp)
+                    ) {
                         onItem(it.itemId)
                     }
                 }
                 quickLoad?.let {
-                    ShortcutTile(R.drawable.ic_restore, it.title?.toString().orEmpty(), Modifier.weight(1f).height(62.dp)) {
+                    ShortcutTile(
+                        R.drawable.ic_restore,
+                        it.title?.toString().orEmpty(),
+                        12.sp,
+                        LemonColors.Lemon,
+                        Modifier.weight(1f).height(62.dp)
+                    ) {
                         onItem(it.itemId)
+                    }
+                }
+                loadSlot?.let {
+                    ShortcutTile(
+                        R.drawable.ic_load_slot,
+                        it.title?.toString().orEmpty(),
+                        12.sp,
+                        LemonColors.Lemon,
+                        Modifier.weight(1f).height(62.dp).alpha(if (hasSlots) 1f else 0.38f)
+                    ) {
+                        if (hasSlots) {
+                            onItem(it.itemId)
+                        }
                     }
                 }
             }

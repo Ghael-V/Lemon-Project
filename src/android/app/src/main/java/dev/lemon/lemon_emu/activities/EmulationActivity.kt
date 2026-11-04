@@ -474,6 +474,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
         when (action) {
             GamepadHotkeys.Action.QUICK_SAVE -> emulationFragment.quickSaveState()
             GamepadHotkeys.Action.QUICK_LOAD -> emulationFragment.quickLoadState()
+            GamepadHotkeys.Action.LOAD_SLOT -> emulationFragment.showLoadSlotDialog()
             GamepadHotkeys.Action.TOGGLE_STATS_OVERLAY -> emulationFragment.toggleStatsOverlay()
             GamepadHotkeys.Action.TOGGLE_SOC_OVERLAY -> emulationFragment.toggleSocOverlay()
             GamepadHotkeys.Action.PAUSE_EMULATION -> emulationFragment.togglePauseEmulation()

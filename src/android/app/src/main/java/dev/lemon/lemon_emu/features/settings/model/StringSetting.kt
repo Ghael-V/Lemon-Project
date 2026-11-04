@@ -16,6 +16,7 @@ enum class StringSetting(override val key: String) : AbstractStringSetting {
     POST_SHADER_CHAIN("post_shader_chain"),
     HOTKEY_QUICK_SAVE("hotkey_quick_save"),
     HOTKEY_QUICK_LOAD("hotkey_quick_load"),
+    HOTKEY_LOAD_SLOT("hotkey_load_slot"),
     HOTKEY_TOGGLE_STATS_OVERLAY("hotkey_toggle_stats_overlay"),
     HOTKEY_TOGGLE_SOC_OVERLAY("hotkey_toggle_soc_overlay"),
     HOTKEY_PAUSE_EMULATION("hotkey_pause_emulation"),
