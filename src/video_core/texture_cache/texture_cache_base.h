@@ -121,6 +121,8 @@ class TextureCache : public VideoCommon::ChannelSetupCaches<TextureCacheChannelI
     static constexpr s64 DEFAULT_EXPECTED_MEMORY = 1_GiB + 125_MiB;
     static constexpr s64 DEFAULT_CRITICAL_MEMORY = 1_GiB + 625_MiB;
     static constexpr size_t GC_EMERGENCY_COUNTS = 2;
+    /// Largest image downloaded at each fence once the CPU reads it back (ImageFlagBits::ReadBack).
+    static constexpr size_t MAX_READ_BACK_IMAGE_BYTES = 4_MiB;
 
     using Runtime = typename P::Runtime;
     using Image = typename P::Image;
@@ -207,7 +209,7 @@ public:
     void DownloadMemory(DAddr cpu_addr, size_t size);
 
     /// Download only the images in a region that the GPU wrote, waiting for the GPU once
-    void DownloadGpuModifiedImages(DAddr cpu_addr, size_t size);
+    void DownloadGpuModifiedImages(DAddr cpu_addr, size_t size, bool guest_access);
 
     /// Drop what the GPU wrote into the images in a region since they were last downloaded: they
     /// are loaded again from guest memory when next used
@@ -398,6 +400,9 @@ private:
     /// Mark an image as modified from the GPU
     void MarkModification(ImageBase& image) noexcept;
 
+    /// Downloads a ReadBack image at the next fence, once however often it is drawn before it.
+    void QueueReadBackDownload(ImageId image_id);
+
     /// Synchronize image aliases, copying data if needed
     void SynchronizeAliases(ImageId image_id);
 
@@ -481,6 +486,9 @@ private:
         bool is_swizzle;
         size_t async_buffer_id;
         Common::SlotId object_id;
+        /// The image was deleted after its download was recorded: only its room is skipped.
+        bool deleted = false;
+        size_t deleted_size_bytes = 0;
     };
 
     Common::SlotVector<Image> slot_images;

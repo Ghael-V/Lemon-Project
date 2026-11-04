@@ -1056,12 +1056,12 @@ bool RasterizerVulkan::HasGpuWrittenImages(DAddr addr, u64 size) {
     return texture_cache.IsRegionGpuModified(addr, size);
 }
 
-void RasterizerVulkan::DownloadGpuWrittenImages(DAddr addr, u64 size) {
+void RasterizerVulkan::DownloadGpuWrittenImages(DAddr addr, u64 size, bool guest_access) {
     if (addr == 0 || size == 0) {
         return;
     }
     std::scoped_lock lock{texture_cache.mutex};
-    texture_cache.DownloadGpuModifiedImages(addr, size);
+    texture_cache.DownloadGpuModifiedImages(addr, size, guest_access);
 }
 
 void RasterizerVulkan::DiscardGpuWrittenImages(DAddr addr, u64 size) {

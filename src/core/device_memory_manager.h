@@ -128,6 +128,10 @@ public:
     /// alone: nothing would make them readable again.
     void ProtectGpuWritten(DAddr addr, size_t size);
 
+    /// Makes those pages readable again (still unwritable while cached), when nothing the GPU drew
+    /// there needs the CPU's reads to fault any more.
+    void UnprotectGpuWritten(DAddr addr, size_t size);
+
     // New batch API to update multiple ranges with a single lock acquisition.
     void UpdatePagesCachedBatch(std::span<const std::pair<DAddr, size_t>> ranges, s32 delta);
 
@@ -139,6 +143,7 @@ private:
 
     // Internal helper that performs the update assuming the caller already holds the necessary lock.
     void UpdatePagesCachedCountNoLock(DAddr addr, size_t size, s32 delta);
+    void SetGpuWrittenProtection(DAddr addr, size_t size, bool protect);
 
 private:
     static constexpr size_t device_virtual_bits = Traits::device_virtual_bits;

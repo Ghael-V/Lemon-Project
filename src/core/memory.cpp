@@ -820,6 +820,24 @@ struct Memory::Impl {
                              Common::MemoryPermission{});
     }
 
+    void RasterizerUnprotectGpuWritten(u64 vaddr, u64 size) {
+        if (vaddr == 0 || size == 0 || !current_page_table->fastmem_arena ||
+            !AddressSpaceContains(*current_page_table, vaddr, size)) {
+            return;
+        }
+        const u64 first = vaddr >> YUZU_PAGEBITS;
+        const u64 last = (vaddr + size - 1) >> YUZU_PAGEBITS;
+        std::scoped_lock lock{gpu_written_mutex};
+        for (u64 page = first; page <= last; ++page) {
+            // Only pages still in the set are cached and unreadable; as cached pages they get
+            // back the permission RasterizerMarkRegionCached gives them.
+            if (gpu_written_pages.erase(page) != 0) {
+                host_buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
+                                     Common::MemoryPermission::Read);
+            }
+        }
+    }
+
     void InvalidateGPUMemory(u8* p, size_t size) {
         constexpr size_t sys_core = Core::Hardware::NUM_CPU_CORES - 1;
         const size_t core = (std::min)(system.GetCurrentHostThreadID(),
@@ -1072,6 +1090,10 @@ void Memory::RasterizerMarkRegionCached(Common::ProcessAddress vaddr, u64 size, 
 
 void Memory::RasterizerProtectGpuWritten(Common::ProcessAddress vaddr, u64 size) {
     impl->RasterizerProtectGpuWritten(GetInteger(vaddr), size);
+}
+
+void Memory::RasterizerUnprotectGpuWritten(Common::ProcessAddress vaddr, u64 size) {
+    impl->RasterizerUnprotectGpuWritten(GetInteger(vaddr), size);
 }
 
 void Memory::MarkRegionDebug(Common::ProcessAddress vaddr, u64 size, bool debug) {

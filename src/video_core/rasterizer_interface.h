@@ -116,9 +116,10 @@ public:
         return false;
     }
 
-    /// Copies the images the GPU drew in the region back to guest memory.
-    virtual void DownloadGpuWrittenImages([[maybe_unused]] DAddr addr,
-                                          [[maybe_unused]] u64 size) {}
+    /// Copies the images the GPU drew in the region back to guest memory. guest_access is true
+    /// when the game itself touched the region, false for the emulator's own copies (a save).
+    virtual void DownloadGpuWrittenImages([[maybe_unused]] DAddr addr, [[maybe_unused]] u64 size,
+                                          [[maybe_unused]] bool guest_access) {}
 
     /// Drops what the GPU drew into the images in the region since it was last copied back to
     /// guest memory; they are loaded from guest memory again.
