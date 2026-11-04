@@ -274,6 +274,39 @@ void EndThreadsNotInSave(Core::System& system, Kernel::KProcess& process,
     }
 }
 
+// Whether something other than the game's handles to it, its own reference while it runs and its
+// own service request still holds `thread`, one that isn't waiting (woken inside a call, or
+// already ended). Such a thread ends when asked but stays on the thread list, with its thread-local
+// storage, until that lets go of it, so it can't be created again there. Seen once: a thread woken
+// from its service request was held once more than by that request; ended to be created again, it
+// was let go of only when the game was closed, and the load went on without it: the game locked
+// up. A waiting thread is held by what it waits for (a service request, for one), which ending it
+// cancels.
+bool HeldBeyondHandles(Kernel::KernelCore& kernel, Kernel::KProcess& process,
+                       Kernel::KThread& thread) {
+    using Kernel::Svc::SvcId;
+    if (thread.GetState() == Kernel::ThreadState::Waiting) {
+        return false;
+    }
+    u32 handles = 0;
+    process.GetHandleTable().ForEachEntry(kernel, [&](s32, u32, Kernel::KAutoObject* object) {
+        if (object == static_cast<Kernel::KAutoObject*>(&thread)) {
+            handles++;
+        }
+    });
+    const u32 running = thread.IsSignaled(kernel) ? 0 : 1;
+    // A thread inside a service request keeps the request until the call returns, and the request
+    // holds the thread. Answered, it is runnable with that reference: it lets go on its return, as
+    // ending it does.
+    const auto svc_id = static_cast<SvcId>(thread.GetSvcId());
+    const u32 own_request =
+        thread.IsCallingSvc() &&
+                (svc_id == SvcId::SendSyncRequest || svc_id == SvcId::SendSyncRequestWithUserBuffer)
+            ? 1
+            : 0;
+    return thread.GetReferenceCount() > handles + running + own_request;
+}
+
 // Creates a saved thread again for a load (see PlanLoad): in the process, at its saved
 // thread-local storage, priority and cores, held paused as the game is, with a handle in the
 // process' handle table. Its registers and wait are set later, after the memory is written. Null
@@ -1504,13 +1537,30 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             return false;
         }
     }
-    // From here on the restore goes ahead. Threads started since the save are ended, and so are
-    // the ones created again below.
+    // Threads started since the save are ended here, and so are the ones created again below. Each
+    // has to be able to go once it has ended, or one created again can't take its place: the load
+    // waits while one can't. After that check the restore goes ahead.
     {
         std::vector<Kernel::KThread*> to_end = extra_threads;
         for (u32 i = 0; i < thread_count; i++) {
             if (plan.slots[i] == SlotPlan::Recreate && live_threads[i] != nullptr) {
                 to_end.push_back(live_threads[i]);
+            }
+        }
+        for (auto* thread : to_end) {
+            if (HeldBeyondHandles(system.Kernel(), *process, *thread)) {
+                LOG_WARNING(Core,
+                            "SaveState::Restore: thread id {} (tls {:#x}), to be ended, is held by "
+                            "something other than its handles, refusing for now",
+                            thread->GetThreadId(), thread->GetTlsAddress().GetValue());
+                if (failure != nullptr) {
+                    *failure = RestoreFailure::NotSettled;
+                }
+                return false;
+            }
+        }
+        for (u32 i = 0; i < thread_count; i++) {
+            if (plan.slots[i] == SlotPlan::Recreate) {
                 live_threads[i] = nullptr;
             }
         }
