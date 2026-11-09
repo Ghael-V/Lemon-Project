@@ -153,6 +153,7 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.4.1** — Fixes 1.4.0 closing as soon as it opened: R8 removed a constructor parameter the native code looks up.
 - **v1.4.0** — **Several quick saves** with a Load save list (BitRanger), **toggle and turbo** on on-screen buttons,
   optional button slide, and **moving the NAND** to another folder or a microSD card with its content. BitRanger: guest
   memory that is zeroed is given back to the system (far lower memory use), pages the CPU rewrites every frame stop
