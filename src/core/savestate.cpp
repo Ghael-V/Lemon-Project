@@ -48,7 +48,8 @@ constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
 // 8: the signature includes what a waiting thread waits for
 // 9: each saved thread's priority, ideal core and affinity mask, to create it again
 // 10: and the kernel call it is in
-constexpr u32 CurrentVersion = 10;
+// 11: and the result of a wait it was woken in
+constexpr u32 CurrentVersion = 11;
 
 // Regions are stored in fixed-size chunks, each preceded by a one-byte flag: 1 if the whole
 // chunk is zero (skip writing/reading the actual bytes), 0 if it isn't (bytes follow as
@@ -80,7 +81,7 @@ struct SavedThread {
     s32 ideal_core;
     u64 affinity_mask;
     u32 svc_id; // the kernel call it is in (or made last), see KThread::GetSvcId
-    u32 padding;
+    u32 woken_result; // see WokenWaitResult
 };
 
 struct SavedBlock {
@@ -158,6 +159,21 @@ bool IsParkedInKernel(Kernel::KThread& thread) {
     const auto reason = thread.GetWaitReasonForDebugging();
     return reason != Kernel::ThreadWaitReasonForDebugging::None &&
            reason != Kernel::ThreadWaitReasonForDebugging::IPC;
+}
+
+// Whether a thread was woken inside a condition variable or address wait and has not returned
+// from it yet. The result it returns (woken by the game, or timed out) was decided at its wake and
+// is all the call returns; it reads it when it runs.
+bool IsWokenInWait(Kernel::KThread& thread) {
+    using Kernel::Svc::SvcId;
+    const auto svc_id = static_cast<SvcId>(thread.GetSvcId());
+    return thread.GetState() == Kernel::ThreadState::Runnable && thread.IsCallingSvc() &&
+           (svc_id == SvcId::WaitProcessWideKeyAtomic || svc_id == SvcId::WaitForAddress);
+}
+
+// The result a thread woken inside a wait returns (see IsWokenInWait), raw; 0 for other threads.
+u32 WokenWaitResult(Kernel::KThread& thread) {
+    return IsWokenInWait(thread) ? thread.GetWaitResult().raw : 0;
 }
 
 // The address a thread asleep on a condition variable or in an address-arbiter wait waits on. An
@@ -425,7 +441,8 @@ std::vector<SavedThread> CollectThreads(Core::System& system, Kernel::KProcess& 
         }
         saved.push_back({threads[i]->GetThreadId(), threads[i]->GetTlsAddress().GetValue(),
                          handles[i].index, handles[i].linear_id, threads[i]->GetBasePriority(),
-                         ideal_core, affinity_mask, threads[i]->GetSvcId(), 0});
+                         ideal_core, affinity_mask, threads[i]->GetSvcId(),
+                         WokenWaitResult(*threads[i])});
     }
     return saved;
 }
@@ -1710,6 +1727,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // expects to find it.
     u32 rewound_parked = 0;
     std::string timeouts_changed;
+    std::string results_changed;
     for (u32 i = 0; i < thread_count; i++) {
         if (live_threads[i] == nullptr) {
             continue; // could not be created again (logged above)
@@ -1736,6 +1754,23 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                     value = live;
                     break;
                 }
+            }
+        }
+        // A thread woken inside the same wait as at the save returns the result decided at its
+        // live wake, while everything else it goes on with is as saved. A game's worker woken one
+        // way at the save and the other way at the load (by the game, or timed out) aborted right
+        // after the load. It returns its saved result.
+        if (plan.slots[i] == SlotPlan::AsSaved && IsWokenInWait(*live_threads[i]) &&
+            live_threads[i]->GetSvcId() == saved_threads[i].svc_id &&
+            StateOf(saved_signature[i]) == static_cast<u32>(Kernel::ThreadState::Runnable) &&
+            InSvc(saved_signature[i])) {
+            const Result saved_result{saved_threads[i].woken_result};
+            const Result live_result = live_threads[i]->GetWaitResult();
+            if (live_result.raw != saved_result.raw) {
+                live_threads[i]->SetWaitResult(saved_result);
+                results_changed +=
+                    fmt::format("{}thread {}: {:#x} -> {:#x}", results_changed.empty() ? "" : "; ",
+                                i, live_result.raw, saved_result.raw);
             }
         }
         // WaitProcessWideKeyAtomic(mutex = x0, condition variable = x1, tag = x2).
@@ -1796,6 +1831,10 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     if (rewound_parked > 0) {
         LOG_INFO(Core, "SaveState::Restore: {} sleeping thread(s) given their saved registers",
                  rewound_parked);
+    }
+    if (!results_changed.empty()) {
+        LOG_INFO(Core, "SaveState::Restore: woken thread(s) given their saved wait result: {}",
+                 results_changed);
     }
     if (!timeouts_changed.empty()) {
         LOG_INFO(Core,
