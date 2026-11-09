@@ -448,6 +448,9 @@ struct System::Impl {
         cpu_manager.Shutdown();
         debugger.reset();
         kernel.Shutdown();
+        // The memory arena is kept for the next game: give the pages this one used back, so they
+        // aren't held while the app waits on the game list.
+        device_memory->buffer.DiscardBackingRegion(0, device_memory->buffer.BackingSize());
         stop_event = {};
         Network::RestartSocketOperations();
 
