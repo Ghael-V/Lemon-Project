@@ -432,6 +432,11 @@ private:
     /// it, like a texture sampling it at a slightly different size, don't need copying again.
     [[nodiscard]] bool IsDepthStencilWritable() const;
 
+    /// Returns true if images the GPU drew into, which the CPU hasn't written to or read back
+    /// since, cover all of the given memory, so guest memory there holds none of what they drew.
+    /// Uses the overlaps JoinImages found.
+    [[nodiscard]] bool IsGuestMemoryStale(DAddr cpu_addr, size_t size);
+
     [[nodiscard]] std::pair<u32, u32> PrepareDmaImage(ImageId dst_id, GPUVAddr base_addr,
                                                       bool mark_as_modified);
 
