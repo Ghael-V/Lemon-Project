@@ -45,6 +45,11 @@
         android:checkable="true" />
 
     <item
+        android:id="@+id/menu_button_slide"
+        android:title="@string/emulation_button_slide"
+        android:checkable="true" />
+
+    <item
         android:id="@+id/menu_haptics"
         android:title="@string/emulation_haptics"
         android:checkable="true" />

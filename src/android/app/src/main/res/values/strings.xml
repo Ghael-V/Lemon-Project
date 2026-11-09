@@ -1153,6 +1153,7 @@
     <string name="emulation_toggle_controls">Toggle controls</string>
     <string name="emulation_rel_stick_center">Relative stick center</string>
     <string name="emulation_dpad_slide">D-pad slide</string>
+    <string name="emulation_button_slide">Button slide</string>
     <string name="emulation_haptics">Touch haptics</string>
     <string name="emulation_show_overlay">Show controller</string>
     <string name="emulation_hide_overlay">Hide controller</string>

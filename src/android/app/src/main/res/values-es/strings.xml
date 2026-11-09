@@ -1012,6 +1012,7 @@
     <string name="emulation_toggle_controls">Alternar controles</string>
     <string name="emulation_rel_stick_center">Centro relativo del stick</string>
     <string name="emulation_dpad_slide">Deslizamiento de la cruceta</string>
+    <string name="emulation_button_slide">Deslizamiento entre botones</string>
     <string name="emulation_haptics">Toques hápticos</string>
     <string name="emulation_show_overlay">Mostrar mando</string>
     <string name="emulation_hide_overlay">Ocultar mando</string>
