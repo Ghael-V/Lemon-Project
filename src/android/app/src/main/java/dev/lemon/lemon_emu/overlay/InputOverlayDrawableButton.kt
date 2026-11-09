@@ -105,6 +105,16 @@ class InputOverlayDrawableButton(
     private val isToggle: Boolean
         get() = overlayControlData.pressMode == OverlayPressMode.TOGGLE
 
+    /** A finger sliding across the controls can leave or enter this button. */
+    val canSlide: Boolean
+        get() = !isToggle
+
+    /** A finger sliding across the controls arrived at this button. */
+    fun pressWith(pointerId: Int) {
+        pressedState = true
+        trackId = pointerId
+    }
+
     /** Held down by an earlier tap, with or without a finger on it now. */
     val isLatched: Boolean
         get() = isToggle && pressedState
