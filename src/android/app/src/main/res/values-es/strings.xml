@@ -767,6 +767,7 @@
     <!-- Miscellaneous -->
     <string name="slider_default">Predeterminado</string>
     <string name="default_string">Predeterminado</string>
+    <string name="setting_choice_default">%1$s (predeterminado)</string>
     <string name="loading">Cargando...</string>
     <string name="shutting_down">Saliendo...</string>
     <string name="reset_setting_confirmation">¿Desea restablecer esta configuración a su valor predeterminado?</string>
@@ -1285,7 +1286,7 @@
     <string name="settings_ingame_display">Pantalla en juego</string>
     <string name="settings_ingame_display_description">Overlays de rendimiento y del SoC, disposición de pantalla e imagen en imagen</string>
     <string name="settings_console">Consola</string>
-    <string name="settings_console_description">Modo dock, idioma, región, hora, audio y perfiles de usuario</string>
+    <string name="settings_console_description">Idioma, región, hora, audio y perfiles de usuario</string>
     <string name="settings_online">En línea</string>
     <string name="settings_online_description">Nextendo Network, multijugador local y modo avión</string>
     <string name="settings_content">Contenido y datos</string>

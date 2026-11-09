@@ -488,7 +488,6 @@ class SettingsFragmentPresenter(
     private fun addSystemSettings(sl: ArrayList<SettingsItem>) {
         val perGame = NativeConfig.isPerGameConfigLoaded()
         sl.apply {
-            add(BooleanSetting.USE_DOCKED_MODE.key)
             add(IntSetting.LANGUAGE_INDEX.key)
             add(IntSetting.REGION_INDEX.key)
             add(StringSetting.DEVICE_NAME.key)
@@ -526,6 +525,7 @@ class SettingsFragmentPresenter(
         val perGame = NativeConfig.isPerGameConfigLoaded()
         sl.apply {
             add(IntSetting.RENDERER_RESOLUTION.key)
+            add(BooleanSetting.USE_DOCKED_MODE.key)
             add(IntSetting.RENDERER_SCALING_FILTER.key)
             if (isSharpnessScalingFilterSelected()) {
                 add(IntSetting.FSR_SHARPENING_SLIDER.key)

@@ -780,7 +780,7 @@ private fun SettingRow(
             Image(
                 painter = painterResource(R.drawable.ic_clear),
                 contentDescription = stringResource(R.string.clear),
-                colorFilter = ColorFilter.tint(LemonColors.TextMuted),
+                colorFilter = ColorFilter.tint(LemonColors.Lemon),
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
