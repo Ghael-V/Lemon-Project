@@ -1335,8 +1335,14 @@ bool Memory::InvalidateNCE(Common::ProcessAddress vaddr, size_t size) {
         [&] { rasterizer = true; });
     bool queued = false;
     if (rasterizer) {
-        impl->NoteCachedWrite(GetInteger(vaddr));
-        queued = impl->QueueCachedWrite(GetInteger(vaddr));
+        // Writes are only held for a report in the application's memory, the one the GPU thread
+        // reports. A game started from the home menu is another process: what it queued would
+        // never be reported, and the GPU would go on using what it had cached.
+        auto* const application = impl->system.ApplicationProcess();
+        if (application != nullptr && std::addressof(application->GetMemory()) == this) {
+            impl->NoteCachedWrite(GetInteger(vaddr));
+            queued = impl->QueueCachedWrite(GetInteger(vaddr));
+        }
         if (!queued) {
             impl->InvalidateGPUMemory(ptr, size);
         }
