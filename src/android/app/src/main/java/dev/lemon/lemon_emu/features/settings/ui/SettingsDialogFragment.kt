@@ -29,6 +29,8 @@ import dev.lemon.lemon_emu.databinding.DialogSliderBinding
 import dev.lemon.lemon_emu.databinding.DialogSpinboxBinding
 import dev.lemon.lemon_emu.features.input.NativeInput
 import dev.lemon.lemon_emu.features.input.model.AnalogDirection
+import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.features.settings.model.AbstractSetting
 import dev.lemon.lemon_emu.features.settings.model.IntSetting
 import dev.lemon.lemon_emu.features.settings.model.view.AnalogInputSetting
 import dev.lemon.lemon_emu.features.settings.model.view.ButtonInputSetting
@@ -130,7 +132,15 @@ class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener
 
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(item.title)
-                    .setSingleChoiceItems(item.choicesId, value, this)
+                    .setSingleChoiceItems(
+                        markDefaultChoice(
+                            resources.getStringArray(item.choicesId),
+                            resources.getIntArray(item.valuesId).toTypedArray(),
+                            item.setting
+                        ),
+                        value,
+                        this
+                    )
                     .create()
             }
 
@@ -324,7 +334,11 @@ class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener
                 val item = settingsViewModel.clickedItem as StringSingleChoiceSetting
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(item.title)
-                    .setSingleChoiceItems(item.choices, item.selectedValueIndex, this)
+                    .setSingleChoiceItems(
+                        markDefaultChoice(item.choices, item.values, item.setting),
+                        item.selectedValueIndex,
+                        this
+                    )
                     .create()
             }
 
@@ -332,7 +346,11 @@ class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener
                 val item = settingsViewModel.clickedItem as IntSingleChoiceSetting
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(item.title)
-                    .setSingleChoiceItems(item.choices, item.selectedValueIndex, this)
+                    .setSingleChoiceItems(
+                        markDefaultChoice(item.choices, item.values, item.setting),
+                        item.selectedValueIndex,
+                        this
+                    )
                     .create()
             }
 
@@ -439,6 +457,31 @@ class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener
     private fun clearDialogState() {
         settingsViewModel.clickedItem = null
         settingsViewModel.setSliderProgress(-1f)
+    }
+
+    /**
+     * Adds "(default)" to the choice a fresh install uses. Not in a game's own settings, where
+     * going back to the default means following the general settings instead.
+     */
+    private fun markDefaultChoice(
+        choices: Array<String>,
+        values: Array<out Any>,
+        setting: AbstractSetting
+    ): Array<String> {
+        if (NativeConfig.isPerGameConfigLoaded()) {
+            return choices
+        }
+        val default = when (val value = runCatching { setting.defaultValue }.getOrNull()) {
+            is Number -> value.toInt()
+            else -> value
+        }
+        return Array(choices.size) { i ->
+            if (values.getOrNull(i) == default) {
+                getString(R.string.setting_choice_default, choices[i])
+            } else {
+                choices[i]
+            }
+        }
     }
 
     private fun getValueForSingleChoiceSelection(item: SingleChoiceSetting, which: Int): Int {

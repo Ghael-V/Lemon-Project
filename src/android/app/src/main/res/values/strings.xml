@@ -882,6 +882,7 @@
     <!-- Miscellaneous -->
     <string name="slider_default">Default</string>
     <string name="default_string">Default</string>
+    <string name="setting_choice_default">%1$s (default)</string>
     <string name="loading">Loading…</string>
     <string name="shutting_down">Shutting down…</string>
     <string name="reset_setting_confirmation">Do you want to reset this setting back to its default value?</string>
@@ -1605,14 +1606,14 @@
     <string name="airplane_mode">Airplane Mode</string>
     <string name="airplane_mode_description">Passes Airplane Mode to the Switch OS</string>
     <!-- Settings categories -->
-    <string name="settings_graphics_description">Resolution, filters, image enhancements and GPU driver</string>
+    <string name="settings_graphics_description">Resolution, docked mode, filters, image enhancements and GPU driver</string>
     <string name="settings_performance">Performance</string>
     <string name="settings_performance_description">Presets, speed limits and overclock</string>
     <string name="settings_controls_description">Controllers, players and on-screen controls</string>
     <string name="settings_ingame_display">In-game display</string>
     <string name="settings_ingame_display_description">Performance and SoC overlays, screen layout and picture-in-picture</string>
     <string name="settings_console">Console</string>
-    <string name="settings_console_description">Docked mode, language, region, clock, audio and user profiles</string>
+    <string name="settings_console_description">Language, region, clock, audio and user profiles</string>
     <string name="settings_online">Online</string>
     <string name="settings_online_description">Nextendo Network, local multiplayer and airplane mode</string>
     <string name="settings_content">Content and data</string>
