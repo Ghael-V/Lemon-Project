@@ -1373,20 +1373,41 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // through a null pointer forever). One that did sleep the whole time
     // has its saved registers and stack already, so nothing changes for it. A thread whose stack
     // shares a region with one left asleep is left as before, as that region is not written.
+    //
+    // A thread the game started again since the save (another thread id in the same slot) cannot be
+    // left as it is: its registers and stack are those of a thread the save never had, and its
+    // stack may have been mapped after the save, which the undo below takes away. In any wait but
+    // SleepThread its call's arguments have to match, or the load waits. A worker the game started
+    // again in the same slot, asleep in SleepThread with another timeout, was left with its live
+    // stack, which the undo unmapped: it crashed when it woke.
+    //
+    // Asleep in SleepThread at the save and now, any thread gets its saved registers and stack:
+    // the call holds nothing in the kernel and returns nothing, and its wait does not say where
+    // the thread sleeps. A worker sleeps in several places for different times; one left in a
+    // later sleep than the saved one woke in the restored memory on its later stack, jumped into
+    // that stack and ran there from then on.
+    std::vector<bool> started_again(thread_count, false);
     std::vector<bool> rewind_parked(thread_count, false);
     for (u32 i = 0; i < thread_count; i++) {
         if (plan.slots[i] != SlotPlan::AsSaved || !IsParkedInKernel(*live_threads[i]) ||
             move_wait[i]) {
             continue;
         }
+        started_again[i] = live_threads[i]->GetThreadId() != saved_threads[i].id;
         const auto& live = live_threads[i]->GetContext();
         const auto& saved = thread_contexts[i];
+        const bool in_sleep_thread =
+            live_threads[i]->GetWaitReasonForDebugging() ==
+                Kernel::ThreadWaitReasonForDebugging::Sleep &&
+            saved_threads[i].svc_id == static_cast<u32>(Kernel::Svc::SvcId::SleepThread);
         rewind_parked[i] =
-            live.pc == saved.pc && live.r[0] == saved.r[0] && live.r[1] == saved.r[1];
+            live.pc == saved.pc &&
+            (in_sleep_thread || (live.r[0] == saved.r[0] && live.r[1] == saved.r[1]));
     }
     const auto region_holds = [](const std::pair<u64, u64>& region, u64 stack_top) {
         return stack_top > region.first && stack_top <= region.first + region.second;
     };
+    std::vector<bool> rewind_cancelled(thread_count, false);
     u32 rewinds_cancelled = 0;
     for (bool changed = true; changed;) {
         changed = false;
@@ -1407,11 +1428,38 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                 if (rewind_parked[i] &&
                     region_holds(region, live_threads[i]->GetUserStackTop().GetValue())) {
                     rewind_parked[i] = false;
+                    rewind_cancelled[i] = true;
                     rewinds_cancelled++;
                     changed = true;
                 }
             }
         }
+    }
+    for (u32 i = 0; i < thread_count; i++) {
+        if (!started_again[i]) {
+            continue;
+        }
+        if (!rewind_parked[i]) {
+            LOG_WARNING(
+                Core,
+                "SaveState::Restore: thread {} (id {}, id {} at the save) was started "
+                "again since the save and cannot be given its saved state: {} (call "
+                "{:#x}), saved {} (call {:#x}), pc {:#x} (saved {:#x}){}, refusing for now",
+                i, live_threads[i]->GetThreadId(), saved_threads[i].id,
+                DescribeWaitWord(live_signature[i]), live_threads[i]->GetSvcId(),
+                DescribeWaitWord(saved_signature[i]), saved_threads[i].svc_id,
+                live_threads[i]->GetContext().pc, thread_contexts[i].pc,
+                rewind_cancelled[i] ? "; its stack shares a region with a thread left asleep" : "");
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
+            return false;
+        }
+        LOG_INFO(Core,
+                 "SaveState::Restore: thread {} (id {}, id {} at the save) was started again since "
+                 "the save, asleep in its saved call ({}): given its saved registers and stack",
+                 i, live_threads[i]->GetThreadId(), saved_threads[i].id,
+                 DescribeWaitWord(saved_signature[i]));
     }
     std::vector<u64> sleeping_stack_tops;
     // Diagnostic only - which specific wait each excluded thread is parked in. A high count
@@ -1451,11 +1499,12 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                            });
     };
 
-    // A thread put back or created again runs on its saved stack, so that has to be written: not
-    // when it shares a region with a thread left asleep.
+    // A thread put back, created again or started again since the save runs on its saved stack, so
+    // that has to be written: not when it shares a region with a thread left asleep.
     for (u32 i = 0; i < thread_count; i++) {
         const u64 sp = thread_contexts[i].sp;
-        if (is_rebuilt(i) && std::ranges::any_of(region_ranges, [&](const auto& region) {
+        if ((is_rebuilt(i) || started_again[i]) &&
+            std::ranges::any_of(region_ranges, [&](const auto& region) {
                 return region_holds(region, sp) && is_excluded_stack(region.first, region.second);
             })) {
             LOG_WARNING(Core,
