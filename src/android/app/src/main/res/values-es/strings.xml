@@ -876,6 +876,17 @@
     <string name="grant_permission">Conceder permiso</string>
     <string name="custom_nand_directory">Directorio NAND</string>
     <string name="custom_nand_directory_description">Establecer una ruta personalizada para el almacenamiento NAND</string>
+    <string name="nand_migration">Mover el contenido instalado</string>
+    <string name="nand_migration_question">¿Copiar el firmware, las actualizaciones, los DLC y las partidas a la nueva carpeta? Si lo saltas, Lemon no los encontrará allí.</string>
+    <string name="nand_migration_replace_question">La nueva carpeta ya tiene contenido. ¿Copiar ahí el firmware, las actualizaciones, los DLC y las partidas? Los archivos con el mismo nombre se sustituirán.</string>
+    <string name="nand_migration_copying">Copiando el contenido</string>
+    <string name="nand_migration_no_space">No hay espacio suficiente: hacen falta %1$s y hay %2$s libres</string>
+    <string name="nand_migration_failed">No se ha podido copiar el contenido y la carpeta no ha cambiado. Las tarjetas en FAT32 no admiten archivos de más de 4 GB, las exFAT sí.</string>
+    <string name="nand_migration_game_running">Cierra el juego antes de cambiar esta carpeta</string>
+    <string name="nand_migration_free_space">Liberar espacio</string>
+    <string name="nand_migration_free_space_question">El contenido ya está en la nueva carpeta. ¿Borrar la copia antigua para liberar %1$s?</string>
+    <string name="nand_migration_keep">Conservar</string>
+    <string name="nand_migration_done">Contenido movido</string>
     <string name="custom_sdmc_directory">Directorio de la tarjeta SD</string>
     <string name="custom_sdmc_directory_description">Establecer una ruta personalizada para el almacenamiento de la tarjeta SD virtual</string>
     <string name="path_set">Ruta establecida con éxito</string>

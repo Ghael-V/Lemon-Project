@@ -1008,6 +1008,17 @@
     <string name="grant_permission">Grant Permission</string>
     <string name="custom_nand_directory">NAND Directory</string>
     <string name="custom_nand_directory_description">Set a custom path for NAND storage</string>
+    <string name="nand_migration">Move installed content</string>
+    <string name="nand_migration_question">Copy the firmware, updates, DLC and saves to the new folder? If you skip this, Lemon will not find them there.</string>
+    <string name="nand_migration_replace_question">The new folder already has content. Copy the firmware, updates, DLC and saves there? Files with the same name will be replaced.</string>
+    <string name="nand_migration_copying">Copying content</string>
+    <string name="nand_migration_no_space">Not enough free space: %1$s needed, %2$s available</string>
+    <string name="nand_migration_failed">The content could not be copied and the folder has not changed. Cards formatted as FAT32 can not hold files over 4 GB, exFAT can.</string>
+    <string name="nand_migration_game_running">Close the game before changing this folder</string>
+    <string name="nand_migration_free_space">Free up space</string>
+    <string name="nand_migration_free_space_question">The content is now in the new folder. Delete the old copy to free up %1$s?</string>
+    <string name="nand_migration_keep">Keep</string>
+    <string name="nand_migration_done">Content moved</string>
     <string name="custom_sdmc_directory">SD Card Directory</string>
     <string name="custom_sdmc_directory_description">Set a custom path for virtual SD card storage</string>
     <string name="path_set">Path set successfully</string>

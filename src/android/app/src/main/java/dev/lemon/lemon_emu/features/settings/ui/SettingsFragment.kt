@@ -28,12 +28,14 @@ import android.provider.Settings as AndroidSettings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.navArgs
@@ -46,7 +48,9 @@ import dev.lemon.lemon_emu.features.input.NativeInput
 import dev.lemon.lemon_emu.features.settings.SettingsSearchIndex
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.features.settings.model.view.PathSetting
+import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
+import dev.lemon.lemon_emu.fragments.ProgressDialogFragment
 import dev.lemon.lemon_emu.utils.PathUtil
 import dev.lemon.lemon_emu.utils.ViewUtils.updateMargins
 import dev.lemon.lemon_emu.utils.*
@@ -449,9 +453,145 @@ private fun getPlayerIndex(): Int =
             if (oldPath != path) {
                 promptSaveMigration(pathSetting, oldPath, path)
             }
+        } else if (pathSetting.pathType == PathSetting.PathType.NAND) {
+            val oldPath = pathSetting.getCurrentPath()
+            if (oldPath != path) {
+                promptNandMigration(pathSetting, oldPath, path)
+            }
         } else {
             setPathAndNotify(pathSetting, path)
         }
+    }
+
+    private fun promptNandMigration(pathSetting: PathSetting, fromPath: String, toPath: String) {
+        if (NativeLibrary.isRunning()) {
+            Toast.makeText(
+                requireContext(),
+                R.string.nand_migration_game_running,
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        if (PathUtil.isSameOrInside(fromPath, toPath) || PathUtil.isSameOrInside(toPath, fromPath)) {
+            Toast.makeText(
+                requireContext(),
+                R.string.invalid_directory,
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        if (PathUtil.NAND_CONTENT_FOLDERS.none { PathUtil.hasContent("$fromPath/$it") }) {
+            setPathAndNotify(pathSetting, toPath)
+            return
+        }
+
+        val destinationHasContent =
+            PathUtil.NAND_CONTENT_FOLDERS.any { PathUtil.hasContent("$toPath/$it") }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.nand_migration)
+            .setMessage(
+                if (destinationHasContent) {
+                    R.string.nand_migration_replace_question
+                } else {
+                    R.string.nand_migration_question
+                }
+            )
+            .setPositiveButton(R.string.confirm) { _, _ ->
+                val activity = requireActivity()
+                ProgressDialogFragment.newInstance(
+                    activity,
+                    R.string.nand_migration_copying,
+                    true
+                ) { progressCallback, _ ->
+                    moveNandContent(activity, pathSetting, fromPath, toPath, progressCallback)
+                }.show(parentFragmentManager, ProgressDialogFragment.TAG)
+            }
+            .setNegativeButton(R.string.skip_migration) { _, _ ->
+                setPathAndNotify(pathSetting, toPath)
+            }
+            .setNeutralButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Copies the content and switches to the new folder. The old copy is only deleted if the user
+     * then asks for it. Runs off the main thread and returns what [ProgressDialogFragment] shows
+     * when it ends.
+     */
+    private fun moveNandContent(
+        activity: FragmentActivity,
+        pathSetting: PathSetting,
+        fromPath: String,
+        toPath: String,
+        progressCallback: (max: Long, progress: Long) -> Boolean
+    ): Any {
+        val source = File(fromPath)
+        val needed = PathUtil.NAND_CONTENT_FOLDERS.sumOf {
+            PathUtil.directorySize(File(source, it))
+        }
+        val available = File(toPath).usableSpace
+        if (needed > available) {
+            return activity.getString(
+                R.string.nand_migration_no_space,
+                Formatter.formatFileSize(activity, needed),
+                Formatter.formatFileSize(activity, available)
+            )
+        }
+
+        val result = PathUtil.copyFolders(source, File(toPath), PathUtil.NAND_CONTENT_FOLDERS) {
+            progressCallback(needed, it)
+        }
+        when (result) {
+            PathUtil.CopyResult.CANCELLED -> return Unit
+            PathUtil.CopyResult.FAILED -> return MessageDialogFragment.newInstance(
+                activity,
+                titleId = R.string.nand_migration,
+                descriptionId = R.string.nand_migration_failed
+            )
+            PathUtil.CopyResult.COPIED -> Unit
+        }
+
+        // Saves kept in the NAND have just been copied with it.
+        val savesInNand = NativeConfig.getSaveDir() == fromPath
+        pathSetting.setPath(toPath)
+        if (savesInNand) {
+            NativeConfig.setSaveDir(toPath)
+        }
+        NativeConfig.saveGlobalConfig()
+        NativeConfig.reloadGlobalConfig()
+        GameHelper.reinitializeSystem()
+        activity.runOnUiThread {
+            if (isAdded) {
+                refreshPathRow()
+            }
+        }
+
+        if (PathUtil.isSameOrInside(NativeConfig.getSaveDir(), fromPath)) {
+            return activity.getString(R.string.nand_migration_done)
+        }
+        return MessageDialogFragment.newInstance(
+            activity,
+            titleId = R.string.nand_migration_free_space,
+            descriptionString = activity.getString(
+                R.string.nand_migration_free_space_question,
+                Formatter.formatFileSize(activity, needed)
+            ),
+            positiveButtonTitleId = R.string.delete,
+            positiveAction = {
+                Thread {
+                    PathUtil.NAND_CONTENT_FOLDERS.forEach { File(source, it).deleteRecursively() }
+                    activity.runOnUiThread {
+                        Toast.makeText(
+                            activity,
+                            R.string.nand_migration_done,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }.start()
+            },
+            showNegativeButton = true,
+            negativeButtonTitleId = R.string.nand_migration_keep
+        )
     }
 
     private fun promptSaveMigration(pathSetting: PathSetting, fromPath: String, toPath: String) {
@@ -529,6 +669,11 @@ private fun getPlayerIndex(): Int =
 
         NativeConfig.reloadGlobalConfig()
 
+        if (pathSetting.pathType == PathSetting.PathType.NAND) {
+            // The content providers still point at the old folder.
+            Thread { GameHelper.reinitializeSystem() }.start()
+        }
+
         val messageResId = if (pathSetting.pathType == PathSetting.PathType.SAVE_DATA) {
             R.string.save_directory_set
         } else {
@@ -541,6 +686,10 @@ private fun getPlayerIndex(): Int =
             Toast.LENGTH_SHORT
         ).show()
 
+        refreshPathRow()
+    }
+
+    private fun refreshPathRow() {
         val position = settingsViewModel.pathSettingPosition.value
         if (position >= 0) {
             settingsAdapter?.notifyItemChanged(position)
@@ -556,6 +705,11 @@ private fun getPlayerIndex(): Int =
 
         val currentPath = pathSetting.getCurrentPath()
         val defaultPath = pathSetting.getDefaultPath()
+
+        if (pathSetting.pathType == PathSetting.PathType.NAND) {
+            handleSelectedPath(pathSetting, defaultPath)
+            return
+        }
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.reset_to_nand)
