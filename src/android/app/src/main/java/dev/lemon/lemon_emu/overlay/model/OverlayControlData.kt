@@ -3,6 +3,8 @@
 
 package dev.lemon.lemon_emu.overlay.model
 
+import androidx.annotation.Keep
+
 /** What pressing an on-screen button does. Saved in the config as these numbers. */
 object OverlayPressMode {
     const val NORMAL = 0
@@ -14,7 +16,8 @@ object OverlayPressMode {
     const val TURBO = 2
 }
 
-data class OverlayControlData(
+// Built from native code: R8 must not drop the parameters Kotlin callers leave at their default.
+data class OverlayControlData @Keep constructor(
     val id: String,
     var enabled: Boolean,
     var landscapePosition: Pair<Double, Double>,
