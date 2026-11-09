@@ -44,6 +44,7 @@ enum class IntSetting(override val key: String) : AbstractIntSetting {
     LOCK_DRAWER("lock_drawer"),
     VERTICAL_ALIGNMENT("vertical_alignment"),
     PERF_OVERLAY_POSITION("perf_overlay_position"),
+    QUICK_SAVE_SLOTS("quick_save_slots"),
     SOC_OVERLAY_POSITION("soc_overlay_position"),
     MEMORY_LAYOUT("memory_layout_mode"),
     FSR_SHARPENING_SLIDER("fsr_sharpening_slider"),

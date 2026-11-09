@@ -1170,8 +1170,24 @@
     <string name="emulation_snap_to_grid">Snap to grid</string>
     <string name="emulation_pause">Pause emulation</string>
     <string name="emulation_unpause">Unpause emulation</string>
-    <string name="emulation_quick_save_state">Quick save state</string>
-    <string name="emulation_quick_load_state">Quick load state</string>
+    <string name="emulation_quick_save_state">Quick save</string>
+    <string name="emulation_quick_load_state">Quick load</string>
+    <string name="emulation_load_slot">Load save</string>
+    <string name="emulation_load_slot_title">Load a save</string>
+    <string name="emulation_load_slot_gone">Can\'t load. Game has moved past this save.</string>
+    <string name="emulation_load_slot_just_now">Just now</string>
+    <string name="emulation_load_slot_quick_load">Quick load · %1$s</string>
+    <string name="emulation_load_slot_yesterday_at">yesterday, %1$s</string>
+    <string name="emulation_load_slot_confirm_title">Load the save from %1$s?</string>
+    <plurals name="emulation_load_slot_confirm_message">
+        <item quantity="one">Loads can only rewind, so your %d save made after this will be deleted.</item>
+        <item quantity="other">Loads can only rewind, so your %d saves made after this will be deleted.</item>
+    </plurals>
+    <string name="emulation_load_slot_load">Load</string>
+    <string name="emulation_quick_save_state_no_space">Not enough storage for a quick save</string>
+    <string name="hotkey_load_slot">Load save</string>
+    <string name="quick_save_slots">Quick saves to keep</string>
+    <string name="quick_save_slots_description">How many quick saves to keep. Each one takes 1 to 2 GB of storage.</string>
     <string name="hotkeys">Hotkeys</string>
     <string name="hotkeys_need_controller">Hotkeys require a physical controller</string>
     <string name="hotkey_toggle_stats_overlay">Toggle Performance Stats Overlay</string>
@@ -1191,7 +1207,7 @@
     <string name="emulation_quick_state_no_safe_moment">Game is busy. Wait and try again.</string>
     <string name="emulation_quick_load_state_incompatible">Can\'t load: since you saved, the game did something Quick Load cannot undo yet. Nothing was changed.</string>
     <string name="emulation_quick_load_state_game_loading">Game is loading. Wait and try again.</string>
-    <string name="emulation_quick_load_state_not_this_session">No save from this session</string>
+    <string name="emulation_quick_load_state_not_this_session">No saves from this session</string>
     <string name="emulation_quick_load_state_moved_past">The game moved past this save. It can\'t be loaded. Make a new quick save.</string>
     <string name="emulation_quick_save_state_working">Saving…</string>
     <string name="emulation_quick_load_state_working">Loading…</string>

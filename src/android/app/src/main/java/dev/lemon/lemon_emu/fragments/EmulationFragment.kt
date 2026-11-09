@@ -24,6 +24,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.BatteryManager.*
@@ -41,7 +42,12 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
+import android.text.format.DateFormat
+import android.text.format.DateUtils
+import android.widget.ArrayAdapter
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import java.util.concurrent.atomic.AtomicBoolean
@@ -768,6 +774,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 // Each drawer hands the focus to its own rows; the hidden one must not take it.
                 val modernSheet = UiMode.isModern(requireContext()) && drawerView == binding.quickSettingsSheet
                 if (drawerView == binding.inGameMenu) {
+                    updateLoadSlotMenuEntry()
                     menuTick.intValue++
                     focusInGameMenuPanel()
                 }
@@ -853,6 +860,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 R.id.menu_quick_load_state -> {
                     quickLoadState()
                     binding.inGameMenu.requestFocus()
+                    true
+                }
+
+                R.id.menu_load_slot -> {
+                    showLoadSlotDialog()
                     true
                 }
 
@@ -1818,9 +1830,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             R.string.emulation_quick_save_state_still_working
         ) {
             when (NativeLibrary.quickSaveState()) {
-                NativeLibrary.QUICK_SAVE_SAVED -> R.string.emulation_quick_save_state_success
+                NativeLibrary.QUICK_SAVE_SAVED -> {
+                    saveQuickSaveThumbnail()
+                    R.string.emulation_quick_save_state_success
+                }
                 NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT ->
                     R.string.emulation_quick_state_no_safe_moment
+                NativeLibrary.QUICK_SAVE_NO_SPACE -> R.string.emulation_quick_save_state_no_space
                 else -> R.string.emulation_quick_save_state_failure
             }
         }
@@ -1832,21 +1848,259 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             R.string.emulation_quick_load_state_working,
             R.string.emulation_quick_load_state_still_working
         ) {
-            when (NativeLibrary.quickLoadState()) {
-                NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
-                NativeLibrary.QUICK_LOAD_INCOMPATIBLE ->
-                    R.string.emulation_quick_load_state_incompatible
-                NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT ->
-                    R.string.emulation_quick_state_no_safe_moment
-                NativeLibrary.QUICK_LOAD_GAME_LOADING ->
-                    R.string.emulation_quick_load_state_game_loading
-                NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION ->
-                    R.string.emulation_quick_load_state_not_this_session
-                NativeLibrary.QUICK_LOAD_MOVED_PAST ->
-                    R.string.emulation_quick_load_state_moved_past
-                else -> R.string.emulation_quick_load_state_failure
+            quickLoadMessage(NativeLibrary.quickLoadState())
+        }
+    }
+
+    private fun quickLoadMessage(result: Int): Int =
+        when (result) {
+            NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
+            NativeLibrary.QUICK_LOAD_INCOMPATIBLE ->
+                R.string.emulation_quick_load_state_incompatible
+            NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT ->
+                R.string.emulation_quick_state_no_safe_moment
+            NativeLibrary.QUICK_LOAD_GAME_LOADING ->
+                R.string.emulation_quick_load_state_game_loading
+            NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION ->
+                R.string.emulation_quick_load_state_not_this_session
+            NativeLibrary.QUICK_LOAD_MOVED_PAST ->
+                R.string.emulation_quick_load_state_moved_past
+            else -> R.string.emulation_quick_load_state_failure
+        }
+
+    /**
+     * Writes the picture the load dialog shows for the slot just saved: the game's frame at the
+     * save, scaled down to a small JPEG next to the save.
+     */
+    private fun saveQuickSaveThumbnail() {
+        val start = SystemClock.elapsedRealtime()
+        val pixels = NativeLibrary.takeQuickSaveThumbnail()
+        val width = NativeLibrary.getAppletCaptureWidth()
+        val height = NativeLibrary.getAppletCaptureHeight()
+        val slots = NativeLibrary.getQuickSaveSlots()
+        if (pixels.size < width * height * 4 || width <= 0 || height <= 0 || slots.size < 3) {
+            Log.warning("[QuickState] no picture for the new slot (${pixels.size} bytes)")
+            return
+        }
+        val id = slots[slots.size - 3]
+        val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        frame.copyPixelsFromBuffer(ByteBuffer.wrap(pixels, 0, width * height * 4))
+        val thumbnail = Bitmap.createScaledBitmap(
+            frame,
+            QUICK_SAVE_THUMBNAIL_WIDTH,
+            QUICK_SAVE_THUMBNAIL_WIDTH * height / width,
+            true
+        )
+        frame.recycle()
+        val file = File(NativeLibrary.quickSaveThumbnailPath(id))
+        try {
+            file.outputStream().use { thumbnail.compress(Bitmap.CompressFormat.JPEG, 80, it) }
+        } catch (e: Exception) {
+            Log.warning("[QuickState] could not write the picture of slot $id: ${e.message}")
+        }
+        thumbnail.recycle()
+        Log.info(
+            "[QuickState] picture of slot $id: ${file.length() / 1024} KB, made in " +
+                "${SystemClock.elapsedRealtime() - start} ms"
+        )
+    }
+
+    /** One quicksave slot as getQuickSaveSlots gives it, with how many slots are newer. */
+    private class QuickSaveSlotRow(
+        val id: Long,
+        val savedAtMs: Long,
+        val loadable: Boolean,
+        val newer: Int
+    )
+
+    /** When a save was made, for the list's first row: "Just now", "12 minutes ago", "Yesterday". */
+    private fun savedWhen(savedAtMs: Long): CharSequence {
+        val now = System.currentTimeMillis()
+        return when {
+            !DateUtils.isToday(savedAtMs) ->
+                DateUtils.getRelativeTimeSpanString(savedAtMs, now, DateUtils.DAY_IN_MILLIS)
+            now - savedAtMs < 10 * DateUtils.SECOND_IN_MILLIS ->
+                getString(R.string.emulation_load_slot_just_now)
+            else -> DateUtils.getRelativeTimeSpanString(
+                savedAtMs,
+                now,
+                DateUtils.SECOND_IN_MILLIS
+            )
+        }
+    }
+
+    /** The clock time of a save, with seconds. */
+    private fun savedTime(savedAtMs: Long): String =
+        DateFormat.format(
+            DateFormat.getBestDateTimePattern(resources.configuration.locales[0], "jmmss"),
+            savedAtMs
+        ).toString()
+
+    /** The date of a save, with its weekday if [withWeekday]. */
+    private fun savedDate(savedAtMs: Long, withWeekday: Boolean): String =
+        DateFormat.format(
+            DateFormat.getBestDateTimePattern(
+                resources.configuration.locales[0],
+                if (withWeekday) "EEEMMMd" else "MMMd"
+            ),
+            savedAtMs
+        ).toString()
+
+    /** When a save was made, for the list's second row: its time, and its date if not today. */
+    private fun savedAt(savedAtMs: Long): String =
+        if (DateUtils.isToday(savedAtMs)) {
+            savedTime(savedAtMs)
+        } else {
+            "${savedDate(savedAtMs, true)} · ${savedTime(savedAtMs)}"
+        }
+
+    /** The picture of a quicksave slot, as a view the size the load list shows it at. */
+    private fun quickSaveSlotPicture(picture: Bitmap?): ImageView {
+        val density = resources.displayMetrics.density
+        return ImageView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (128 * density).toInt(),
+                (72 * density).toInt()
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setImageBitmap(picture)
+        }
+    }
+
+    /**
+     * Lists the quicksave slots, newest first, by when they were made and with their pictures, and
+     * loads the one picked. Loading an older one deletes the newer ones, so that asks first.
+     */
+    fun showLoadSlotDialog() {
+        if (!isAdded) {
+            return
+        }
+        val flat = NativeLibrary.getQuickSaveSlots()
+        val count = flat.size / 3
+        if (count == 0) {
+            showQuickStateToast(
+                Toast.makeText(
+                    requireContext().applicationContext,
+                    R.string.emulation_quick_load_state_not_this_session,
+                    Toast.LENGTH_SHORT
+                ),
+                0
+            )
+            return
+        }
+        val rows = (count - 1 downTo 0).map {
+            QuickSaveSlotRow(flat[it * 3], flat[it * 3 + 1], flat[it * 3 + 2] != 0L, count - 1 - it)
+        }
+        val context = requireContext()
+        val density = context.resources.displayMetrics.density
+        val pictures = rows.associate {
+            it.id to BitmapFactory.decodeFile(NativeLibrary.quickSaveThumbnailPath(it.id))
+        }
+        val adapter = object : ArrayAdapter<QuickSaveSlotRow>(context, 0, rows) {
+            override fun areAllItemsEnabled() = false
+            override fun isEnabled(position: Int) = getItem(position)?.loadable == true
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val row = getItem(position)!!
+                val pad = (12 * density).toInt()
+                val title = TextView(context).apply {
+                    text = savedWhen(row.savedAtMs)
+                    textSize = 16f
+                }
+                val note = TextView(context).apply {
+                    text = when {
+                        !row.loadable -> context.getString(R.string.emulation_load_slot_gone)
+                        row.newer == 0 -> context.getString(
+                            R.string.emulation_load_slot_quick_load,
+                            savedAt(row.savedAtMs)
+                        )
+                        else -> savedAt(row.savedAtMs)
+                    }
+                    textSize = 13f
+                }
+                val texts = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(pad, 0, 0, 0)
+                    addView(title)
+                    addView(note)
+                }
+                return LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(pad * 2, pad / 2, pad * 2, pad / 2)
+                    alpha = if (row.loadable) 1f else 0.38f
+                    addView(quickSaveSlotPicture(pictures[row.id]))
+                    addView(texts)
+                }
             }
         }
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.emulation_load_slot_title)
+            .setAdapter(adapter) { _, which ->
+                confirmLoadSlot(rows[which], pictures[rows[which].id])
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmLoadSlot(row: QuickSaveSlotRow, picture: Bitmap?) {
+        if (!isAdded || !row.loadable) {
+            return
+        }
+        if (row.newer == 0) {
+            loadSlot(row.id)
+            return
+        }
+        val context = requireContext()
+        val pad = (24 * resources.displayMetrics.density).toInt()
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad / 2, pad, 0)
+            addView(quickSaveSlotPicture(picture))
+            addView(
+                TextView(context).apply {
+                    text = resources.getQuantityString(
+                        R.plurals.emulation_load_slot_confirm_message,
+                        row.newer,
+                        row.newer
+                    )
+                    setPadding(0, pad / 2, 0, 0)
+                }
+            )
+        }
+        // "12 minutes ago", "yesterday, 11:42:10 PM" or "Oct 30, 11:42:10 PM".
+        val savedWhen = when {
+            DateUtils.isToday(row.savedAtMs) -> DateUtils.getRelativeTimeSpanString(
+                row.savedAtMs,
+                System.currentTimeMillis(),
+                DateUtils.SECOND_IN_MILLIS
+            ).toString()
+            DateUtils.isToday(row.savedAtMs + DateUtils.DAY_IN_MILLIS) ->
+                getString(R.string.emulation_load_slot_yesterday_at, savedTime(row.savedAtMs))
+            else -> "${savedDate(row.savedAtMs, false)}, ${savedTime(row.savedAtMs)}"
+        }
+        MaterialAlertDialogBuilder(context)
+            .setTitle(getString(R.string.emulation_load_slot_confirm_title, savedWhen))
+            .setView(content)
+            .setPositiveButton(R.string.emulation_load_slot_load) { _, _ -> loadSlot(row.id) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun loadSlot(id: Long) {
+        runQuickState(
+            R.string.emulation_quick_load_state_working,
+            R.string.emulation_quick_load_state_still_working
+        ) {
+            quickLoadMessage(NativeLibrary.quickLoadSlot(id))
+        }
+    }
+
+    /** Greys out Load slot in the classic menu while there is no slot. */
+    private fun updateLoadSlotMenuEntry() {
+        val b = _binding ?: return
+        b.inGameMenu.menu.findItem(R.id.menu_load_slot)?.isEnabled =
+            NativeLibrary.getQuickSaveSlots().isNotEmpty()
     }
 
     /**
@@ -1883,6 +2137,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 quickStateRunning.set(false)
             }
             activity?.runOnUiThread {
+                updateLoadSlotMenuEntry()
                 // The game being back where it was saved says it worked: a short note is enough.
                 // Other results are read in full; only the long explanations need a long toast.
                 val succeeded = message == R.string.emulation_quick_save_state_success ||
@@ -3254,6 +3509,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // Just under a long toast's 3.5 s, so the next one follows without a gap.
         private const val QUICK_STATE_WORKING_SHOWN_MS = 3400L
         private const val QUICK_STATE_SUCCESS_SHOWN_MS = 1000L
+
+        // The width of a quicksave slot's picture, in pixels.
+        private const val QUICK_SAVE_THUMBNAIL_WIDTH = 320
     }
 
     private fun startOverlayAutoHideTimer(seconds: Int) {

@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -201,6 +202,18 @@ fun ShortcutTile(
     modifier: Modifier = Modifier,
     labelFit: LabelFit? = null,
     onClick: () -> Unit
+) = ShortcutTile(iconRes, label, 14.sp, LemonColors.Text, modifier, labelFit, onClick)
+
+/** [ShortcutTile] with its label in [labelSize] and its icon in [iconColor]. */
+@Composable
+fun ShortcutTile(
+    iconRes: Int,
+    label: String,
+    labelSize: TextUnit,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
+    labelFit: LabelFit? = null,
+    onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
     Column(
@@ -221,13 +234,13 @@ fun ShortcutTile(
         Image(
             painter = painterResource(iconRes),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(LemonColors.Text),
+            colorFilter = ColorFilter.tint(iconColor),
             modifier = Modifier.size(28.dp)
         )
         Spacer(Modifier.height(8.dp))
         // One line, made smaller until it fits: wrapped at a space, only the label's first word
         // showed ("Game" for "Game folders"), from the left edge.
-        val fit = labelFit ?: remember(label) { LabelFit() }
+        val fit = labelFit ?: remember(label, labelSize) { LabelFit(labelSize) }
         BasicText(
             text = label,
             style = LemonType.Button.copy(fontSize = fit.size, textAlign = TextAlign.Center),

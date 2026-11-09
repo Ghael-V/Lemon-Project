@@ -24,6 +24,7 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+#include <filesystem>
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -45,6 +46,7 @@ extern "C" {
 #include <libavcodec/jni.h>
 }
 
+#include "android_settings.h"
 #include "audio_core/renderer/system_manager.h"
 #include "common/android/multiplayer/multiplayer.h"
 #include "common/android/android_common.h"
@@ -326,6 +328,42 @@ void EmulationSession::SetAppletId(int applet_id) {
         static_cast<Service::AM::AppletId>(m_applet_id));
 }
 
+namespace {
+std::filesystem::path GetQuickSaveDir() {
+    const auto dir = Common::FS::GetEdenPath(Common::FS::EdenPath::SaveStateDir);
+    void(Common::FS::CreateDirs(dir));
+    return dir;
+}
+
+std::string GetQuickSavePath(u64 id) {
+    return (GetQuickSaveDir() / fmt::format("quicksave-{}.bin", id)).string();
+}
+
+s64 UnixTimeMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+// A Quick Save only loads in the run of the game it was made in, and each is over a gigabyte: the
+// files of an earlier run (saves and their pictures, and those of earlier builds) are deleted when
+// a game starts.
+void DeleteOldQuickSaves() {
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(GetQuickSaveDir(), error)) {
+        const auto name = entry.path().filename().string();
+        if (name.starts_with("quicksave") && entry.is_regular_file(error) &&
+            !Common::FS::RemoveFile(entry.path())) {
+            LOG_WARNING(Frontend, "Quick Save: could not delete '{}' from an earlier run", name);
+        }
+    }
+}
+} // namespace
+
+std::string EmulationSession::QuickSaveThumbnailPath(u64 id) {
+    return (GetQuickSaveDir() / fmt::format("quicksave-{}.jpg", id)).string();
+}
+
 Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string& filepath,
                                                                const std::size_t program_index,
                                                                const bool frontend_initiated) {
@@ -357,6 +395,8 @@ Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string
 
     // Initialize filesystem.
     ConfigureFilesystemProvider(filepath);
+
+    DeleteOldQuickSaves();
 
     // Load the ROM.
     const u64 previous_program_id =
@@ -417,11 +457,12 @@ void EmulationSession::ShutdownEmulation() {
 
     m_is_running = false;
     m_is_paused = false;
-    // What the last Quick Save kept on the host belongs to the game that just ended.
-    m_saved_syncpoints.reset();
-    m_saved_audio.clear();
-    m_saved_display_slots.clear();
-    m_saved_engines.reset();
+    // What the Quick Saves kept on the host belongs to the game that just ended.
+    {
+        std::scoped_lock slots_lock{m_slots_mutex};
+        m_slots.clear();
+        m_thumbnail.clear();
+    }
 
     // Unload user input.
     m_system.HIDCore().UnloadInputDevices();
@@ -462,12 +503,6 @@ void EmulationSession::UnPauseEmulation() {
 }
 
 namespace {
-std::string GetQuickSavePath() {
-    const auto dir = Common::FS::GetEdenPath(Common::FS::EdenPath::SaveStateDir);
-    void(Common::FS::CreateDirs(dir));
-    return (dir / "quicksave.bin").string();
-}
-
 // The audio renderer goes on while the game is paused, signalling the game's audio thread every
 // few milliseconds: a Quick Save or Load comparing the game's threads found that thread awake
 // moments after it had looked, and looked again for seconds (often until it gave up). So it is
@@ -729,8 +764,10 @@ void EmulationSession::WaitForGpuIdle(const char* what) {
     }
 }
 
-void EmulationSession::RewindSyncpoints() {
-    if (!m_saved_syncpoints) {
+void EmulationSession::RewindSyncpoints(
+    const std::optional<std::array<u32, Tegra::Host1x::SyncpointManager::NumSyncpoints>>&
+        saved_syncpoints) {
+    if (!saved_syncpoints) {
         LOG_WARNING(Frontend, "Quick Load: no syncpoint values from a save, left as they are");
         return;
     }
@@ -740,7 +777,7 @@ void EmulationSession::RewindSyncpoints() {
     auto& nvdrv_syncpoints = nvdrv->GetContainer().GetSyncpointManager();
     for (u32 id = 0; id < Tegra::Host1x::SyncpointManager::NumSyncpoints; id++) {
         const u32 now = host1x.GetGuestSyncpointValue(id);
-        const u32 saved = (*m_saved_syncpoints)[id];
+        const u32 saved = (*saved_syncpoints)[id];
         const u32 delta = now - saved;
         if (delta == 0) {
             continue;
@@ -774,16 +811,57 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     QuickSaveResult result = QuickSaveResult::NoSafeMoment;
     if (WaitForSafeMoment(!was_paused, nullptr)) {
         WaitForGpuIdle("Quick Save");
-        result = Core::SaveState::Capture(m_system, GetQuickSavePath()) ? QuickSaveResult::Saved
-                                                                        : QuickSaveResult::Failed;
+        u64 new_id = 0;
+        const size_t limit = static_cast<size_t>(
+            std::clamp(AndroidSettings::values.quick_save_slots.GetValue(), 1, MaxQuickSaveSlots));
+        if (!MakeRoomForQuickSave(limit)) {
+            result = QuickSaveResult::NoSpace;
+        } else {
+            new_id = m_next_slot_id++;
+            const std::string path = GetQuickSavePath(new_id);
+            result = Core::SaveState::Capture(m_system, path) ? QuickSaveResult::Saved
+                                                              : QuickSaveResult::Failed;
+            if (result == QuickSaveResult::Failed) {
+                Core::SaveState::DiscardSave(path);
+            }
+        }
         if (result == QuickSaveResult::Saved) {
-            m_saved_audio = AudioCore::Renderer::System::SnapshotAll();
-            m_saved_engines = m_system.GPU().SnapshotEngines();
-            m_saved_display_slots = Service::android::BufferQueueCore::SnapshotProducerSlots();
+            QuickSaveSlot slot{new_id, UnixTimeMs(), {}};
+            auto& saved = slot.host;
+            saved.audio = AudioCore::Renderer::System::SnapshotAll();
+            saved.engines = m_system.GPU().SnapshotEngines();
+            saved.display_slots = Service::android::BufferQueueCore::SnapshotProducerSlots();
             auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
-            m_saved_syncpoints.emplace();
-            for (u32 id = 0; id < m_saved_syncpoints->size(); id++) {
-                (*m_saved_syncpoints)[id] = host1x.GetGuestSyncpointValue(id);
+            saved.syncpoints.emplace();
+            for (u32 id = 0; id < saved.syncpoints->size(); id++) {
+                (*saved.syncpoints)[id] = host1x.GetGuestSyncpointValue(id);
+            }
+
+            // The picture the load dialog shows: the frame the game last presented, which is the
+            // one on screen while it is paused for the save.
+            const auto picture_start = std::chrono::steady_clock::now();
+            std::vector<u8> picture;
+            {
+                using namespace VideoCore::Capture;
+                const auto tiled = m_system.GPU().GetAppletCaptureBuffer();
+                if (tiled.size() >= TiledSize) {
+                    picture.resize(LinearWidth * LinearHeight * BytesPerPixel);
+                    Tegra::Texture::UnswizzleTexture(picture, tiled, BytesPerPixel, LinearWidth,
+                                                     LinearHeight, LinearDepth, BlockHeight,
+                                                     BlockDepth);
+                }
+            }
+            LOG_INFO(Frontend, "Quick Save: picture of slot {} taken in {} ms{}", slot.id,
+                     std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - picture_start)
+                         .count(),
+                     picture.empty() ? " (none: the renderer gave no frame)" : "");
+
+            std::scoped_lock slots_lock{m_slots_mutex};
+            m_thumbnail = std::move(picture);
+            m_slots.push_back(std::move(slot));
+            while (m_slots.size() > limit) {
+                DiscardQuickSaveSlot(0);
             }
         }
     } else {
@@ -797,13 +875,90 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     return result;
 }
 
-EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
+void EmulationSession::DiscardQuickSaveSlot(size_t index) {
+    const u64 id = m_slots[index].id;
+    Core::SaveState::DiscardSave(GetQuickSavePath(id));
+    const std::string picture = QuickSaveThumbnailPath(id);
+    if (Common::FS::Exists(picture)) {
+        void(Common::FS::RemoveFile(picture));
+    }
+    m_slots.erase(m_slots.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+bool EmulationSession::MakeRoomForQuickSave(size_t limit) {
+    // About the size of the last save (the game's memory changes little between saves), or before
+    // the first one all the memory the game uses (a save skips what is zero), with some margin.
+    u64 needed = 0;
+    {
+        std::scoped_lock slots_lock{m_slots_mutex};
+        if (!m_slots.empty()) {
+            std::error_code error;
+            needed = std::filesystem::file_size(GetQuickSavePath(m_slots.back().id), error);
+            if (error) {
+                needed = 0;
+            }
+        }
+    }
+    if (needed == 0) {
+        if (auto* process = m_system.ApplicationProcess()) {
+            needed = process->GetUsedUserPhysicalMemorySize(m_system.Kernel());
+        }
+    }
+    needed += needed / 20 + (64ULL << 20);
+
+    const auto dir = GetQuickSaveDir();
+    const auto available = [&dir] {
+        std::error_code error;
+        const auto space = std::filesystem::space(dir, error);
+        return error ? std::numeric_limits<u64>::max() : static_cast<u64>(space.available);
+    };
+    // Slots that a new save would push out anyway go first, so that a full storage does not stop
+    // saving once the slots are filled.
+    std::scoped_lock slots_lock{m_slots_mutex};
+    while (available() < needed && !m_slots.empty() && m_slots.size() >= limit) {
+        LOG_WARNING(Frontend,
+                    "Quick Save: {} MiB free, about {} MiB needed: slot {} deleted before saving",
+                    available() >> 20, needed >> 20, m_slots.front().id);
+        DiscardQuickSaveSlot(0);
+    }
+    if (available() < needed) {
+        LOG_WARNING(Frontend, "Quick Save: {} MiB free, about {} MiB needed: nothing was saved",
+                    available() >> 20, needed >> 20);
+        return false;
+    }
+    return true;
+}
+
+std::vector<EmulationSession::QuickSaveSlotInfo> EmulationSession::QuickSaveSlots() const {
+    std::scoped_lock slots_lock{m_slots_mutex};
+    std::vector<QuickSaveSlotInfo> out;
+    out.reserve(m_slots.size());
+    for (const auto& slot : m_slots) {
+        out.push_back(
+            {slot.id, slot.saved_at_ms, Core::SaveState::CanStillLoad(GetQuickSavePath(slot.id))});
+    }
+    return out;
+}
+
+std::vector<u8> EmulationSession::TakeQuickSaveThumbnail() {
+    std::scoped_lock slots_lock{m_slots_mutex};
+    return std::exchange(m_thumbnail, {});
+}
+
+EmulationSession::QuickLoadResult EmulationSession::QuickLoadState(u64 id) {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
 
     // A save from before the game started (an earlier run) cannot be loaded: refused at once, not
-    // after looks that could never match (its threads all "ended").
-    if (!Core::SaveState::HasSaveFromThisSession()) {
+    // after looks that could never match (its threads all "ended"). Slots exist only in this run.
+    const auto slot_it = id == 0 ? (m_slots.empty() ? m_slots.end() : std::prev(m_slots.end()))
+                                 : std::ranges::find(m_slots, id, &QuickSaveSlot::id);
+    if (slot_it == m_slots.end()) {
+        return QuickLoadResult::NotThisSession;
+    }
+    const size_t slot_index = static_cast<size_t>(slot_it - m_slots.begin());
+    const std::string path = GetQuickSavePath(slot_it->id);
+    if (!Core::SaveState::HasSaveFromThisSession(path)) {
         return QuickLoadResult::NotThisSession;
     }
 
@@ -832,8 +987,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         std::vector<u32> saved_signature;
         std::vector<u64> saved_tls;
         std::vector<u32> saved_svc;
-        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature, &saved_tls,
-                                                 &saved_svc)) {
+        if (!Core::SaveState::ReadSavedSignature(path, saved_signature, &saved_tls, &saved_svc)) {
             audio_hold.reset();
             if (!was_paused) {
                 m_system.Run();
@@ -857,20 +1011,20 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         }
 
         WaitForGpuIdle("Quick Load");
-        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure, &gate,
-                                            check.rebuilt > 0);
+        restored = Core::SaveState::Restore(m_system, path, &failure, &gate, check.rebuilt > 0);
         if (gate.owns_lock()) {
             gate.unlock();
         }
         if (restored) {
-            if (m_saved_engines) {
-                const size_t channels = m_system.GPU().RestoreEngines(*m_saved_engines);
+            const auto& saved = m_slots[slot_index].host;
+            if (saved.engines) {
+                const size_t channels = m_system.GPU().RestoreEngines(*saved.engines);
                 LOG_INFO(Frontend, "Quick Load: GPU engine state of {} channel(s) put back",
                          channels);
             }
-            RewindSyncpoints();
-            AudioCore::Renderer::System::RestoreAll(m_saved_audio);
-            Service::android::BufferQueueCore::RestoreProducerSlots(m_saved_display_slots);
+            RewindSyncpoints(saved.syncpoints);
+            AudioCore::Renderer::System::RestoreAll(saved.audio);
+            Service::android::BufferQueueCore::RestoreProducerSlots(saved.display_slots);
         }
         if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
             break;
@@ -896,6 +1050,11 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         return threads_missing ? QuickLoadResult::GameLoading : QuickLoadResult::NoSafeMoment;
     }
     if (restored) {
+        // The slots after this one were made from what the load undid: they cannot load any more.
+        std::scoped_lock slots_lock{m_slots_mutex};
+        while (m_slots.size() > slot_index + 1) {
+            DiscardQuickSaveSlot(m_slots.size() - 1);
+        }
         return QuickLoadResult::Loaded;
     }
     return failure == Core::SaveState::RestoreFailure::MemoryLayoutChanged
@@ -1587,6 +1746,42 @@ jint Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveState(JNIEnv* env, jclass 
 
 jint Java_dev_lemon_lemon_1emu_NativeLibrary_quickLoadState(JNIEnv* env, jclass clazz) {
     return static_cast<jint>(EmulationSession::GetInstance().QuickLoadState());
+}
+
+jint Java_dev_lemon_lemon_1emu_NativeLibrary_quickLoadSlot(JNIEnv* env, jclass clazz, jlong id) {
+    return static_cast<jint>(EmulationSession::GetInstance().QuickLoadState(static_cast<u64>(id)));
+}
+
+jlongArray Java_dev_lemon_lemon_1emu_NativeLibrary_getQuickSaveSlots(JNIEnv* env, jclass clazz) {
+    // Three numbers a slot, oldest slot first: id, when it was made (Unix ms), loadable (1 or 0).
+    std::vector<jlong> flat;
+    for (const auto& slot : EmulationSession::GetInstance().QuickSaveSlots()) {
+        flat.push_back(static_cast<jlong>(slot.id));
+        flat.push_back(static_cast<jlong>(slot.saved_at_ms));
+        flat.push_back(slot.loadable ? 1 : 0);
+    }
+    jlongArray out = env->NewLongArray(static_cast<jsize>(flat.size()));
+    if (out != nullptr) {
+        env->SetLongArrayRegion(out, 0, static_cast<jsize>(flat.size()), flat.data());
+    }
+    return out;
+}
+
+jstring Java_dev_lemon_lemon_1emu_NativeLibrary_quickSaveThumbnailPath(JNIEnv* env, jclass clazz,
+                                                                       jlong id) {
+    return Common::Android::ToJString(
+        env, EmulationSession::QuickSaveThumbnailPath(static_cast<u64>(id)));
+}
+
+jbyteArray Java_dev_lemon_lemon_1emu_NativeLibrary_takeQuickSaveThumbnail(JNIEnv* env,
+                                                                          jclass clazz) {
+    const auto picture = EmulationSession::GetInstance().TakeQuickSaveThumbnail();
+    jbyteArray out = env->NewByteArray(static_cast<jsize>(picture.size()));
+    if (out != nullptr && !picture.empty()) {
+        env->SetByteArrayRegion(out, 0, static_cast<jsize>(picture.size()),
+                                reinterpret_cast<const jbyte*>(picture.data()));
+    }
+    return out;
 }
 
 } // extern "C"

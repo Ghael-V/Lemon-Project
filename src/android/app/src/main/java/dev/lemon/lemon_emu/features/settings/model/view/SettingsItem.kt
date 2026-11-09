@@ -482,6 +482,15 @@ abstract class SettingsItem(
             )
             put(
                 SingleChoiceSetting(
+                    IntSetting.QUICK_SAVE_SLOTS,
+                    titleId = R.string.quick_save_slots,
+                    descriptionId = R.string.quick_save_slots_description,
+                    choicesId = R.array.quickSaveSlotsNames,
+                    valuesId = R.array.quickSaveSlotsValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
                     IntSetting.PERF_OVERLAY_POSITION,
                     titleId = R.string.overlay_position,
                     descriptionId = R.string.overlay_position_description,

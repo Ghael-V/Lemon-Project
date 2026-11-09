@@ -59,8 +59,28 @@ public:
         Failed = 0,       // the save could not be written
         Saved = 1,        // saved
         NoSafeMoment = 2, // a lock handoff was in progress for the whole wait; nothing was saved
+        NoSpace = 3,      // not enough free storage for the save; nothing was saved
     };
+    /// Saves the game into a new slot after the last one, which Quick Load then loads. The oldest
+    /// slots are deleted to keep as many as the quick_save_slots setting says.
     QuickSaveResult QuickSaveState();
+
+    /// The most Quick Save slots kept.
+    static constexpr int MaxQuickSaveSlots = 4;
+    /// A Quick Save slot, as the load dialog shows it.
+    struct QuickSaveSlotInfo {
+        u64 id;          // names its files (see QuickSaveThumbnailPath)
+        s64 saved_at_ms; // when it was made, in Unix time
+        bool loadable;   // a load of it would not be refused for what changed since
+    };
+    /// The slots, oldest first: Quick Load loads the last one. Does not wait for a Quick Save or
+    /// Load.
+    std::vector<QuickSaveSlotInfo> QuickSaveSlots() const;
+    /// Where the picture of the slot `id` is kept (written by the app, see TakeQuickSaveThumbnail).
+    static std::string QuickSaveThumbnailPath(u64 id);
+    /// The game's picture at the last Quick Save (linear RGBA8, VideoCore::Capture's size), handed
+    /// over once; empty if there is none.
+    std::vector<u8> TakeQuickSaveThumbnail();
 
     /// What Quick Load did. The values are what the JNI call returns to Kotlin.
     enum class QuickLoadResult : int {
@@ -72,7 +92,9 @@ public:
         NotThisSession = 5, // no save made since the game started; nothing was changed
         MovedPast = 6, // the game has moved past the save, no look will match it; nothing changed
     };
-    QuickLoadResult QuickLoadState();
+    /// Loads the slot with id `id`, or the last slot if `id` is 0. Once loaded, the slots after it
+    /// are deleted: what changed between them was undone, not kept to be done again.
+    QuickLoadResult QuickLoadState(u64 id = 0);
     std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,
                                                        Core::MemorySearch::ValueType type,
                                                        float tolerance);
@@ -164,22 +186,45 @@ private:
     /// game gave it, so a save does not read memory the GPU is still writing and a load is not
     /// followed by GPU work from after the save. `what` names the caller in the log.
     void WaitForGpuIdle(const char* what);
-    /// After a Quick Load, moves each GPU syncpoint back to its value at the Quick Save.
+    /// After a Quick Load, moves each GPU syncpoint back to its value at the Quick Save, as kept
+    /// in `saved_syncpoints`.
     /// The game counts its own fences, in the memory a load rewinds, so without this they stay
     /// behind the syncpoints by however far the GPU got between the save and the load, and every
     /// wait for the GPU passes at once from then on.
-    void RewindSyncpoints();
-    /// The syncpoint values at the last Quick Save of this session.
-    std::optional<std::array<u32, Tegra::Host1x::SyncpointManager::NumSyncpoints>>
-        m_saved_syncpoints;
-    /// The audio renderers' working memory at the last Quick Save of this session.
-    std::vector<AudioCore::Renderer::System::WorkbufferSnapshot> m_saved_audio;
-    /// The display queue slots the game held at the last Quick Save of this session.
-    std::vector<Service::android::BufferQueueCore::ProducerSlots> m_saved_display_slots;
-    /// The GPU engines' state at the last Quick Save of this session: memory does not hold it, and
-    /// a load that left it as the game set it later drew a black screen (the 3D engine read its
-    /// textures from a later scene's texture table).
-    std::shared_ptr<const Tegra::GPU::EngineSnapshot> m_saved_engines;
+    void RewindSyncpoints(
+        const std::optional<std::array<u32, Tegra::Host1x::SyncpointManager::NumSyncpoints>>&
+            saved_syncpoints);
+    /// What a Quick Save keeps on the host besides its file.
+    struct QuickSaveHostState {
+        /// The syncpoint values at the save.
+        std::optional<std::array<u32, Tegra::Host1x::SyncpointManager::NumSyncpoints>> syncpoints;
+        /// The audio renderers' working memory at the save.
+        std::vector<AudioCore::Renderer::System::WorkbufferSnapshot> audio;
+        /// The display queue slots the game held at the save.
+        std::vector<Service::android::BufferQueueCore::ProducerSlots> display_slots;
+        /// The GPU engines' state at the save: memory does not hold it, and a load that left it as
+        /// the game set it later drew a black screen (the 3D engine read its textures from a later
+        /// scene's texture table).
+        std::shared_ptr<const Tegra::GPU::EngineSnapshot> engines;
+    };
+    /// A Quick Save made since the game started: its file is quicksave-<id>.bin.
+    struct QuickSaveSlot {
+        u64 id;
+        s64 saved_at_ms; // Unix time
+        QuickSaveHostState host;
+    };
+    /// Deletes the slot at `index` in m_slots, files included. Needs m_slots_mutex.
+    void DiscardQuickSaveSlot(size_t index);
+    /// Deletes the oldest slots (down to keeping `limit` before the new save) while the free
+    /// storage is short of what a new save needs. False if it is still short.
+    bool MakeRoomForQuickSave(size_t limit);
+    /// The Quick Save slots of this session, oldest first. Changed with m_mutex and m_slots_mutex
+    /// held, so read with either.
+    std::vector<QuickSaveSlot> m_slots;
+    u64 m_next_slot_id{1};
+    /// The picture taken at the last Quick Save, until the app takes it. Guarded by m_slots_mutex.
+    std::vector<u8> m_thumbnail;
+    mutable std::mutex m_slots_mutex;
 
     std::atomic<bool> m_is_paused = false;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};

@@ -24,6 +24,7 @@ object GamepadHotkeys {
     enum class Action(val setting: StringSetting, @StringRes val titleId: Int) {
         QUICK_SAVE(StringSetting.HOTKEY_QUICK_SAVE, R.string.emulation_quick_save_state),
         QUICK_LOAD(StringSetting.HOTKEY_QUICK_LOAD, R.string.emulation_quick_load_state),
+        LOAD_SLOT(StringSetting.HOTKEY_LOAD_SLOT, R.string.hotkey_load_slot),
         TOGGLE_STATS_OVERLAY(
             StringSetting.HOTKEY_TOGGLE_STATS_OVERLAY,
             R.string.hotkey_toggle_stats_overlay
