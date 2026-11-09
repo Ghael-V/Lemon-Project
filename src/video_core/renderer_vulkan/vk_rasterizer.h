@@ -107,7 +107,7 @@ public:
     void InnerInvalidation(std::span<const std::pair<DAddr, std::size_t>> sequences) override;
     void OnCacheInvalidation(DAddr addr, u64 size) override;
     bool HasGpuWrittenImages(DAddr addr, u64 size) override;
-    void DownloadGpuWrittenImages(DAddr addr, u64 size) override;
+    void DownloadGpuWrittenImages(DAddr addr, u64 size, bool guest_access) override;
     void DiscardGpuWrittenImages(DAddr addr, u64 size) override;
     bool OnCPUWrite(DAddr addr, u64 size) override;
     void InvalidateGPUCache() override;

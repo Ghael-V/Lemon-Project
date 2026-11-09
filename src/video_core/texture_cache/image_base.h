@@ -45,6 +45,11 @@ enum class ImageFlagBits : u32 {
 
     AsynchronousDecode = 1 << 16,
     IsDecoding = 1 << 17, ///< Is currently being decoded asynchronously.
+
+    /// The CPU has needed what the GPU drew here: it is downloaded at the next fence after each
+    /// draw, instead of the CPU's access faulting and waiting for the GPU.
+    ReadBack = 1 << 18,
+    ReadOnce = 1 << 19, ///< The CPU has needed what the GPU drew here once.
 };
 DECLARE_ENUM_FLAG_OPERATORS(ImageFlagBits)
 

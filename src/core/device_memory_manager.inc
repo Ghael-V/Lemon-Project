@@ -616,6 +616,16 @@ void DeviceMemoryManager<Traits>::UpdatePagesCachedCountNoLock(DAddr addr, size_
 
 template <typename Traits>
 void DeviceMemoryManager<Traits>::ProtectGpuWritten(DAddr addr, size_t size) {
+    SetGpuWrittenProtection(addr, size, true);
+}
+
+template <typename Traits>
+void DeviceMemoryManager<Traits>::UnprotectGpuWritten(DAddr addr, size_t size) {
+    SetGpuWrittenProtection(addr, size, false);
+}
+
+template <typename Traits>
+void DeviceMemoryManager<Traits>::SetGpuWrittenProtection(DAddr addr, size_t size, bool protect) {
     Common::ScopedRangeLock lk(counter_guard, addr, size);
     const size_t page_end = Common::DivCeil(addr + size, Memory::YUZU_PAGESIZE);
     std::remove_reference_t<decltype(registered_processes[0])> memory_device_inter = nullptr;
@@ -625,8 +635,13 @@ void DeviceMemoryManager<Traits>::ProtectGpuWritten(DAddr addr, size_t size) {
     size_t previous_asid = 0;
     const auto release_run = [&] {
         if (run_bytes > 0 && memory_device_inter != nullptr) {
-            DeviceMethods::ProtectGpuWritten(memory_device_inter, run_begin << Memory::YUZU_PAGEBITS,
-                                             run_bytes);
+            if (protect) {
+                DeviceMethods::ProtectGpuWritten(memory_device_inter,
+                                                 run_begin << Memory::YUZU_PAGEBITS, run_bytes);
+            } else {
+                DeviceMethods::UnprotectGpuWritten(memory_device_inter,
+                                                   run_begin << Memory::YUZU_PAGEBITS, run_bytes);
+            }
         }
         run_bytes = 0;
     };

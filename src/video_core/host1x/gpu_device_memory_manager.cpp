@@ -17,6 +17,11 @@ struct MaxwellDeviceMethods {
                                          size_t size) {
         interface->RasterizerProtectGpuWritten(address, size);
     }
+
+    static inline void UnprotectGpuWritten(Core::Memory::Memory* interface, VAddr address,
+                                           size_t size) {
+        interface->RasterizerUnprotectGpuWritten(address, size);
+    }
 };
 
 } // namespace Tegra

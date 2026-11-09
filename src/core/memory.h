@@ -507,6 +507,10 @@ public:
      */
     void RasterizerProtectGpuWritten(Common::ProcessAddress vaddr, u64 size);
 
+    /// Makes pages RasterizerProtectGpuWritten made unreadable readable again (they stay
+    /// unwritable while cached). Pages it didn't protect are left alone.
+    void RasterizerUnprotectGpuWritten(Common::ProcessAddress vaddr, u64 size);
+
     /**
      * Marks each page within the specified address range as debug or non-debug.
      * Debug addresses are not accessible from fastmem pointers.

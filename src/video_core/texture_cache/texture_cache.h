@@ -221,6 +221,9 @@ typename P::ImageView& TextureCache<P>::GetImageView(u32 index) noexcept {
 template <class P>
 void TextureCache<P>::MarkModification(ImageId id) noexcept {
     MarkModification(slot_images[id]);
+    if (True(slot_images[id].flags & ImageFlagBits::ReadBack)) {
+        QueueReadBackDownload(id);
+    }
 }
 
 template <class P>
@@ -654,17 +657,46 @@ void TextureCache<P>::DownloadMemory(DAddr cpu_addr, size_t size) {
 }
 
 template <class P>
-void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size) {
+void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size, bool guest_access) {
     boost::container::small_vector<ImageId, 16> images;
-    ForEachImageInRegion(cpu_addr, size, [this, &images](ImageId image_id, ImageBase& image) {
+    boost::container::small_vector<ImageId, 16> read_back_images;
+    ForEachImageInRegion(cpu_addr, size, [&](ImageId image_id, ImageBase& image) {
         if (False(image.flags & ImageFlagBits::GpuModified) || !IsDownloadable(image)) {
             return;
         }
         image.flags &= ~ImageFlagBits::GpuModified;
+        // Games read some images the GPU drew (results, not pictures) again and again. From the
+        // second time, keep those in step at each fence instead; large ones aren't worth that.
+        // A save copies every image back, which says nothing about what the game reads.
+        if (guest_access && image.guest_size_bytes <= MAX_READ_BACK_IMAGE_BYTES) {
+            if (True(image.flags & ImageFlagBits::ReadOnce)) {
+                image.flags |= ImageFlagBits::ReadBack;
+                read_back_images.push_back(image_id);
+            }
+            image.flags |= ImageFlagBits::ReadOnce;
+        }
         images.push_back(image_id);
     });
     if (images.empty()) {
         return;
+    }
+    // Their pages may stay unreadable from before, while something else keeps them cached. Make
+    // them readable unless another image the GPU drew there still needs the CPU to fault.
+    for (const ImageId image_id : read_back_images) {
+        const ImageBase& image = slot_images[image_id];
+        const DAddr first = Common::AlignDown(image.cpu_addr, Core::DEVICE_PAGESIZE);
+        for (DAddr page = first; page < image.cpu_addr_end; page += Core::DEVICE_PAGESIZE) {
+            bool needed = false;
+            ForEachImageInRegion(page, Core::DEVICE_PAGESIZE,
+                                 [&](ImageId other_id, ImageBase& other) {
+                                     needed |= other_id != image_id &&
+                                               True(other.flags & ImageFlagBits::GpuModified) &&
+                                               False(other.flags & ImageFlagBits::ReadBack);
+                                 });
+            if (!needed) {
+                device_memory.UnprotectGpuWritten(page, Core::DEVICE_PAGESIZE);
+            }
+        }
     }
     std::ranges::sort(images, [this](ImageId lhs, ImageId rhs) {
         return slot_images[lhs].modification_tick < slot_images[rhs].modification_tick;
@@ -1010,7 +1042,9 @@ void TextureCache<P>::PopAsyncFlushes() {
         for (size_t i = download_ids.size(); i > 0; i--) {
             auto& download_info = download_ids[i - 1];
             auto& download_buffer = download_map[download_info.async_buffer_id];
-            if (download_info.is_swizzle) {
+            if (download_info.deleted) {
+                download_buffer.offset -= Common::AlignUp(download_info.deleted_size_bytes, 64);
+            } else if (download_info.is_swizzle) {
                 const ImageBase& image = slot_images[download_info.object_id];
                 const auto copies = FixSmallVectorADL(FullDownloadCopies(image.info));
                 download_buffer.offset -= Common::AlignUp(image.unswizzled_size_bytes, 64);
@@ -1039,14 +1073,14 @@ void TextureCache<P>::PopAsyncFlushes() {
         }
         size_t total_size_bytes = 0;
         for (const PendingDownload& download_info : download_ids) {
-            if (download_info.is_swizzle) {
+            if (download_info.is_swizzle && !download_info.deleted) {
                 total_size_bytes += slot_images[download_info.object_id].unswizzled_size_bytes;
             }
         }
         auto download_map = runtime.DownloadStagingBuffer(total_size_bytes);
         const size_t original_offset = download_map.offset;
         for (const PendingDownload& download_info : download_ids) {
-            if (!download_info.is_swizzle) {
+            if (!download_info.is_swizzle || download_info.deleted) {
                 continue;
             }
             Image& image = slot_images[download_info.object_id];
@@ -1059,7 +1093,7 @@ void TextureCache<P>::PopAsyncFlushes() {
         download_map.offset = original_offset;
         std::span<u8> download_span = download_map.mapped_span;
         for (const PendingDownload& download_info : download_ids) {
-            if (!download_info.is_swizzle) {
+            if (!download_info.is_swizzle || download_info.deleted) {
                 continue;
             }
             const ImageBase& image = slot_images[download_info.object_id];
@@ -2422,6 +2456,20 @@ void TextureCache<P>::UntrackImage(ImageBase& image, ImageId image_id) {
 template <class P>
 void TextureCache<P>::DeleteImage(ImageId image_id, bool immediate_delete) {
     ImageBase& image = slot_images[image_id];
+    // Its pending downloads would read a deleted (or reused) slot. Those not recorded yet are
+    // dropped; recorded ones keep their room in the staging buffer but write nothing, as the
+    // memory may hold something else by then.
+    std::erase_if(uncommitted_downloads, [image_id](const PendingDownload& download) {
+        return download.is_swizzle && download.object_id == image_id;
+    });
+    for (auto& downloads : committed_downloads) {
+        for (PendingDownload& download : downloads) {
+            if (download.is_swizzle && !download.deleted && download.object_id == image_id) {
+                download.deleted = true;
+                download.deleted_size_bytes = image.unswizzled_size_bytes;
+            }
+        }
+    }
     if (image.HasScaled()) {
         total_used_memory -= GetScaledImageSizeBytes(image);
     }
@@ -2552,10 +2600,21 @@ void TextureCache<P>::MarkModification(ImageBase& image) noexcept {
     const bool newly_modified = False(image.flags & ImageFlagBits::GpuModified);
     image.flags |= ImageFlagBits::GpuModified;
     image.modification_tick = ++modification_tick;
-    if (newly_modified) {
+    if (newly_modified && False(image.flags & ImageFlagBits::ReadBack)) {
         // Guest memory doesn't hold what the GPU draws here. Make the CPU fault on reading it, so
         // the fault handler copies the GPU's contents back first (GPU::InvalidateRegion).
         device_memory.ProtectGpuWritten(image.cpu_addr, image.guest_size_bytes);
+    }
+}
+
+template <class P>
+void TextureCache<P>::QueueReadBackDownload(ImageId image_id) {
+    const bool queued =
+        std::ranges::any_of(uncommitted_downloads, [image_id](const auto& download) {
+            return download.is_swizzle && download.object_id == image_id;
+        });
+    if (!queued) {
+        uncommitted_downloads.push_back(PendingDownload{true, 0, image_id});
     }
 }
 
@@ -2627,7 +2686,7 @@ void TextureCache<P>::PrepareImage(ImageId image_id, bool is_modification, bool 
         }
     }
     if (is_modification) {
-        MarkModification(image);
+        MarkModification(image_id);
     }
     lru_cache.Touch(image.lru_index, frame_tick);
 }

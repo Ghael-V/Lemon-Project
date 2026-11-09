@@ -261,7 +261,7 @@ struct GPU::Impl {
             // memory, which doesn't hold what the GPU drew into them. Copy that back first, on the
             // GPU thread, so the re-upload carries the GPU's contents plus the CPU's write.
             const u64 fence = RequestSyncOperation([rasterizer, addr, size] {
-                rasterizer->DownloadGpuWrittenImages(addr, size);
+                rasterizer->DownloadGpuWrittenImages(addr, size, true);
                 rasterizer->OnCacheInvalidation(addr, size);
             });
             gpu_thread.WakeForSyncRequest();
@@ -289,7 +289,7 @@ struct GPU::Impl {
             return false;
         }
         const u64 fence = RequestSyncOperation(
-            [rasterizer, addr, size] { rasterizer->DownloadGpuWrittenImages(addr, size); });
+            [rasterizer, addr, size] { rasterizer->DownloadGpuWrittenImages(addr, size, false); });
         gpu_thread.TickGPU(is_async);
         WaitForSyncOperation(fence);
         return true;
