@@ -76,7 +76,12 @@ struct GPU::Impl {
         , is_async{is_async_}
     {}
 
-    ~Impl() = default;
+    ~Impl() {
+        // The renderer finishes its last GPU work on the way out, which still writes to the bound
+        // channel's 3D engine state. The channels are declared after it and would be freed first,
+        // so let go of the renderer while they still exist.
+        renderer.reset();
+    }
 
     std::shared_ptr<Control::ChannelState> CreateChannel(s32 channel_id) {
         auto channel_state = std::make_shared<Tegra::Control::ChannelState>(channel_id);
