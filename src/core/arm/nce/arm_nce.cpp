@@ -374,8 +374,14 @@ void ArmNce::SetContext(const Kernel::Svc::ThreadContext& ctx) {
 }
 
 void ArmNce::SignalInterrupt(Kernel::KThread* thread) {
-    // Add break loop condition.
-    m_guest_ctx.esr_el1.fetch_or(static_cast<u64>(HaltReason::BreakLoop));
+    // Add break loop condition. If it was already there, an interrupt is under way: the thread
+    // takes it when it next enters guest code, or the first caller signals it. Waiting for the
+    // thread's lock again would add nothing, and can deadlock while the thread holds the lock in
+    // a fault handler waiting for the GPU, and the GPU waits on this caller.
+    constexpr u64 break_loop = static_cast<u64>(HaltReason::BreakLoop);
+    if ((m_guest_ctx.esr_el1.fetch_or(break_loop) & break_loop) != 0) {
+        return;
+    }
 
     auto* params = &thread->GetNativeExecutionParameters();
     LockThreadParameters(params);
