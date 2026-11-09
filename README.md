@@ -118,10 +118,15 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   threads destroyed and created again) and only then rewinds the memory and the threads. Threads parked
   mid-syscall keep the host fiber they live in, and services cannot answer a request while a save or a load
   runs. When something since the save cannot be undone yet, the load says so and changes nothing. Verified on
-  Super Mario 3D World and Garfield; other games may still find something it cannot undo.
+  Super Mario 3D World and Garfield; other games may still find something it cannot undo. Up to 4 saves are kept, and
+  Load save (in-game menu or hotkey) lists them with a picture to go back to an older one.
 - **Controller layout presets** — the in-game menu's On-screen controls entry starts with Edit and one-tap layout
   presets (default, big buttons, swapped D-pad/stick), ahead of the touch control options.
 - **Controller layout per game** — move and resize the on-screen controls for one game only, or for all of them.
+- **Toggle and turbo buttons** — in the overlay editor, tap an on-screen button to make it stay held with one tap or
+  repeat while a finger is on it; saved with the layout. An optional setting lets a finger slide between buttons.
+- **Move the NAND** — pick another folder or a microSD card and Lemon copies the firmware, updates, DLC and saves, then
+  asks whether to delete the old copy.
 - **Start in QLaunch** — with the firmware installed, opening Lemon boots straight into the console's home menu
   (once per launch: leaving it takes you to the library).
 - **Reset all settings** — a red card at the bottom of Settings that puts every setting back to a fresh install's
@@ -148,6 +153,14 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.4.0** — **Several quick saves** with a Load save list (BitRanger), **toggle and turbo** on on-screen buttons,
+  optional button slide, and **moving the NAND** to another folder or a microSD card with its content. BitRanger: guest
+  memory that is zeroed is given back to the system (far lower memory use), pages the CPU rewrites every frame stop
+  faulting, CPU faults on GPU-drawn images no longer wait for the whole command list, Quick Save/Load go through memory
+  in slices, many Quick Load thread fixes, in-quad shuffles run as quad operations (streaks on Adreno), crashes when
+  closing a game. On-screen controls are released when a touch is cancelled. Fixes from Eden's master: video playback,
+  F2I abs/neg, viewport flip, query cache, conditional Phi bindless tracking, TLS patching for runtime NROs, NCE zero
+  register, BCAT file names, bundled programs sharing their parent's mods and settings, zstd.
 - **v1.3.0** — **Gamepad hotkeys** (BitRanger) and **cheat downloads** from switch-cheats-db (see above). Quick
   Save/Load (BitRanger): a load drops what the GPU drew since the save and restores every channel's 3D, compute, 2D and
   inline-memory engine registers (no black screen across scenes); the audio render loop is held while the game is
