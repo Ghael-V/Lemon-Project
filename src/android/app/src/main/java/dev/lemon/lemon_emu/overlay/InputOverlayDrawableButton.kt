@@ -17,6 +17,7 @@ import dev.lemon.lemon_emu.features.input.model.NativeButton
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.features.settings.model.IntSetting
 import dev.lemon.lemon_emu.overlay.model.OverlayControlData
+import dev.lemon.lemon_emu.overlay.model.OverlayPressMode
 
 /**
  * Custom [BitmapDrawable] that is capable
@@ -81,7 +82,7 @@ class InputOverlayDrawableButton(
             if (!bounds.contains(xPosition, yPosition)) {
                 return false
             }
-            pressedState = true
+            pressedState = !isToggle || !pressedState
             trackId = pointerId
             return true
         }
@@ -90,12 +91,32 @@ class InputOverlayDrawableButton(
             if (trackId != pointerId) {
                 return false
             }
-            pressedState = false
             trackId = -1
+            if (isToggle) {
+                return false
+            }
+            pressedState = false
             return true
         }
 
         return false
+    }
+
+    private val isToggle: Boolean
+        get() = overlayControlData.pressMode == OverlayPressMode.TOGGLE
+
+    /** Held down by an earlier tap, with or without a finger on it now. */
+    val isLatched: Boolean
+        get() = isToggle && pressedState
+
+    val isRepeating: Boolean
+        get() = overlayControlData.pressMode == OverlayPressMode.TURBO && pressedState
+
+    /** Puts back the held state of the button this one replaces when the controls are rebuilt. */
+    fun restoreLatch() {
+        if (isToggle) {
+            pressedState = true
+        }
     }
 
     /**
@@ -107,8 +128,11 @@ class InputOverlayDrawableButton(
         if (trackId == -1) {
             return false
         }
-        pressedState = false
         trackId = -1
+        if (isToggle) {
+            return false
+        }
+        pressedState = false
         return true
     }
 

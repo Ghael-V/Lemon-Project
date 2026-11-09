@@ -36,6 +36,7 @@ import kotlin.math.max
 import kotlin.math.min
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.features.input.NativeInput
+import dev.lemon.lemon_emu.features.input.NativeInput.ButtonState
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.features.input.model.NativeAnalog
 import dev.lemon.lemon_emu.features.input.model.NativeButton
@@ -323,6 +324,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
 
         if (shouldUpdateView) {
+            startTurboPulse()
             invalidate()
         }
 
@@ -360,6 +362,39 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
 
         return true
+    }
+
+    private var turboPulseRunning = false
+    private var turboPulsePressed = true
+
+    /** Alternates every turbo button with a finger on it between pressed and released. */
+    private val turboPulse = object : Runnable {
+        override fun run() {
+            val repeating = overlayButtons.filter { it.isRepeating }
+            if (repeating.isEmpty()) {
+                turboPulseRunning = false
+                return
+            }
+            turboPulsePressed = !turboPulsePressed
+            val action = if (turboPulsePressed) ButtonState.PRESSED else ButtonState.RELEASED
+            val playerIndex = overlayPlayerIndex()
+            repeating.forEach { sendButtonEvent(playerIndex, it.button, action) }
+            postDelayed(this, TURBO_PULSE_MS)
+        }
+    }
+
+    private fun startTurboPulse() {
+        if (!turboPulseRunning && overlayButtons.any { it.isRepeating }) {
+            turboPulseRunning = true
+            turboPulsePressed = true
+            postDelayed(turboPulse, TURBO_PULSE_MS)
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        removeCallbacks(turboPulse)
+        turboPulseRunning = false
     }
 
     private fun overlayPlayerIndex(): Int =
@@ -874,6 +909,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
         // The new controls will not know about a finger on the old ones.
         releaseHeldControls()
+        val latchedButtons = overlayButtons.filter { it.isLatched }.map { it.button }
 
         // Remove all the overlay buttons from the HashSet.
         overlayButtons.clear()
@@ -884,7 +920,22 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         if (gamelessMode || BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()) {
             addOverlayControls(layout)
         }
+
+        // A button held by a tap stays held, unless it is gone or stopped being a toggle.
+        for (latched in latchedButtons) {
+            val button = overlayButtons.firstOrNull { it.button == latched }
+            button?.restoreLatch()
+            if (button?.isLatched != true) {
+                sendButtonEvent(overlayPlayerIndex(), latched, ButtonState.RELEASED)
+            }
+        }
         invalidate()
+    }
+
+    private fun savePressMode(id: String, pressMode: Int) {
+        val overlayControlData = NativeConfig.getOverlayControlData()
+        overlayControlData.firstOrNull { it.id == id }?.pressMode = pressMode
+        NativeConfig.setOverlayControlData(overlayControlData)
     }
 
     private fun saveControlPosition(
@@ -943,7 +994,14 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                     overlayControlData.firstOrNull { it.id == button.overlayControlData.id }
                 if (buttonData != null) {
                     scaleDialog =
-                        OverlayScaleDialog(context, button.overlayControlData) { newScale ->
+                        OverlayScaleDialog(
+                            context,
+                            buttonData,
+                            onPressModeChanged = { pressMode ->
+                                savePressMode(button.overlayControlData.id, pressMode)
+                                refreshControls()
+                            }
+                        ) { newScale ->
                             saveControlPosition(
                                 button.overlayControlData.id,
                                 button.bounds.centerX(),
@@ -1126,6 +1184,9 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         const val OVERLAY_VERSION = 1
 
         private const val BIG_PRESET_SCALE = 1.4f
+
+        // Ten presses a second: long enough for a game running at 30 FPS to see each change.
+        private const val TURBO_PULSE_MS = 50L
 
         // Increase the corresponding layout version number whenever that layout has a breaking change
         private const val LANDSCAPE_OVERLAY_VERSION = 1

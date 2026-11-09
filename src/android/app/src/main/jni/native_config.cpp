@@ -426,7 +426,7 @@ static jobjectArray OverlayControlDataToJava(JNIEnv* env,
                            Common::Android::GetOverlayControlDataConstructor(),
                            Common::Android::ToJString(env, control_data.id), control_data.enabled,
                            jlandscapePosition, jportraitPosition, jfoldablePosition,
-                           control_data.individual_scale);
+                           control_data.individual_scale, control_data.press_mode);
 
         env->SetObjectArrayElement(joverlayControlDataArray, i, jcontrolData);
     }
@@ -479,9 +479,12 @@ static void OverlayControlDataFromJava(JNIEnv* env, jobjectArray joverlayControl
         float individual_scale = static_cast<float>(env->GetFloatField(
             joverlayControlData, Common::Android::GetOverlayControlDataIndividualScaleField()));
 
+        s32 press_mode = static_cast<s32>(env->GetIntField(
+            joverlayControlData, Common::Android::GetOverlayControlDataPressModeField()));
+
         out.push_back(AndroidSettings::OverlayControlData{
             Common::Android::GetJString(env, jidString), enabled, landscape_position,
-            portrait_position, foldable_position, individual_scale});
+            portrait_position, foldable_position, individual_scale, press_mode});
     }
 }
 

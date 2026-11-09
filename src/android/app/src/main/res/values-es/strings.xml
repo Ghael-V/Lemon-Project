@@ -1027,6 +1027,10 @@
     <string name="overlay_preset_default">Por defecto</string>
     <string name="overlay_preset_big">Botones grandes</string>
     <string name="overlay_preset_swapped">Cruceta/stick intercambiados</string>
+    <string name="overlay_press_mode">Al pulsar</string>
+    <string name="overlay_press_mode_normal">Normal</string>
+    <string name="overlay_press_mode_toggle">Fijar</string>
+    <string name="overlay_press_mode_turbo">Turbo</string>
     <string name="emulation_snap_to_grid">Ajustar a la cuadrícula</string>
     <string name="emulation_pause">Pausar emulación</string>
     <string name="emulation_unpause">Despausar emulación</string>

@@ -1167,6 +1167,10 @@
     <string name="overlay_preset_default">Default</string>
     <string name="overlay_preset_big">Big buttons</string>
     <string name="overlay_preset_swapped">Swapped D-pad/stick</string>
+    <string name="overlay_press_mode">When pressed</string>
+    <string name="overlay_press_mode_normal">Normal</string>
+    <string name="overlay_press_mode_toggle">Toggle</string>
+    <string name="overlay_press_mode_turbo">Turbo</string>
     <string name="emulation_snap_to_grid">Snap to grid</string>
     <string name="emulation_pause">Pause emulation</string>
     <string name="emulation_unpause">Unpause emulation</string>
