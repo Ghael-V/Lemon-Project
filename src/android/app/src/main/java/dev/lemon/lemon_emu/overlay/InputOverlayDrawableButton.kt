@@ -98,6 +98,20 @@ class InputOverlayDrawableButton(
         return false
     }
 
+    /**
+     * Lets go of the finger on this button, for when its touch ends without an up event.
+     *
+     * @return true if value was changed
+     */
+    fun cancelTouch(): Boolean {
+        if (trackId == -1) {
+            return false
+        }
+        pressedState = false
+        trackId = -1
+        return true
+    }
+
     fun setPosition(x: Int, y: Int) {
         buttonPositionX = x
         buttonPositionY = y

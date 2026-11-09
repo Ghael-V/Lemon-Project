@@ -134,6 +134,23 @@ class InputOverlayDrawableDpad(
         return false
     }
 
+    /**
+     * Lets go of the finger on the d-pad, for when its touch ends without an up event.
+     *
+     * @return true if value was changed
+     */
+    fun cancelTouch(): Boolean {
+        if (trackId == -1) {
+            return false
+        }
+        trackId = -1
+        upButtonState = false
+        downButtonState = false
+        leftButtonState = false
+        rightButtonState = false
+        return true
+    }
+
     fun draw(canvas: Canvas) {
         val px = controlPositionX + width / 2
         val py = controlPositionY + height / 2
