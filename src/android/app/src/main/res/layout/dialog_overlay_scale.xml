@@ -36,6 +36,57 @@
             app:trackColorActive="@color/lemon_border_gradient_start"
             app:trackColorInactive="@color/lemon_border_gradient_end"
             app:tickColor="@color/lemon_border_gradient_start"/>
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/pressModeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/overlay_press_mode"
+            android:textAppearance="?attr/textAppearanceBody2"
+            android:gravity="center"
+            android:layout_marginBottom="4dp"
+            android:textColor="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/pressModeGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pressModeNormal"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/overlay_press_mode_normal"
+                android:textColor="@color/overlay_press_mode_text"
+                app:backgroundTint="@color/overlay_press_mode_fill" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pressModeToggle"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/overlay_press_mode_toggle"
+                android:textColor="@color/overlay_press_mode_text"
+                app:backgroundTint="@color/overlay_press_mode_fill" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pressModeTurbo"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/overlay_press_mode_turbo"
+                android:textColor="@color/overlay_press_mode_text"
+                app:backgroundTint="@color/overlay_press_mode_fill" />
+
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -48,6 +48,7 @@ static jmethodID s_overlay_control_data_constructor;
 static jfieldID s_overlay_control_data_id_field;
 static jfieldID s_overlay_control_data_enabled_field;
 static jfieldID s_overlay_control_data_individual_scale_field;
+static jfieldID s_overlay_control_data_press_mode_field;
 static jfieldID s_overlay_control_data_landscape_position_field;
 static jfieldID s_overlay_control_data_portrait_position_field;
 static jfieldID s_overlay_control_data_foldable_position_field;
@@ -244,6 +245,10 @@ namespace Common::Android {
 
     jfieldID GetOverlayControlDataIndividualScaleField() {
         return s_overlay_control_data_individual_scale_field;
+    }
+
+    jfieldID GetOverlayControlDataPressModeField() {
+        return s_overlay_control_data_press_mode_field;
     }
 
     jfieldID GetOverlayControlDataLandscapePositionField() {
@@ -533,7 +538,7 @@ void Initialize(JavaVM* vm, JNIEnv *env) {
         reinterpret_cast<jclass>(env->NewGlobalRef(overlay_control_data_class));
     s_overlay_control_data_constructor =
         env->GetMethodID(overlay_control_data_class, "<init>",
-                         "(Ljava/lang/String;ZLkotlin/Pair;Lkotlin/Pair;Lkotlin/Pair;F)V");
+                         "(Ljava/lang/String;ZLkotlin/Pair;Lkotlin/Pair;Lkotlin/Pair;FI)V");
     s_overlay_control_data_id_field =
         env->GetFieldID(overlay_control_data_class, "id", "Ljava/lang/String;");
     s_overlay_control_data_enabled_field =
@@ -546,6 +551,8 @@ void Initialize(JavaVM* vm, JNIEnv *env) {
         env->GetFieldID(overlay_control_data_class, "foldablePosition", "Lkotlin/Pair;");
     s_overlay_control_data_individual_scale_field =
         env->GetFieldID(overlay_control_data_class, "individualScale", "F");
+    s_overlay_control_data_press_mode_field =
+        env->GetFieldID(overlay_control_data_class, "pressMode", "I");
     env->DeleteLocalRef(overlay_control_data_class);
 
     const jclass patch_class = env->FindClass("dev/lemon/lemon_emu/model/Patch");
