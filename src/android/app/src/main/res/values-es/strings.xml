@@ -243,7 +243,7 @@
     <string name="lemon_view_details">Ver detalles</string>
     <string name="lemon_all_games">Todos los juegos</string>
     <string name="lemon_game_folders">Carpetas de juegos</string>
-    <string name="lemon_install_content">Instalar contenido</string>
+    <string name="lemon_manage_data">Gestionar datos</string>
     <string name="lemon_more_options">Más opciones</string>
     <string name="lemon_stat_games">Juegos</string>
     <string name="lemon_stat_playtime">Tiempo total</string>
