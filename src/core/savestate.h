@@ -145,6 +145,10 @@ struct LoadCheck {
     u32 ended = 0;              // threads of the save that have ended since
     bool ended_blocked = false; // one of them cannot be created again
     u32 rebuilt = 0;            // threads the load would put back or create again
+    // A thread that had already ended at the save (it was still on the thread list) is in the way:
+    // its place is taken by another thread or empty now, and it is never created again, so no
+    // look will find the threads as at the save again.
+    bool moved_past = false;
     std::string blocked;        // what keeps the load from going ahead, for the log
 };
 [[nodiscard]] LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signature,

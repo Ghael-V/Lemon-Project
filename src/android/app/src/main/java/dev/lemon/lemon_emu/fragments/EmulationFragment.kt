@@ -1842,6 +1842,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     R.string.emulation_quick_load_state_game_loading
                 NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION ->
                     R.string.emulation_quick_load_state_not_this_session
+                NativeLibrary.QUICK_LOAD_MOVED_PAST ->
+                    R.string.emulation_quick_load_state_moved_past
                 else -> R.string.emulation_quick_load_state_failure
             }
         }
@@ -1882,10 +1884,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
             activity?.runOnUiThread {
                 // The game being back where it was saved says it worked: a short note is enough.
-                // Other results are read in full; only the long explanation needs a long toast.
+                // Other results are read in full; only the long explanations need a long toast.
                 val succeeded = message == R.string.emulation_quick_save_state_success ||
                     message == R.string.emulation_quick_load_state_success
-                val length = if (message == R.string.emulation_quick_load_state_incompatible) {
+                val length = if (message == R.string.emulation_quick_load_state_incompatible ||
+                    message == R.string.emulation_quick_load_state_moved_past
+                ) {
                     Toast.LENGTH_LONG
                 } else {
                     Toast.LENGTH_SHORT
@@ -1894,6 +1898,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     Toast.makeText(appContext, message, length),
                     if (succeeded) QUICK_STATE_SUCCESS_SHOWN_MS else 0
                 )
+                // A long toast's 3.5 s is too short to read this one: it is shown once more.
+                if (message == R.string.emulation_quick_load_state_moved_past) {
+                    val again = Runnable {
+                        showQuickStateToast(
+                            Toast.makeText(appContext, message, Toast.LENGTH_LONG),
+                            0
+                        )
+                    }
+                    quickStateToastHandler.postDelayed(again, QUICK_STATE_WORKING_SHOWN_MS)
+                }
             }
         }.start()
     }

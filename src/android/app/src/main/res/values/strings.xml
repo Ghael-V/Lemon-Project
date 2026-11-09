@@ -1192,6 +1192,7 @@
     <string name="emulation_quick_load_state_incompatible">Can\'t load: since you saved, the game did something Quick Load cannot undo yet. Nothing was changed.</string>
     <string name="emulation_quick_load_state_game_loading">Game is loading. Wait and try again.</string>
     <string name="emulation_quick_load_state_not_this_session">No save from this session</string>
+    <string name="emulation_quick_load_state_moved_past">The game moved past this save. It can\'t be loaded. Make a new quick save.</string>
     <string name="emulation_quick_save_state_working">Saving…</string>
     <string name="emulation_quick_load_state_working">Loading…</string>
     <string name="emulation_quick_save_state_still_working">Save is still processing…</string>

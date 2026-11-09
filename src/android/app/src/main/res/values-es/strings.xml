@@ -1484,6 +1484,7 @@
     <string name="emulation_quick_load_state_incompatible">No se puede cargar: desde que guardaste, el juego hizo algo que la carga rápida todavía no sabe deshacer. No se ha cambiado nada.</string>
     <string name="emulation_quick_load_state_game_loading">El juego está cargando. Espera y vuelve a intentarlo.</string>
     <string name="emulation_quick_load_state_not_this_session">No hay ningún guardado de esta sesión</string>
+    <string name="emulation_quick_load_state_moved_past">El juego ya pasó este guardado. No se puede cargar. Haz un nuevo guardado rápido.</string>
     <string name="emulation_quick_save_state_working">Guardando…</string>
     <string name="emulation_quick_load_state_working">Cargando…</string>
     <string name="emulation_quick_save_state_still_working">El guardado sigue en curso…</string>
