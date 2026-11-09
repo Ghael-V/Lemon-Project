@@ -599,8 +599,8 @@
     <string name="update_checking">Checking for updates…</string>
     <string name="update_none">No newer version found, or the update server could not be reached.</string>
     <string name="update_open_page">Open download page</string>
-    <string name="whats_new_title">What\'s new in Lemon 1.3</string>
-    <string name="whats_new_body">• Gamepad hotkeys (Settings → Controls): pick a Hotkey Enable button and combine it with others to Quick Save, Quick Load, pause, exit or show the overlays. Thanks to BitRanger!\n• Download cheats: the Cheats window gets the codes for your game\'s version from an online database, with one tap.\n• Quick Load works across scenes without a black screen, finds a safe moment much sooner, and its messages no longer queue up (BitRanger).\n• Fixed two causes of games closing on their own (BitRanger).</string>
+    <string name="whats_new_title">What\'s new in Lemon 1.4</string>
+    <string name="whats_new_body">• Several quick saves: keep up to 4 and go back to an older one from a list with pictures. Thanks to BitRanger!\n• On-screen buttons can stay held with one tap or repeat on their own: tap one in the overlay editor to choose.\n• Move your installed content to another folder or a microSD card: Settings → Content and data → Custom Paths → NAND Directory.\n• Games use much less memory, and run better when they rewrite the same memory every frame (BitRanger).\n• Quick Load is steadier, and closing a game no longer crashes now and then (BitRanger).</string>
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_read_more">Read more</string>
     <string name="whats_new_link">https://lemon-emu.org/#features</string>

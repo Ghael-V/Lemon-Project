@@ -1442,8 +1442,8 @@
     <string name="update_checking">Buscando actualizaciones…</string>
     <string name="update_none">No hay una versión más nueva, o no se pudo conectar con el servidor de actualizaciones.</string>
     <string name="update_open_page">Abrir la página de descarga</string>
-    <string name="whats_new_title">Novedades de Lemon 1.3</string>
-    <string name="whats_new_body">• Atajos del mando (Ajustes → Controles): elige un botón de atajos y combínalo con otros para guardar o cargar al instante, pausar, salir o mostrar las superposiciones. ¡Gracias, BitRanger!\n• Descarga de trucos: la ventana de Trucos trae con un toque los códigos para la versión de tu juego desde una base de datos en línea.\n• La carga rápida funciona entre escenas sin pantalla negra, encuentra antes un momento seguro y sus mensajes ya no hacen cola (BitRanger).\n• Arregladas dos causas de que los juegos se cerraran solos (BitRanger).</string>
+    <string name="whats_new_title">Novedades de Lemon 1.4</string>
+    <string name="whats_new_body">• Varios guardados rápidos: conserva hasta 4 y vuelve a uno anterior desde una lista con imágenes. ¡Gracias, BitRanger!\n• Los botones en pantalla pueden quedarse pulsados con un toque o repetirse solos: toca uno en el editor de la superposición para elegirlo.\n• Mueve el contenido instalado a otra carpeta o a una microSD: Ajustes → Contenido y datos → Rutas personalizadas → Directorio NAND.\n• Los juegos usan mucha menos memoria y van mejor cuando reescriben la misma memoria en cada fotograma (BitRanger).\n• La carga rápida es más estable y cerrar un juego ya no provoca cierres inesperados de vez en cuando (BitRanger).</string>
     <string name="whats_new_got_it">Entendido</string>
     <string name="whats_new_read_more">Leer más</string>
     <string name="whats_new_link">https://lemon-emu.org/es/#features</string>
