@@ -8,6 +8,7 @@
 
 #include <array>
 #include <unordered_map>
+#include <vector>
 
 #include <sirit/sirit.h>
 #include "common/container/unordered_set.h"
@@ -293,6 +294,9 @@ public:
 
     Id fswzadd_lut_a{};
     Id fswzadd_lut_b{};
+
+    /// Quad broadcasts to turn into quad swaps once the module is assembled (no QuadSwap in sirit)
+    std::vector<u32> quad_swap_ids;
 
     Id indexed_load_func{};
     Id indexed_store_func{};

@@ -651,6 +651,35 @@ IR::Value GetThroughCast(IR::Value value, IR::Opcode expected_cast) {
     return value;
 }
 
+// A fragment shader's SHFL.IDX that stays inside its 2x2 quad (clamp 3, segmentation mask 0x1c)
+// reads one pixel of the quad. The frontend makes it a quad broadcast when the instruction itself
+// holds the lane and the mask; this does the same once they are known to come from registers set
+// to constants. As a plain subgroup shuffle it can read a helper pixel of the quad, which drivers
+// may leave out of a shuffle (Adreno returns garbage: long streaks where it is divided by), while
+// quad operations get every pixel of the quad.
+void FoldShuffleIndex(Environment& env, IR::Block& block, IR::Inst& inst) {
+    if (env.ShaderStage() != Stage::Fragment) {
+        return;
+    }
+    const IR::Value index{inst.Arg(1)};
+    const IR::Value clamp{inst.Arg(2)};
+    const IR::Value segmentation_mask{inst.Arg(3)};
+    if (!index.IsImmediate() || !clamp.IsImmediate() || !segmentation_mask.IsImmediate()) {
+        return;
+    }
+    if (clamp.U32() != 3 || segmentation_mask.U32() != 28 || index.U32() > 3) {
+        return;
+    }
+    IR::IREmitter ir{block, IR::Block::InstructionList::s_iterator_to(inst)};
+    const IR::U32 broadcast{ir.QuadBroadcast(IR::U32{inst.Arg(0)}, ir.Imm32(index.U32()))};
+    // The lane is always in the quad.
+    if (IR::Inst* const in_bounds{
+            inst.GetAssociatedPseudoOperation(IR::Opcode::GetInBoundsFromOp)}) {
+        in_bounds->ReplaceUsesWith(IR::Value{true});
+    }
+    inst.ReplaceUsesWith(broadcast);
+}
+
 void FoldFSwizzleAdd(IR::Block& block, IR::Inst& inst) {
     const IR::Value swizzle{inst.Arg(2)};
     if (!swizzle.IsImmediate()) {
@@ -1080,6 +1109,8 @@ void ConstantPropagation(Environment& env, IR::Block& block, IR::Inst& inst) {
     case IR::Opcode::CompositeExtractF16x4:
         return FoldCompositeExtract(inst, IR::Opcode::CompositeConstructF16x4,
                                     IR::Opcode::CompositeInsertF16x4);
+    case IR::Opcode::ShuffleIndex:
+        return FoldShuffleIndex(env, block, inst);
     case IR::Opcode::FSwizzleAdd:
         return FoldFSwizzleAdd(block, inst);
     case IR::Opcode::GetCbufF32:
