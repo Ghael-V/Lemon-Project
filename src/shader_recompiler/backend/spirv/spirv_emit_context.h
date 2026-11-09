@@ -350,7 +350,6 @@ public:
     Id f32x2_min_cas{};
     Id f32x2_max_cas{};
 
-    Id write_storage_cas_loop_func{};
 
     Id load_global_func_u32{};
     Id load_global_func_u32x2{};
@@ -407,7 +406,6 @@ private:
     void DefineTextures(const Info& info, u32& binding, u32& scaling_index);
     void DefineImages(const Info& info, u32& binding, u32& scaling_index);
     void DefineAttributeMemAccess(const Info& info);
-    void DefineWriteStorageCasLoopFunction(const Info& info);
     void DefineGlobalMemoryFunctions(const Info& info);
     void DefineRescalingInput(const Info& info);
     void DefineRescalingInputPushConstant();

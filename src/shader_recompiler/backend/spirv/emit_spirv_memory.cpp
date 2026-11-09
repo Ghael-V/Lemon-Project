@@ -69,12 +69,22 @@ void WriteStorage32(EmitContext& ctx, const IR::Value& binding, const IR::Value&
                  &StorageDefinitions::U32, index_offset);
 }
 
-void WriteStorageByCasLoop(EmitContext& ctx, const IR::Value& binding, const IR::Value& offset,
-                           Id value, Id bit_offset, Id bit_count) {
+// Writes an 8/16-bit field of the word that holds it, where 8/16-bit storage access can't be used.
+// A CAS loop in a helper function took a storage buffer pointer, which needs
+// VariablePointersStorageBuffer and which Qualcomm's driver failed to compile. The AND clears only
+// this field and the OR sets only its bits, so fields written by other invocations are kept.
+void WriteStorageField(EmitContext& ctx, const IR::Value& binding, const IR::Value& offset,
+                       Id value, Id bit_offset, Id bit_count) {
     const Id pointer{StoragePointer(ctx, binding, offset, ctx.storage_types.U32, sizeof(u32),
                                     &StorageDefinitions::U32)};
-    ctx.OpFunctionCall(ctx.TypeVoid(), ctx.write_storage_cas_loop_func, pointer, value, bit_offset,
-                       bit_count);
+    const Id scope{ctx.Const(static_cast<u32>(spv::Scope::Device))};
+    const Id semantics{ctx.u32_zero_value};
+    const Id field_mask{ctx.OpBitFieldInsert(ctx.U32[1], ctx.u32_zero_value, ctx.Const(~0u),
+                                             bit_offset, bit_count)};
+    const Id field_bits{ctx.OpBitFieldInsert(ctx.U32[1], ctx.u32_zero_value, value, bit_offset,
+                                             bit_count)};
+    ctx.OpAtomicAnd(ctx.U32[1], pointer, scope, semantics, ctx.OpNot(ctx.U32[1], field_mask));
+    ctx.OpAtomicOr(ctx.U32[1], pointer, scope, semantics, field_bits);
 }
 } // Anonymous namespace
 
@@ -239,7 +249,7 @@ void EmitWriteStorageU8(EmitContext& ctx, const IR::Value& binding, const IR::Va
         WriteStorage(ctx, binding, offset, ctx.OpSConvert(ctx.U8, value), ctx.storage_types.U8,
                      sizeof(u8), &StorageDefinitions::U8);
     } else {
-        WriteStorageByCasLoop(ctx, binding, offset, value, ctx.BitOffset8(offset), ctx.Const(8u));
+        WriteStorageField(ctx, binding, offset, value, ctx.BitOffset8(offset), ctx.Const(8u));
     }
 }
 
@@ -250,7 +260,7 @@ void EmitWriteStorageS8(EmitContext& ctx, const IR::Value& binding, const IR::Va
         WriteStorage(ctx, binding, offset, ctx.OpSConvert(ctx.S8, value), ctx.storage_types.S8,
                      sizeof(s8), &StorageDefinitions::S8);
     } else {
-        WriteStorageByCasLoop(ctx, binding, offset, value, ctx.BitOffset8(offset), ctx.Const(8u));
+        WriteStorageField(ctx, binding, offset, value, ctx.BitOffset8(offset), ctx.Const(8u));
     }
 }
 
@@ -261,7 +271,7 @@ void EmitWriteStorageU16(EmitContext& ctx, const IR::Value& binding, const IR::V
         WriteStorage(ctx, binding, offset, ctx.OpSConvert(ctx.U16, value), ctx.storage_types.U16,
                      sizeof(u16), &StorageDefinitions::U16);
     } else {
-        WriteStorageByCasLoop(ctx, binding, offset, value, ctx.BitOffset16(offset), ctx.Const(16u));
+        WriteStorageField(ctx, binding, offset, value, ctx.BitOffset16(offset), ctx.Const(16u));
     }
 }
 
@@ -272,7 +282,7 @@ void EmitWriteStorageS16(EmitContext& ctx, const IR::Value& binding, const IR::V
         WriteStorage(ctx, binding, offset, ctx.OpSConvert(ctx.S16, value), ctx.storage_types.S16,
                      sizeof(s16), &StorageDefinitions::S16);
     } else {
-        WriteStorageByCasLoop(ctx, binding, offset, value, ctx.BitOffset16(offset), ctx.Const(16u));
+        WriteStorageField(ctx, binding, offset, value, ctx.BitOffset16(offset), ctx.Const(16u));
     }
 }
 
