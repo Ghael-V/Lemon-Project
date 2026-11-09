@@ -232,6 +232,21 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     var menuOutsideTapHandler: ((MotionEvent) -> Boolean)? = null
 
     override fun onTouch(v: View, event: MotionEvent): Boolean {
+        if (!inEditMode && event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            // No up event follows a cancelled touch (a system gesture took it, for example).
+            if (BooleanSetting.TOUCHSCREEN.getBoolean()) {
+                for (i in 0 until event.pointerCount) {
+                    val fingerId = event.getPointerId(i)
+                    if (!isTouchInputConsumed(fingerId)) {
+                        NativeInput.onTouchReleased(fingerId)
+                    }
+                }
+            }
+            releaseHeldControls()
+            invalidate()
+            return true
+        }
+
         if (menuOutsideTapHandler?.invoke(event) == true) {
             return true
         }
@@ -245,10 +260,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
 
         var shouldUpdateView = false
-        val playerIndex = when (NativeInput.getStyleIndex(0)) {
-            NpadStyleIndex.Handheld -> 8
-            else -> 0
-        }
+        val playerIndex = overlayPlayerIndex()
 
         for (button in overlayButtons) {
             if (!button.updateStatus(event)) {
@@ -348,6 +360,41 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
 
         return true
+    }
+
+    private fun overlayPlayerIndex(): Int =
+        when (NativeInput.getStyleIndex(0)) {
+            NpadStyleIndex.Handheld -> 8
+            else -> 0
+        }
+
+    /** Tells the game that every control a finger is on has been let go of. */
+    private fun releaseHeldControls() {
+        val playerIndex = overlayPlayerIndex()
+        for (button in overlayButtons) {
+            if (button.cancelTouch()) {
+                sendButtonEvent(playerIndex, button.button, button.status)
+            }
+        }
+        for (dpad in overlayDpads) {
+            if (dpad.cancelTouch()) {
+                sendButtonEvent(playerIndex, dpad.up, dpad.upStatus)
+                sendButtonEvent(playerIndex, dpad.down, dpad.downStatus)
+                sendButtonEvent(playerIndex, dpad.left, dpad.leftStatus)
+                sendButtonEvent(playerIndex, dpad.right, dpad.rightStatus)
+            }
+        }
+        for (joystick in overlayJoysticks) {
+            if (joystick.cancelTouch()) {
+                sendJoystickEvent(
+                    playerIndex,
+                    joystick.joystick,
+                    joystick.xAxis,
+                    joystick.realYAxis
+                )
+                sendButtonEvent(playerIndex, joystick.button, joystick.buttonStatus)
+            }
+        }
     }
 
     /** Forwards to [NativeInput.onOverlayButtonEvent], also feeding [MacroRecorder] when a
@@ -824,6 +871,9 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         if (gameless) {
             gamelessMode = true
         }
+
+        // The new controls will not know about a finger on the old ones.
+        releaseHeldControls()
 
         // Remove all the overlay buttons from the HashSet.
         overlayButtons.clear()

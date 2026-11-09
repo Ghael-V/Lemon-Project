@@ -111,6 +111,41 @@ class InputOverlayDrawableJoystick(
         boundsBoxBitmap.draw(canvas)
     }
 
+    private fun release() {
+        pressedState = false
+        xAxis = 0.0f
+        yAxis = 0.0f
+        outerBitmap.alpha = opacity
+        boundsBoxBitmap.alpha = 0
+        virtBounds = Rect(
+            origBounds.left,
+            origBounds.top,
+            origBounds.right,
+            origBounds.bottom
+        )
+        bounds = Rect(
+            origBounds.left,
+            origBounds.top,
+            origBounds.right,
+            origBounds.bottom
+        )
+        setInnerBounds()
+        trackId = -1
+    }
+
+    /**
+     * Lets go of the finger on the stick, for when its touch ends without an up event.
+     *
+     * @return true if value was changed
+     */
+    fun cancelTouch(): Boolean {
+        if (trackId == -1) {
+            return false
+        }
+        release()
+        return true
+    }
+
     fun updateStatus(event: MotionEvent): Boolean {
         val pointerIndex = event.actionIndex
         val xPosition = event.getX(pointerIndex).toInt()
@@ -143,25 +178,7 @@ class InputOverlayDrawableJoystick(
             if (trackId != pointerId) {
                 return false
             }
-            pressedState = false
-            xAxis = 0.0f
-            yAxis = 0.0f
-            outerBitmap.alpha = opacity
-            boundsBoxBitmap.alpha = 0
-            virtBounds = Rect(
-                origBounds.left,
-                origBounds.top,
-                origBounds.right,
-                origBounds.bottom
-            )
-            bounds = Rect(
-                origBounds.left,
-                origBounds.top,
-                origBounds.right,
-                origBounds.bottom
-            )
-            setInnerBounds()
-            trackId = -1
+            release()
             return true
         }
 
