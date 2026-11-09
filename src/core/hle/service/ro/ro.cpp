@@ -7,6 +7,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
+#include "common/scope_exit.h"
 #include "core/hle/kernel/k_process.h"
 
 #include "core/hle/service/cmif_serialization.h"
@@ -16,6 +17,10 @@
 #include "core/hle/service/ro/ro_types.h"
 #include "core/hle/service/server_manager.h"
 #include "core/hle/service/service.h"
+#ifdef HAS_NCE
+#include "core/arm/nce/patcher.h"
+#include "core/hle/kernel/k_shared_memory.h"
+#endif
 
 namespace Service::RO {
 
@@ -386,7 +391,7 @@ public:
         R_SUCCEED();
     }
 
-    Result MapManualLoadModuleMemory(u64* out_address, size_t context_id, u64 nro_address,
+    Result MapManualLoadModuleMemory(Kernel::KernelCore& kernel, u64* out_address, size_t context_id, u64 nro_address,
                                      u64 nro_size, u64 bss_address, u64 bss_size) {
         // Get context.
         ProcessContext* context = this->GetContextById(context_id);
@@ -421,10 +426,51 @@ public:
         R_TRY(context->ValidateNro(std::addressof(nro_info->module_id), std::addressof(rx_size),
                                    std::addressof(ro_size), std::addressof(rw_size),
                                    nro_info->base_address, nro_size, bss_size));
-
-        // Set NRO perms.
-        R_TRY(SetNroPerms(context->GetProcess(), nro_info->base_address, rx_size, ro_size,
-                          rw_size + bss_size));
+        R_TRY(SetNroPerms(context->GetProcess(), nro_info->base_address, rx_size, ro_size, rw_size + bss_size));
+#ifdef HAS_NCE
+        if (Settings::IsNceEnabled()) {
+            auto* process = context->GetProcess();
+            auto& memory = process->GetMemory();
+            std::vector<u8> text(rx_size);
+            memory.ReadBlock(nro_info->base_address, text.data(), text.size());
+            Core::NCE::Patcher patch{text};
+            const size_t patch_size = patch.GetSectionSize();
+            if (patch_size != 0) {
+                constexpr auto permission = Kernel::Svc::MemoryPermission::ReadExecute;
+                auto* patch_memory = Kernel::KSharedMemory::Create(kernel);
+                SCOPE_EXIT { patch_memory->Close(kernel); };
+                R_TRY(patch_memory->Initialize(kernel, kernel.System().DeviceMemory(), process, permission, permission, patch_size));
+                Kernel::KSharedMemory::Register(kernel, patch_memory);
+                const std::array<s64, 2> offsets{static_cast<s64>(total_size + Kernel::PageSize),-static_cast<s64>(patch_size + Kernel::PageSize)};
+                std::vector<Core::NCE::InstructionPatch> tls_patches;
+                std::span<const u32> instructions;
+                u64 patch_address = 0;
+                for (const s64 offset : offsets) {
+                    instructions = patch.RelocateRuntimeTls(offset, tls_patches);
+                    if (instructions.empty()) {continue;}
+                    const u64 address = static_cast<u64>(static_cast<s64>(nro_info->base_address) + offset);
+                    if (R_FAILED(patch_memory->Map(*process, address, patch_size, permission))) {continue;}
+                    patch_address = address;
+                    break;
+                }
+                R_UNLESS(patch_address != 0, RO::ResultOutOfAddressSpace);
+                const Result add_shared_memory_result = process->AddSharedMemory(kernel, patch_memory, patch_address, patch_size);
+                if (R_FAILED(add_shared_memory_result)) {
+                    R_ASSERT(patch_memory->Unmap(*process, patch_address, patch_size));
+                }
+                R_TRY(add_shared_memory_result);
+                std::memcpy(patch_memory->GetPointer(), instructions.data(), instructions.size_bytes());
+                auto* ptr = reinterpret_cast<char*>(patch_address);
+                __builtin___clear_cache(ptr, ptr + instructions.size_bytes());
+                for (const auto& instruction : tls_patches) {
+                    const u64 address = nro_info->base_address + instruction.offset;
+                    memory.Write32(address, instruction.replacement);
+                    ptr = reinterpret_cast<char*>(address);
+                    __builtin___clear_cache(ptr, ptr + sizeof(u32));
+                }
+            }
+        }
+#endif
 
         context->SetNroInfoInUse(nro_info, true);
         nro_info->code_size = rx_size + ro_size;
@@ -531,7 +577,7 @@ public:
     Result MapManualLoadModuleMemory(Out<u64> out_load_address, ClientProcessId client_pid,
                                      u64 nro_address, u64 nro_size, u64 bss_address, u64 bss_size) {
         R_TRY(m_ro->ValidateProcess(m_context_id, *client_pid));
-        R_RETURN(m_ro->MapManualLoadModuleMemory(out_load_address.Get(), m_context_id, nro_address,
+        R_RETURN(m_ro->MapManualLoadModuleMemory(system.Kernel(), out_load_address.Get(), m_context_id, nro_address,
                                                  nro_size, bss_address, bss_size));
     }
 
