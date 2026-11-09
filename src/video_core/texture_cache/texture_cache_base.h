@@ -424,6 +424,11 @@ private:
     /// Returns true if the current clear parameters clear the whole image of a given image view
     [[nodiscard]] bool IsFullClear(ImageViewId id);
 
+    /// Returns true if the current draw state can write the bound depth/stencil buffer. A draw
+    /// that can't (depth writes off, no stencil writes) leaves it unmodified, so images aliasing
+    /// it, like a texture sampling it at a slightly different size, don't need copying again.
+    [[nodiscard]] bool IsDepthStencilWritable() const;
+
     [[nodiscard]] std::pair<u32, u32> PrepareDmaImage(ImageId dst_id, GPUVAddr base_addr,
                                                       bool mark_as_modified);
 

@@ -482,7 +482,8 @@ void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
             PrepareImageView(color_buffer_id, true, is_clear && IsFullClear(color_buffer_id));
         }
         const ImageViewId depth_buffer_id = render_targets.depth_buffer_id;
-        PrepareImageView(depth_buffer_id, true, is_clear && IsFullClear(depth_buffer_id));
+        PrepareImageView(depth_buffer_id, is_clear || IsDepthStencilWritable(),
+                         is_clear && IsFullClear(depth_buffer_id));
         return;
     }
 
@@ -500,7 +501,8 @@ void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
     }
     const ImageViewId depth_buffer_id = render_targets.depth_buffer_id;
 
-    PrepareImageView(depth_buffer_id, true, is_clear && IsFullClear(depth_buffer_id));
+    PrepareImageView(depth_buffer_id, is_clear || IsDepthStencilWritable(),
+                     is_clear && IsFullClear(depth_buffer_id));
 
     rt_active_mask = 0;
     rt_image_id = {};
@@ -2784,6 +2786,19 @@ std::pair<FramebufferId, ImageViewId> TextureCache<P>::RenderTargetFromImage(
         .is_rescaled = is_rescaled,
     });
     return {framebuffer_id, view_id};
+}
+
+template <class P>
+bool TextureCache<P>::IsDepthStencilWritable() const {
+    const auto& regs = maxwell3d->regs;
+    if (regs.depth_write_enabled != 0) {
+        return true;
+    }
+    if (regs.stencil_enable == 0) {
+        return false;
+    }
+    return regs.stencil_front_mask != 0 ||
+           (regs.stencil_two_side_enable != 0 && regs.stencil_back_mask != 0);
 }
 
 template <class P>
