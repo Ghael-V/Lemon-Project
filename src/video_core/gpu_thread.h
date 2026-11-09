@@ -125,6 +125,11 @@ public:
 
     void TickGPU(bool is_async);
 
+    /// Wakes the GPU thread for a sync request without waiting for it to get to this command.
+    /// The request runs after the current draw, or when the thread is next free; the caller
+    /// waits for the request itself (GPU::WaitForSyncOperation).
+    void WakeForSyncRequest();
+
     void NotifyShutdown();
 
 private:

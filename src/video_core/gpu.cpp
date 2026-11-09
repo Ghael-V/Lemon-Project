@@ -247,7 +247,7 @@ struct GPU::Impl {
         const u64 fence = RequestSyncOperation([this, &raster_area]() {
             renderer->ReadRasterizer()->FlushRegion(raster_area.start_address, raster_area.end_address - raster_area.start_address);
         });
-        gpu_thread.TickGPU(is_async);
+        gpu_thread.WakeForSyncRequest();
         WaitForSyncOperation(fence);
         return raster_area;
     }
@@ -264,7 +264,7 @@ struct GPU::Impl {
                 rasterizer->DownloadGpuWrittenImages(addr, size);
                 rasterizer->OnCacheInvalidation(addr, size);
             });
-            gpu_thread.TickGPU(is_async);
+            gpu_thread.WakeForSyncRequest();
             WaitForSyncOperation(fence);
             return;
         }
