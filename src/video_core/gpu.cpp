@@ -21,6 +21,7 @@
 #include "core/frontend/emu_window.h"
 #include "core/frontend/graphics_context.h"
 #include "core/hle/service/nvdrv/nvdata.h"
+#include "core/memory.h"
 #include "core/perf_stats.h"
 #include "video_core/cdma_pusher.h"
 #include "video_core/control/channel_state.h"
@@ -382,6 +383,8 @@ struct GPU::Impl {
             [this, current_request_counter, num_fences, composite_layers = std::move(layers),
              composite_fences = std::move(fences)] {
                 if (num_fences == 0) {
+                    // A layer the CPU drew can sit on pages it writes without faulting.
+                    system.ApplicationMemory().ReportVolatilePages();
                     renderer->Composite(composite_layers);
                     return;
                 }
@@ -394,6 +397,7 @@ struct GPU::Impl {
                         }
                         free_swap_counters.push_back(current_request_counter);
                     }
+                    system.ApplicationMemory().ReportVolatilePages();
                     renderer->Composite(composite_layers);
                 };
                 for (size_t i = 0; i < num_fences; i++) {

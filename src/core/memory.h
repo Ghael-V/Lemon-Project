@@ -526,6 +526,12 @@ public:
 
     bool InvalidateNCE(Common::ProcessAddress vaddr, size_t size);
 
+    /**
+     * Invalidates the GPU caches over the cached pages left writable because the CPU writes them
+     * so often (see InvalidateNCE). Called before the GPU runs each command list.
+     */
+    void ReportVolatilePages();
+
     bool InvalidateSeparateHeap(void* fault_address);
 
 private:

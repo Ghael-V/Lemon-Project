@@ -6,11 +6,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <mutex>
 #include <span>
 #include <thread>
 #include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -462,7 +464,11 @@ struct Memory::Impl {
             if (!cached) {
                 perm |= Common::MemoryPermission::Write;
             }
-            host_buffer->Protect(vaddr, size, perm);
+            if (cached && has_volatile_pages.load(std::memory_order_relaxed)) {
+                ProtectSkippingVolatile(vaddr, size, perm);
+            } else {
+                host_buffer->Protect(vaddr, size, perm);
+            }
 
             std::scoped_lock lock{gpu_written_mutex};
             if (!gpu_written_pages.empty()) {
@@ -812,6 +818,13 @@ struct Memory::Impl {
         }
         const u64 first = vaddr >> YUZU_PAGEBITS;
         const u64 last = (vaddr + size - 1) >> YUZU_PAGEBITS;
+        if (has_volatile_pages.load(std::memory_order_relaxed)) {
+            // A CPU read there must fault to get what the GPU drew, so it can't stay unprotected.
+            std::scoped_lock lock{volatile_mutex};
+            for (u64 page = first; page <= last; ++page) {
+                volatile_pages.erase(page);
+            }
+        }
         std::scoped_lock lock{gpu_written_mutex};
         for (u64 page = first; page <= last; ++page) {
             gpu_written_pages.insert(page);
@@ -835,6 +848,181 @@ struct Memory::Impl {
                 host_buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
                                      Common::MemoryPermission::Read);
             }
+        }
+    }
+
+    static s64 SteadyNs() {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    }
+
+    /// Counts a CPU write fault on a cached page (NCE): a page that keeps faulting soon after the
+    /// GPU cached it again becomes volatile, and stays writable from then on.
+    void NoteCachedWrite(u64 vaddr) {
+        const u64 page = vaddr >> YUZU_PAGEBITS;
+        {
+            std::scoped_lock lock{gpu_written_mutex};
+            if (gpu_written_pages.contains(page)) {
+                return;
+            }
+        }
+        const s64 now = SteadyNs();
+        std::scoped_lock lock{volatile_mutex};
+        if (hot_pages.size() >= MaxHotPages) {
+            ForgetColdPages(now);
+        }
+        HotPage& hot = hot_pages[page];
+        hot.strikes = now - hot.last_fault_ns < HotPageWindowNs ? hot.strikes + 1 : 1;
+        hot.last_fault_ns = now;
+        if (hot.strikes < (hot.was_volatile ? VolatileAgainStrikes : VolatileStrikes)) {
+            return;
+        }
+        MakeVolatile(page, now);
+        // A buffer's pages are written together, so its pages that faulted just now are as hot:
+        // they turn volatile with this one, and are made writable at once, instead of each
+        // taking its own faults to get there (a new scene's buffers took ~40,000 at once). The
+        // next report covers their writes from now on.
+        const u64 first = page > VolatileNeighbours ? page - VolatileNeighbours : 0;
+        for (u64 neighbour = first; neighbour <= page + VolatileNeighbours; ++neighbour) {
+            const auto it = hot_pages.find(neighbour);
+            if (neighbour == page || it == hot_pages.end() ||
+                now - it->second.last_fault_ns >= HotPageWindowNs ||
+                volatile_pages.contains(neighbour)) {
+                continue;
+            }
+            // Held while protecting, so RasterizerProtectGpuWritten can't make it unreadable
+            // in between and have that undone here.
+            std::scoped_lock gpu_written_lock{gpu_written_mutex};
+            if (gpu_written_pages.contains(neighbour)) {
+                continue;
+            }
+            MakeVolatile(neighbour, now);
+            host_buffer->Protect(neighbour << YUZU_PAGEBITS, YUZU_PAGESIZE,
+                                 Common::MemoryPermission::ReadWrite);
+        }
+    }
+
+    /// Makes a faulting cached page writable and queues it, for ReportVolatilePages to invalidate
+    /// the GPU caches over it before the GPU runs its next command list. Invalidating them here
+    /// took the texture and buffer cache locks, which the GPU thread holds while it runs a command
+    /// list, so a fault could wait for the rest of the list: 30-60 ms on a slow CPU. A page
+    /// holding an image the GPU drew can't wait (what it drew is copied back before the write):
+    /// returns false for those.
+    bool QueueCachedWrite(u64 vaddr) {
+        const u64 page = vaddr >> YUZU_PAGEBITS;
+        {
+            // Held while protecting, as in NoteCachedWrite.
+            std::scoped_lock lock{gpu_written_mutex};
+            if (gpu_written_pages.contains(page)) {
+                return false;
+            }
+            host_buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
+                                 Common::MemoryPermission::ReadWrite);
+        }
+        // Queued after it became writable, before the write: a report in between invalidates
+        // nothing for it, the next one does.
+        std::scoped_lock lock{volatile_mutex};
+        written_pages.insert(page);
+        has_written_pages.store(true, std::memory_order_relaxed);
+        return true;
+    }
+
+    void MakeVolatile(u64 page, s64 now) {
+        auto& hot = hot_pages[page];
+        hot.strikes = 0;
+        hot.was_volatile = true;
+        // Pages turn volatile in bursts (a new scene's buffers); their lifetimes are spread out
+        // so they don't all expire, and fault again, at once.
+        const u64 spread_ms =
+            (((page * 0x9E3779B97F4A7C15ULL) >> 32) * VolatileLifetimeSpreadMs) >> 32;
+        const s64 lifetime = VolatileLifetimeNs + static_cast<s64>(spread_ms) * 1'000'000;
+        volatile_pages.insert_or_assign(page, now + lifetime);
+        has_volatile_pages.store(true, std::memory_order_relaxed);
+    }
+
+    /// Forgets the fault history of pages that stopped faulting, keeping volatile pages' longer.
+    void ForgetColdPages(s64 now) {
+        std::erase_if(hot_pages, [this, now](const auto& entry) {
+            const auto& [page, hot] = entry;
+            const s64 keep = hot.was_volatile ? HotVolatilePageKeepNs : HotPageWindowNs;
+            return now - hot.last_fault_ns >= keep && !volatile_pages.contains(page);
+        });
+    }
+
+    /// Protects the range as the GPU caches it, leaving its volatile pages writable.
+    void ProtectSkippingVolatile(u64 vaddr, u64 size, Common::MemoryPermission perm) {
+        std::scoped_lock lock{volatile_mutex};
+        const u64 end = vaddr + size;
+        u64 run_begin = vaddr;
+        for (u64 addr = vaddr; addr < end; addr += YUZU_PAGESIZE) {
+            if (volatile_pages.contains(addr >> YUZU_PAGEBITS)) {
+                if (addr > run_begin) {
+                    host_buffer->Protect(run_begin, addr - run_begin, perm);
+                }
+                run_begin = addr + YUZU_PAGESIZE;
+            }
+        }
+        if (end > run_begin) {
+            host_buffer->Protect(run_begin, end - run_begin, perm);
+        }
+    }
+
+    /// The CPU may have written any volatile page since the GPU last read it: invalidates the GPU
+    /// caches over all of them, so their next use reads guest memory again. A page stops being
+    /// volatile after its lifetime, after this last report: the GPU caches and protects it again,
+    /// and if the CPU still writes it, it is volatile again at its first fault.
+    void ReportVolatilePages() {
+        if (!has_volatile_pages.load(std::memory_order_relaxed) &&
+            !has_written_pages.load(std::memory_order_relaxed)) {
+            return;
+        }
+        std::vector<u64> pages;
+        {
+            std::scoped_lock lock{volatile_mutex};
+            pages.reserve(volatile_pages.size() + written_pages.size());
+            pages.assign(written_pages.begin(), written_pages.end());
+            written_pages.clear();
+            has_written_pages.store(false, std::memory_order_relaxed);
+            const s64 now = SteadyNs();
+            for (auto it = volatile_pages.begin(); it != volatile_pages.end();) {
+                pages.push_back(it->first);
+                it = now >= it->second ? volatile_pages.erase(it) : std::next(it);
+            }
+            if (volatile_pages.empty()) {
+                has_volatile_pages.store(false, std::memory_order_relaxed);
+            }
+            if (now - last_forget_ns >= HotVolatilePageKeepNs) {
+                last_forget_ns = now;
+                ForgetColdPages(now);
+            }
+        }
+        if (!gpu_device_memory) [[unlikely]] {
+            gpu_device_memory = &system.Host1x().MemoryManager();
+        }
+        std::scoped_lock report_lock{report_mutex};
+        // The same GPU memory can be mapped at more than one device address.
+        report_addresses.clear();
+        for (const u64 page : pages) {
+            const u8* const ptr = GetPointerImpl(page << YUZU_PAGEBITS, [] {}, [] {});
+            if (ptr != nullptr) {
+                gpu_device_memory->ApplyOpOnPointer(ptr, report_scratch, [this](DAddr address) {
+                    report_addresses.push_back(address >> YUZU_PAGEBITS);
+                });
+            }
+        }
+        std::sort(report_addresses.begin(), report_addresses.end());
+        auto& gpu = system.GPU();
+        for (size_t i = 0; i < report_addresses.size();) {
+            size_t end = i + 1;
+            while (end < report_addresses.size() &&
+                   report_addresses[end] <= report_addresses[end - 1] + 1) {
+                ++end;
+            }
+            const u64 first = report_addresses[i];
+            const u64 count = report_addresses[end - 1] - first + 1;
+            gpu.InvalidateRegion(first << YUZU_PAGEBITS, count << YUZU_PAGEBITS);
+            i = end;
         }
     }
 
@@ -874,6 +1062,39 @@ struct Memory::Impl {
     // grass to draw, and stopped drawing it 20-30 s into play.
     std::mutex gpu_written_mutex;
     std::unordered_set<u64> gpu_written_pages;
+
+    // Volatile pages, as Ryujinx calls them. With NCE every CPU write to a cached page faults, and
+    // the fault invalidates the GPU caches over the page, which the GPU caches (protects) again
+    // at its next use. A page the game writes every frame (vertex data, constants, a video frame
+    // decoded by the CPU) did that every frame: one game took ~50,000 faults a second, two CPU
+    // cores' worth, and stuttered. A page whose last VolatileStrikes faults each came within
+    // HotPageWindowNs of the one before stays writable instead, and is reported written at the
+    // start of each command list (ReportVolatilePages), before the GPU can read it again.
+    static constexpr s64 HotPageWindowNs = 250'000'000;
+    static constexpr u32 VolatileStrikes = 2;
+    static constexpr u32 VolatileAgainStrikes = 1;
+    static constexpr s64 VolatileLifetimeNs = 20'000'000'000;
+    static constexpr u64 VolatileLifetimeSpreadMs = 20'000;
+    static constexpr s64 HotVolatilePageKeepNs = 60'000'000'000;
+    static constexpr size_t MaxHotPages = 1 << 16;
+    static constexpr u64 VolatileNeighbours = 16;
+    struct HotPage {
+        s64 last_fault_ns = 0;
+        u32 strikes = 0;
+        bool was_volatile = false;
+    };
+    std::mutex volatile_mutex;
+    std::unordered_map<u64, HotPage> hot_pages;
+    std::unordered_map<u64, s64> volatile_pages; // page -> when it stops being volatile
+    std::atomic<bool> has_volatile_pages = false;
+    // Pages that faulted since the last report (QueueCachedWrite).
+    std::unordered_set<u64> written_pages;
+    std::atomic<bool> has_written_pages = false;
+    s64 last_forget_ns = 0;
+    // ReportVolatilePages runs on the GPU thread, and for presents on the thread that signals.
+    std::mutex report_mutex;
+    Common::ScratchBuffer<u32> report_scratch;
+    std::vector<u64> report_addresses;
 #ifdef __ANDROID__
     std::optional<Common::HeapTracker> heap_tracker;
     Common::HeapTracker* host_buffer{};
@@ -1112,17 +1333,30 @@ bool Memory::InvalidateNCE(Common::ProcessAddress vaddr, size_t size) {
             mapped = false;
         },
         [&] { rasterizer = true; });
+    bool queued = false;
     if (rasterizer) {
-        impl->InvalidateGPUMemory(ptr, size);
+        impl->NoteCachedWrite(GetInteger(vaddr));
+        queued = impl->QueueCachedWrite(GetInteger(vaddr));
+        if (!queued) {
+            impl->InvalidateGPUMemory(ptr, size);
+        }
     }
 
 #ifdef __ANDROID__
-    if (!rasterizer && mapped) {
+    // A queued page stays cached until the next report, so it is mapped here if it is in a
+    // separate heap mapping that isn't resident (one made in a burst of many small mappings can
+    // be unmapped again to make room). Otherwise the access faults again and again, and the report
+    // never comes when the GPU is waiting for this thread's next command list.
+    if ((!rasterizer || queued) && mapped) {
         impl->host_buffer->DeferredMapSeparateHeap(GetInteger(vaddr));
     }
 #endif
 
     return mapped && ptr != nullptr;
+}
+
+void Memory::ReportVolatilePages() {
+    impl->ReportVolatilePages();
 }
 
 bool Memory::InvalidateSeparateHeap(void* fault_address) {
