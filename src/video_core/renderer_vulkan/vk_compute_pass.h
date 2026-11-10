@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <array>
 #include <optional>
 #include <span>
 #include <utility>
@@ -184,8 +185,8 @@ private:
     ComputePassDescriptorQueue& compute_pass_descriptor_queue;
 };
 
-/// Decodes raw BC1/2/3/4/5/7 blocks into the texels the CPU decoder produces (RGBA8, R8 or RG8),
-/// for BCn images stored decoded or recompressed that receive raw blocks from the GPU.
+/// Decodes raw BC1-7 blocks into the texels the CPU decoder produces (RGBA8, R8, RG8 or RGBA16F
+/// for BC6H), for BCn images stored decoded or recompressed that receive raw blocks from the GPU.
 /// See host_shaders/vulkan_bcn_decode.comp.
 class BcnDecodePass final : public ComputePass {
 public:
@@ -206,9 +207,16 @@ public:
                                              VideoCore::Surface::PixelFormat format);
 
 private:
+    /// The pipeline for one shader format number, built the first time it is needed.
+    VkPipeline FormatPipeline(u32 format_number);
+
     Scheduler& scheduler;
     StagingBufferPool& staging_buffer_pool;
     ComputePassDescriptorQueue& compute_pass_descriptor_queue;
+    vk::ShaderModule decode_module;
+    // One pipeline per format (a specialization constant): a run-time switch over every format
+    // made the Adreno compiler emit a BC1/BC3 path that hangs the GPU.
+    std::array<vk::Pipeline, 8> format_pipelines;
 };
 
 class BlockLinearUnswizzle3DPass final : public ComputePass {
