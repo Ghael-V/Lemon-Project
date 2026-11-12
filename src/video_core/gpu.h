@@ -180,6 +180,10 @@ public:
     /// thread. Returns whether there were any.
     bool DownloadGpuWrittenImages(DAddr addr, u64 size);
 
+    /// Drops what the GPU drew into the images in [addr, addr + size) since it was last copied back
+    /// to guest memory, on the GPU thread. Returns whether there were any.
+    bool DiscardGpuWrittenImages(DAddr addr, u64 size);
+
     /// Tick pending requests within the GPU.
     void TickWork();
 

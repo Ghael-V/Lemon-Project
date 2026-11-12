@@ -800,17 +800,32 @@ struct Memory::Impl {
     }
 
     size_t DownloadGpuWrittenImages(VAddr v_address, size_t size) {
+        auto& gpu = system.GPU();
+        return ForEachDeviceRun(v_address, size, [&gpu](DAddr address, u64 run_size) {
+            return gpu.DownloadGpuWrittenImages(address, run_size);
+        });
+    }
+
+    size_t DiscardGpuWrittenImages(VAddr v_address, size_t size) {
+        auto& gpu = system.GPU();
+        return ForEachDeviceRun(v_address, size, [&gpu](DAddr address, u64 run_size) {
+            return gpu.DiscardGpuWrittenImages(address, run_size);
+        });
+    }
+
+    // Calls `op` on each run of contiguous device memory backing the mapped pages of the range;
+    // returns on how many it returned true.
+    template <typename Op>
+    size_t ForEachDeviceRun(VAddr v_address, size_t size, Op&& op) {
         if (!gpu_device_memory) [[unlikely]] {
             gpu_device_memory = &system.Host1x().MemoryManager();
         }
-        auto& gpu = system.GPU();
         Common::ScratchBuffer<u32> scratch;
         size_t runs_with_images = 0;
         DAddr run_start = 0;
         DAddr run_end = 0;
         const auto flush_run = [&] {
-            if (run_end > run_start &&
-                gpu.DownloadGpuWrittenImages(run_start, run_end - run_start)) {
+            if (run_end > run_start && op(run_start, run_end - run_start)) {
                 runs_with_images++;
             }
             run_start = run_end = 0;
@@ -1060,6 +1075,11 @@ bool Memory::ReadBlock(const Common::ProcessAddress src_addr, void* dest_buffer,
 std::size_t Memory::DownloadGpuWrittenImages(const Common::ProcessAddress addr,
                                              const std::size_t size) {
     return impl->DownloadGpuWrittenImages(GetInteger(addr), size);
+}
+
+std::size_t Memory::DiscardGpuWrittenImages(const Common::ProcessAddress addr,
+                                            const std::size_t size) {
+    return impl->DiscardGpuWrittenImages(GetInteger(addr), size);
 }
 
 bool Memory::ReadBlockUnsafe(const Common::ProcessAddress src_addr, void* dest_buffer,

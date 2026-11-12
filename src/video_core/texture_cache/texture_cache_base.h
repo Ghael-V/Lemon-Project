@@ -201,6 +201,10 @@ public:
     /// Download only the images in a region that the GPU wrote, waiting for the GPU once
     void DownloadGpuModifiedImages(DAddr cpu_addr, size_t size);
 
+    /// Drop what the GPU wrote into the images in a region since they were last downloaded: they
+    /// are loaded again from guest memory when next used
+    void DiscardGpuModifiedImages(DAddr cpu_addr, size_t size);
+
     std::optional<VideoCore::RasterizerDownloadArea> GetFlushArea(DAddr cpu_addr, u64 size);
 
     /// Remove images in a region

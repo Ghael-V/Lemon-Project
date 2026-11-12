@@ -624,6 +624,24 @@ void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size) {
 }
 
 template <class P>
+void TextureCache<P>::DiscardGpuModifiedImages(DAddr cpu_addr, size_t size) {
+    ForEachImageInRegion(cpu_addr, size, [this](ImageId image_id, Image& image) {
+        // Only the ones DownloadGpuModifiedImages would copy: guest memory holds no copy of others.
+        if (False(image.flags & ImageFlagBits::GpuModified) || !IsDownloadable(image)) {
+            return;
+        }
+        image.flags &= ~ImageFlagBits::GpuModified;
+        if (True(image.flags & ImageFlagBits::CpuModified)) {
+            return;
+        }
+        image.flags |= ImageFlagBits::CpuModified;
+        if (True(image.flags & ImageFlagBits::Tracked)) {
+            UntrackImage(image, image_id);
+        }
+    });
+}
+
+template <class P>
 std::optional<VideoCore::RasterizerDownloadArea> TextureCache<P>::GetFlushArea(DAddr cpu_addr,
                                                                                u64 size) {
     std::optional<VideoCore::RasterizerDownloadArea> area{};

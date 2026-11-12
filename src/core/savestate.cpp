@@ -889,6 +889,26 @@ size_t CopyGpuDrawnImages(Core::System& system) {
     return runs;
 }
 
+namespace {
+// A load writes back what the save copied from the GPU-drawn images (CopyGpuDrawnImages), but only
+// the pages that differ from memory now. What the GPU drew since the save is in its images, not in
+// memory, so their pages look unchanged, are not written and the images keep it: a title screen
+// loaded after starting a run was drawn with that run's images and came out black. Drop it before
+// the load writes memory: those images are loaded again from the restored memory when next used.
+size_t DiscardGpuDrawnImages(Core::System& system) {
+    auto* process = system.ApplicationProcess();
+    if (process == nullptr) {
+        return 0;
+    }
+    auto& memory = system.ApplicationMemory();
+    size_t runs = 0;
+    for (const auto& region : EnumerateScannableRegions(process->GetPageTable())) {
+        runs += memory.DiscardGpuWrittenImages(region.address, region.size);
+    }
+    return runs;
+}
+} // namespace
+
 bool Capture(Core::System& system, const std::string& path) {
     auto* process = system.ApplicationProcess();
     if (process == nullptr) {
@@ -1538,6 +1558,13 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                 handle_high = std::max(handle_high, saved_value);
             }
         }
+    }
+
+    if (const size_t runs = DiscardGpuDrawnImages(system); runs > 0) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: dropped what the GPU drew since the save in {} run(s) of "
+                 "images",
+                 runs);
     }
 
     std::vector<u8> live_buffer;

@@ -117,6 +117,10 @@ public:
     virtual void DownloadGpuWrittenImages([[maybe_unused]] DAddr addr,
                                           [[maybe_unused]] u64 size) {}
 
+    /// Drops what the GPU drew into the images in the region since it was last copied back to
+    /// guest memory; they are loaded from guest memory again.
+    virtual void DiscardGpuWrittenImages([[maybe_unused]] DAddr addr, [[maybe_unused]] u64 size) {}
+
     virtual bool OnCPUWrite(PAddr addr, u64 size) = 0;
 
     /// Sync memory between guest and host.

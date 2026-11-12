@@ -104,6 +104,7 @@ public:
     void OnCacheInvalidation(DAddr addr, u64 size) override;
     bool HasGpuWrittenImages(DAddr addr, u64 size) override;
     void DownloadGpuWrittenImages(DAddr addr, u64 size) override;
+    void DiscardGpuWrittenImages(DAddr addr, u64 size) override;
     bool OnCPUWrite(DAddr addr, u64 size) override;
     void InvalidateGPUCache() override;
     void UnmapMemory(DAddr addr, u64 size) override;

@@ -918,6 +918,14 @@ void RasterizerVulkan::DownloadGpuWrittenImages(DAddr addr, u64 size) {
     texture_cache.DownloadGpuModifiedImages(addr, size);
 }
 
+void RasterizerVulkan::DiscardGpuWrittenImages(DAddr addr, u64 size) {
+    if (addr == 0 || size == 0) {
+        return;
+    }
+    std::scoped_lock lock{texture_cache.mutex};
+    texture_cache.DiscardGpuModifiedImages(addr, size);
+}
+
 void RasterizerVulkan::InvalidateGPUCache() {
     gpu.InvalidateGPUCache();
 }

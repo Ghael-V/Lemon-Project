@@ -349,6 +349,18 @@ struct GPU::Impl {
         return true;
     }
 
+    bool DiscardGpuWrittenImages(DAddr addr, u64 size) {
+        VideoCore::RasterizerInterface* const rasterizer = renderer->ReadRasterizer();
+        if (!rasterizer->HasGpuWrittenImages(addr, size)) {
+            return false;
+        }
+        const u64 fence = RequestSyncOperation(
+            [rasterizer, addr, size] { rasterizer->DiscardGpuWrittenImages(addr, size); });
+        gpu_thread.TickGPU(is_async);
+        WaitForSyncOperation(fence);
+        return true;
+    }
+
     bool OnCPUWrite(DAddr addr, u64 size) {
         return rasterizer->OnCPUWrite(addr, size);
     }
@@ -604,6 +616,10 @@ bool GPU::SettleFor(std::chrono::milliseconds timeout) {
 
 bool GPU::DownloadGpuWrittenImages(DAddr addr, u64 size) {
     return impl->DownloadGpuWrittenImages(addr, size);
+}
+
+bool GPU::DiscardGpuWrittenImages(DAddr addr, u64 size) {
+    return impl->DiscardGpuWrittenImages(addr, size);
 }
 
 void GPU::ObtainContext() {
