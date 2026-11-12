@@ -1,60 +1,79 @@
 // SPDX-FileCopyrightText: 2024 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
-import android.app.Dialog
 import android.os.Bundle
 import android.widget.Toast
-import androidx.fragment.app.DialogFragment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.activityViewModels
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import dev.ironlemon.ironlemon_emulator.databinding.DialogEditTextBinding
-import dev.ironlemon.ironlemon_emulator.features.settings.model.view.InputProfileSetting
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.features.settings.model.view.InputProfileSetting
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonTextField
 
-class NewInputProfileDialogFragment : DialogFragment() {
+/** Names a new input profile made from the current mapping. */
+class NewInputProfileDialogFragment : IronLemonComposeDialogFragment() {
     private var position = 0
 
     private val settingsViewModel: SettingsViewModel by activityViewModels()
-
-    private lateinit var binding: DialogEditTextBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         position = requireArguments().getInt(POSITION)
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        binding = DialogEditTextBinding.inflate(layoutInflater)
-
-        val setting = settingsViewModel.clickedItem as InputProfileSetting
-        return MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.enter_profile_name)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val profileName = binding.editText.text.toString()
-                if (!setting.isProfileNameValid(profileName)) {
-                    Toast.makeText(
-                        requireContext(),
-                        R.string.invalid_profile_name,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setPositiveButton
-                }
-
-                if (!setting.createProfile(profileName)) {
-                    Toast.makeText(
-                        requireContext(),
-                        R.string.profile_name_already_exists,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    settingsViewModel.setAdapterItemChanged(position)
-                }
+    @Composable
+    override fun DialogContent() {
+        var name by remember { mutableStateOf("") }
+        IronLemonDialogCard(
+            title = stringResource(R.string.enter_profile_name),
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(android.R.string.cancel),
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
+                IronLemonButton(
+                    text = stringResource(android.R.string.ok),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = {
+                        create(name)
+                        dismiss()
+                    }
+                )
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setView(binding.root)
-            .show()
+        ) {
+            IronLemonTextField(name, { name = it })
+        }
+    }
+
+    private fun create(profileName: String) {
+        val setting = settingsViewModel.clickedItem as? InputProfileSetting ?: return
+        if (!setting.isProfileNameValid(profileName)) {
+            Toast.makeText(requireContext(), R.string.invalid_profile_name, Toast.LENGTH_SHORT)
+                .show()
+            return
+        }
+        if (!setting.createProfile(profileName)) {
+            Toast.makeText(
+                requireContext(),
+                R.string.profile_name_already_exists,
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            settingsViewModel.setAdapterItemChanged(position)
+        }
     }
 
     companion object {

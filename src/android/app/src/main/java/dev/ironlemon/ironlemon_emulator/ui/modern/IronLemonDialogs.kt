@@ -238,3 +238,22 @@ fun IronLemonSwitchRow(label: String, checked: Boolean, onToggle: (Boolean) -> U
         IronLemonSwitch(checked)
     }
 }
+
+/** A one-line text field on the app's surface. */
+@Composable
+fun IronLemonTextField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = IronLemonType.Button,
+        cursorBrush = SolidColor(IronLemonColors.Lemon),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(IronLemonColors.Surface)
+            .border(1.dp, IronLemonColors.Outline, shape)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    )
+}
