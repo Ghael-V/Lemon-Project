@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <array>
+#include <cstring>
 #include <span>
 #include <vector>
 
@@ -21,7 +22,18 @@ namespace Core::SaveState {
 namespace {
 
 constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
-constexpr u32 CurrentVersion = 1;
+constexpr u32 CurrentVersion = 2;
+
+// Regions are stored in fixed-size chunks, each preceded by a one-byte flag: 1 if the whole
+// chunk is zero (skip writing/reading the actual bytes), 0 if it isn't (bytes follow as
+// usual). Measured on a real, demanding title (Super Mario 3D World): ~80% of captured bytes
+// are zero, and ~68% of 4096-byte-aligned chunks are entirely zero - most of a game's
+// reserved-but-untouched heap never gets written to. Skipping those chunks shrinks a ~3.4GB
+// capture to roughly a third of that, for the cost of one memcmp per chunk - far cheaper than
+// general-purpose compression, and unlike compression this doesn't cost anything on the CPU
+// budget during Restore()'s memory writes (a zero chunk there is just a memset).
+constexpr size_t ChunkSize = 4096;
+constexpr std::array<u8, ChunkSize> ZeroChunk{};
 
 } // namespace
 
@@ -61,13 +73,17 @@ bool Capture(Core::System& system, const std::string& path) {
     ok = ok && file.WriteObject(region_count);
 
     std::vector<u8> buffer;
+    // Built up in memory and flushed with a single WriteSpan() per region, same call count as
+    // the old one-big-write approach - writing the flag+data stream one tiny piece at a time
+    // instead (one fwrite() per 4K chunk, ~800k+ calls for a real capture) made Capture() slow
+    // enough to look like a hang.
+    std::vector<u8> encoded;
+    u64 data_bytes = 0;
+    u64 zero_bytes = 0;
     for (const auto& region : regions) {
         if (!ok) {
             break;
         }
-
-        ok = ok && file.WriteObject(region.address);
-        ok = ok && file.WriteObject(region.size);
 
         buffer.resize(region.size);
         // ReadBlockUnsafe(), not ReadBlock() - the regular path calls
@@ -83,7 +99,29 @@ bool Capture(Core::System& system, const std::string& path) {
             ok = false;
             break;
         }
-        ok = ok && file.WriteSpan<u8>(buffer) == buffer.size();
+
+        encoded.clear();
+        encoded.reserve(region.size + (region.size + ChunkSize - 1) / ChunkSize);
+        for (u64 offset = 0; offset < region.size; offset += ChunkSize) {
+            const size_t chunk_len =
+                static_cast<size_t>(std::min<u64>(ChunkSize, region.size - offset));
+            const u8* chunk = buffer.data() + offset;
+            const bool is_zero = std::memcmp(chunk, ZeroChunk.data(), chunk_len) == 0;
+
+            encoded.push_back(static_cast<u8>(is_zero ? 1 : 0));
+            if (is_zero) {
+                zero_bytes += chunk_len;
+            } else {
+                encoded.insert(encoded.end(), chunk, chunk + chunk_len);
+                data_bytes += chunk_len;
+            }
+        }
+
+        const auto encoded_size = static_cast<u64>(encoded.size());
+        ok = ok && file.WriteObject(region.address);
+        ok = ok && file.WriteObject(region.size);
+        ok = ok && file.WriteObject(encoded_size);
+        ok = ok && file.WriteSpan<u8>(encoded) == encoded.size();
     }
 
     file.Close();
@@ -107,8 +145,14 @@ bool Capture(Core::System& system, const std::string& path) {
         return false;
     }
 
-    LOG_INFO(Core, "SaveState::Capture: saved {} thread(s), {} region(s) to '{}'", thread_count,
-              region_count, path);
+    LOG_INFO(Core,
+              "SaveState::Capture: saved {} thread(s), {} region(s) to '{}' ({} byte(s) written, "
+              "{} zero byte(s) skipped, {:.1f}% saved)",
+              thread_count, region_count, path, data_bytes, zero_bytes,
+              (data_bytes + zero_bytes) > 0
+                  ? 100.0 * static_cast<double>(zero_bytes) /
+                        static_cast<double>(data_bytes + zero_bytes)
+                  : 0.0);
     return true;
 }
 
@@ -204,19 +248,46 @@ bool Restore(Core::System& system, const std::string& path) {
 
     auto& memory = system.ApplicationMemory();
     std::vector<u8> buffer;
+    // Read back with a single ReadSpan() per region - same reasoning as Capture()'s encoded
+    // buffer, avoids one small fread() per 4K chunk.
+    std::vector<u8> encoded;
     u32 skipped_regions = 0;
     for (u32 i = 0; i < region_count; i++) {
         u64 address = 0;
         u64 size = 0;
-        if (!file.ReadObject(address) || !file.ReadObject(size)) {
+        u64 encoded_size = 0;
+        if (!file.ReadObject(address) || !file.ReadObject(size) || !file.ReadObject(encoded_size)) {
             LOG_ERROR(Core, "SaveState::Restore: truncated region table in '{}'", path);
             return false;
         }
 
-        buffer.resize(size);
-        if (file.ReadSpan<u8>(buffer) != size) {
+        encoded.resize(encoded_size);
+        if (file.ReadSpan<u8>(encoded) != encoded_size) {
             LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
             return false;
+        }
+
+        buffer.resize(size);
+        size_t encoded_pos = 0;
+        for (u64 offset = 0; offset < size; offset += ChunkSize) {
+            const size_t chunk_len = static_cast<size_t>(std::min<u64>(ChunkSize, size - offset));
+            if (encoded_pos >= encoded.size()) {
+                LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
+                return false;
+            }
+
+            const u8 flag = encoded[encoded_pos++];
+            u8* chunk = buffer.data() + offset;
+            if (flag != 0) {
+                std::memset(chunk, 0, chunk_len);
+            } else {
+                if (encoded_pos + chunk_len > encoded.size()) {
+                    LOG_ERROR(Core, "SaveState::Restore: truncated region data in '{}'", path);
+                    return false;
+                }
+                std::memcpy(chunk, encoded.data() + encoded_pos, chunk_len);
+                encoded_pos += chunk_len;
+            }
         }
 
         if (is_excluded_stack(address, size)) {
