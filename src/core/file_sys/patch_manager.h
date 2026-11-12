@@ -83,13 +83,23 @@ public:
     // The cheats CreateCheatList loads for `build_id`, in the same order, without empty entries.
     [[nodiscard]] std::vector<CheatInfo> ListCheats(const BuildID& build_id) const;
 
-    // Switches one cheat of a mod folder on or off, in the folder's cheats/toggles.txt (Atmosphere's
-    // format). False if the folder has no cheats directory or the file can't be written. `vfs` opens
-    // the folder for writing (the mod directory itself is opened read-only).
-    bool SetCheatEnabled(const VirtualFilesystem& vfs, std::string_view folder,
-                         std::string_view name, bool enabled) const;
+    enum class CheatToggleResult {
+        Saved,
+        Failed,  // the folder has no cheats directory, or toggles.txt can't be written
+        TooMany, // switching it on would overflow the cheat VM: left off
+    };
 
-    // Saves cheat codes pasted by the user for `build_id` in a new "Lemon cheats" mod folder. The
+    // Switches one cheat of a mod folder on or off, in the folder's cheats/toggles.txt (Atmosphere's
+    // format). The cheat VM runs at most DmntCheatVm::MaximumProgramOpcodeCount instructions of all
+    // the cheats that are on together, and loads none of them past that, so a cheat that would
+    // overflow it is left off. `vfs` opens the folder for writing (the mod directory itself is opened
+    // read-only).
+    CheatToggleResult SetCheatEnabled(const VirtualFilesystem& vfs, const BuildID& build_id,
+                                      std::string_view folder, std::string_view name,
+                                      bool enabled) const;
+
+    // Saves cheat codes pasted by the user for `build_id` in a new "Lemon cheats" mod folder, every
+    // cheat off (the user picks the ones to use; all of a long list together overflow the VM). The
     // text may be an Atmosphere cheat file, or codes copied from a web page with the cheat names on
     // their own lines and no brackets. Returns how many cheats it holds (master code included); 0
     // when it holds none and -1 when they could not be saved, and nothing is written then.

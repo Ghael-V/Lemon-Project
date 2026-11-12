@@ -11,11 +11,13 @@ import android.os.Bundle
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.button.MaterialButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.os.BundleCompat
@@ -115,10 +117,9 @@ class CheatsDialogFragment : DialogFragment() {
                 })
                 return@launch
             }
-            val showFolders = rows.map { it.folder }.distinct().size > 1
             var lastFolder: String? = null
             for (row in rows) {
-                if (showFolders && row.folder != lastFolder) {
+                if (row.folder != lastFolder) {
                     list.addView(folderHeader(row.folder))
                     lastFolder = row.folder
                 }
@@ -127,11 +128,48 @@ class CheatsDialogFragment : DialogFragment() {
         }
     }
 
-    private fun folderHeader(folder: String) = TextView(requireContext()).apply {
-        text = folder.ifEmpty { getString(R.string.cheats_loose_files) }
-        setTypeface(typeface, Typeface.BOLD)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+    /** The folder's name and, for a mod folder, a button that deletes it with its cheats. */
+    private fun folderHeader(folder: String) = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
         setPadding(0, dp(12), 0, dp(2))
+        addView(
+            TextView(context).apply {
+                text = folder.ifEmpty { getString(R.string.cheats_loose_files) }
+                setTypeface(typeface, Typeface.BOLD)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            },
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        if (folder.isNotEmpty()) {
+            addView(
+                MaterialButton(
+                    context,
+                    null,
+                    com.google.android.material.R.attr.borderlessButtonStyle
+                ).apply {
+                    setText(R.string.cheats_delete_folder)
+                    setOnClickListener { confirmDeleteFolder(folder) }
+                }
+            )
+        }
+    }
+
+    private fun confirmDeleteFolder(folder: String) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.cheats_delete_folder)
+            .setMessage(getString(R.string.cheats_delete_folder_confirm, folder))
+            .setPositiveButton(R.string.cheats_delete_folder) { _, _ ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        NativeLibrary.removeMod(game.programId, folder)
+                        NativeLibrary.reloadCheats(game.programId)
+                    }
+                    refreshList()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun cheatSwitch(row: CheatRow) = MaterialSwitch(requireContext()).apply {
@@ -141,18 +179,34 @@ class CheatsDialogFragment : DialogFragment() {
         // keep a switch.
         isEnabled = !row.master && row.folder.isNotEmpty()
         minHeight = dp(48)
-        setOnCheckedChangeListener { view, checked ->
+        setOnCheckedChangeListener(listener(row))
+    }
+
+    private fun listener(row: CheatRow): CompoundButton.OnCheckedChangeListener =
+        CompoundButton.OnCheckedChangeListener { view, checked ->
             lifecycleScope.launch {
-                val saved = withContext(Dispatchers.IO) {
-                    NativeLibrary.setCheatEnabled(game.programId, row.folder, row.name, checked)
+                val result = withContext(Dispatchers.IO) {
+                    NativeLibrary.setCheatEnabled(
+                        game.programId,
+                        buildId,
+                        row.folder,
+                        row.name,
+                        checked
+                    )
                 }
-                if (!saved) {
+                if (result != 0) {
+                    // Put the switch back without saving that again.
+                    view.setOnCheckedChangeListener(null)
                     view.isChecked = !checked
-                    Toast.makeText(context, R.string.cheats_toggle_failed, Toast.LENGTH_SHORT).show()
+                    view.setOnCheckedChangeListener(listener(row))
+                    Toast.makeText(
+                        view.context,
+                        if (result == 2) R.string.cheats_too_many else R.string.cheats_toggle_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
-    }
 
     private fun showAddDialog() {
         val context = requireContext()

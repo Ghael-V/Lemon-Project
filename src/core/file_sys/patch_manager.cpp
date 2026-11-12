@@ -30,6 +30,7 @@
 #include "core/loader/loader.h"
 #include "core/loader/nso.h"
 #include "core/memory/cheat_engine.h"
+#include "core/memory/dmnt_cheat_vm.h"
 
 namespace FileSys {
 namespace {
@@ -151,6 +152,22 @@ std::vector<std::pair<std::string, bool>> ReadCheatToggles(const VirtualDir& che
         }
     }
     return toggles;
+}
+
+// Writes toggles.txt in a cheats directory opened for writing.
+bool WriteCheatToggles(const VirtualDir& cheats_dir,
+                       const std::vector<std::pair<std::string, bool>>& toggles) {
+    std::string text;
+    for (const auto& [name, value] : toggles) {
+        text += fmt::format("[{}]\n{}\n\n", name, value ? "true" : "false");
+    }
+    auto file = cheats_dir->GetFile("toggles.txt");
+    if (file == nullptr) {
+        file = cheats_dir->CreateFile("toggles.txt");
+    }
+    return file != nullptr && file->Resize(text.size()) &&
+           file->WriteBytes(std::vector<u8>(text.begin(), text.end())) == text.size() &&
+           file->Flush();
 }
 
 void ApplyCheatToggles(const VirtualDir& cheats_dir,
@@ -553,39 +570,51 @@ static VirtualDir WritableDirectory(const VirtualFilesystem& vfs, const VirtualD
     return dir != nullptr ? vfs->OpenDirectory(dir->GetFullPath(), OpenMode::ReadWrite) : nullptr;
 }
 
-bool PatchManager::SetCheatEnabled(const VirtualFilesystem& vfs, std::string_view folder,
-                                   std::string_view name, bool enabled) const {
+PatchManager::CheatToggleResult PatchManager::SetCheatEnabled(const VirtualFilesystem& vfs,
+                                                              const BuildID& build_id,
+                                                              std::string_view folder,
+                                                              std::string_view name,
+                                                              bool enabled) const {
     const auto load_dir = WritableDirectory(vfs, fs_controller.GetModificationLoadRoot(title_id));
     const auto mod_dir = load_dir != nullptr && !folder.empty()
                              ? load_dir->GetSubdirectory(folder)
                              : nullptr;
     const auto cheats_dir = mod_dir != nullptr ? FindSubdirectoryCaseless(mod_dir, "cheats") : nullptr;
     if (cheats_dir == nullptr) {
-        return false;
+        return CheatToggleResult::Failed;
     }
 
     auto toggles = ReadCheatToggles(cheats_dir);
-    const auto it = std::ranges::find(toggles, name, &std::pair<std::string, bool>::first);
-    if (it != toggles.end()) {
-        it->second = enabled;
-    } else {
-        toggles.emplace_back(std::string(name), enabled);
+    const auto set = [&](bool value) {
+        const auto it = std::ranges::find(toggles, name, &std::pair<std::string, bool>::first);
+        if (it != toggles.end()) {
+            it->second = value;
+        } else {
+            toggles.emplace_back(std::string(name), value);
+        }
+        return WriteCheatToggles(cheats_dir, toggles);
+    };
+    if (!set(enabled)) {
+        return CheatToggleResult::Failed;
     }
-    std::string text;
-    for (const auto& [toggle_name, value] : toggles) {
-        text += fmt::format("[{}]\n{}\n\n", toggle_name, value ? "true" : "false");
+    if (!enabled) {
+        return CheatToggleResult::Saved;
     }
 
-    auto file = cheats_dir->GetFile("toggles.txt");
-    if (file == nullptr) {
-        file = cheats_dir->CreateFile("toggles.txt");
+    // The VM loads nothing at all when the cheats that are on hold more instructions than it runs.
+    size_t opcodes = 0;
+    for (const auto& entry : CreateCheatList(build_id)) {
+        if (entry.enabled) {
+            opcodes += entry.definition.num_opcodes;
+        }
     }
-    if (file == nullptr || !file->Resize(text.size())) {
-        return false;
+    if (opcodes <= Core::Memory::DmntCheatVm::MaximumProgramOpcodeCount) {
+        return CheatToggleResult::Saved;
     }
-    const bool written = file->WriteBytes(std::vector<u8>(text.begin(), text.end())) == text.size();
-    file->Flush();
-    return written;
+    LOG_WARNING(Loader, "Cheats: '{}' left off: {} instructions on would overflow the VM ({})", name,
+                opcodes, Core::Memory::DmntCheatVm::MaximumProgramOpcodeCount);
+    set(false);
+    return CheatToggleResult::TooMany;
 }
 
 long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_id,
@@ -635,7 +664,19 @@ long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_
             }
             return -1;
         }
-        LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt", count, folder, build);
+        // Every cheat starts off: a long list switched on together overflows the VM, which then
+        // runs none of them.
+        std::vector<std::pair<std::string, bool>> toggles;
+        for (const auto& entry : parsed) {
+            if (entry.cheat_id != 0 && entry.definition.num_opcodes > 0) {
+                toggles.emplace_back(CheatName(entry), false);
+            }
+        }
+        if (!toggles.empty() && !WriteCheatToggles(cheats_dir, toggles)) {
+            LOG_WARNING(Loader, "Cheats: could not write {}/cheats/toggles.txt", folder);
+        }
+        LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt, all off", count, folder,
+                 build);
         return count;
     }
     LOG_ERROR(Loader, "Cheats: every Lemon cheats folder already has a file for {}", build);

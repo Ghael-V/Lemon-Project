@@ -491,13 +491,21 @@ object NativeLibrary {
      */
     external fun getCheats(programId: String, buildId: String): Array<String>
 
-    /** Switches one cheat of a mod folder on or off; applied at once when the game is running. */
+    /**
+     * Switches one cheat of a mod folder on or off; applied at once when the game is running.
+     * Returns 0 when saved, 1 when it could not be saved, 2 when switching it on would overflow the
+     * cheat engine (it is left off).
+     */
     external fun setCheatEnabled(
         programId: String,
+        buildId: String,
         folder: String,
         name: String,
         enabled: Boolean
-    ): Boolean
+    ): Int
+
+    /** Reads the cheats again if [programId] is running (after a cheat folder was removed). */
+    external fun reloadCheats(programId: String)
 
     /**
      * Saves pasted cheat codes for [buildId] in a new "Lemon cheats" mod folder. Returns how many

@@ -1533,19 +1533,29 @@ jobjectArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getCheats(JNIE
     return out;
 }
 
-jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setCheatEnabled(JNIEnv* env, jobject jobj,
-                                                               jstring jprogramId,
-                                                               jstring jfolder, jstring jname,
-                                                               jboolean enabled) {
+jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setCheatEnabled(JNIEnv* env, jobject jobj,
+                                                           jstring jprogramId, jstring jbuildId,
+                                                           jstring jfolder, jstring jname,
+                                                           jboolean enabled) {
     const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
-    const bool ok = CheatPatchManager(program_id).SetCheatEnabled(
+    using Result = FileSys::PatchManager::CheatToggleResult;
+    const Result result = CheatPatchManager(program_id).SetCheatEnabled(
         EmulationSession::GetInstance().System().GetFilesystem(),
+        ParseBuildId(Common::Android::GetJString(env, jbuildId)),
         Common::Android::GetJString(env, jfolder), Common::Android::GetJString(env, jname),
         enabled);
-    if (ok && IsRunningGame(program_id)) {
+    if (result == Result::Saved && IsRunningGame(program_id)) {
         EmulationSession::GetInstance().System().ReloadCheats();
     }
-    return ok;
+    // 0 saved, 1 failed, 2 too many on.
+    return result == Result::Saved ? 0 : result == Result::TooMany ? 2 : 1;
+}
+
+void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_reloadCheats(JNIEnv* env, jobject jobj,
+                                                        jstring jprogramId) {
+    if (IsRunningGame(EmulationSession::GetProgramId(env, jprogramId))) {
+        EmulationSession::GetInstance().System().ReloadCheats();
+    }
 }
 
 jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_addCheats(JNIEnv* env, jobject jobj,
