@@ -4,34 +4,32 @@
 package dev.ironlemon.ironlemon_emulator.fragments
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
-import androidx.navigation.findNavController
-import androidx.recyclerview.widget.GridLayoutManager
-import com.google.android.material.transition.MaterialSharedAxis
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
-import dev.ironlemon.ironlemon_emulator.adapters.InstallableAdapter
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentInstallablesBinding
-import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
 import dev.ironlemon.ironlemon_emulator.model.Installable
 import dev.ironlemon.ironlemon_emulator.model.TaskState
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonActionCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonCardGrid
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
 import dev.ironlemon.ironlemon_emulator.utils.DirectoryInitialization
 import dev.ironlemon.ironlemon_emulator.utils.FileUtil
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
 import dev.ironlemon.ironlemon_emulator.utils.collect
 import java.io.BufferedOutputStream
 import java.io.File
@@ -39,39 +37,45 @@ import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-class InstallableFragment : Fragment() {
-    private var _binding: FragmentInstallablesBinding? = null
-    private val binding get() = _binding!!
+class InstallableFragment : IronLemonComposeFragment() {
+    private var installables by mutableStateOf<List<Installable>>(emptyList())
 
-    private val homeViewModel: HomeViewModel by activityViewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enterTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
-        returnTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
-        reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentInstallablesBinding.inflate(layoutInflater)
-        return binding.root
+    @Composable
+    override fun Content() {
+        IronLemonPage(title = stringResource(R.string.manage_yuzu_data), onBack = ::goBack) {
+            IronLemonCardGrid {
+                items(installables) { item ->
+                    IronLemonActionCard(
+                        title = stringResource(item.titleId),
+                        description = stringResource(item.descriptionId)
+                    ) {
+                        item.export?.let {
+                            IronLemonButton(
+                                text = stringResource(R.string.export),
+                                iconRes = R.drawable.ic_export,
+                                height = 44.dp,
+                                onClick = it
+                            )
+                        }
+                        item.install?.let {
+                            IronLemonButton(
+                                text = stringResource(R.string.string_import),
+                                iconRes = R.drawable.ic_import,
+                                primary = true,
+                                height = 44.dp,
+                                onClick = it
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         val mainActivity = requireActivity() as MainActivity
-
-        homeViewModel.setNavigationVisibility(visible = false, animated = true)
-        homeViewModel.setStatusBarShadeVisibility(visible = false)
-
-        binding.toolbarInstallables.setNavigationOnClickListener {
-            binding.root.findNavController().popBackStack()
-        }
 
         homeViewModel.openImportSaves.collect(viewLifecycleOwner) {
             if (it) {
@@ -80,7 +84,7 @@ class InstallableFragment : Fragment() {
             }
         }
 
-        val installables = listOf(
+        installables = listOf(
             Installable(
                 R.string.user_data,
                 R.string.user_data_description,
@@ -146,34 +150,7 @@ class InstallableFragment : Fragment() {
             )
         )
 
-        binding.listInstallables.apply {
-            layoutManager = GridLayoutManager(
-                requireContext(),
-                resources.getInteger(R.integer.grid_columns)
-            )
-            adapter = InstallableAdapter(installables)
-        }
-
-        setInsets()
     }
-
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { _: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            binding.toolbarInstallables.updateMargins(left = leftInsets, right = rightInsets)
-            binding.listInstallables.updateMargins(left = leftInsets, right = rightInsets)
-
-            binding.listInstallables.updatePadding(bottom = barInsets.bottom)
-
-            windowInsets
-        }
 
     private val importSaves =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->

@@ -1,106 +1,80 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
+import android.widget.Toast
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.findNavController
-import androidx.recyclerview.widget.GridLayoutManager
-import com.google.android.material.transition.MaterialSharedAxis
+import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
+import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.adapters.AppletAdapter
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentAppletLauncherBinding
 import dev.ironlemon.ironlemon_emulator.model.Applet
 import dev.ironlemon.ironlemon_emulator.model.AppletInfo
-import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
+import dev.ironlemon.ironlemon_emulator.model.Game
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonActionCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonCardGrid
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
 
-class AppletLauncherFragment : Fragment() {
-    private var _binding: FragmentAppletLauncherBinding? = null
-    private val binding get() = _binding!!
-
-    private val homeViewModel: HomeViewModel by activityViewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enterTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
-        returnTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
-        reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentAppletLauncherBinding.inflate(inflater)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        homeViewModel.setNavigationVisibility(visible = false, animated = true)
-        homeViewModel.setStatusBarShadeVisibility(visible = false)
-
-        binding.toolbarApplets.setNavigationOnClickListener {
-            binding.root.findNavController().popBackStack()
-        }
-
-        val applets = listOf(
-            Applet(
-                R.string.album_applet,
-                R.string.album_applet_description,
-                R.drawable.ic_album,
-                AppletInfo.PhotoViewer
-            ),
-            Applet(
-                R.string.cabinet_applet,
-                R.string.cabinet_applet_description,
-                R.drawable.ic_nfc,
-                AppletInfo.Cabinet
-            ),
-            Applet(
-                R.string.mii_edit_applet,
-                R.string.mii_edit_applet_description,
-                R.drawable.ic_mii,
-                AppletInfo.MiiEdit
-            )
+/** The system applets that can be started on their own, from the installed firmware. */
+class AppletLauncherFragment : IronLemonComposeFragment() {
+    private val applets = listOf(
+        Applet(
+            R.string.album_applet,
+            R.string.album_applet_description,
+            R.drawable.ic_album,
+            AppletInfo.PhotoViewer
+        ),
+        Applet(
+            R.string.cabinet_applet,
+            R.string.cabinet_applet_description,
+            R.drawable.ic_nfc,
+            AppletInfo.Cabinet
+        ),
+        Applet(
+            R.string.mii_edit_applet,
+            R.string.mii_edit_applet_description,
+            R.drawable.ic_mii,
+            AppletInfo.MiiEdit
         )
+    )
 
-        binding.listApplets.apply {
-            layoutManager = GridLayoutManager(
-                requireContext(),
-                resources.getInteger(R.integer.grid_columns)
-            )
-            adapter = AppletAdapter(requireActivity(), applets)
+    @Composable
+    override fun Content() {
+        IronLemonPage(title = stringResource(R.string.applets), onBack = ::goBack) {
+            IronLemonCardGrid {
+                items(applets) { applet ->
+                    IronLemonActionCard(
+                        title = stringResource(applet.titleId),
+                        description = stringResource(applet.descriptionId),
+                        iconRes = applet.iconId,
+                        onClick = { launch(applet) }
+                    )
+                }
+            }
         }
-
-        setInsets()
     }
 
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { _: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            binding.toolbarApplets.updateMargins(left = leftInsets, right = rightInsets)
-            binding.listApplets.updateMargins(left = leftInsets, right = rightInsets)
-
-            binding.listApplets.updatePadding(bottom = barInsets.bottom)
-
-            windowInsets
+    private fun launch(applet: Applet) {
+        val navController = view?.findNavController() ?: return
+        val appletPath = NativeLibrary.getAppletLaunchPath(applet.appletInfo.entryId)
+        if (appletPath.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.applets_error_applet, Toast.LENGTH_SHORT)
+                .show()
+            return
         }
+
+        if (applet.appletInfo == AppletInfo.Cabinet) {
+            navController.navigate(R.id.action_appletLauncherFragment_to_cabinetLauncherDialogFragment)
+            return
+        }
+
+        NativeLibrary.setCurrentAppletId(applet.appletInfo.appletId)
+        val appletGame = Game(title = getString(applet.titleId), path = appletPath)
+        navController.navigate(HomeNavigationDirections.actionGlobalEmulationActivity(appletGame))
+    }
 }
