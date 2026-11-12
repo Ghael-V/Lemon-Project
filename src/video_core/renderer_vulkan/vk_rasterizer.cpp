@@ -513,6 +513,31 @@ void RasterizerVulkan::DispatchCompute() {
     std::scoped_lock lock{texture_cache.mutex, buffer_cache.mutex};
     pipeline->Configure(*kepler_compute, *gpu_memory, scheduler, buffer_cache, texture_cache);
 
+    // A dispatch both consumes what earlier draws, dispatches and copies wrote (a post-process
+    // pass sampling a render target) and produces data later work consumes (a GPU-driven
+    // instance or culling buffer read by the next draw, or copied by the buffer cache).
+    // Nothing else orders those accesses on the GPU, so without these barriers the results
+    // race: flickering geometry and black blocks on Adreno, with nothing in the logs.
+    // ALL_COMMANDS, as the buffer and texture caches use: it is valid on every device, unlike
+    // naming the geometry and tessellation stages, which need their features enabled.
+    static constexpr VkPipelineStageFlags producer_consumer_stages =
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    static constexpr VkMemoryBarrier make_writes_visible{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+    };
+    const auto barrier_before_dispatch = [](vk::CommandBuffer cmdbuf) {
+        cmdbuf.PipelineBarrier(producer_consumer_stages, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                                             VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                               0, make_writes_visible);
+    };
+    const auto barrier_after_dispatch = [](vk::CommandBuffer cmdbuf) {
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, producer_consumer_stages, 0,
+                               make_writes_visible);
+    };
+
     const auto& qmd{kepler_compute->launch_description};
     auto indirect_address = kepler_compute->GetIndirectComputeAddress();
     if (indirect_address) {
@@ -522,15 +547,19 @@ void RasterizerVulkan::DispatchCompute() {
         const auto [buffer, offset] =
             buffer_cache.ObtainBuffer(*indirect_address, 12, sync_info, post_op);
         scheduler.RequestOutsideRenderPassOperationContext();
+        scheduler.Record(barrier_before_dispatch);
         scheduler.Record([indirect_buffer = buffer->Handle(),
                           indirect_offset = offset](vk::CommandBuffer cmdbuf) {
             cmdbuf.DispatchIndirect(indirect_buffer, indirect_offset);
         });
+        scheduler.Record(barrier_after_dispatch);
         return;
     }
     const std::array<u32, 3> dim{qmd.grid_dim_x, qmd.grid_dim_y, qmd.grid_dim_z};
     scheduler.RequestOutsideRenderPassOperationContext();
+    scheduler.Record(barrier_before_dispatch);
     scheduler.Record([dim](vk::CommandBuffer cmdbuf) { cmdbuf.Dispatch(dim[0], dim[1], dim[2]); });
+    scheduler.Record(barrier_after_dispatch);
 }
 
 void RasterizerVulkan::ResetCounter(VideoCommon::QueryType type) {
