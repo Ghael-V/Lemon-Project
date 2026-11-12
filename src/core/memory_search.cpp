@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <mutex>
@@ -36,6 +37,39 @@ std::array<u8, sizeof(s32)> EncodeValue(s32 value) {
     std::array<u8, sizeof(s32)> bytes{};
     std::memcpy(bytes.data(), &value, sizeof(value));
     return bytes;
+}
+
+float DecodeFloat(s32 bits) {
+    float value{};
+    std::memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+// A float candidate only counts if both readings are real numbers: heap memory is full of
+// integers and pointers whose bits happen to decode to NaN, infinity or denormal noise.
+bool MatchesFloat(s32 current_bits, float needle, float tolerance) {
+    const float current = DecodeFloat(current_bits);
+    if (!std::isfinite(current)) {
+        return false;
+    }
+    return tolerance > 0.0f ? std::fabs(current - needle) <= tolerance : current == needle;
+}
+
+bool SatisfiesFloatComparison(Comparison comparison, s32 previous_bits, s32 current_bits) {
+    const float previous = DecodeFloat(previous_bits);
+    const float current = DecodeFloat(current_bits);
+    if (!std::isfinite(previous) || !std::isfinite(current)) {
+        return false;
+    }
+    switch (comparison) {
+    case Comparison::Increased:
+        return current > previous;
+    case Comparison::Decreased:
+        return current < previous;
+    case Comparison::Unchanged:
+        return current == previous;
+    }
+    return false;
 }
 
 bool SatisfiesComparison(Comparison comparison, s32 previous, s32 current) {
@@ -85,7 +119,8 @@ void FreezeLoop(std::stop_token stop_token, Core::System* system) {
 
 } // namespace
 
-std::vector<Match> Search(Core::System& system, s32 needle_value, size_t max_results) {
+std::vector<Match> Search(Core::System& system, s32 needle_value, ValueType type, float tolerance,
+                          size_t max_results) {
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
 
@@ -96,6 +131,10 @@ std::vector<Match> Search(Core::System& system, s32 needle_value, size_t max_res
     }
 
     const auto needle = EncodeValue(needle_value);
+    const float float_needle = DecodeFloat(needle_value);
+    if (type == ValueType::Float32 && !std::isfinite(float_needle)) {
+        return results;
+    }
 
     auto& memory = system.ApplicationMemory();
     const auto regions = EnumerateScannableRegions(process->GetPageTable());
@@ -121,6 +160,18 @@ std::vector<Match> Search(Core::System& system, s32 needle_value, size_t max_res
             continue;
         }
         total_bytes_read += region.size;
+
+        if (type == ValueType::Float32) {
+            const size_t aligned_count = buffer.size() / sizeof(s32);
+            for (size_t i = 0; i < aligned_count && results.size() < max_results; i++) {
+                const size_t offset = i * sizeof(s32);
+                const s32 current = DecodeValue(&buffer[offset]);
+                if (MatchesFloat(current, float_needle, tolerance)) {
+                    results.push_back({.address = region.address + offset, .value = current});
+                }
+            }
+            continue;
+        }
 
         auto begin = buffer.begin();
         const auto end = buffer.end();
@@ -202,7 +253,7 @@ void TakeSnapshot(Core::System& system) {
               g_snapshot.size(), total_bytes_read, elapsed_ms);
 }
 
-std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison,
+std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison, ValueType type,
                                    size_t max_results) {
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
@@ -233,7 +284,10 @@ std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison,
             const size_t offset = i * sizeof(s32);
             const s32 previous = DecodeValue(&snapshot_region.data[offset]);
             const s32 current = DecodeValue(&buffer[offset]);
-            if (!SatisfiesComparison(comparison, previous, current)) {
+            const bool keep = type == ValueType::Float32
+                                  ? SatisfiesFloatComparison(comparison, previous, current)
+                                  : SatisfiesComparison(comparison, previous, current);
+            if (!keep) {
                 continue;
             }
 
@@ -258,7 +312,8 @@ std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison,
 }
 
 std::vector<Match> Refine(Core::System& system, std::span<const Match> candidates,
-                          std::optional<Comparison> comparison, s32 needle_value) {
+                          std::optional<Comparison> comparison, s32 needle_value, ValueType type,
+                          float tolerance) {
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
 
@@ -284,8 +339,15 @@ std::vector<Match> Refine(Core::System& system, std::span<const Match> candidate
         }
         const s32 current = DecodeValue(buffer.data());
 
-        const bool keep = comparison ? SatisfiesComparison(*comparison, candidate.value, current)
-                                     : current == needle_value;
+        const bool is_float = type == ValueType::Float32;
+        bool keep;
+        if (comparison) {
+            keep = is_float ? SatisfiesFloatComparison(*comparison, candidate.value, current)
+                            : SatisfiesComparison(*comparison, candidate.value, current);
+        } else {
+            keep = is_float ? MatchesFloat(current, DecodeFloat(needle_value), tolerance)
+                            : current == needle_value;
+        }
         if (keep) {
             results.push_back({.address = candidate.address, .value = current});
         }
