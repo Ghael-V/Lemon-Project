@@ -81,14 +81,24 @@ public:
     }
 
     /// Whether undoing maps [address, address + size) again.
+    /// Covered by one noted range or by several that together leave no gap: a saved region can
+    /// span memory the game unmapped in separate calls (adjacent physical memory blocks merge
+    /// into one region at the save).
     bool WillRestore(u64 address, u64 size) {
         std::scoped_lock lock{mutex};
-        for (const auto& [start, length] : restored_ranges) {
-            if (address >= start && address + size <= start + length) {
-                return true;
+        const u64 end = address + size;
+        u64 covered = address; // everything below this is known to be restored
+        bool advanced = true;
+        while (covered < end && advanced) {
+            advanced = false;
+            for (const auto& [start, length] : restored_ranges) {
+                if (start <= covered && covered < start + length) {
+                    covered = start + length;
+                    advanced = true;
+                }
             }
         }
-        return false;
+        return covered >= end;
     }
 
     /// A change happened that cannot be undone.

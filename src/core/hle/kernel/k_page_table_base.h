@@ -642,6 +642,10 @@ public:
     Result CleanupForIpcClient(KProcessAddress address, size_t size, KMemoryState dst_state);
 
     Result MapPhysicalMemory(KProcessAddress address, size_t size);
+    // The same, with the process the new pages are allocated for given rather than taken from
+    // the calling thread: a Quick Load (see Core::SaveState::UndoJournal) maps memory again from a
+    // host thread, which belongs to no guest process.
+    Result MapPhysicalMemory(KProcessAddress address, size_t size, u64 owner_process_id);
     Result UnmapPhysicalMemory(KProcessAddress address, size_t size);
 
     Result MapPhysicalMemoryUnsafe(KProcessAddress address, size_t size);
