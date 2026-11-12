@@ -52,9 +52,16 @@ enum class RestoreFailure {
 // `failure`, when given, receives why a false return happened. `held_gate`, when it holds the
 // service reply gate already (CloseServiceGate), is used instead of taking it again: the caller
 // closed it before it last looked at the threads, so none of them can have had an answer since.
+//
+// With `allow_rebuild`, a thread not as at the save is put back into its saved state where it can
+// be (see CheckLoad): one that has ended since is created again, one running game code gets its
+// saved registers and wait, and one asleep in (or just back from) a kernel call is ended and
+// created again. A load across a scene change needs this: the scene's threads end, and long-lived
+// ones wait elsewhere.
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path,
                            RestoreFailure* failure = nullptr,
-                           std::unique_lock<std::shared_timed_mutex>* held_gate = nullptr);
+                           std::unique_lock<std::shared_timed_mutex>* held_gate = nullptr,
+                           bool allow_rebuild = false);
 
 // For the log: one WaitSignature() word as text: kernel state, wait reason, whether the thread is
 // inside a kernel call, and the folded wait target.
@@ -131,10 +138,25 @@ private:
 // asleep on another condition variable, which Restore moves back to the saved one.
 [[nodiscard]] bool SignaturesMatch(const std::vector<u32>& saved, const std::vector<u32>& live);
 
+// Whether a load can go ahead now (see Restore's `allow_rebuild`): each thread of the save is as at
+// the save, or, when rebuilding is allowed, one Restore can put back into its saved state.
+struct LoadCheck {
+    bool ok = false;
+    u32 ended = 0;              // threads of the save that have ended since
+    bool ended_blocked = false; // one of them cannot be created again
+    u32 rebuilt = 0;            // threads the load would put back or create again
+    std::string blocked;        // what keeps the load from going ahead, for the log
+};
+[[nodiscard]] LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signature,
+                                  const std::vector<u64>& saved_tls,
+                                  const std::vector<u32>& saved_svc, bool allow_rebuild);
+
 // Reads the signature stored in a savestate file without loading anything else, and the
-// thread-local storage address of each saved thread if asked.
+// thread-local storage address of each saved thread if asked, with (when `svc` is also given) the
+// kernel call each was in.
 [[nodiscard]] bool ReadSavedSignature(const std::string& path, std::vector<u32>& out,
-                                      std::vector<u64>* tls = nullptr);
+                                      std::vector<u64>* tls = nullptr,
+                                      std::vector<u32>* svc = nullptr);
 
 // Read-only: true if any live thread is currently in an address-arbiter wait,
 // which is a lock handoff in progress (SignalToAddress/WaitForAddress). A save

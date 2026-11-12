@@ -128,12 +128,17 @@ private:
     /// started after the save, which the restore ends. With `gate`, each look is made with the
     /// service reply gate closed, and it stays closed when this returns true, for
     /// Core::SaveState::Restore: a thread waiting for a service's answer cannot get it between the
-    /// look that matched and the restore.
+    /// look that matched and the restore. For a load, `check` receives the last look's
+    /// Core::SaveState::CheckLoad: whether threads have to be put back (Restore's allow_rebuild),
+    /// and whether threads of the save have ended for good; `target_svc` holds the kernel call
+    /// each saved thread was in.
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max(),
                            const std::vector<u64>* target_tls = nullptr,
-                           std::unique_lock<std::shared_timed_mutex>* gate = nullptr);
+                           std::unique_lock<std::shared_timed_mutex>* gate = nullptr,
+                           Core::SaveState::LoadCheck* check = nullptr,
+                           const std::vector<u32>* target_svc = nullptr);
     /// For the log: how often one thread's wait changed between WaitForSafeMoment's looks, and
     /// its last change.
     struct ThreadChurn {

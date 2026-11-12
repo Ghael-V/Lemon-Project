@@ -372,12 +372,15 @@ std::string GetQuickSavePath() {
     void(Common::FS::CreateDirs(dir));
     return (dir / "quicksave.bin").string();
 }
+
 } // namespace
 
 bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target,
                                          std::chrono::steady_clock::time_point deadline,
                                          const std::vector<u64>* target_tls,
-                                         std::unique_lock<std::shared_timed_mutex>* gate) {
+                                         std::unique_lock<std::shared_timed_mutex>* gate,
+                                         Core::SaveState::LoadCheck* check,
+                                         const std::vector<u32>* target_svc) {
     static constexpr int MaxAttempts = 100;
     static constexpr auto Step = std::chrono::milliseconds(30);
     std::vector<u32> previous;
@@ -507,9 +510,26 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
                     return true;
                 }
             }
+        } else if (target != nullptr && target_tls != nullptr) {
+            // Every thread as at the save first (the match asks for every arbiter wait of the save,
+            // on the same address, and no other; the restore checks the full address). After a
+            // while, or at once when threads of the save have ended or the game is held paused,
+            // the restore may put threads back into their saved state (see Restore's
+            // allow_rebuild): after a scene change the scene's threads have ended and long-lived
+            // ones wait elsewhere, and no look would ever find them as at the save (a boss fight's
+            // save, loaded after dying and waking at a bench, was refused every time).
+            static constexpr int ExactLooks = 30;
+            static const std::vector<u32> no_svc;
+            const auto& svc = target_svc != nullptr ? *target_svc : no_svc;
+            auto result = Core::SaveState::CheckLoad(m_system, *target, *target_tls, svc, false);
+            if (!result.ok && (!can_run || looks > ExactLooks || result.ended > 0)) {
+                result = Core::SaveState::CheckLoad(m_system, *target, *target_tls, svc, true);
+            }
+            if (check != nullptr) {
+                *check = result;
+            }
+            good = result.ok && (gate == nullptr || gate_closed);
         } else if (target != nullptr) {
-            // The signature match already asks for every arbiter wait of the save, on the same
-            // address, and no other (the restore checks the full address).
             good =
                 Core::SaveState::SignaturesMatch(*target, now) && (gate == nullptr || gate_closed);
         } else if (!arbiter) {
@@ -670,25 +690,29 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         // aborted (see WaitSignature): wait until they wait the way they did at the save.
         std::vector<u32> saved_signature;
         std::vector<u64> saved_tls;
-        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature, &saved_tls)) {
+        std::vector<u32> saved_svc;
+        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature, &saved_tls,
+                                                 &saved_svc)) {
             if (!was_paused) {
                 m_system.Run();
             }
             return QuickLoadResult::Failed; // no usable save
         }
         std::unique_lock gate{Core::SaveState::ServiceReplyGate(), std::defer_lock};
-        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls, &gate)) {
+        Core::SaveState::LoadCheck check;
+        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls, &gate, &check,
+                               &saved_svc)) {
             no_safe_moment = true;
-            // Threads of the save have ended and not come back yet: the game is between scenes
-            // (a death screen can end a level's workers until the level loads again). The restore
-            // cannot start them again; once the game has loaded, it can load.
-            threads_missing = Core::SaveState::WaitSignature(m_system, &saved_tls).size() <
-                              saved_signature.size();
+            // Threads of the save have ended and cannot be created again in the state they were
+            // saved in: the game is between scenes (a death screen can end a level's workers
+            // until the level loads again).
+            threads_missing = check.ended_blocked;
             break;
         }
 
         WaitForGpuIdle("Quick Load");
-        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure, &gate);
+        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure, &gate,
+                                            check.rebuilt > 0);
         if (gate.owns_lock()) {
             gate.unlock();
         }

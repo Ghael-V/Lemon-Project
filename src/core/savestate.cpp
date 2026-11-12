@@ -3,8 +3,10 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cstring>
+#include <optional>
 #include <shared_mutex>
 #include <span>
 #include <thread>
@@ -15,11 +17,16 @@
 #include "common/fs/file.h"
 #include "common/fs/fs.h"
 #include "common/logging/log.h"
+#include "common/scope_exit.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_auto_object.h"
 #include "core/hle/kernel/k_handle_table.h"
+#include "core/hle/kernel/k_hardware_timer.h"
 #include "core/hle/kernel/k_process.h"
+#include "core/hle/kernel/k_scoped_resource_reservation.h"
 #include "core/hle/kernel/k_thread.h"
+#include "core/hle/kernel/svc.h"
+#include "core/hle/kernel/svc_common.h"
 #include "core/hle/kernel/svc_types.h"
 #include "core/memory.h"
 #include "core/memory_region_scan.h"
@@ -37,7 +44,9 @@ constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
 // 6: the signature tells whether a thread is inside a kernel call
 // 7: no lock address in the signature; IPC waits are recorded as such
 // 8: the signature includes what a waiting thread waits for
-constexpr u32 CurrentVersion = 8;
+// 9: each saved thread's priority, ideal core and affinity mask, to create it again
+// 10: and the kernel call it is in
+constexpr u32 CurrentVersion = 10;
 
 // Regions are stored in fixed-size chunks, each preceded by a one-byte flag: 1 if the whole
 // chunk is zero (skip writing/reading the actual bytes), 0 if it isn't (bytes follow as
@@ -48,6 +57,7 @@ constexpr u32 CurrentVersion = 8;
 // general-purpose compression, and unlike compression this doesn't cost anything on the CPU
 // budget during Restore()'s memory writes (a zero chunk there is just a memset).
 constexpr size_t ChunkSize = 4096;
+constexpr u64 GuestPageSize = 0x1000;
 constexpr std::array<u8, ChunkSize> ZeroChunk{};
 
 // What the guest's memory refers to by name, as it was at the save: Restore() puts the live kernel
@@ -63,6 +73,12 @@ struct SavedThread {
     u64 tls;
     u32 handle_index; // NoHandle when the process holds no handle to this thread
     u32 handle_linear_id;
+    // What a load needs to create the thread again when it has ended since (see PlanLoad).
+    s32 priority;
+    s32 ideal_core;
+    u64 affinity_mask;
+    u32 svc_id; // the kernel call it is in (or made last), see KThread::GetSvcId
+    u32 padding;
 };
 
 struct SavedBlock {
@@ -243,16 +259,92 @@ void EndThreadsNotInSave(Core::System& system, Kernel::KProcess& process,
                         .count();
     if (ended && gone) {
         LOG_INFO(Core,
-                 "SaveState::Restore: ended {} thread(s) started after the save ({}): {} handle(s) "
-                 "closed, gone after {} ms",
+                 "SaveState::Restore: ended {} thread(s) started after the save or to be created "
+                 "again ({}): {} handle(s) closed, gone after {} ms",
                  threads.size(), described, closed, ms);
     } else {
         LOG_WARNING(
             Core,
-            "SaveState::Restore: ending {} thread(s) started after the save ({}): ended {}, "
+            "SaveState::Restore: ending {} thread(s) started after the save or to be created "
+            "again ({}): ended {}, "
             "gone from the thread list {}, {} handle(s) closed, after {} ms",
             threads.size(), described, ended, gone, closed, ms);
     }
+}
+
+// Creates a saved thread again for a load (see PlanLoad): in the process, at its saved
+// thread-local storage, priority and cores, held paused as the game is, with a handle in the
+// process' handle table. Its registers and wait are set later, after the memory is written. Null
+// if it could not be created; `handle` receives its handle.
+Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& process,
+                                        const SavedThread& saved,
+                                        const Kernel::Svc::ThreadContext& context,
+                                        Kernel::Handle* handle) {
+    auto& kernel = system.Kernel();
+    Kernel::KScopedResourceReservation reservation(kernel, std::addressof(process),
+                                                   Kernel::LimitableResource::ThreadCountMax, 1,
+                                                   kernel.HardwareTimer().GetTick() + 100000000);
+    if (!reservation.Succeeded()) {
+        LOG_ERROR(Core, "SaveState::Restore: thread id {}: no thread left to create", saved.id);
+        return nullptr;
+    }
+    Kernel::KThread* thread = Kernel::KThread::Create(kernel);
+    if (thread == nullptr) {
+        return nullptr;
+    }
+    SCOPE_EXIT {
+        // The process' thread list and the handle table hold their own references.
+        thread->Close(kernel);
+    };
+    // A thread can have no ideal core (Svc::IdealCoreDontCare, -1), but it must be created on
+    // one: the first core it may run on, its saved ideal core and affinity are set below.
+    s32 create_core = saved.ideal_core;
+    if (create_core < 0) {
+        create_core = saved.affinity_mask != 0 ? std::countr_zero(saved.affinity_mask)
+                                               : process.GetIdealCoreId();
+    }
+    {
+        Kernel::KScopedLightLock lk{process.GetStateLock()};
+        const Result result = Kernel::KThread::InitializeUserThread(
+            system, thread, context.pc, context.r[0], context.sp, saved.priority, create_core,
+            std::addressof(process));
+        if (R_FAILED(result)) {
+            LOG_ERROR(Core, "SaveState::Restore: thread id {}: could not be created ({:#x})",
+                      saved.id, result.raw);
+            return nullptr;
+        }
+    }
+    // The slot the thread it replaces just left is freed when the kernel lets go of that thread,
+    // a moment after it leaves the thread list.
+    Result moved = ResultUnknown;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    while (R_FAILED(moved = thread->MoveThreadLocalRegionForRestore(
+                        kernel, Common::ProcessAddress(saved.tls))) &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    if (R_FAILED(moved)) {
+        LOG_ERROR(Core,
+                  "SaveState::Restore: thread id {}: its thread-local storage {:#x} is taken "
+                  "({:#x})",
+                  saved.id, saved.tls, moved.raw);
+        kernel.GlobalSchedulerContext().RemoveThread(thread);
+        return nullptr;
+    }
+    reservation.Commit();
+    if (saved.affinity_mask != 0 &&
+        (saved.ideal_core != create_core || saved.affinity_mask != (1ULL << create_core))) {
+        (void)thread->SetCoreMask(kernel, saved.ideal_core, saved.affinity_mask);
+    }
+    Kernel::KThread::Register(kernel, thread);
+    if (R_FAILED(process.GetHandleTable().Add(kernel, handle, thread))) {
+        LOG_ERROR(Core, "SaveState::Restore: thread id {}: no handle left for it", saved.id);
+        *handle = Kernel::Svc::InvalidHandle;
+    }
+    // Paused like the rest of the game: it runs when the game is let run again.
+    thread->RequestSuspend(kernel, Kernel::SuspendType::System);
+    thread->GetContext() = context;
+    return thread;
 }
 
 // Writes the 4 KiB chunks of `data` that differ from guest memory, in runs. A false return means
@@ -292,8 +384,15 @@ std::vector<SavedThread> CollectThreads(Core::System& system, Kernel::KProcess& 
     const auto handles = CollectThreadHandles(system, process, threads);
     std::vector<SavedThread> saved;
     for (size_t i = 0; i < threads.size(); i++) {
+        s32 ideal_core = 0;
+        u64 affinity_mask = 0;
+        if (R_FAILED(threads[i]->GetCoreMask(system.Kernel(), &ideal_core, &affinity_mask))) {
+            ideal_core = threads[i]->GetActiveCore();
+            affinity_mask = 1ULL << ideal_core;
+        }
         saved.push_back({threads[i]->GetThreadId(), threads[i]->GetTlsAddress().GetValue(),
-                         handles[i].index, handles[i].linear_id});
+                         handles[i].index, handles[i].linear_id, threads[i]->GetBasePriority(),
+                         ideal_core, affinity_mask, threads[i]->GetSvcId(), 0});
     }
     return saved;
 }
@@ -378,6 +477,52 @@ ServiceGateRelease::~ServiceGateRelease() {
     }
 }
 
+namespace {
+// One thread's WaitSignature word.
+u32 WaitWord(Core::System& system, const Kernel::KThread& thread) {
+    // The kernel state (running/waiting/...) as well as the wait reason: a save/load pair
+    // that disagreed only on the state (the main thread waiting at the save, runnable at
+    // the load) froze the game while a reason-only signature said "same".
+    const u32 state = static_cast<u32>(static_cast<u16>(thread.GetState()) &
+                                       static_cast<u16>(Kernel::ThreadState::Mask));
+    u32 word = (state << 8) | static_cast<u32>(thread.GetWaitReasonForDebugging());
+    // Whether it is inside a kernel call: its saved registers then still hold the call's
+    // arguments, and the call writes its results when the thread resumes. A thread caught
+    // runnable at the instruction after a call is inside it or already past it, and the two
+    // cannot be swapped: restoring the registers of one onto the other gave a game's main
+    // thread its request's session handle as the call's result.
+    if (thread.IsCallingSvc()) {
+        word |= 0x80;
+    }
+    // And what it waits for. A thread restored onto a wait for another object stays there:
+    // a worker sat on one condition variable at the save and on another at the load, the
+    // restored game signalled the first one and then waited forever for the worker to finish.
+    const auto reason = thread.GetWaitReasonForDebugging();
+    if (state == static_cast<u32>(Kernel::ThreadState::Waiting)) {
+        u64 what = 0;
+        if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
+            reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+            what = WaitKey(thread);
+        } else if (reason == Kernel::ThreadWaitReasonForDebugging::Synchronization &&
+                   thread.IsCallingSvc()) {
+            // WaitSynchronization(handles = x1, count = x2), as the call was made.
+            const auto& context = thread.GetContext();
+            const u64 count = context.r[2];
+            if (count > 0 && count <= 64) {
+                auto& memory = system.ApplicationMemory();
+                what = count;
+                for (u64 i = 0; i < count; i++) {
+                    what = what * 0x100000001B3ULL ^ memory.Read32(context.r[1] + i * 4);
+                }
+            }
+        }
+        const u64 folded = what ^ (what >> 16) ^ (what >> 32) ^ (what >> 48);
+        word |= static_cast<u32>(folded & 0xFFFF) << 16;
+    }
+    return word;
+}
+} // namespace
+
 std::vector<u32> WaitSignature(Core::System& system, const std::vector<u64>* saved_tls) {
     std::vector<u32> signature;
     if (auto* process = system.ApplicationProcess()) {
@@ -387,47 +532,7 @@ std::vector<u32> WaitSignature(Core::System& system, const std::vector<u64>* sav
                     saved_tls->end()) {
                 continue;
             }
-            // The kernel state (running/waiting/...) as well as the wait reason: a save/load pair
-            // that disagreed only on the state (the main thread waiting at the save, runnable at
-            // the load) froze the game while a reason-only signature said "same".
-            const u32 state = static_cast<u32>(static_cast<u16>(thread.GetState()) &
-                                               static_cast<u16>(Kernel::ThreadState::Mask));
-            u32 word = (state << 8) | static_cast<u32>(thread.GetWaitReasonForDebugging());
-            // Whether it is inside a kernel call: its saved registers then still hold the call's
-            // arguments, and the call writes its results when the thread resumes. A thread caught
-            // runnable at the instruction after a call is inside it or already past it, and the two
-            // cannot be swapped: restoring the registers of one onto the other gave the main thread
-            // of Super Mario 3D World its request's session handle as the call's result.
-            if (thread.IsCallingSvc()) {
-                word |= 0x80;
-            }
-            // And what it waits for. A thread restored onto a wait for another object stays there:
-            // in Garfield a worker sat on one condition variable at the save and on another at the
-            // load, the restored game signalled the first one and then waited forever for the
-            // worker to finish.
-            const auto reason = thread.GetWaitReasonForDebugging();
-            if (state == static_cast<u32>(Kernel::ThreadState::Waiting)) {
-                u64 what = 0;
-                if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
-                    reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
-                    what = WaitKey(thread);
-                } else if (reason == Kernel::ThreadWaitReasonForDebugging::Synchronization &&
-                           thread.IsCallingSvc()) {
-                    // WaitSynchronization(handles = x1, count = x2), as the call was made.
-                    const auto& context = thread.GetContext();
-                    const u64 count = context.r[2];
-                    if (count > 0 && count <= 64) {
-                        auto& memory = system.ApplicationMemory();
-                        what = count;
-                        for (u64 i = 0; i < count; i++) {
-                            what = what * 0x100000001B3ULL ^ memory.Read32(context.r[1] + i * 4);
-                        }
-                    }
-                }
-                const u64 folded = what ^ (what >> 16) ^ (what >> 32) ^ (what >> 48);
-                word |= static_cast<u32>(folded & 0xFFFF) << 16;
-            }
-            signature.push_back(word);
+            signature.push_back(WaitWord(system, thread));
         }
     }
     return signature;
@@ -459,7 +564,251 @@ bool SignaturesMatch(const std::vector<u32>& saved, const std::vector<u32>& live
     return true;
 }
 
-bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vector<u64>* tls) {
+namespace {
+// How a load treats one saved thread (see PlanLoad).
+enum class SlotPlan : u8 {
+    // The live thread is as at the save (or asleep on another condition variable, which Restore
+    // moves it from, see SignaturesMatch).
+    AsSaved,
+    // The live thread is running game code, not inside a kernel call: it gets the saved registers,
+    // and is put back to sleep on its saved condition variable if it slept on one.
+    Reuse,
+    // The thread has ended since the save, or is in or just back from a kernel call it can be
+    // ended in: it is (ended and) created again from the save.
+    Recreate,
+    // None of these: the load has to wait (or cannot be made).
+    Blocked,
+};
+
+struct LoadPlan {
+    std::vector<Kernel::KThread*> live; // per saved thread, by thread-local storage; null if ended
+    std::vector<SlotPlan> slots;
+    std::vector<Kernel::KThread*> extra; // live threads in a slot the save does not have
+    bool ok = true;
+    bool ended_blocked = false; // a saved thread has ended and cannot be created again
+    std::string blocked;        // for the log
+};
+
+constexpr u32 StateOf(u32 word) {
+    return (word >> 8) & 0xFF;
+}
+constexpr u32 ReasonOf(u32 word) {
+    return word & 0x7F;
+}
+constexpr bool InSvc(u32 word) {
+    return (word & 0x80) != 0;
+}
+
+// Whether a saved thread waited inside a kernel call, for `reason`.
+bool IsSavedWait(u32 saved_word, Kernel::ThreadWaitReasonForDebugging reason) {
+    return StateOf(saved_word) == static_cast<u32>(Kernel::ThreadState::Waiting) &&
+           InSvc(saved_word) && ReasonOf(saved_word) == static_cast<u32>(reason);
+}
+
+// Whether a saved thread slept on a condition variable (WaitProcessWideKeyAtomic). The kernel
+// gives a thread waiting for a user-mode mutex (ArbitrateLock) the same wait reason: such a thread
+// put on a condition variable with that call's arguments was never woken, and its "timeout" (a
+// leftover x3) ended the call with a timeout the game aborted on (2001-0117).
+bool IsSavedConditionVariableWait(u32 saved_word, u32 saved_svc_id) {
+    return IsSavedWait(saved_word, Kernel::ThreadWaitReasonForDebugging::ConditionVar) &&
+           saved_svc_id == static_cast<u32>(Kernel::Svc::SvcId::WaitProcessWideKeyAtomic);
+}
+
+// Whether a saved thread waited in a call it is put back into by making the call again: waiting
+// for objects (WaitSynchronization), for a service's answer (SendSyncRequest) or for a user-mode
+// mutex (ArbitrateLock). It starts at the call's instruction with the call's saved arguments (see
+// IsReissuableCallBefore), so it waits on the same objects again, sends the request again (the
+// save was made before the answer came), or asks for the mutex again: the call returns at once if
+// the mutex word no longer says that owner has it, and the game's lock then tries again.
+bool IsReissuedWait(u32 saved_word, u32 saved_svc_id) {
+    using Kernel::ThreadWaitReasonForDebugging;
+    return IsSavedWait(saved_word, ThreadWaitReasonForDebugging::Synchronization) ||
+           IsSavedWait(saved_word, ThreadWaitReasonForDebugging::IPC) ||
+           (IsSavedWait(saved_word, ThreadWaitReasonForDebugging::ConditionVar) &&
+            saved_svc_id == static_cast<u32>(Kernel::Svc::SvcId::ArbitrateLock));
+}
+
+// The timeout (in ns) a thread asleep in a kernel call at the save made the call with, for the
+// calls that take one in x3 (WaitSynchronization, WaitProcessWideKeyAtomic, WaitForAddress).
+std::optional<s64> SavedCallTimeout(u32 saved_svc_id, const Kernel::Svc::ThreadContext& context) {
+    using Kernel::Svc::SvcId;
+    switch (static_cast<SvcId>(saved_svc_id)) {
+    case SvcId::WaitSynchronization:
+    case SvcId::WaitProcessWideKeyAtomic:
+    case SvcId::WaitForAddress:
+        return static_cast<s64>(context.r[3]);
+    default:
+        return std::nullopt;
+    }
+}
+
+// Whether a thread can be created again in the state the save holds it in: asleep on a condition
+// variable (put back to sleep there, see KConditionVariable::WaitForRestore), asleep in
+// SleepThread or yielding in it (runnable inside the call): it starts as if the call had ended,
+// as the call returns nothing; in a wait it is put back into by making the call again
+// (IsReissuedWait), or running game code. Not asleep in any other call (its result and the
+// kernel's state cannot be made up), and not between another kernel call's end and its return.
+bool CanBeCreatedAs(u32 saved_word, u32 saved_svc_id) {
+    using Kernel::ThreadState;
+    using Kernel::ThreadWaitReasonForDebugging;
+    if (IsReissuedWait(saved_word, saved_svc_id) ||
+        IsSavedConditionVariableWait(saved_word, saved_svc_id)) {
+        return true;
+    }
+    if (StateOf(saved_word) == static_cast<u32>(ThreadState::Waiting) && InSvc(saved_word)) {
+        return ReasonOf(saved_word) == static_cast<u32>(ThreadWaitReasonForDebugging::Sleep);
+    }
+    if (StateOf(saved_word) == static_cast<u32>(ThreadState::Runnable) && InSvc(saved_word)) {
+        return saved_svc_id == static_cast<u32>(Kernel::Svc::SvcId::SleepThread);
+    }
+    return StateOf(saved_word) == static_cast<u32>(ThreadState::Runnable);
+}
+
+// Whether a re-issued wait (IsReissuedWait) can make its saved call again from the instruction
+// before `pc`, where a thread inside a call resumes: the saved call has to be the one for that
+// wait, and the instruction that call (`svc #id`, 0xD4000001 | id << 5), or the branch native code
+// execution (NCE) put in its place, to code that makes the same call.
+bool IsReissuableCallBefore(Core::Memory::Memory& memory, u64 pc, u32 saved_word, u32 svc_id) {
+    using Kernel::ThreadWaitReasonForDebugging;
+    using Kernel::Svc::SvcId;
+    const auto svc = static_cast<SvcId>(svc_id);
+    bool right_call = false;
+    switch (static_cast<ThreadWaitReasonForDebugging>(ReasonOf(saved_word))) {
+    case ThreadWaitReasonForDebugging::Synchronization:
+        right_call = svc == SvcId::WaitSynchronization;
+        break;
+    case ThreadWaitReasonForDebugging::IPC:
+        right_call = svc == SvcId::SendSyncRequest || svc == SvcId::SendSyncRequestWithUserBuffer;
+        break;
+    case ThreadWaitReasonForDebugging::ConditionVar:
+        right_call = svc == SvcId::ArbitrateLock;
+        break;
+    default:
+        break;
+    }
+    if (!right_call || pc < 4 || !memory.IsValidVirtualAddressRange(pc - 4, 4)) {
+        return false;
+    }
+    const u32 instruction = memory.Read32(pc - 4);
+    return instruction == (0xD4000001 | (svc_id << 5)) || (instruction & 0xFC000000) == 0x14000000;
+}
+
+// Whether a live thread can be ended so that it is created again: one CanEndThread allows (asleep
+// inside a kernel call other than a service request), or one woken from a call that holds nothing
+// once it has ended (a sleep, a wait for objects or an address, a service request whose answer
+// it has), which then exits before it runs any more game code.
+bool CanEndToCreateAgain(Kernel::KThread& thread) {
+    if (CanEndThread(thread)) {
+        return true;
+    }
+    if (thread.GetState() != Kernel::ThreadState::Runnable || !thread.IsCallingSvc()) {
+        return false;
+    }
+    switch (static_cast<Kernel::Svc::SvcId>(thread.GetSvcId())) {
+    case Kernel::Svc::SvcId::SleepThread:
+    case Kernel::Svc::SvcId::WaitSynchronization:
+    case Kernel::Svc::SvcId::SendSyncRequest:
+    case Kernel::Svc::SvcId::SendSyncRequestWithUserBuffer:
+    case Kernel::Svc::SvcId::WaitForAddress:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Matches the live threads to the saved ones by thread-local storage (a thread created again gets
+// its slot back, see KThread::MoveThreadLocalRegionForRestore) and decides, for each, how a load
+// treats it. Without `allow_rebuild`, every thread must be as at the save.
+LoadPlan PlanLoad(Core::System& system, Kernel::KProcess& process,
+                  const std::vector<u32>& saved_signature, const std::vector<u64>& saved_tls,
+                  const std::vector<u32>& saved_svc, bool allow_rebuild) {
+    LoadPlan plan;
+    const size_t count = std::min(saved_signature.size(), saved_tls.size());
+    plan.live.assign(count, nullptr);
+    plan.slots.assign(count, SlotPlan::Blocked);
+    for (auto& thread : process.GetThreadList()) {
+        const auto it = std::ranges::find(saved_tls, thread.GetTlsAddress().GetValue());
+        const auto index = static_cast<size_t>(it - saved_tls.begin());
+        if (it == saved_tls.end() || index >= count) {
+            plan.extra.push_back(std::addressof(thread));
+        } else {
+            plan.live[index] = std::addressof(thread);
+        }
+    }
+    for (size_t i = 0; i < count; i++) {
+        auto* thread = plan.live[i];
+        const u32 live_word = thread != nullptr ? WaitWord(system, *thread) : 0;
+        if (thread != nullptr &&
+            SignaturesMatch(std::vector<u32>{saved_signature[i]}, std::vector<u32>{live_word})) {
+            plan.slots[i] = SlotPlan::AsSaved;
+            continue;
+        }
+        const u32 saved_svc_id = i < saved_svc.size() ? saved_svc[i] : 0;
+        if (allow_rebuild && CanBeCreatedAs(saved_signature[i], saved_svc_id)) {
+            if (thread == nullptr) {
+                plan.slots[i] = SlotPlan::Recreate;
+                continue;
+            }
+            if (thread->GetState() == Kernel::ThreadState::Runnable && !thread->IsCallingSvc()) {
+                plan.slots[i] = SlotPlan::Reuse;
+                continue;
+            }
+            if (CanEndToCreateAgain(*thread)) {
+                plan.slots[i] = SlotPlan::Recreate;
+                continue;
+            }
+        }
+        plan.ok = false;
+        if (thread == nullptr) {
+            plan.ended_blocked = true;
+        }
+        if (!plan.blocked.empty()) {
+            plan.blocked += "; ";
+        }
+        plan.blocked +=
+            thread == nullptr
+                ? fmt::format("thread {}: saved {}, ended", i, DescribeWaitWord(saved_signature[i]))
+                : fmt::format("thread {}: saved {}, live {} (last call {:#x})", i,
+                              DescribeWaitWord(saved_signature[i]), DescribeWaitWord(live_word),
+                              thread->GetSvcId());
+    }
+    for (auto* thread : plan.extra) {
+        if (!CanEndThread(*thread)) {
+            plan.ok = false;
+            if (!plan.blocked.empty()) {
+                plan.blocked += "; ";
+            }
+            plan.blocked += fmt::format(
+                "thread id {} (tls {:#x}), started after the save, is not asleep in a kernel call",
+                thread->GetThreadId(), thread->GetTlsAddress().GetValue());
+        }
+    }
+    return plan;
+}
+} // namespace
+
+LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signature,
+                    const std::vector<u64>& saved_tls, const std::vector<u32>& saved_svc,
+                    bool allow_rebuild) {
+    LoadCheck check;
+    auto* process = system.ApplicationProcess();
+    if (process == nullptr) {
+        return check;
+    }
+    const LoadPlan plan =
+        PlanLoad(system, *process, saved_signature, saved_tls, saved_svc, allow_rebuild);
+    check.ok = plan.ok;
+    check.ended = static_cast<u32>(std::ranges::count(plan.live, nullptr));
+    check.ended_blocked = plan.ended_blocked;
+    check.rebuilt = static_cast<u32>(std::ranges::count_if(plan.slots, [](SlotPlan slot) {
+        return slot == SlotPlan::Reuse || slot == SlotPlan::Recreate;
+    }));
+    check.blocked = plan.blocked;
+    return check;
+}
+
+bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vector<u64>* tls,
+                        std::vector<u32>* svc) {
     Common::FS::IOFile file{path, Common::FS::FileAccessMode::Read};
     if (!file.IsOpen()) {
         return false;
@@ -489,6 +838,12 @@ bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vec
     tls->clear();
     for (const auto& thread : saved) {
         tls->push_back(thread.tls);
+    }
+    if (svc != nullptr) {
+        svc->clear();
+        for (const auto& thread : saved) {
+            svc->push_back(thread.svc_id);
+        }
     }
     return true;
 }
@@ -658,7 +1013,7 @@ bool Capture(Core::System& system, const std::string& path) {
 }
 
 bool Restore(Core::System& system, const std::string& path, RestoreFailure* failure,
-             std::unique_lock<std::shared_timed_mutex>* held_gate) {
+             std::unique_lock<std::shared_timed_mutex>* held_gate, bool allow_rebuild) {
     if (failure != nullptr) {
         *failure = RestoreFailure::Other;
     }
@@ -739,81 +1094,39 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         }
     }
 
-    // Match the live thread list against the captured one before touching anything -
-    // same list, so iteration order matches Capture()'s as long as nothing created or
-    // destroyed a thread in between.
-    //
-    // Except for threads the game started after the save in a thread-local storage slot no saved
-    // thread had: the restored game never started them and holds nothing of theirs, so they are
-    // left out here and ended just before anything is changed (EndThreadsNotInSave). A game
-    // started three each time it wrote its own save file and they lived on for a minute or more;
-    // every Quick Load in that time was refused for the thread count. A thread the save holds
-    // that has ended since is still refused: that would need it started again.
+    // Match the live threads to the saved ones, by thread-local storage, and decide how each is
+    // treated (see PlanLoad), before touching anything. Threads the game started after the save in
+    // a slot no saved thread had are left out here and ended just before anything is changed
+    // (EndThreadsNotInSave): the restored game never started them and holds nothing of theirs. A
+    // game started three each time it wrote its own save file and they lived on for a minute or
+    // more; every Quick Load in that time was refused for the thread count.
     std::vector<u64> saved_tls;
+    std::vector<u32> saved_svc;
     for (const auto& thread : saved_threads) {
         saved_tls.push_back(thread.tls);
+        saved_svc.push_back(thread.svc_id);
     }
-    std::vector<Kernel::KThread*> live_threads;
-    std::vector<Kernel::KThread*> extra_threads;
-    for (auto& thread : process->GetThreadList()) {
-        if (std::ranges::find(saved_tls, thread.GetTlsAddress().GetValue()) != saved_tls.end()) {
-            live_threads.push_back(std::addressof(thread));
-        } else {
-            extra_threads.push_back(std::addressof(thread));
-        }
-    }
-
-    if (live_threads.size() != thread_count) {
-        LOG_ERROR(Core,
-                  "SaveState::Restore: thread count mismatch (saved {}, live {} of the save's and "
-                  "{} started since) - the guest's thread set changed since this savestate was "
-                  "captured, refusing to load",
-                  thread_count, live_threads.size(), extra_threads.size());
-        return false;
-    }
-
-    // Refuse, before touching anything, when the threads are not waiting the way they were at the
-    // save: see WaitSignature. The caller normally waits for this to hold; this keeps any other
-    // caller from restoring onto a game caught mid-transition.
-    const std::vector<u32> live_signature = WaitSignature(system, &saved_tls);
-    if (!SignaturesMatch(saved_signature, live_signature)) {
+    const LoadPlan plan =
+        PlanLoad(system, *process, saved_signature, saved_tls, saved_svc, allow_rebuild);
+    if (!plan.ok) {
         LOG_WARNING(Core,
-                    "SaveState::Restore: the guest's threads are not waiting as they were at the "
-                    "save (some are waking or sleeping), refusing for now: {}",
-                    DescribeWaitDifferences(saved_signature, live_signature));
+                    "SaveState::Restore: the guest's threads are not as they were at the save and "
+                    "cannot be put back{}, refusing for now: {}",
+                    allow_rebuild ? "" : " (rebuilding not allowed yet)", plan.blocked);
         if (failure != nullptr) {
             *failure = RestoreFailure::NotSettled;
         }
         return false;
     }
-    for (auto* thread : extra_threads) {
-        if (!CanEndThread(*thread)) {
-            LOG_WARNING(Core,
-                        "SaveState::Restore: thread id {} (tls {:#x}), started after the save, is "
-                        "not asleep in a kernel call, refusing for now: state {}, wait reason {}",
-                        thread->GetThreadId(), thread->GetTlsAddress().GetValue(),
-                        static_cast<u32>(thread->GetState()),
-                        static_cast<u32>(thread->GetWaitReasonForDebugging()));
-            if (failure != nullptr) {
-                *failure = RestoreFailure::NotSettled;
-            }
-            return false;
-        }
-    }
-
-    // The thread slots are matched by position, so each live thread must be the one the save
-    // holds in that position: same thread-local storage (a recreated worker gets the same one
-    // back, which is how a new thread is told apart from an unrelated one).
+    std::vector<Kernel::KThread*> live_threads = plan.live;
+    const std::vector<Kernel::KThread*>& extra_threads = plan.extra;
+    const auto is_rebuilt = [&](u32 i) {
+        return plan.slots[i] == SlotPlan::Reuse || plan.slots[i] == SlotPlan::Recreate;
+    };
+    std::vector<u32> live_signature(thread_count, 0);
     for (u32 i = 0; i < thread_count; i++) {
-        if (live_threads[i]->GetTlsAddress().GetValue() != saved_threads[i].tls) {
-            LOG_WARNING(Core,
-                        "SaveState::Restore: thread {} is not the thread the save holds there, "
-                        "refusing '{}'",
-                        i, path);
-            if (failure != nullptr) {
-                *failure = RestoreFailure::MemoryLayoutChanged;
-            }
-            return false;
+        if (live_threads[i] != nullptr) {
+            live_signature[i] = WaitWord(system, *live_threads[i]);
         }
     }
 
@@ -823,7 +1136,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // worker of Garfield asleep on another condition variable was never woken by the restored game.
     std::vector<bool> move_wait(thread_count, false);
     for (u32 i = 0; i < thread_count; i++) {
-        if (saved_signature[i] == live_signature[i]) {
+        if (plan.slots[i] != SlotPlan::AsSaved || saved_signature[i] == live_signature[i]) {
             continue;
         }
         if (!live_threads[i]->IsWaitingForConditionVariable() ||
@@ -850,7 +1163,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // address is the live one, so only then do it and the restored memory agree.
     for (u32 i = 0; i < thread_count; i++) {
         const auto* thread = live_threads[i];
-        if (thread->GetState() != Kernel::ThreadState::Waiting ||
+        if (plan.slots[i] != SlotPlan::AsSaved ||
+            thread->GetState() != Kernel::ThreadState::Waiting ||
             thread->GetWaitReasonForDebugging() !=
                 Kernel::ThreadWaitReasonForDebugging::Arbitration) {
             continue;
@@ -864,28 +1178,6 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                 *failure = RestoreFailure::NotSettled;
             }
             return false;
-        }
-    }
-
-    // Saved handle value -> live handle value of each thread slot's own handle.
-    HandleMap handle_map;
-    u32 handle_low = 0xFFFFFFFF;
-    u32 handle_high = 0;
-    {
-        const auto live_handles = CollectThreadHandles(system, *process, live_threads);
-        for (u32 i = 0; i < thread_count; i++) {
-            if (saved_threads[i].handle_index == NoHandle || live_handles[i].index == NoHandle) {
-                continue;
-            }
-            const u32 saved_value = EncodeHandleValue(saved_threads[i].handle_index,
-                                                      saved_threads[i].handle_linear_id);
-            const u32 live_value =
-                EncodeHandleValue(live_handles[i].index, live_handles[i].linear_id);
-            if (saved_value != live_value) {
-                handle_map.emplace_back(saved_value, live_value);
-                handle_low = std::min(handle_low, saved_value);
-                handle_high = std::max(handle_high, saved_value);
-            }
         }
     }
 
@@ -952,7 +1244,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // shares a region with one left asleep is left as before, as that region is not written.
     std::vector<bool> rewind_parked(thread_count, false);
     for (u32 i = 0; i < thread_count; i++) {
-        if (!IsParkedInKernel(*live_threads[i]) || move_wait[i]) {
+        if (plan.slots[i] != SlotPlan::AsSaved || !IsParkedInKernel(*live_threads[i]) ||
+            move_wait[i]) {
             continue;
         }
         const auto& live = live_threads[i]->GetContext();
@@ -969,7 +1262,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         for (const auto& region : region_ranges) {
             bool holds_left = false;
             for (u32 i = 0; i < thread_count; i++) {
-                if (IsParkedInKernel(*live_threads[i]) && !move_wait[i] && !rewind_parked[i] &&
+                if (plan.slots[i] == SlotPlan::AsSaved && IsParkedInKernel(*live_threads[i]) &&
+                    !move_wait[i] && !rewind_parked[i] &&
                     region_holds(region, live_threads[i]->GetUserStackTop().GetValue())) {
                     holds_left = true;
                     break;
@@ -996,7 +1290,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     std::array<u32, 7> wait_reason_counts{};
     for (u32 i = 0; i < thread_count; i++) {
         auto* thread = live_threads[i];
-        if (IsParkedInKernel(*thread) && !move_wait[i] && !rewind_parked[i]) {
+        if (plan.slots[i] == SlotPlan::AsSaved && IsParkedInKernel(*thread) && !move_wait[i] &&
+            !rewind_parked[i]) {
             sleeping_stack_tops.push_back(thread->GetUserStackTop().GetValue());
             wait_reason_counts[static_cast<size_t>(thread->GetWaitReasonForDebugging())]++;
         }
@@ -1024,6 +1319,53 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                                return stack_top > address && stack_top <= address + size;
                            });
     };
+
+    // A thread put back or created again runs on its saved stack, so that has to be written: not
+    // when it shares a region with a thread left asleep.
+    for (u32 i = 0; i < thread_count; i++) {
+        const u64 sp = thread_contexts[i].sp;
+        if (is_rebuilt(i) && std::ranges::any_of(region_ranges, [&](const auto& region) {
+                return region_holds(region, sp) && is_excluded_stack(region.first, region.second);
+            })) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread {} cannot be put back: its stack shares a "
+                        "region with a thread left asleep, refusing for now",
+                        i);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
+            return false;
+        }
+    }
+
+    // A thread put back into its wait by making the call again starts at the call's instruction:
+    // check that it is that call.
+    for (u32 i = 0; i < thread_count; i++) {
+        if (is_rebuilt(i) && IsReissuedWait(saved_signature[i], saved_threads[i].svc_id) &&
+            !IsReissuableCallBefore(system.ApplicationMemory(), thread_contexts[i].pc,
+                                    saved_signature[i], saved_threads[i].svc_id)) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread {} cannot be put back into its saved wait ({}, "
+                        "call {:#x}): instruction {:#010x} before pc {:#x} is not that call, "
+                        "refusing for now",
+                        i, DescribeWaitWord(saved_signature[i]), saved_threads[i].svc_id,
+                        system.ApplicationMemory().Read32(thread_contexts[i].pc - 4),
+                        thread_contexts[i].pc);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
+            return false;
+        }
+    }
+
+    // The thread-local storage pages of threads created again, which are mapped again if the
+    // kernel freed them when their last thread ended (see KProcess::CreateThreadLocalRegionAt).
+    std::vector<u64> recreated_tls_pages;
+    for (u32 i = 0; i < thread_count; i++) {
+        if (plan.slots[i] == SlotPlan::Recreate) {
+            recreated_tls_pages.push_back(Common::AlignDown(saved_threads[i].tls, GuestPageSize));
+        }
+    }
 
     auto& memory = system.ApplicationMemory();
 
@@ -1053,10 +1395,23 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     }
     {
         u32 lost_regions = 0;
+        // Every page mapped, or mapped again by the undo or for a thread created again.
+        const auto will_be_mapped = [&](u64 address, u64 size) {
+            for (u64 page = Common::AlignDown(address, GuestPageSize); page < address + size;
+                 page += GuestPageSize) {
+                if (!memory.IsValidVirtualAddress(page) &&
+                    !memory_journal.WillRestore(page, GuestPageSize) &&
+                    std::ranges::find(recreated_tls_pages, page) == recreated_tls_pages.end()) {
+                    return false;
+                }
+            }
+            return true;
+        };
         for (const auto& [address, size] : region_ranges) {
             if (is_excluded_stack(address, size) ||
                 memory.IsValidVirtualAddressRange(address, size) ||
-                memory_journal.WillRestore(address, size)) {
+                memory_journal.WillRestore(address, size) ||
+                (!recreated_tls_pages.empty() && will_be_mapped(address, size))) {
                 continue;
             }
             if (lost_regions < 4) {
@@ -1076,9 +1431,19 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             return false;
         }
     }
-    // From here on the restore goes ahead.
-    if (!extra_threads.empty()) {
-        EndThreadsNotInSave(system, *process, extra_threads);
+    // From here on the restore goes ahead. Threads started since the save are ended, and so are
+    // the ones created again below.
+    {
+        std::vector<Kernel::KThread*> to_end = extra_threads;
+        for (u32 i = 0; i < thread_count; i++) {
+            if (plan.slots[i] == SlotPlan::Recreate && live_threads[i] != nullptr) {
+                to_end.push_back(live_threads[i]);
+                live_threads[i] = nullptr;
+            }
+        }
+        if (!to_end.empty()) {
+            EndThreadsNotInSave(system, *process, to_end);
+        }
     }
     {
         const size_t memory_steps = memory_journal.Size();
@@ -1104,6 +1469,54 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                      "SaveState::Restore: undid {} memory mapping, {} GPU memory and {} service "
                      "object change(s) since the save",
                      memory_steps, gpu_steps, services_steps);
+        }
+    }
+
+    // The threads that ended, or were ended above, are created again.
+    std::string rebuilt_log;
+    for (u32 i = 0; i < thread_count; i++) {
+        if (!is_rebuilt(i)) {
+            continue;
+        }
+        if (plan.slots[i] == SlotPlan::Recreate) {
+            Kernel::Handle handle = Kernel::Svc::InvalidHandle;
+            live_threads[i] = CreateThreadForRestore(system, *process, saved_threads[i],
+                                                     thread_contexts[i], &handle);
+        }
+        rebuilt_log += fmt::format("{}thread {} (id {}, tls {:#x}): {} as saved {}",
+                                   rebuilt_log.empty() ? "" : "; ", i, saved_threads[i].id,
+                                   saved_threads[i].tls,
+                                   plan.slots[i] == SlotPlan::Reuse ? "reused"
+                                   : live_threads[i] != nullptr     ? "created again"
+                                                                    : "COULD NOT BE CREATED",
+                                   DescribeWaitWord(saved_signature[i]));
+    }
+    if (!rebuilt_log.empty()) {
+        LOG_INFO(Core, "SaveState::Restore: threads put back into their saved state: {}",
+                 rebuilt_log);
+    }
+
+    // Saved handle value -> live handle value of each thread slot's own handle (of the thread
+    // created again, for one that was).
+    HandleMap handle_map;
+    u32 handle_low = 0xFFFFFFFF;
+    u32 handle_high = 0;
+    {
+        const auto live_handles = CollectThreadHandles(system, *process, live_threads);
+        for (u32 i = 0; i < thread_count; i++) {
+            if (live_threads[i] == nullptr || saved_threads[i].handle_index == NoHandle ||
+                live_handles[i].index == NoHandle) {
+                continue;
+            }
+            const u32 saved_value =
+                EncodeHandleValue(saved_threads[i].handle_index, saved_threads[i].handle_linear_id);
+            const u32 live_value =
+                EncodeHandleValue(live_handles[i].index, live_handles[i].linear_id);
+            if (saved_value != live_value) {
+                handle_map.emplace_back(saved_value, live_value);
+                handle_low = std::min(handle_low, saved_value);
+                handle_high = std::max(handle_high, saved_value);
+            }
         }
     }
 
@@ -1190,8 +1603,12 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // as above: a still-sleeping thread's context is left exactly as its live fiber
     // expects to find it.
     u32 rewound_parked = 0;
-    for (size_t i = 0; i < live_threads.size(); i++) {
-        if (IsParkedInKernel(*live_threads[i])) {
+    std::string timeouts_changed;
+    for (u32 i = 0; i < thread_count; i++) {
+        if (live_threads[i] == nullptr) {
+            continue; // could not be created again (logged above)
+        }
+        if (plan.slots[i] == SlotPlan::AsSaved && IsParkedInKernel(*live_threads[i])) {
             // A sleeping thread keeps its live registers and stack, except one asleep in the same
             // kernel call as at the save (same instruction, same lock and condition variable; see
             // rewind_parked) or one moved back to its saved condition variable (move_wait). It
@@ -1222,17 +1639,68 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                 Common::AlignDown(context.r[1], sizeof(u32)), static_cast<u32>(context.r[2]))) {
             LOG_ERROR(Core, "SaveState::Restore: thread {} could not be moved to its saved wait", i);
         }
+        // A thread asleep in the same call as at the save may have gone to sleep with another
+        // timeout than its saved call (the same code waits with and without one): its saved
+        // registers and stack carry on from the saved call, so its wait times out as that call
+        // would have. A worker asleep with a timeout, where at the save it waited without one,
+        // woke timed out right after the load, and the game aborted on that result (2001-0117).
+        if (plan.slots[i] == SlotPlan::AsSaved && IsParkedInKernel(*live_threads[i])) {
+            if (const auto timeout = SavedCallTimeout(saved_threads[i].svc_id, context)) {
+                auto& kernel = system.Kernel();
+                const s64 now = kernel.HardwareTimer().GetTick();
+                const s64 was = live_threads[i]->SetWaitTimeoutForRestore(kernel, *timeout);
+                if (was >= 0 && (was > 0) != (*timeout > 0)) {
+                    timeouts_changed += fmt::format(
+                        "{}thread {}: {} -> {}", timeouts_changed.empty() ? "" : "; ", i,
+                        was <= 0     ? std::string("no timeout")
+                        : was <= now ? fmt::format("timed out {} ms ago", (now - was) / 1'000'000)
+                                     : fmt::format("timing out in {} ms", (was - now) / 1'000'000),
+                        *timeout > 0 ? fmt::format("{} ms as saved", *timeout / 1'000'000)
+                                     : std::string("no timeout as saved"));
+                }
+            }
+        }
+        if (!is_rebuilt(i)) {
+            continue;
+        }
+        // Put back into its saved state: one created again starts (still held paused), and one
+        // that slept on a condition variable at the save sleeps there again, with the lock, the
+        // tag and the timeout of its saved call; its saved registers hold them (x0-x3).
+        if (plan.slots[i] == SlotPlan::Recreate) {
+            if (const Result result = live_threads[i]->Run(system.Kernel()); R_FAILED(result)) {
+                LOG_ERROR(Core,
+                          "SaveState::Restore: thread {} created again could not start ({:#x})", i,
+                          result.raw);
+                continue;
+            }
+        }
+        if (IsReissuedWait(saved_signature[i], saved_threads[i].svc_id)) {
+            // Makes the call again when it runs: the instruction before the saved pc (checked
+            // above), with the call's arguments still in its saved registers (thread handles in
+            // them renamed above).
+            context.pc -= 4;
+        } else if (IsSavedConditionVariableWait(saved_signature[i], saved_threads[i].svc_id)) {
+            process->WaitConditionVariableForRestore(
+                live_threads[i], Common::ProcessAddress(context.r[0]),
+                Common::AlignDown(context.r[1], sizeof(u32)), static_cast<u32>(context.r[2]),
+                static_cast<s64>(context.r[3]));
+        }
     }
 
     if (rewound_parked > 0) {
         LOG_INFO(Core, "SaveState::Restore: {} sleeping thread(s) given their saved registers",
                  rewound_parked);
     }
+    if (!timeouts_changed.empty()) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: sleeping thread(s) given their saved call's timeout: {}",
+                 timeouts_changed);
+    }
 
     // Give the live threads and their handles the names the restored memory knows them by.
     u32 renamed_threads = 0;
     for (u32 i = 0; i < thread_count; i++) {
-        if (live_threads[i]->GetThreadId() != saved_threads[i].id) {
+        if (live_threads[i] != nullptr && live_threads[i]->GetThreadId() != saved_threads[i].id) {
             live_threads[i]->SetThreadIdForRestore(saved_threads[i].id);
             renamed_threads++;
         }
