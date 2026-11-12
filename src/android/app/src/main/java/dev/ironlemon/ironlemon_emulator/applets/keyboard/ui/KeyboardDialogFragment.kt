@@ -1,81 +1,123 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.applets.keyboard.ui
 
-import android.app.Dialog
 import android.content.DialogInterface
 import android.os.Bundle
-import android.text.InputFilter
-import android.text.InputType
-import androidx.fragment.app.DialogFragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.applets.keyboard.SoftwareKeyboard
 import dev.ironlemon.ironlemon_emulator.applets.keyboard.SoftwareKeyboard.KeyboardConfig
-import dev.ironlemon.ironlemon_emulator.databinding.DialogEditTextBinding
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 import dev.ironlemon.ironlemon_emulator.utils.SerializableHelper.serializable
 
-class KeyboardDialogFragment : DialogFragment() {
-    private lateinit var binding: DialogEditTextBinding
+/**
+ * The text a game asks for with the system's software keyboard applet. The game waits on
+ * [SoftwareKeyboard.dataLock] until this closes; Cancel and closing it any other way cancel.
+ */
+class KeyboardDialogFragment : IronLemonComposeDialogFragment() {
     private lateinit var config: KeyboardConfig
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        binding = DialogEditTextBinding.inflate(layoutInflater)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         config = requireArguments().serializable(CONFIG)!!
+        SoftwareKeyboard.data.result = SoftwareKeyboard.SwkbdResult.Cancel.ordinal
+    }
 
-        // Set up the input
-        binding.editText.hint = config.initial_text
-        binding.editText.isSingleLine = !config.enable_return_button
-        binding.editText.filters =
-            arrayOf<InputFilter>(InputFilter.LengthFilter(config.max_text_length))
-
-        // Handle input type
-        var inputType: Int
-        when (config.type) {
-            SoftwareKeyboard.SwkbdType.Normal.ordinal,
-            SoftwareKeyboard.SwkbdType.Qwerty.ordinal,
-            SoftwareKeyboard.SwkbdType.Unknown3.ordinal,
-            SoftwareKeyboard.SwkbdType.Latin.ordinal,
-            SoftwareKeyboard.SwkbdType.SimplifiedChinese.ordinal,
-            SoftwareKeyboard.SwkbdType.TraditionalChinese.ordinal,
-            SoftwareKeyboard.SwkbdType.Korean.ordinal -> {
-                inputType = InputType.TYPE_CLASS_TEXT
-                if (config.password_mode == SoftwareKeyboard.SwkbdPasswordMode.Enabled.ordinal) {
-                    inputType = inputType or InputType.TYPE_TEXT_VARIATION_PASSWORD
-                }
+    @Composable
+    override fun DialogContent() {
+        var text by remember { mutableStateOf("") }
+        val focus = remember { FocusRequester() }
+        val password = config.password_mode == SoftwareKeyboard.SwkbdPasswordMode.Enabled.ordinal
+        val numbers = config.type == SoftwareKeyboard.SwkbdType.NumberPad.ordinal
+        val keyboardType = when {
+            numbers && password -> KeyboardType.NumberPassword
+            numbers -> KeyboardType.Number
+            password -> KeyboardType.Password
+            else -> KeyboardType.Text
+        }
+        IronLemonDialogCard(
+            title = config.header_text?.ifEmpty { null } ?: stringResource(R.string.software_keyboard),
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(android.R.string.cancel),
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
+                IronLemonButton(
+                    text = config.ok_text?.ifEmpty { null } ?: stringResource(R.string.submit),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = {
+                        SoftwareKeyboard.data.result = SoftwareKeyboard.SwkbdResult.Ok.ordinal
+                        SoftwareKeyboard.data.text = text
+                        dismiss()
+                    }
+                )
             }
-            SoftwareKeyboard.SwkbdType.NumberPad.ordinal -> {
-                inputType = InputType.TYPE_CLASS_NUMBER
-                if (config.password_mode == SoftwareKeyboard.SwkbdPasswordMode.Enabled.ordinal) {
-                    inputType = inputType or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        ) {
+            val shape = RoundedCornerShape(16.dp)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(IronLemonColors.Surface)
+                    .border(1.dp, IronLemonColors.Outline, shape)
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
+                // What the game suggests, shown until something is typed.
+                if (text.isEmpty() && !config.initial_text.isNullOrEmpty()) {
+                    BasicText(config.initial_text!!, style = IronLemonType.Body)
                 }
-            }
-            else -> {
-                inputType = InputType.TYPE_CLASS_TEXT
-                if (config.password_mode == SoftwareKeyboard.SwkbdPasswordMode.Enabled.ordinal) {
-                    inputType = inputType or InputType.TYPE_TEXT_VARIATION_PASSWORD
-                }
+                BasicTextField(
+                    value = text,
+                    onValueChange = {
+                        text = if (config.max_text_length > 0) it.take(config.max_text_length) else it
+                    },
+                    singleLine = !config.enable_return_button,
+                    textStyle = IronLemonType.Button,
+                    cursorBrush = SolidColor(IronLemonColors.Lemon),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                    visualTransformation = if (password) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus)
+                )
             }
         }
-        binding.editText.inputType = inputType
-
-        val headerText =
-            config.header_text!!.ifEmpty { resources.getString(R.string.software_keyboard) }
-        val okText =
-            config.ok_text!!.ifEmpty { resources.getString(R.string.submit) }
-
-        return MaterialAlertDialogBuilder(requireContext())
-            .setTitle(headerText)
-            .setView(binding.root)
-            .setPositiveButton(okText) { _, _ ->
-                SoftwareKeyboard.data.result = SoftwareKeyboard.SwkbdResult.Ok.ordinal
-                SoftwareKeyboard.data.text = binding.editText.text.toString()
-            }
-            .setNegativeButton(resources.getString(android.R.string.cancel)) { _, _ ->
-                SoftwareKeyboard.data.result = SoftwareKeyboard.SwkbdResult.Cancel.ordinal
-            }
-            .create()
+        LaunchedEffect(Unit) { focus.requestFocus() }
     }
 
     override fun onDismiss(dialog: DialogInterface) {
