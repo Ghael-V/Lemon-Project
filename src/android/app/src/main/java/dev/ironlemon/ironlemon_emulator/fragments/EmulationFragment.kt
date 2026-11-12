@@ -3,6 +3,34 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSlider
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSwitchRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
+import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
+import java.text.NumberFormat
+import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayControlData
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPopupMenu
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -26,7 +54,6 @@ import android.widget.TextView
 import android.widget.Toast
 import java.util.concurrent.atomic.AtomicBoolean
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
@@ -42,13 +69,10 @@ import androidx.navigation.fragment.navArgs
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.slider.Slider
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.activities.EmulationActivity
-import dev.ironlemon.ironlemon_emulator.databinding.DialogOverlayAdjustBinding
 import dev.ironlemon.ironlemon_emulator.databinding.FragmentEmulationBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.IntSetting
@@ -871,7 +895,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
     private fun showOverlayOptions() {
         val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls)
-        val popup = PopupMenu(requireContext(), anchor)
+        val popup = IronLemonPopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_options, popup.menu)
 
@@ -927,35 +951,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         }?.enabled == true
                     }
 
-                    val dialog = MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(R.string.emulation_toggle_controls)
-                        .setMultiChoiceItems(
-                            R.array.gamepadButtons,
-                            optionsArray
-                        ) { _, indexSelected, isChecked ->
-                            overlayControlData.firstOrNull { data ->
-                                OverlayControl.entries[indexSelected].id == data.id
-                            }?.enabled = isChecked
-                        }
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                            NativeConfig.setOverlayControlData(overlayControlData)
-                            NativeConfig.saveGlobalConfig()
-                            binding.surfaceInputOverlay.refreshControls()
-                        }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .setNeutralButton(R.string.emulation_toggle_all) { _, _ -> }
-                        .show()
-
-                    // Override normal behaviour so the dialog doesn't close
-                    dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
-                        .setOnClickListener {
-                            val isChecked = !optionsArray[0]
-                            overlayControlData.forEachIndexed { i, _ ->
-                                optionsArray[i] = isChecked
-                                dialog.listView.setItemChecked(i, isChecked)
-                                overlayControlData[i].enabled = isChecked
-                            }
-                        }
+                    showToggleControls(overlayControlData, optionsArray)
                     true
                 }
 
@@ -1033,44 +1029,120 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun adjustOverlay() {
-        val adjustBinding = DialogOverlayAdjustBinding.inflate(layoutInflater)
-        adjustBinding.apply {
-            inputScaleSlider.apply {
-                valueTo = 150F
-                value = IntSetting.OVERLAY_SCALE.getInt().toFloat()
-                addOnChangeListener(
-                    Slider.OnChangeListener { _, value, _ ->
-                        inputScaleValue.text = "${value.toInt()}%"
-                        setControlScale(value.toInt())
+    /** Which on-screen controls are shown: a switch each, with one to flip them all. */
+    private fun showToggleControls(
+        overlayControlData: Array<OverlayControlData>,
+        initial: BooleanArray
+    ) {
+        val names = resources.getStringArray(R.array.gamepadButtons)
+        showIronLemonDialog(requireContext()) { dismiss ->
+            val checked = remember { mutableStateListOf(*initial.toTypedArray()) }
+            IronLemonDialogCard(
+                title = stringResource(R.string.emulation_toggle_controls),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(R.string.emulation_toggle_all),
+                        height = 44.dp,
+                        onClick = {
+                            val all = !checked[0]
+                            checked.indices.forEach { checked[it] = all }
+                        }
+                    )
+                    IronLemonButton(
+                        text = stringResource(android.R.string.cancel),
+                        height = 44.dp,
+                        onClick = dismiss
+                    )
+                    IronLemonButton(
+                        text = stringResource(android.R.string.ok),
+                        primary = true,
+                        height = 44.dp,
+                        onClick = {
+                            checked.forEachIndexed { index, enabled ->
+                                overlayControlData.firstOrNull { data ->
+                                    OverlayControl.entries[index].id == data.id
+                                }?.enabled = enabled
+                            }
+                            NativeConfig.setOverlayControlData(overlayControlData)
+                            NativeConfig.saveGlobalConfig()
+                            binding.surfaceInputOverlay.refreshControls()
+                            dismiss()
+                        }
+                    )
+                }
+            ) {
+                Column(
+                    Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    checked.indices.forEach { index ->
+                        IronLemonSwitchRow(names.getOrElse(index) { "" }, checked[index]) {
+                            checked[index] = it
+                        }
                     }
-                )
+                }
             }
-            inputOpacitySlider.apply {
-                valueTo = 100F
-                value = IntSetting.OVERLAY_OPACITY.getInt().toFloat()
-                addOnChangeListener(
-                    Slider.OnChangeListener { _, value, _ ->
-                        inputOpacityValue.text = "${value.toInt()}%"
-                        setControlOpacity(value.toInt())
-                    }
-                )
-            }
-            inputScaleValue.text = "${inputScaleSlider.value.toInt()}%"
-            inputOpacityValue.text = "${inputOpacitySlider.value.toInt()}%"
         }
+    }
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.emulation_control_adjust)
-            .setView(adjustBinding.root)
-            .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                NativeConfig.saveGlobalConfig()
+    /** The on-screen controller's size and opacity, applied as the sliders move. */
+    private fun adjustOverlay() {
+        val percent = NumberFormat.getPercentInstance()
+        showIronLemonDialog(requireContext(), onDismiss = { NativeConfig.saveGlobalConfig() }) { dismiss ->
+            var scale by remember { mutableIntStateOf(IntSetting.OVERLAY_SCALE.getInt()) }
+            var opacity by remember { mutableIntStateOf(IntSetting.OVERLAY_OPACITY.getInt()) }
+            IronLemonDialogCard(
+                title = stringResource(R.string.emulation_control_adjust),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(R.string.slider_default),
+                        height = 44.dp,
+                        onClick = {
+                            scale = 50
+                            opacity = 100
+                            setControlScale(50)
+                            setControlOpacity(100)
+                        }
+                    )
+                    IronLemonButton(
+                        text = stringResource(android.R.string.ok),
+                        primary = true,
+                        height = 44.dp,
+                        onClick = dismiss
+                    )
+                }
+            ) {
+                SliderLine(
+                    stringResource(R.string.emulation_control_scale),
+                    percent.format(scale / 100.0),
+                    scale,
+                    150
+                ) {
+                    scale = it
+                    setControlScale(it)
+                }
+                Spacer(Modifier.height(16.dp))
+                SliderLine(
+                    stringResource(R.string.emulation_control_opacity),
+                    percent.format(opacity / 100.0),
+                    opacity,
+                    100
+                ) {
+                    opacity = it
+                    setControlOpacity(it)
+                }
             }
-            .setNeutralButton(R.string.slider_default) { _: DialogInterface?, _: Int ->
-                setControlScale(50)
-                setControlOpacity(100)
-            }
-            .show()
+        }
+    }
+
+    @Composable
+    private fun SliderLine(label: String, value: String, current: Int, max: Int, onChange: (Int) -> Unit) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BasicText(label, style = IronLemonType.Button, modifier = Modifier.weight(1f))
+            BasicText(value, style = IronLemonType.Button.copy(color = IronLemonColors.Lemon))
+        }
+        Spacer(Modifier.height(6.dp))
+        IronLemonSlider(value = current, steps = max, onChange = onChange)
     }
 
     private fun setControlScale(scale: Int) {

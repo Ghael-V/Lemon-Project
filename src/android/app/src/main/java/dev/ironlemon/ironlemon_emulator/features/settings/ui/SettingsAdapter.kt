@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPopupMenu
 import android.content.Context
 import android.icu.util.Calendar
 import android.icu.util.TimeZone
@@ -10,7 +11,6 @@ import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -214,7 +214,7 @@ class SettingsAdapter(
     }
 
     fun onInputOptionsClick(anchor: View, item: InputSetting, position: Int) {
-        val popup = PopupMenu(context, anchor)
+        val popup = IronLemonPopupMenu(context, anchor)
         popup.menuInflater.inflate(R.menu.menu_input_options, popup.menu)
 
         popup.menu.apply {

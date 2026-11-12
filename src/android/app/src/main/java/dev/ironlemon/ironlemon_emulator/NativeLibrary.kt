@@ -3,6 +3,13 @@
 
 package dev.ironlemon.ironlemon_emulator
 
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 import android.content.DialogInterface
 import android.net.Uri
 import android.text.Html
@@ -11,7 +18,6 @@ import android.view.Surface
 import android.view.View
 import android.widget.TextView
 import androidx.annotation.Keep
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.lang.ref.WeakReference
 import dev.ironlemon.ironlemon_emulator.activities.EmulationActivity
 import dev.ironlemon.ironlemon_emulator.fragments.CoreErrorDialogFragment
@@ -370,23 +376,23 @@ object NativeLibrary {
             return
         }
 
-        val builder = MaterialAlertDialogBuilder(emulationActivity)
-            .setTitle(captionId)
-            .setMessage(
-                Html.fromHtml(
-                    emulationActivity.getString(descriptionId),
-                    Html.FROM_HTML_MODE_LEGACY
-                )
-            )
-            .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                emulationActivity.finish()
-            }
-            .setOnDismissListener { emulationActivity.finish() }
+        // The game can't run: say why, then close the emulation screen.
         emulationActivity.runOnUiThread {
-            val alert = builder.create()
-            alert.show()
-            (alert.findViewById<View>(android.R.id.message) as TextView).movementMethod =
-                LinkMovementMethod.getInstance()
+            showIronLemonDialog(emulationActivity, onDismiss = { emulationActivity.finish() }) { dismiss ->
+                IronLemonDialogCard(
+                    title = emulationActivity.getString(captionId),
+                    buttons = {
+                        IronLemonButton(
+                            text = emulationActivity.getString(android.R.string.ok),
+                            primary = true,
+                            height = 44.dp,
+                            onClick = dismiss
+                        )
+                    }
+                ) {
+                    IronLemonDialogText(AnnotatedString.fromHtml(emulationActivity.getString(descriptionId)))
+                }
+            }
         }
     }
 
