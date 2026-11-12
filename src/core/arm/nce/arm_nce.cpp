@@ -220,12 +220,17 @@ HaltReason ArmNce::RunThread(Kernel::KThread* thread) {
     // Check if we're already interrupted.
     // If we are, we can just return immediately.
     HaltReason hr = static_cast<HaltReason>(m_guest_ctx.esr_el1.exchange(0));
+    auto* thread_params = &thread->GetNativeExecutionParameters();
     if (True(hr)) {
+        // UnlockThread copies the thread's TLS registers back to this core, so they must hold
+        // the values LoadContext gave it. A thread that has never run has zeros there, and would
+        // then run with a TLS address of 0.
+        thread_params->tpidr_el0 = m_guest_ctx.tpidr_el0;
+        thread_params->tpidrro_el0 = m_guest_ctx.tpidrro_el0;
         return hr;
     }
 
     // Get the thread context.
-    auto* thread_params = &thread->GetNativeExecutionParameters();
     auto* process = thread->GetOwnerProcess();
 
     // Assign current members.
@@ -385,8 +390,14 @@ void ArmNce::SetContext(const Kernel::Svc::ThreadContext& ctx) {
 }
 
 void ArmNce::SignalInterrupt(Kernel::KThread* thread) {
-    // Add break loop condition.
-    m_guest_ctx.esr_el1.fetch_or(static_cast<u64>(HaltReason::BreakLoop));
+    // Add break loop condition. If it was already there, an interrupt is under way: the thread
+    // takes it when it next enters guest code, or the first caller signals it. Waiting for the
+    // thread's lock again would add nothing, and can deadlock while the thread holds the lock in
+    // a fault handler waiting for the GPU, and the GPU waits on this caller.
+    constexpr u64 break_loop = static_cast<u64>(HaltReason::BreakLoop);
+    if ((m_guest_ctx.esr_el1.fetch_or(break_loop) & break_loop) != 0) {
+        return;
+    }
 
     // Lock the thread context.
     auto* params = &thread->GetNativeExecutionParameters();
