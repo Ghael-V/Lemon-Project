@@ -1,7 +1,11 @@
 # SPDX-FileCopyrightText: 2021 yuzu Emulator Project
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if (NOT WIN32 AND NOT ANDROID)
+# Iron Lemon: yuzu's prebuilt Android FFmpeg is no longer hosted anywhere, so build it from the
+# bundled source instead (the cross-compile flags below already support Android).
+option(YUZU_ANDROID_FFMPEG_FROM_SOURCE "Build FFmpeg from source on Android" ON)
+
+if (NOT WIN32 AND (NOT ANDROID OR YUZU_ANDROID_FFMPEG_FROM_SOURCE))
     # Build FFmpeg from externals
     message(STATUS "Using FFmpeg from externals")
 
@@ -136,6 +140,10 @@ if (NOT WIN32 AND NOT ANDROID)
             #--cpu=${FFmpeg_CPU}
             --enable-cross-compile
             --cross-prefix=${TOOLCHAIN}/bin/aarch64-linux-android-
+            --ar=${TOOLCHAIN}/bin/llvm-ar
+            --nm=${TOOLCHAIN}/bin/llvm-nm
+            --ranlib=${TOOLCHAIN}/bin/llvm-ranlib
+            --strip=${TOOLCHAIN}/bin/llvm-strip
             --sysroot=${SYSROOT}
             --target-os=android
             --extra-ldflags="--ld-path=${TOOLCHAIN}/bin/ld.lld"
