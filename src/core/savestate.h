@@ -45,4 +45,17 @@ namespace Core::SaveState {
 // GetWaitReasonForDebugging() in core/hle/kernel/k_thread.h.
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path);
 
+// Read-only: true if any live thread is currently waiting on a condition
+// variable or address arbiter - the one wait kind that depends on another
+// GUEST thread reaching a specific point and signalling it, rather than on
+// a timer (Sleep) or a host-side service (IPC) that don't care about any of
+// this. If that other thread just got rewound, or gets rewound by a
+// Restore() happening right now, it may never send that signal again,
+// leaving the waiter parked forever - the most likely explanation for the
+// freezes observed in practice. Touches nothing and doesn't look at any
+// savestate file; meant to be polled right before calling Restore(), so a
+// caller can wait for a safer moment (nothing in this state) instead of
+// committing to a restore while it's true.
+[[nodiscard]] bool HasRiskyPendingWaits(Core::System& system);
+
 } // namespace Core::SaveState
