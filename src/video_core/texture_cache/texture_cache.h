@@ -585,6 +585,45 @@ void TextureCache<P>::DownloadMemory(DAddr cpu_addr, size_t size) {
 }
 
 template <class P>
+void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size) {
+    boost::container::small_vector<ImageId, 16> images;
+    ForEachImageInRegion(cpu_addr, size, [&images](ImageId image_id, ImageBase& image) {
+        if (False(image.flags & ImageFlagBits::GpuModified) || !image.IsSafeDownload()) {
+            return;
+        }
+        image.flags &= ~ImageFlagBits::GpuModified;
+        images.push_back(image_id);
+    });
+    if (images.empty()) {
+        return;
+    }
+    std::ranges::sort(images, [this](ImageId lhs, ImageId rhs) {
+        return slot_images[lhs].modification_tick < slot_images[rhs].modification_tick;
+    });
+    // Record every copy first and wait for the GPU once, unlike DownloadMemory.
+    struct PendingDownload {
+        ImageId image_id;
+        decltype(runtime.DownloadStagingBuffer(0)) map;
+        decltype(FullDownloadCopies(std::declval<ImageInfo>())) copies;
+    };
+    std::vector<PendingDownload> downloads;
+    downloads.reserve(images.size());
+    for (const ImageId image_id : images) {
+        Image& image = slot_images[image_id];
+        auto map = runtime.DownloadStagingBuffer(image.unswizzled_size_bytes);
+        auto copies = FullDownloadCopies(image.info);
+        image.DownloadMemory(map, copies);
+        downloads.push_back({image_id, std::move(map), std::move(copies)});
+    }
+    runtime.Finish();
+    for (auto& download : downloads) {
+        const Image& image = slot_images[download.image_id];
+        SwizzleImage(*gpu_memory, image.gpu_addr, image.info, download.copies,
+                     download.map.mapped_span, swizzle_data_buffer);
+    }
+}
+
+template <class P>
 std::optional<VideoCore::RasterizerDownloadArea> TextureCache<P>::GetFlushArea(DAddr cpu_addr,
                                                                                u64 size) {
     std::optional<VideoCore::RasterizerDownloadArea> area{};

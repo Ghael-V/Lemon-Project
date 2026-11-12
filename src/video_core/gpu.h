@@ -250,7 +250,9 @@ public:
     void FlushRegion(DAddr addr, u64 size);
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    void InvalidateRegion(DAddr addr, u64 size);
+    /// preserve_gpu_writes: the region is a whole page around a CPU write of unknown extent (NCE),
+    /// so what the GPU drew there is copied back to guest memory before the caches drop it.
+    void InvalidateRegion(DAddr addr, u64 size, bool preserve_gpu_writes = false);
 
     /// Notify rasterizer that CPU is trying to write this area. It returns true if the area is
     /// sensible, false otherwise

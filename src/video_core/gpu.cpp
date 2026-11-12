@@ -302,7 +302,20 @@ struct GPU::Impl {
     }
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    void InvalidateRegion(DAddr addr, u64 size) {
+    void InvalidateRegion(DAddr addr, u64 size, bool preserve_gpu_writes) {
+        if (preserve_gpu_writes && rasterizer->HasGpuWrittenImages(addr, size)) {
+            // The CPU is about to write somewhere in this region, but NCE only reports the whole
+            // page: marking the images in it CPU-modified re-uploads them from guest memory, which
+            // doesn't hold what the GPU drew. Copy that back first, on the GPU thread, so the
+            // re-upload carries the GPU's contents plus the CPU's write (TOTK's grass vanished).
+            const u64 fence = RequestSyncOperation([this, addr, size] {
+                rasterizer->DownloadGpuWrittenImages(addr, size);
+                rasterizer->OnCacheInvalidation(addr, size);
+            });
+            gpu_thread.WakeForSyncRequest();
+            WaitForSyncOperation(fence);
+            return;
+        }
         gpu_thread.InvalidateRegion(addr, size);
     }
 
@@ -579,8 +592,8 @@ void GPU::FlushRegion(DAddr addr, u64 size) {
     impl->FlushRegion(addr, size);
 }
 
-void GPU::InvalidateRegion(DAddr addr, u64 size) {
-    impl->InvalidateRegion(addr, size);
+void GPU::InvalidateRegion(DAddr addr, u64 size, bool preserve_gpu_writes) {
+    impl->InvalidateRegion(addr, size, preserve_gpu_writes);
 }
 
 bool GPU::OnCPUWrite(DAddr addr, u64 size) {
