@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">환영합니다!</string>
-    <string name="welcome_description">&lt;b>yuzu&lt;/b>를 설정하고 에뮬레이션을 시작하세요.</string>
+    <string name="welcome_description">&lt;b>Iron Lemon&lt;/b>를 설정하고 에뮬레이션을 시작하세요.</string>
     <string name="get_started">시작하기</string>
     <string name="keys">키 설정</string>
     <string name="keys_description">아래 버튼으로 &lt;b>prod.keys&lt;/b> 파일을 선택합니다.</string>
@@ -76,11 +76,11 @@
     <string name="search_recently_added">최근 추가</string>
     <string name="search_retail">패키지</string>
     <string name="search_homebrew">홈브류</string>
-    <string name="open_user_folder">yuzu 폴더 열기</string>
+    <string name="open_user_folder">Iron Lemon 폴더 열기</string>
     <string name="open_user_folder_description">yuzu의 내부 파일 관리</string>
     <string name="theme_and_color_description">앱 디자인 편집</string>
     <string name="no_file_manager">파일 관리자를 찾을 수 없음</string>
-    <string name="notification_no_directory_link">yuzu 디렉터리를 열 수 없음</string>
+    <string name="notification_no_directory_link">Iron Lemon 디렉터리를 열 수 없음</string>
     <string name="notification_no_directory_link_description">파일 관리자의 사이드 패널에서 사용자 폴더를 수동으로 찾아주세요.</string>
     <string name="manage_save_data">세이브 데이터 관리</string>
     <string name="manage_save_data_description">세이브 데이터를 발견했습니다. 아래에서 옵션을 선택하세요.</string>
@@ -101,7 +101,7 @@
     <string name="firmware_installed_failure">펌웨어 설치 실패</string>
     <string name="firmware_installed_failure_description">펌웨어 NCA 파일이 ZIP 파일의 루트 디렉토리에 위치한지 확인하고 다시 시도하세요.</string>
     <string name="share_log">디버그 로그 공유</string>
-    <string name="share_log_description">문제 해결을 위한 yuzu 로그 파일 공유</string>
+    <string name="share_log_description">문제 해결을 위한 Iron Lemon 로그 파일 공유</string>
     <string name="share_log_missing">로그 파일을 찾을 수 없습니다.</string>
     <string name="install_game_content">게임 콘텐츠 설치</string>
     <string name="install_game_content_description">게임 업데이트 또는 DLC 설치</string>
@@ -117,7 +117,7 @@
     <string name="install_game_content_help_link">https://yuzu-emu.org/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">사용자 지정 드라이버는 지원하지 않습니다.</string>
     <string name="custom_driver_not_supported_description">이 장치의 사용자 지정 드라이버 로딩은 현재 지원하지 않습니다.\n나중에 이 옵션을 확인하면 지원이 추가되었는지 확인할 수 있습니다.</string>
-    <string name="manage_yuzu_data">yuzu 데이터 관리</string>
+    <string name="manage_yuzu_data">Iron Lemon 데이터 관리</string>
     <string name="manage_yuzu_data_description">펌웨어, 키 값, 유저 데이터 등을 가져오기 또는 내보내기</string>
     <string name="share_save_file">세이브 파일 공유</string>
     <string name="export_save_failed">세이브 내보내기 실패</string>
@@ -171,7 +171,7 @@
     <string name="exporting_user_data">유저 데이터 내보내는 중...</string>
     <string name="importing_user_data">유저 데이터 가져오는 중...</string>
     <string name="import_user_data">유저 데이터 가져오기</string>
-    <string name="invalid_yuzu_backup">올바르지 않은 yuzu 백업 파일</string>
+    <string name="invalid_yuzu_backup">올바르지 않은 Iron Lemon 백업 파일</string>
     <string name="user_data_export_success">유저 데이터를 내보냈습니다.</string>
     <string name="user_data_import_success">유저 데이터를 가져왔습니다.</string>
     <string name="user_data_export_cancelled">내보내기 취소됨</string>

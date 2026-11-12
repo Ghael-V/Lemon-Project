@@ -33,7 +33,7 @@
     <string name="notifications">Oznámení</string>
     <string name="give_permission">Udělit oprávnění</string>
     <string name="notification_warning">Přeskočit udělení oprávnění k oznámení?</string>
-    <string name="notification_warning_description">yuzu vám nebude schopno oznámit důležité informace.</string>
+    <string name="notification_warning_description">Iron Lemon vám nebude schopno oznámit důležité informace.</string>
     <string name="permission_denied">Oprávnění zamítnuto</string>
     <string name="permission_denied_description">Zamítnul jste toto oprávnění příliš mnohokrát, musíte manuálně udělit oprávnění v nastavení systému.</string>
     <string name="about">O aplikaci</string>
@@ -55,10 +55,10 @@
     <string name="search_recently_played">Nedávno hrané</string>
     <string name="search_recently_added">Nedávno přidané</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">Otevřít yuzu složku</string>
-    <string name="open_user_folder_description">Spravovat soubory yuzu</string>
+    <string name="open_user_folder">Otevřít Iron Lemon složku</string>
+    <string name="open_user_folder_description">Spravovat soubory Iron Lemon</string>
     <string name="no_file_manager">Nenalezen žádný správce souborů</string>
-    <string name="notification_no_directory_link">Nepovedlo se otevřít yuzu složku</string>
+    <string name="notification_no_directory_link">Nepovedlo se otevřít Iron Lemon složku</string>
     <string name="manage_save_data">Spravovat data postupu ve hře</string>
     <string name="manage_save_data_description">Data postupu nalezeny. Prosím vyberte možnost.</string>
     <string name="import_export_saves_description">Importovat nebo exportovat data postupu</string>
@@ -74,7 +74,7 @@
     <string name="install_game_content_description">Nainstalovat aktualizace hry nebo DLC</string>
     <string name="installing_game_content">Instalování obsahu...</string>
     <string name="install_game_content_failure">Chyba při instalaci soubor(ů) do NAND</string>
-    <string name="manage_yuzu_data">Spravovat data yuzu</string>
+    <string name="manage_yuzu_data">Spravovat data Iron Lemon</string>
     <string name="game_folders">Složky s hrami</string>
     <string name="folder_already_added">Tato složka byla již přidána!</string>
     <string name="game_folder_properties">Vlastnosti složky s hrami</string>
@@ -92,7 +92,7 @@
     <string name="exporting_user_data">Exportování uživatelských dat...</string>
     <string name="importing_user_data">Importování uživatelských dat...</string>
     <string name="import_user_data">Importovat uživatelská data</string>
-    <string name="invalid_yuzu_backup">Neplatná záloha yuzu</string>
+    <string name="invalid_yuzu_backup">Neplatná záloha Iron Lemon</string>
     <string name="user_data_export_success">Uživatelská data byla úspěšně exportována.</string>
     <string name="user_data_import_success">Uživatelská data byla úspěšně importována.</string>
     <string name="user_data_export_cancelled">Export zrušen</string>

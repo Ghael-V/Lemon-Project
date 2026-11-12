@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Selamat datang!</string>
-    <string name="welcome_description">Pelajari cara menyiapkan &lt;b>yuzu&lt;/b> dan masuk ke dalam emulasi.</string>
+    <string name="welcome_description">Pelajari cara menyiapkan &lt;b>Iron Lemon&lt;/b> dan masuk ke dalam emulasi.</string>
     <string name="get_started">Memulai</string>
     <string name="keys">Kunci</string>
     <string name="keys_description">Pilih file &lt;b>prod.keys&lt;/b> Anda dengan tombol di bawah ini.</string>
@@ -32,7 +32,7 @@
     <string name="search_and_filter_games">Cari dan filter game</string>
     <string name="select_games_folder">Pilih folder permainan</string>
     <string name="manage_game_folders">Kelola folder game</string>
-    <string name="select_games_folder_description">Izinkan yuzu mengisi daftar game</string>
+    <string name="select_games_folder_description">Izinkan Iron Lemon mengisi daftar game</string>
     <string name="add_games_warning">Lewati pemilihan folder game?</string>
     <string name="add_games_warning_description">Game tidak akan muncul di list jika tidak ada folder yang dipilih.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -48,7 +48,7 @@
     <string name="notifications_description">Berikan izin notifikasi dengan tombol di bawah ini.</string>
     <string name="give_permission">Berikan izin</string>
     <string name="notification_warning">Lewati pemberian izin notifikasi?</string>
-    <string name="notification_warning_description">yuzu tidak akan dapat memberi tahu Anda tentang informasi penting.</string>
+    <string name="notification_warning_description">Iron Lemon tidak akan dapat memberi tahu Anda tentang informasi penting.</string>
     <string name="permission_denied">Izin ditolak</string>
     <string name="permission_denied_description">Kamu terlalu sering menolak izin ini dan sekarang anda harus memberikannya secara manual di pengaturan sistem.</string>
     <string name="about">Tentang</string>
@@ -76,11 +76,11 @@
     <string name="search_recently_added">baru ditambahkan</string>
     <string name="search_retail">Retail</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">Buka folder yuzu</string>
-    <string name="open_user_folder_description">Kelola file internal yuzu\'s</string>
+    <string name="open_user_folder">Buka folder Iron Lemon</string>
+    <string name="open_user_folder_description">Kelola file internal Iron Lemon\'s</string>
     <string name="theme_and_color_description">Ubah tampilan aplikasi</string>
     <string name="no_file_manager">Tidak menemukan file manager</string>
-    <string name="notification_no_directory_link">Tidak bisa membuka direktori yuzu</string>
+    <string name="notification_no_directory_link">Tidak bisa membuka direktori Iron Lemon</string>
     <string name="notification_no_directory_link_description">Silakan cari folder pengguna dengan panel samping manajer file secara manual.</string>
     <string name="manage_save_data">Kelola save data</string>
     <string name="manage_save_data_description">Data simpanan ditemukan. Silakan pilih opsi di bawah.</string>
@@ -101,7 +101,7 @@
     <string name="firmware_installed_failure">Gagal memasang Firmware.</string>
     <string name="firmware_installed_failure_description">Pastikan file nca firmware terdapat pada folder utama dari file .zip dan coba lagi.</string>
     <string name="share_log">Bagikan log debug</string>
-    <string name="share_log_description">Bagikan file log yuzu untuk mendebug isu</string>
+    <string name="share_log_description">Bagikan file log Iron Lemon untuk mendebug isu</string>
     <string name="share_log_missing">Tidak ada log file yang ditemukan</string>
     <string name="install_game_content">Instal konten game.</string>
     <string name="install_game_content_description">Instal pembaruan game atau DLC</string>
@@ -171,7 +171,7 @@
     <string name="exporting_user_data">Mengekspor data pengguna</string>
     <string name="importing_user_data">Mengimpor data pengguna</string>
     <string name="import_user_data">Impor data pengguna</string>
-    <string name="invalid_yuzu_backup">cadangan yuzu tidak valid</string>
+    <string name="invalid_yuzu_backup">cadangan Iron Lemon tidak valid</string>
     <string name="user_data_export_success">berhasil mengekspor data pengguna</string>
     <string name="user_data_import_success">Berhasil mengimpor data pengguna</string>
     <string name="user_data_export_cancelled">Ekspor Dibatalkan</string>

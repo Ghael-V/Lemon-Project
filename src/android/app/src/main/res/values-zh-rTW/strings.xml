@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">歡迎！</string>
-    <string name="welcome_description">瞭解如何設定 &lt;b>yuzu&lt;/b> 並進入模擬。</string>
+    <string name="welcome_description">瞭解如何設定 &lt;b>Iron Lemon&lt;/b> 並進入模擬。</string>
     <string name="get_started">開始使用</string>
     <string name="keys">金鑰</string>
     <string name="keys_description">使用下方的按鈕選取您的 &lt;b>prod.keys&lt;/b> 檔案。</string>
@@ -32,7 +32,7 @@
     <string name="search_and_filter_games">搜尋並篩選遊戲</string>
     <string name="select_games_folder">選取遊戲資料夾</string>
     <string name="manage_game_folders">管理遊戲資料夾</string>
-    <string name="select_games_folder_description">允許 yuzu 填入遊戲清單</string>
+    <string name="select_games_folder_description">允許 Iron Lemon 填入遊戲清單</string>
     <string name="add_games_warning">跳過選取遊戲資料夾？</string>
     <string name="add_games_warning_description">如果資料夾未選取，遊戲將不會顯示在遊戲清單。</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -48,7 +48,7 @@
     <string name="notifications_description">使用下方的按鈕授予通知權限。</string>
     <string name="give_permission">授予權限</string>
     <string name="notification_warning">跳過授予通知權限？</string>
-    <string name="notification_warning_description">yuzu 將無法通知您重要資訊。</string>
+    <string name="notification_warning_description">Iron Lemon 將無法通知您重要資訊。</string>
     <string name="permission_denied">權限遭拒</string>
     <string name="permission_denied_description">您曾多次拒絕了權限要求，現在您需要在系統設定中手動授予權限。</string>
     <string name="about">關於</string>
@@ -76,11 +76,11 @@
     <string name="search_recently_added">最近新增</string>
     <string name="search_retail">零售</string>
     <string name="search_homebrew">自製遊戲</string>
-    <string name="open_user_folder">開啟 yuzu 資料夾</string>
-    <string name="open_user_folder_description">管理 yuzu 的內部檔案</string>
+    <string name="open_user_folder">開啟 Iron Lemon 資料夾</string>
+    <string name="open_user_folder_description">管理 Iron Lemon 的內部檔案</string>
     <string name="theme_and_color_description">修改應用程式外觀</string>
     <string name="no_file_manager">找不到檔案管理員</string>
-    <string name="notification_no_directory_link">無法開啟 yuzu 目錄</string>
+    <string name="notification_no_directory_link">無法開啟 Iron Lemon 目錄</string>
     <string name="notification_no_directory_link_description">請使用檔案管理員的側邊面板手動定位到使用者資料夾。</string>
     <string name="manage_save_data">管理儲存資料</string>
     <string name="manage_save_data_description">已找到儲存資料，請選取下方的選項。</string>
@@ -101,7 +101,7 @@
     <string name="firmware_installed_failure">韌體安裝失敗</string>
     <string name="firmware_installed_failure_description">請確保韌體 nca 檔案位於 zip 壓縮檔的根目錄，然後再試一次。</string>
     <string name="share_log">分享偵錯記錄</string>
-    <string name="share_log_description">分享 yuzu 的記錄檔以便對相關問題進行偵錯</string>
+    <string name="share_log_description">分享 Iron Lemon 的記錄檔以便對相關問題進行偵錯</string>
     <string name="share_log_missing">找不到記錄檔</string>
     <string name="install_game_content">安裝遊戲內容</string>
     <string name="install_game_content_description">安裝遊戲更新或 DLC</string>
@@ -117,7 +117,7 @@
     <string name="install_game_content_help_link">https://yuzu-emu.org/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">不支援自訂的驅動程式</string>
     <string name="custom_driver_not_supported_description">此裝置不支援自訂的驅動程式。\n請以後再來查看是否已新增支援！</string>
-    <string name="manage_yuzu_data">管理 yuzu 資料</string>
+    <string name="manage_yuzu_data">管理 Iron Lemon 資料</string>
     <string name="manage_yuzu_data_description">匯入/匯出韌體、金鑰、使用者資料及其他項目！</string>
     <string name="share_save_file">分享儲存檔案</string>
     <string name="export_save_failed">無法匯出儲存檔案</string>
@@ -171,7 +171,7 @@
     <string name="exporting_user_data">正在匯出使用者資料…</string>
     <string name="importing_user_data">正在匯入使用者資料…</string>
     <string name="import_user_data">匯入使用者資料</string>
-    <string name="invalid_yuzu_backup">無效的 yuzu 備份</string>
+    <string name="invalid_yuzu_backup">無效的 Iron Lemon 備份</string>
     <string name="user_data_export_success">使用者資料匯出成功</string>
     <string name="user_data_import_success">使用者資料匯入成功</string>
     <string name="user_data_export_cancelled">匯出已取消</string>

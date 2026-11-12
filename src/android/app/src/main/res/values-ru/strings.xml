@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Добро пожаловать!</string>
-    <string name="welcome_description">Узнайте, как настроить &lt;b>yuzu&lt;/b> и перейти прямиком к эмуляции.</string>
+    <string name="welcome_description">Узнайте, как настроить &lt;b>Iron Lemon&lt;/b> и перейти прямиком к эмуляции.</string>
     <string name="get_started">Начать</string>
     <string name="keys">Ключи</string>
     <string name="keys_description">Выберите ваш файл &lt;b>prod.keys&lt;/b> с помощью кнопки ниже.</string>
@@ -32,7 +32,7 @@
     <string name="search_and_filter_games">Поиск и фильтрация игр</string>
     <string name="select_games_folder">Выберите папку с играми</string>
     <string name="manage_game_folders">Управление папками</string>
-    <string name="select_games_folder_description">Позволяет yuzu заполнить список игр</string>
+    <string name="select_games_folder_description">Позволяет Iron Lemon заполнить список игр</string>
     <string name="add_games_warning">Пропустить выбор папки с играми?</string>
     <string name="add_games_warning_description">Игры не будут отображаться в списке Игры, если папка не выбрана.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -48,7 +48,7 @@
     <string name="notifications_description">Предоставьте разрешение уведомлений с помощью кнопки ниже.</string>
     <string name="give_permission">Предоставить разрешение</string>
     <string name="notification_warning">Пропустить предоставление разрешения уведомлений?</string>
-    <string name="notification_warning_description">yuzu не сможет уведомлять вас о важной информации.</string>
+    <string name="notification_warning_description">Iron Lemon не сможет уведомлять вас о важной информации.</string>
     <string name="permission_denied">Разрешение отказано</string>
     <string name="permission_denied_description">Вы слишком часто отклоняли это разрешение, и теперь вам нужно будет вручную предоставить его в настройках системы.</string>
     <string name="about">О нас</string>
@@ -76,11 +76,11 @@
     <string name="search_recently_added">Недавно добавлено</string>
     <string name="search_retail">Розничные</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">Открыть папку yuzu</string>
-    <string name="open_user_folder_description">Управление внутренними файлами yuzu</string>
+    <string name="open_user_folder">Открыть папку Iron Lemon</string>
+    <string name="open_user_folder_description">Управление внутренними файлами Iron Lemon</string>
     <string name="theme_and_color_description">Изменение внешнего вида приложения</string>
     <string name="no_file_manager">Не найден файловый менеджер</string>
-    <string name="notification_no_directory_link">Не удалось открыть папку yuzu</string>
+    <string name="notification_no_directory_link">Не удалось открыть папку Iron Lemon</string>
     <string name="notification_no_directory_link_description">Пожалуйста, найдите папку пользователя с помощью боковой панели файлового менеджера вручную.</string>
     <string name="manage_save_data">Управление данными сохранений</string>
     <string name="manage_save_data_description">Найдено данные сохранений. Пожалуйста, выберите вариант ниже.</string>
@@ -101,7 +101,7 @@
     <string name="firmware_installed_failure">Не удалось установить прошивку</string>
     <string name="firmware_installed_failure_description">Убедитесь что файлы прошивки nca находятся в корне zip-архива и повторите попытку.</string>
     <string name="share_log">Поделиться журналом отладки</string>
-    <string name="share_log_description">Поделиться журналом отладки yuzu для устранения проблем</string>
+    <string name="share_log_description">Поделиться журналом отладки Iron Lemon для устранения проблем</string>
     <string name="share_log_missing">Файл журнала не найден</string>
     <string name="install_game_content">Установить игровой контент</string>
     <string name="install_game_content_description">Установить обновления игры или дополнений</string>
@@ -118,7 +118,7 @@
     <string name="custom_driver_not_supported">Пользовательские драйверы не поддерживаются</string>
     <string name="custom_driver_not_supported_description">Загрузка пользовательского драйвера в настоящее время не поддерживается для этого устройства.\nПроверьте этот параметр еще раз в будущем чтобы узнать была ли добавлена ​​поддержка!
  </string>
-    <string name="manage_yuzu_data">Управление данными yuzu</string>
+    <string name="manage_yuzu_data">Управление данными Iron Lemon</string>
     <string name="manage_yuzu_data_description">Импортируйте/экспортируйте прошивку, ключи, пользовательские данные и многое другое!</string>
     <string name="share_save_file">Поделиться файлом сохранения</string>
     <string name="export_save_failed">Не удалось экспортировать сохранение</string>
@@ -178,7 +178,7 @@
     <string name="exporting_user_data">Экспорт пользовательских данных…</string>
     <string name="importing_user_data">Импорт пользовательских данных…</string>
     <string name="import_user_data">Импортировать пользовательские данные</string>
-    <string name="invalid_yuzu_backup">Неверная резервная копия yuzu</string>
+    <string name="invalid_yuzu_backup">Неверная резервная копия Iron Lemon</string>
     <string name="user_data_export_success">Пользовательские данные успешно экспортированы</string>
     <string name="user_data_import_success">Пользовательские данные успешно импортированы</string>
     <string name="user_data_export_cancelled">Экспорт отменен</string>

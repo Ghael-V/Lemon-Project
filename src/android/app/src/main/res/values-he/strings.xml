@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">ברוכים הבאים!</string>
-    <string name="welcome_description">למד איך להפעיל &lt;b>yuzu&lt;/b> וקפוץ ישר לאמולציה.</string>
+    <string name="welcome_description">למד איך להפעיל &lt;b>Iron Lemon&lt;/b> וקפוץ ישר לאמולציה.</string>
     <string name="get_started">כדי להתחיל</string>
     <string name="keys">מפתחות</string>
     <string name="keys_description">בחר את קובץ ה &lt;b>prod.keys&lt;/b> שלך עם הכפתור למטה.</string>
@@ -32,7 +32,7 @@
     <string name="search_and_filter_games">חפש וסנן משחקים</string>
     <string name="select_games_folder">בחר תיקיית משחקים</string>
     <string name="manage_game_folders">נהל את תיקיית המשחקים</string>
-    <string name="select_games_folder_description">אפשר ל yuzu  לאכלס את רשימת המשחקים</string>
+    <string name="select_games_folder_description">אפשר ל Iron Lemon  לאכלס את רשימת המשחקים</string>
     <string name="add_games_warning">לדלג על בחירת תיקיית המשחקים?</string>
     <string name="add_games_warning_description">משחקים לא יוצגו ברשימת המשחקים  אם לנבחרה תיקיית משחקים.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -48,7 +48,7 @@
     <string name="notifications_description">תן גישה להתראות עם הכפתור למטה.</string>
     <string name="give_permission">תן הרשאה</string>
     <string name="notification_warning">דלג על מתן הרשאה להתראות?</string>
-    <string name="notification_warning_description">yuzu  לא יוכל להתריע לך על מידע חשוב.</string>
+    <string name="notification_warning_description">Iron Lemon  לא יוכל להתריע לך על מידע חשוב.</string>
     <string name="permission_denied">הרשאה נדחתה</string>
     <string name="permission_denied_description">את/ה דיחת את ההרשאה יותר מדי פעמים ועכשיו את/ה צריך/ה לתת גישה באופן ידני בהגדרות.</string>
     <string name="about">אודות</string>
@@ -76,11 +76,11 @@
     <string name="search_recently_added">הוסף לאחרונה</string>
     <string name="search_retail">קמעונאי</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">פתח את תיקיית yuzu </string>
-    <string name="open_user_folder_description">נה ל את הקבצים הפנימיין של yuzu</string>
+    <string name="open_user_folder">פתח את תיקיית Iron Lemon </string>
+    <string name="open_user_folder_description">נה ל את הקבצים הפנימיין של Iron Lemon</string>
     <string name="theme_and_color_description">ערוך את נראות האפליקציה</string>
     <string name="no_file_manager">לא נמצא מנהל קבצים</string>
-    <string name="notification_no_directory_link">לא יכול לפתוח את ספריית yuzu</string>
+    <string name="notification_no_directory_link">לא יכול לפתוח את ספריית Iron Lemon</string>
     <string name="notification_no_directory_link_description">בבקשה מקם את תיקיית המשתמש בפנל הצידי של מנהל הקבצים באופן ידני.</string>
     <string name="manage_save_data">נהל  מידע שמור</string>
     <string name="manage_save_data_description">מידע שמור לא נמצא. בבקשה בחר/י אופציה מלמטה</string>
@@ -101,7 +101,7 @@
     <string name="firmware_installed_failure">התקנת ה frimware  נכשלה</string>
     <string name="firmware_installed_failure_description">ודא שקבצי ה firmware nca נמצאים בשורש ה zip ונסה שוב.</string>
     <string name="share_log">שתף  את יומני הרישום של מיפוי הבאגים</string>
-    <string name="share_log_description">שתף את קובץ יומני הרישום של yuzu בכדי לתקן בעיות</string>
+    <string name="share_log_description">שתף את קובץ יומני הרישום של Iron Lemon בכדי לתקן בעיות</string>
     <string name="share_log_missing">לא נמצא קובץ יומן רישום</string>
     <string name="install_game_content">התקן תוכן משחק</string>
     <string name="install_game_content_description">התקן עדכוני משחק או DLC</string>
@@ -117,7 +117,7 @@
     <string name="install_game_content_help_link">https://yuzu-emu.org/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">דרייברים מותאמים אישית לא נתמכים</string>
     <string name="custom_driver_not_supported_description">הטענת דרייבים מותאמים אישית לא נתמך כרגע על מכשיר זה. \nבבקשה בדוק אופציה זו בעתיד בכדי לראות אם נוספה תמיכה!</string>
-    <string name="manage_yuzu_data">נהל את המידע של yuzu</string>
+    <string name="manage_yuzu_data">נהל את המידע של Iron Lemon</string>
     <string name="manage_yuzu_data_description">יבא/יצא firmware, keys, מידע של משתמש ועוד!</string>
     <string name="share_save_file">שתף קובץ שמירה</string>
     <string name="export_save_failed">נכשל בייצוא שמירה</string>
@@ -160,7 +160,7 @@
     <string name="exporting_user_data">מייצא נתוני משתמש...</string>
     <string name="importing_user_data">מייבא נתוני משתמש...</string>
     <string name="import_user_data">יבא נתוני משתמש</string>
-    <string name="invalid_yuzu_backup">גיבוי yuzu לא חוקי</string>
+    <string name="invalid_yuzu_backup">גיבוי Iron Lemon לא חוקי</string>
     <string name="user_data_export_success">נתוני משתמש יוצאו בהצלחה</string>
     <string name="user_data_import_success">נתוני משתמש יובאו בהצלחה</string>
     <string name="user_data_export_cancelled">ייצוא בוטל</string>

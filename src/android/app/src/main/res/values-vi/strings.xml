@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Chào mừng!</string>
-    <string name="welcome_description">Tìm hiểu cách cài đặt &lt;b>yuzu&lt;/b> và bắt đầu giả lập.</string>
+    <string name="welcome_description">Tìm hiểu cách cài đặt &lt;b>Iron Lemon&lt;/b> và bắt đầu giả lập.</string>
     <string name="get_started">Bắt đầu</string>
     <string name="keys">Chìa khóa</string>
     <string name="keys_description">Chọn file &lt;b>prod.keys&lt;/b> của bạn bằng nút bên dưới.</string>
@@ -29,7 +29,7 @@
     <string name="empty_gamelist">Không tìm thấy files hoặc chưa có thư mục trò chơi nào được chọn.</string>
     <string name="search_and_filter_games">Tìm và lọc trò chơi</string>
     <string name="select_games_folder">Chọn thư mục trò chơi</string>
-    <string name="select_games_folder_description">Cho phép yuzu thêm các trò chơi vào danh sách</string>
+    <string name="select_games_folder_description">Cho phép Iron Lemon thêm các trò chơi vào danh sách</string>
     <string name="add_games_warning">Bỏ qua lựa chọn thư mục trò chơi?</string>
     <string name="add_games_warning_description">Trò chơi sẽ không hiển thị trong danh sách nếu một thư mục không được chọn</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -44,7 +44,7 @@
     <string name="notifications_description">Ấn vào nút bên dưới để cấp quyền ứng dụng gửi thông báo</string>
     <string name="give_permission">Cấp quyền</string>
     <string name="notification_warning">Bỏ qua cấp quyền thông báo?</string>
-    <string name="notification_warning_description">yuzu sẽ không thể gửi những thông báo quan trọng đến bạn.</string>
+    <string name="notification_warning_description">Iron Lemon sẽ không thể gửi những thông báo quan trọng đến bạn.</string>
     <string name="permission_denied">Đã từ chối cấp quyền</string>
     <string name="permission_denied_description">Bạn từ chối cấp quyền này quá nhiều lần và giờ bạn phải cấp quyền thủ công trong cài đặt máy.</string>
     <string name="about">Thông tin</string>
@@ -70,11 +70,11 @@
     <string name="search_recently_added">Đã thêm gần đây</string>
     <string name="search_retail">Bán lẻ</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">Mở thư mục yuzu</string>
-    <string name="open_user_folder_description">Quản lý file nội bộ của yuzu</string>
+    <string name="open_user_folder">Mở thư mục Iron Lemon</string>
+    <string name="open_user_folder_description">Quản lý file nội bộ của Iron Lemon</string>
     <string name="theme_and_color_description">Thay đổi giao diện ứng dụng</string>
     <string name="no_file_manager">Không tìm thấy trình quản lý tệp</string>
-    <string name="notification_no_directory_link">Không thể mở thư mục yuzu</string>
+    <string name="notification_no_directory_link">Không thể mở thư mục Iron Lemon</string>
     <string name="notification_no_directory_link_description">Vui lòng xác định thư mục người dùng với bảng điều khiển bên của trình quản lý tệp thủ công.</string>
     <string name="manage_save_data">Quản lý dữ liệu save</string>
     <string name="manage_save_data_description">Đã tìm thấy dữ liệu save. Vui lòng chọn một tuỳ chọn bên dưới.</string>
@@ -90,7 +90,7 @@
     <string name="firmware_installed_success">Cài đặt firmware thành công</string>
     <string name="firmware_installed_failure">Cài đặt firmware thất bại</string>
     <string name="share_log">Chia sẽ log gỡ lỗi</string>
-    <string name="share_log_description">Chia sẻ tệp log của yuzu để gỡ lỗi vấn đề</string>
+    <string name="share_log_description">Chia sẻ tệp log của Iron Lemon để gỡ lỗi vấn đề</string>
     <string name="share_log_missing">Không tìm thấy tệp log</string>
     <string name="install_game_content">Cài đặt nội dung game</string>
     <string name="install_game_content_description">Cài đặt cập nhật game hoặc DLC</string>

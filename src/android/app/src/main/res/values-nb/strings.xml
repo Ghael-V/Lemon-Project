@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Velkommen!</string>
-    <string name="welcome_description">Lær å sette opp &lt;b>yuzu&lt;/b> og hopp inn i emulering.</string>
+    <string name="welcome_description">Lær å sette opp &lt;b>Iron Lemon&lt;/b> og hopp inn i emulering.</string>
     <string name="get_started">Kom i gang</string>
     <string name="keys">Nøkler</string>
     <string name="keys_description">Velg din &lt;b>prod.keys&lt;/b> fil ved å bruke knappen under.</string>
@@ -29,7 +29,7 @@
     <string name="empty_gamelist">Ingen filer ble funnet eller ingen spillkatalog er valgt ennå.</string>
     <string name="search_and_filter_games">Søk og filtrer spill</string>
     <string name="select_games_folder">Velg spillmappe</string>
-    <string name="select_games_folder_description">Gjør det mulig for yuzu å fylle ut spillelisten.</string>
+    <string name="select_games_folder_description">Gjør det mulig for Iron Lemon å fylle ut spillelisten.</string>
     <string name="add_games_warning">Hoppe over valg av spillmappe?</string>
     <string name="add_games_warning_description">Spill vises ikke i Spill-listen hvis en mappe ikke er valgt.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -44,7 +44,7 @@
     <string name="notifications_description">Gi varslingstillatelse med knappen nedenfor.</string>
     <string name="give_permission">Gi tillatelse</string>
     <string name="notification_warning">Hoppe over å gi tillatelse til varsling?</string>
-    <string name="notification_warning_description">yuzu vil ikke kunne varsle deg om viktig informasjon.</string>
+    <string name="notification_warning_description">Iron Lemon vil ikke kunne varsle deg om viktig informasjon.</string>
     <string name="permission_denied">Tillatelse avslått</string>
     <string name="permission_denied_description">Du har nektet denne tillatelsen for mange ganger, og nå må du gi den manuelt i systeminnstillingene.</string>
     <string name="about">Om</string>

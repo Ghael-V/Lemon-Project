@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Willkommen!</string>
-    <string name="welcome_description">Erfahre wie man &lt;b>yuzu&lt;/b> einrichtet und beginne mit der Emulation.</string>
+    <string name="welcome_description">Erfahre wie man &lt;b>Iron Lemon&lt;/b> einrichtet und beginne mit der Emulation.</string>
     <string name="get_started">Erste Schritte</string>
     <string name="keys">Schlüssel</string>
     <string name="keys_description">Wähle deine &lt;b>prod.keys&lt;/b> Datei mit dem Button unten aus.</string>
@@ -32,7 +32,7 @@
     <string name="search_and_filter_games">Spiele suchen und filtern</string>
     <string name="select_games_folder">Spieleverzeichnis auswählen</string>
     <string name="manage_game_folders">Spiele-Ordner verwalten</string>
-    <string name="select_games_folder_description">Erlaubt yuzu die Spieleliste zu füllen</string>
+    <string name="select_games_folder_description">Erlaubt Iron Lemon die Spieleliste zu füllen</string>
     <string name="add_games_warning">Auswahl des Spieleverzeichnisses überspringen?</string>
     <string name="add_games_warning_description">Spiele werden in der Spieleliste nicht angezeigt, wenn kein Ordner ausgewählt ist.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -47,7 +47,7 @@
     <string name="notifications">Benachrichtigungen</string>
     <string name="notifications_description">Erteile mit dem Knopf unten die Berechtigung, Benachrichtigungen zu senden.</string>
     <string name="give_permission">Berechtigung erteilen</string>
-    <string name="notification_warning_description">yuzu wird dich nicht über wichtige Informationen benachrichtigen können.</string>
+    <string name="notification_warning_description">Iron Lemon wird dich nicht über wichtige Informationen benachrichtigen können.</string>
     <string name="permission_denied">Zugriff verweigert</string>
     <string name="permission_denied_description">Du hast diese Berechtigung zu oft verweigert und musst sie nun manuell in den Systemeinstellungen erteilen.</string>
     <string name="about">Über</string>
@@ -76,7 +76,7 @@
     <string name="search_retail">Spiele</string>
     <string name="search_homebrew">Homebrew</string>
     <string name="open_user_folder">yuzu-Ordner öffnen</string>
-    <string name="open_user_folder_description">yuzu\'s interne Dateien verwalten</string>
+    <string name="open_user_folder_description">Iron Lemon\'s interne Dateien verwalten</string>
     <string name="theme_and_color_description">Das Aussehen der App ändern</string>
     <string name="no_file_manager">Kein Dateimanager gefunden</string>
     <string name="notification_no_directory_link">yuzu-Verzeichnis konnte nicht geöffnet werden</string>
@@ -100,7 +100,7 @@ Wirklich fortfahren?</string>
     <string name="firmware_installed_success">Die Firmware wurde erfolgreich installiert!</string>
     <string name="firmware_installed_failure">Bei der Firmware installation ist etwas fehlgeschlagen.</string>
     <string name="share_log">Debug-Logs teilen</string>
-    <string name="share_log_description">Debug-Logs an yuzu zur Untersuchung absenden</string>
+    <string name="share_log_description">Debug-Logs an Iron Lemon zur Untersuchung absenden</string>
     <string name="share_log_missing">Keine Log-Datei gefunden</string>
     <string name="install_game_content">Spiel installieren</string>
     <string name="install_game_content_description">Spiel-Updates oder DLCs installieren</string>

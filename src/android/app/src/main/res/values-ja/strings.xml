@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">ようこそ!</string>
-    <string name="welcome_description">&lt;b>yuzu&lt;/b> のセットアップ方法を学び、エミュレーションに飛び込みましょう。</string>
+    <string name="welcome_description">&lt;b>Iron Lemon&lt;/b> のセットアップ方法を学び、エミュレーションに飛び込みましょう。</string>
     <string name="get_started">はじめる</string>
     <string name="keys">キー</string>
     <string name="keys_description">下のボタンから &lt;b>prod.keys&lt;/b> ファイルを選択してください。</string>
@@ -75,7 +75,7 @@
     <string name="search_recently_added">最近追加された</string>
     <string name="search_retail">製品版</string>
     <string name="search_homebrew">自作</string>
-    <string name="open_user_folder">yuzu フォルダを開く</string>
+    <string name="open_user_folder">Iron Lemon フォルダを開く</string>
     <string name="open_user_folder_description">yuzu内部のファイルを管理します</string>
     <string name="theme_and_color_description">アプリの見た目を変更</string>
     <string name="no_file_manager">ファイルマネージャーが見つかりませんでした</string>
@@ -109,7 +109,7 @@
     <string name="install_game_content_success_overwrite">%1$d の上書きに成功しました</string>
     <string name="install_game_content_help_link">https://yuzu-emu.org/help/quickstart/#dumping-installed-updates</string>
     <string name="custom_driver_not_supported">カスタムドライバはサポートされていません</string>
-    <string name="manage_yuzu_data">yuzu データを管理</string>
+    <string name="manage_yuzu_data">Iron Lemon データを管理</string>
     <string name="share_save_file">セーブファイルを共有</string>
     <string name="keys_missing_help">https://yuzu-emu.org/help/quickstart/#dumping-decryption-keys</string>
 

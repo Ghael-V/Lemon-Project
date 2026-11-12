@@ -8,7 +8,7 @@
 
     <!-- Setup strings -->
     <string name="welcome">Вітаємо!</string>
-    <string name="welcome_description">Дізнайтеся, як налаштувати &lt;b>yuzu&lt;/b> та перейти до емуляції.</string>
+    <string name="welcome_description">Дізнайтеся, як налаштувати &lt;b>Iron Lemon&lt;/b> та перейти до емуляції.</string>
     <string name="get_started">Розпочати</string>
     <string name="keys">Ключі</string>
     <string name="keys_description">Виберіть ваш файл &lt;b>prod.keys&lt;/b> за допомогою кнопки нижче.</string>
@@ -29,7 +29,7 @@
     <string name="empty_gamelist">Не знайдено файлів або ще не вибрано папку з іграми.</string>
     <string name="search_and_filter_games">Пошук та фільтрація ігор</string>
     <string name="select_games_folder">Виберіть папку з іграми</string>
-    <string name="select_games_folder_description">Дозволяє yuzu заповнити список ігор</string>
+    <string name="select_games_folder_description">Дозволяє Iron Lemon заповнити список ігор</string>
     <string name="add_games_warning">Пропустити вибір папки з іграми?</string>
     <string name="add_games_warning_description">Ігри не відображатимуться у списку Ігри, якщо папку не вибрано.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
@@ -44,7 +44,7 @@
     <string name="notifications_description">Надайте дозвіл сповіщень за допомогою кнопки нижче.</string>
     <string name="give_permission">Надати дозвіл</string>
     <string name="notification_warning">Пропустити надання дозволу сповіщень?</string>
-    <string name="notification_warning_description">yuzu не зможе повідомляти вас про важливу інформацію.</string>
+    <string name="notification_warning_description">Iron Lemon не зможе повідомляти вас про важливу інформацію.</string>
     <string name="permission_denied">У дозволі відмовлено</string>
     <string name="permission_denied_description">Ви занадто часто відхиляли цей дозвіл, тож тепер вам потрібно буде вручну надати його в системних налаштуваннях.</string>
     <string name="about">Про нас</string>
@@ -67,11 +67,11 @@
     <string name="settings_description">Налаштування параметрів емулятора</string>
     <string name="search_retail">Роздрібні</string>
     <string name="search_homebrew">Homebrew</string>
-    <string name="open_user_folder">Відкрити папку yuzu</string>
-    <string name="open_user_folder_description">Керування внутрішніми файлами yuzu</string>
+    <string name="open_user_folder">Відкрити папку Iron Lemon</string>
+    <string name="open_user_folder_description">Керування внутрішніми файлами Iron Lemon</string>
     <string name="theme_and_color_description">Змінити зовнішній вигляд застосунку</string>
     <string name="no_file_manager">Не знайдено файлового менеджера</string>
-    <string name="notification_no_directory_link">Не вдалося відкрити папку yuzu</string>
+    <string name="notification_no_directory_link">Не вдалося відкрити папку Iron Lemon</string>
     <string name="notification_no_directory_link_description">Будь ласка, знайдіть папку користувача за допомогою бічної панелі файлового менеджера вручну.</string>
     <string name="manage_save_data">Керування даними збережень</string>
     <string name="manage_save_data_description">Знайдено дані збережень. Будь ласка, виберіть варіант нижче.</string>
