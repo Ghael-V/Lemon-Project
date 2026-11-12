@@ -317,6 +317,7 @@ struct DeviceDispatch : InstanceDispatch {
     PFN_vkGetSemaphoreCounterValue vkGetSemaphoreCounterValue{};
     PFN_vkMapMemory vkMapMemory{};
     PFN_vkQueueSubmit vkQueueSubmit{};
+    PFN_vkResetCommandPool vkResetCommandPool{};
     PFN_vkResetFences vkResetFences{};
     PFN_vkResetQueryPool vkResetQueryPool{};
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT{};
@@ -860,6 +861,12 @@ class CommandPool : public Handle<VkCommandPool, VkDevice, DeviceDispatch> {
 public:
     CommandBuffers Allocate(std::size_t num_buffers,
                             VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
+
+    /// Resets every command buffer of the pool. Without RELEASE_RESOURCES the driver may keep
+    /// their memory for the next recording.
+    void Reset(VkCommandPoolResetFlags flags = 0) const {
+        Check(dld->vkResetCommandPool(owner, handle, flags));
+    }
 
     /// Set object name.
     void SetObjectNameEXT(const char* name) const;
