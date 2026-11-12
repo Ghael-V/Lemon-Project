@@ -105,8 +105,8 @@ Result KLightServerSession::OnRequest(KThread* request_thread) {
         m_request_list.push_back(*request_thread);
 
         // Begin waiting on the request.
-        request_thread->SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
         request_thread->BeginWait(std::addressof(wait_queue));
+        request_thread->SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
 
         // If we have a server thread, end its wait.
         if (m_server_thread != nullptr) {
@@ -205,8 +205,8 @@ Result KLightServerSession::ReplyAndReceive(u32* data) {
 
             // Wait for a request to come in.
             m_server_thread = GetCurrentThreadPointer(m_kernel);
-            GetCurrentThread(m_kernel).SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
             GetCurrentThread(m_kernel).BeginWait(std::addressof(wait_queue));
+            GetCurrentThread(m_kernel).SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::IPC);
         }
 
         // We waited to receive a request; if our wait failed, return the failing result.

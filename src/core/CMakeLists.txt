@@ -1142,6 +1142,7 @@ add_library(core STATIC
     reporter.h
     savestate.cpp
     savestate.h
+    savestate_undo_journal.h
     telemetry_session.cpp
     telemetry_session.h
     tools/freezer.cpp

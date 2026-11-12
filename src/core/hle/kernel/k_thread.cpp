@@ -1335,6 +1335,21 @@ void KThread::DummyThreadEndWait() {
     m_dummy_thread_cv.notify_one();
 }
 
+bool KThread::RetargetConditionVariableForRestore(KProcessAddress address, u64 cv_key,
+                                                  u32 value) {
+    KScopedSchedulerLock sl{m_kernel};
+    if (m_condvar_tree == nullptr || this->GetState() != ThreadState::Waiting) {
+        return false;
+    }
+    auto* tree = m_condvar_tree;
+    tree->erase(tree->iterator_to(*this));
+    m_condvar_key = cv_key;
+    m_address_key = address;
+    m_address_key_value = value;
+    tree->insert(*this);
+    return true;
+}
+
 void KThread::BeginWait(KThreadQueue* queue) {
     // Set our state as waiting.
     this->SetState(ThreadState::Waiting);

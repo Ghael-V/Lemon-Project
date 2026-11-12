@@ -153,6 +153,13 @@ private:
 
     void FreeMappingLocked(u64 offset);
 
+    struct Mapping;
+    // Unmaps the buffer mapped at `offset` (which must exist). `mutex` must be held.
+    void UnmapLocked(u64 offset);
+    // Quick Load support (see Core::SaveState::UndoJournal): maps a buffer again exactly where it
+    // was, `buffer_offset` bytes into its handle. `mutex` must be held.
+    bool RemapForRestoreLocked(const std::shared_ptr<Mapping>& mapping, u64 buffer_offset);
+
     Module& module;
 
     NvCore::Container& container;
@@ -166,6 +173,7 @@ private:
         bool fixed;
         bool big_page; // Only valid if fixed == false
         bool sparse_alloc;
+        u8 kind{}; // the PTE kind it was mapped with, to map it again the same way
 
         Mapping(NvCore::NvMap::Handle::Id handle_, DAddr ptr_, u64 offset_, u64 size_, bool fixed_,
                 bool big_page_, bool sparse_alloc_)
