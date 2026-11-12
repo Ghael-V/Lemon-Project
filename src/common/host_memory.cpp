@@ -694,7 +694,17 @@ void HostMemory::Map(size_t virtual_offset, size_t host_offset, size_t length,
 void HostMemory::Unmap(size_t virtual_offset, size_t length, bool separate_heap) {
     ASSERT(virtual_offset % PageAlignment == 0);
     ASSERT(length % PageAlignment == 0);
-    ASSERT(virtual_offset + length <= virtual_size);
+    if (virtual_offset + length > virtual_size) {
+        // Happens at process shutdown. The assert alone wouldn't stop the out-of-range
+        // mmap(MAP_FIXED, PROT_NONE) below from remapping host pages past this reservation, and
+        // DeviceMemory is reused across game sessions (System::Impl::ReinitializeIfNecessary),
+        // so the damage could surface in the next game. Clamp instead of trusting the caller.
+        LOG_DEBUG(Common_Memory,
+                  "Unmap out of range: virtual_offset={:#x} length={:#x} virtual_size={:#x} - "
+                  "clamping",
+                  virtual_offset, length, virtual_size);
+        length = virtual_offset < virtual_size ? virtual_size - virtual_offset : 0;
+    }
     if (length == 0 || !virtual_base || !impl) {
         return;
     }
