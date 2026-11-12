@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+#include <optional>
+#include <vector>
+
 #include "core/core.h"
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/svc.h"
@@ -75,6 +79,54 @@ Result MapUnmapMemorySanityChecks(const KProcessPageTable& manager, u64 dst_addr
     R_SUCCEED();
 }
 
+// Quick Load support (see Core::SaveState::UndoJournal). Games that map physical memory for the GPU
+// mark it Uncached after mapping it and clear that again before unmapping it, and
+// UnmapPhysicalMemory refuses memory with any attribute set. Without SetMemoryAttribute in the
+// memory journal, a load across such a pair could not undo the map (in one game, going to the
+// title screen: two 16 MiB pools stayed mapped after the load), and pools whose unmap was undone
+// came back without Uncached.
+//
+// The kernel lets the Uncached bit differ across the range (it is not part of the state check), so
+// the bit is recorded per part before the call, and undone per part with the same call. Only
+// Uncached is recorded: PermissionLocked can never be cleared, so setting it makes the journal
+// unusable.
+
+// A part [start, end) of a range, and whether its memory is Uncached.
+struct UncachedRun {
+    u64 start;
+    u64 end;
+    bool uncached;
+};
+
+// The parts of [address, address + size) with the same Uncached bit, adjacent ones merged. Empty
+// optional if the page table could not be queried.
+std::optional<std::vector<UncachedRun>> UncachedRuns(const KProcessPageTable& page_table,
+                                                     u64 address, u64 size) {
+    std::vector<UncachedRun> runs;
+    const u64 end = address + size;
+    u64 current = address;
+    while (current < end) {
+        KMemoryInfo info{};
+        Svc::PageInfo page_info{};
+        if (page_table.QueryInfo(std::addressof(info), std::addressof(page_info), current)
+                .IsError()) {
+            return std::nullopt;
+        }
+        const u64 block_end = (std::min)(static_cast<u64>(info.GetEndAddress()), end);
+        if (block_end <= current) {
+            return std::nullopt;
+        }
+        const bool uncached = True(info.GetAttribute() & KMemoryAttribute::Uncached);
+        if (!runs.empty() && runs.back().end == current && runs.back().uncached == uncached) {
+            runs.back().end = block_end;
+        } else {
+            runs.push_back({current, block_end, uncached});
+        }
+        current = block_end;
+    }
+    return runs;
+}
+
 } // namespace
 
 Result SetMemoryPermission(Core::System& system, u64 address, u64 size, MemoryPermission perm) {
@@ -121,12 +173,61 @@ Result SetMemoryAttribute(Core::System& system, u64 address, u64 size, u32 mask,
              ResultInvalidCombination);
 
     // Validate that the region is in range for the current process.
-    auto& page_table{GetCurrentProcess(system.Kernel()).GetPageTable()};
+    KProcess& process{GetCurrentProcess(system.Kernel())};
+    auto& page_table{process.GetPageTable()};
     R_UNLESS(page_table.Contains(address, size), ResultInvalidCurrentMemory);
 
+    // A Quick Load sets the attribute back (see UncachedRun above).
+    auto& journal = Core::SaveState::UndoJournal::Memory();
+    std::optional<std::vector<UncachedRun>> before;
+    if (journal.CanUndo()) {
+        before = UncachedRuns(page_table, address, size);
+    }
+
     // Set the memory attribute.
-    R_RETURN(page_table.SetMemoryAttribute(address, size, static_cast<KMemoryAttribute>(mask),
-                                           static_cast<KMemoryAttribute>(attr)));
+    R_TRY(page_table.SetMemoryAttribute(address, size, static_cast<KMemoryAttribute>(mask),
+                                        static_cast<KMemoryAttribute>(attr)));
+
+    if (journal.CanUndo() && mask != 0) {
+        const bool uncached = (attr & static_cast<u32>(MemoryAttribute::Uncached)) != 0;
+        const auto after = UncachedRuns(page_table, address, size);
+        if (mask != static_cast<u32>(MemoryAttribute::Uncached) || !before || !after ||
+            after->size() != 1 || after->front().uncached != uncached) {
+            // PermissionLocked cannot be cleared again, and a range that does not read back as
+            // set was changed by another thread in between.
+            journal.Invalidate();
+        } else {
+            std::vector<UncachedRun> changed;
+            for (const UncachedRun& run : *before) {
+                if (run.uncached != uncached) {
+                    changed.push_back(run);
+                }
+            }
+            if (!changed.empty()) {
+                journal.Record("set memory attribute", [&system, process_id = process.GetId(),
+                                                        changed = std::move(changed)] {
+                    KProcess* const app = system.ApplicationProcess();
+                    if (app == nullptr || app->GetId() != process_id) {
+                        return false; // the journal outlived the game
+                    }
+                    auto& pt = app->GetPageTable();
+                    bool ok = true;
+                    for (const UncachedRun& run : changed) {
+                        const u64 run_size = run.end - run.start;
+                        ok = pt.SetMemoryAttribute(run.start, run_size, KMemoryAttribute::Uncached,
+                                                   run.uncached ? KMemoryAttribute::Uncached
+                                                                : KMemoryAttribute::None)
+                                 .IsSuccess() &&
+                             ok;
+                        const auto now = UncachedRuns(pt, run.start, run_size);
+                        ok = now && now->size() == 1 && now->front().uncached == run.uncached && ok;
+                    }
+                    return ok;
+                });
+            }
+        }
+    }
+    R_SUCCEED();
 }
 
 /// Maps a memory range into a different range.
