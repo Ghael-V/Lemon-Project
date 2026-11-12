@@ -147,6 +147,10 @@ if (NOT WIN32 AND (NOT ANDROID OR YUZU_ANDROID_FFMPEG_FROM_SOURCE))
             --strip=${TOOLCHAIN}/bin/llvm-strip
             --sysroot=${SYSROOT}
             --target-os=android
+            # CMake's compiler is the bare NDK clang: give it the Android triple, or it builds
+            # for the host and misses the Android kernel headers.
+            --extra-cflags=--target=${CMAKE_C_COMPILER_TARGET}
+            --extra-ldflags=--target=${CMAKE_C_COMPILER_TARGET}
             --extra-ldflags="--ld-path=${TOOLCHAIN}/bin/ld.lld"
             --extra-ldflags="-nostdlib"
         )
