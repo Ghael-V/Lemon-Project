@@ -257,6 +257,9 @@ GraphicsPipeline::GraphicsPipeline(
         enabled_uniform_buffer_masks[stage] = info->constant_buffer_mask;
         std::ranges::copy(info->constant_buffer_used_sizes, uniform_buffer_sizes[stage].begin());
         num_textures += Shader::NumDescriptors(info->texture_descriptors);
+        for (const auto& desc : info->texture_descriptors) {
+            uses_attribute_handle |= desc.cbuf_index == Shader::ATTRIBUTE_HANDLE_CBUF_INDEX;
+        }
     }
     auto func{[this, shader_notify, &render_pass_cache, &descriptor_pool, pipeline_statistics] {
         DescriptorLayoutBuilder builder{MakeBuilder(device, stage_infos)};
@@ -324,6 +327,9 @@ void GraphicsPipeline::ConfigureImpl(bool is_indexed) {
         }
         const auto& cbufs{maxwell3d->state.shader_stages[stage].const_buffers};
         const auto read_handle{[&](const auto& desc, u32 index) {
+            if (desc.cbuf_index == Shader::ATTRIBUTE_HANDLE_CBUF_INDEX) {
+                return TexturePair(attribute_handle, via_header_index);
+            }
             ASSERT(cbufs[desc.cbuf_index].enabled);
             const u32 index_offset{index << desc.size_shift};
             const u32 offset{desc.cbuf_offset + index_offset};

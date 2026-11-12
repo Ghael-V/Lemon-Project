@@ -327,14 +327,44 @@ std::optional<ConstBufferAddr> TryGetConstBuffer(const IR::Inst* inst, Environme
     };
 }
 
-TextureInst MakeInst(Environment& env, IR::Block* block, IR::Inst& inst) {
+bool IsAttributeSourcedHandle(const IR::Value& handle) {
+    if (handle.IsImmediate()) {
+        return false;
+    }
+    const IR::Inst* inst{handle.InstRecursive()};
+    if (inst->GetOpcode() == IR::Opcode::BitCastU32F32 && !inst->Arg(0).IsImmediate()) {
+        inst = inst->Arg(0).InstRecursive();
+    }
+    return inst->GetOpcode() == IR::Opcode::GetAttribute ||
+           inst->GetOpcode() == IR::Opcode::GetAttributeU32;
+}
+
+TextureInst MakeInst(Environment& env, IR::Block* block, IR::Inst& inst,
+                     const HostTranslateInfo& host_info) {
     ConstBufferAddr addr;
     if (IsBindless(inst)) {
         const std::optional<ConstBufferAddr> track_addr{Track(inst.Arg(0), env)};
-        if (!track_addr) {
+        if (track_addr) {
+            addr = *track_addr;
+        } else if (host_info.support_attribute_texture_handle &&
+                   IsAttributeSourcedHandle(inst.Arg(0))) {
+            // The handle travels with the vertices (sprite batches pick the texture per quad), so
+            // there is no constant buffer to read it from. The host binds the handle of each run
+            // of vertices that share one.
+            addr = ConstBufferAddr{
+                .index = ATTRIBUTE_HANDLE_CBUF_INDEX,
+                .offset = 0,
+                .shift_left = 0,
+                .secondary_index = 0,
+                .secondary_offset = 0,
+                .secondary_shift_left = 0,
+                .dynamic_offset = {},
+                .count = 1,
+                .has_secondary = false,
+            };
+        } else {
             throw NotImplementedException("Failed to track bindless texture constant buffer");
         }
-        addr = *track_addr;
     } else {
         addr = ConstBufferAddr{
             .index = env.TextureBoundBuffer(),
@@ -364,15 +394,30 @@ u32 GetTextureHandle(Environment& env, const ConstBufferAddr& cbuf) {
     return lhs_raw | rhs_raw;
 }
 
+bool IsAttributeHandle(const ConstBufferAddr& cbuf) {
+    return cbuf.index == ATTRIBUTE_HANDLE_CBUF_INDEX;
+}
+
+// A handle that arrives as a vertex attribute has no constant buffer to read the texture's
+// description from: assume the plain 2D colour texture sprites use.
 TextureType ReadTextureType(Environment& env, const ConstBufferAddr& cbuf) {
+    if (IsAttributeHandle(cbuf)) {
+        return TextureType::Color2D;
+    }
     return env.ReadTextureType(GetTextureHandle(env, cbuf));
 }
 
 TexturePixelFormat ReadTexturePixelFormat(Environment& env, const ConstBufferAddr& cbuf) {
+    if (IsAttributeHandle(cbuf)) {
+        return TexturePixelFormat::A8B8G8R8_UNORM;
+    }
     return env.ReadTexturePixelFormat(GetTextureHandle(env, cbuf));
 }
 
 bool IsTexturePixelFormatInteger(Environment& env, const ConstBufferAddr& cbuf) {
+    if (IsAttributeHandle(cbuf)) {
+        return false;
+    }
     return env.IsTexturePixelFormatInteger(GetTextureHandle(env, cbuf));
 }
 
@@ -529,7 +574,7 @@ void TexturePass(Environment& env, IR::Program& program, const HostTranslateInfo
             if (!IsTextureInstruction(inst)) {
                 continue;
             }
-            to_replace.push_back(MakeInst(env, block, inst));
+            to_replace.push_back(MakeInst(env, block, inst, host_info));
         }
     }
     // Sort instructions to visit textures by constant buffer index, then by offset

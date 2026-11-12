@@ -396,6 +396,7 @@ PipelineCache::PipelineCache(Tegra::MaxwellDeviceMemoryManager& device_memory_,
         .min_ssbo_alignment = static_cast<u32>(device.GetStorageBufferAlignment()),
         .support_geometry_shader_passthrough = device.IsNvGeometryShaderPassthroughSupported(),
         .support_conditional_barrier = device.SupportsConditionalBarriers(),
+        .support_attribute_texture_handle = true,
     };
 
     if (device.GetMaxVertexInputAttributes() < Maxwell::NumVertexAttributes) {

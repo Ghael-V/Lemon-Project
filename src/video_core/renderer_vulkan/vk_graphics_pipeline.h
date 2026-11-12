@@ -90,6 +90,16 @@ public:
         configure_func(this, is_indexed);
     }
 
+    /// True when a shader samples a texture whose handle arrives as a vertex attribute.
+    [[nodiscard]] bool UsesAttributeHandle() const noexcept {
+        return uses_attribute_handle;
+    }
+
+    /// Handle bound to those textures by the next Configure.
+    void SetAttributeHandle(u32 handle) noexcept {
+        attribute_handle = handle;
+    }
+
     [[nodiscard]] GraphicsPipeline* Next(const GraphicsPipelineCacheKey& current_key) noexcept {
         if (key == current_key) {
             return this;
@@ -145,6 +155,8 @@ private:
     std::array<u32, 5> enabled_uniform_buffer_masks{};
     VideoCommon::UniformBufferSizes uniform_buffer_sizes{};
     u32 num_textures{};
+    u32 attribute_handle{};
+    bool uses_attribute_handle{};
 
     vk::DescriptorSetLayout descriptor_set_layout;
     DescriptorAllocator descriptor_allocator;
