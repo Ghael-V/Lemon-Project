@@ -151,8 +151,9 @@ if (NOT WIN32 AND (NOT ANDROID OR YUZU_ANDROID_FFMPEG_FROM_SOURCE))
             # for the host and misses the Android kernel headers.
             --extra-cflags=--target=${CMAKE_C_COMPILER_TARGET}
             --extra-ldflags=--target=${CMAKE_C_COMPILER_TARGET}
-            --extra-ldflags="--ld-path=${TOOLCHAIN}/bin/ld.lld"
-            --extra-ldflags="-nostdlib"
+            # No -nostdlib: configure's link tests then fail, and it replaces libc functions
+            # it thinks are missing (getenv) with macros that break the NDK headers.
+            --enable-pic
         )
     endif()
 
