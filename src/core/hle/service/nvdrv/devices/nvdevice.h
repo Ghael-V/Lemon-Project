@@ -71,6 +71,26 @@ public:
      */
     virtual void OnClose(DeviceFD fd) = 0;
 
+    /// Quick Load support (see Core::SaveState::UndoJournal): whether a Quick Load can open this
+    /// device again after the game closed it, and close it again after the game opened it.
+    virtual bool CanReopenForRestore() const {
+        return false;
+    }
+
+    /// Called instead of OnClose when a Quick Load may open the device again: closes it as far as
+    /// the game can tell, but keeps what opening it anew could not bring back.
+    virtual void OnCloseForRestore(DeviceFD fd) {
+        OnClose(fd);
+    }
+
+    /// Opens a device closed by OnCloseForRestore again.
+    virtual void OnReopenForRestore(NvCore::SessionId session_id, DeviceFD fd) {
+        OnOpen(session_id, fd);
+    }
+
+    /// A device closed by OnCloseForRestore that is not opened again lets go of what it kept.
+    virtual void OnReleaseForRestore(DeviceFD fd) {}
+
     virtual Kernel::KEvent* QueryEvent(u32 event_id) {
         return nullptr;
     }

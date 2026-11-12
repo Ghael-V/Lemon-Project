@@ -22,6 +22,9 @@ public:
 
     void OnOpen(NvCore::SessionId session_id, DeviceFD fd) override;
     void OnClose(DeviceFD fd) override;
+    void OnCloseForRestore(DeviceFD fd) override;
+    void OnReopenForRestore(NvCore::SessionId session_id, DeviceFD fd) override;
+    void OnReleaseForRestore(DeviceFD fd) override;
 };
 
 } // namespace Service::Nvidia::Devices

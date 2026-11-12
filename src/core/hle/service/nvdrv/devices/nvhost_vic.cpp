@@ -81,4 +81,16 @@ void nvhost_vic::OnClose(DeviceFD fd) {
     sessions.erase(fd);
 }
 
+void nvhost_vic::OnCloseForRestore(DeviceFD fd) {
+    // Kept running with the video decoder it reads frames from (see nvhost_nvdec).
+}
+
+void nvhost_vic::OnReopenForRestore(NvCore::SessionId session_id, DeviceFD fd) {
+    sessions[fd] = session_id;
+}
+
+void nvhost_vic::OnReleaseForRestore(DeviceFD fd) {
+    OnClose(fd);
+}
+
 } // namespace Service::Nvidia::Devices

@@ -27,6 +27,12 @@ public:
                                  NvCore::ChannelType channel_type);
     ~nvhost_nvdec_common() override;
 
+    /// The device keeps its syncpoint until it is destroyed, and its host channel (a video
+    /// decoder's reference frames) until it is released.
+    bool CanReopenForRestore() const override {
+        return true;
+    }
+
 protected:
     struct IoctlSetNvmapFD {
         s32_le nvmap_fd{};

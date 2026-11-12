@@ -25,6 +25,7 @@
 #include "core/hle/service/nvdrv/nvmemp.h"
 #include "core/hle/service/nvnflinger/nvnflinger.h"
 #include "core/hle/service/server_manager.h"
+#include "core/savestate_undo_journal.h"
 #include "video_core/gpu.h"
 
 namespace Service::Nvidia {
@@ -121,6 +122,26 @@ NvResult Module::VerifyFD(DeviceFD fd) const {
     return NvResult::Success;
 }
 
+namespace {
+
+// A device the game closed that a Quick Load may open again (see Module::Close). Released once
+// that can no longer happen: at the next save, or when the game stops.
+struct ClosedDevice {
+    ClosedDevice(std::shared_ptr<Devices::nvdevice> device_, DeviceFD fd_)
+        : device{std::move(device_)}, fd{fd_} {}
+    ~ClosedDevice() {
+        if (!reopened) {
+            device->OnReleaseForRestore(fd);
+        }
+    }
+
+    std::shared_ptr<Devices::nvdevice> device;
+    DeviceFD fd;
+    bool reopened = false;
+};
+
+} // Anonymous namespace
+
 DeviceFD Module::Open(const std::string& device_name, NvCore::SessionId session_id) {
     auto it = builders.find(device_name);
     if (it == builders.end()) {
@@ -133,6 +154,20 @@ DeviceFD Module::Open(const std::string& device_name, NvCore::SessionId session_
     auto device = builder(fd)->second;
 
     device->OnOpen(session_id, fd);
+    fd_sessions[fd] = session_id;
+
+    // A Quick Load closes it again (see Core::SaveState::UndoJournal): the saved game does not
+    // know it, so nothing would close it otherwise.
+    if (device->CanReopenForRestore()) {
+        Core::SaveState::UndoJournal::Gpu().Record("nvdrv open", [this, fd] {
+            if (const auto itr = open_files.find(fd); itr != open_files.end()) {
+                itr->second->OnClose(fd);
+                open_files.erase(itr);
+                fd_sessions.erase(fd);
+            }
+            return true;
+        });
+    }
 
     return fd;
 }
@@ -201,9 +236,32 @@ NvResult Module::Close(DeviceFD fd) {
         return NvResult::NotImplemented;
     }
 
-    itr->second->OnClose(fd);
-
+    auto device = itr->second;
     open_files.erase(itr);
+
+    // A Quick Load opens it again under the same descriptor (see Core::SaveState::UndoJournal):
+    // the saved game still uses it, such as a video that was playing at the save and has ended
+    // since. Kept until then, with its syncpoint and what OnCloseForRestore keeps.
+    auto& journal = Core::SaveState::UndoJournal::Gpu();
+    const auto session = fd_sessions.find(fd);
+    if (device->CanReopenForRestore() && session != fd_sessions.end() && journal.CanUndo()) {
+        device->OnCloseForRestore(fd);
+        auto closed = std::make_shared<ClosedDevice>(device, fd);
+        journal.Record("nvdrv close", [this, closed, session_id = session->second] {
+            if (!open_files.emplace(closed->fd, closed->device).second) {
+                return false;
+            }
+            closed->reopened = true;
+            closed->device->OnReopenForRestore(session_id, closed->fd);
+            fd_sessions[closed->fd] = session_id;
+            return true;
+        });
+    } else {
+        device->OnClose(fd);
+    }
+    if (session != fd_sessions.end()) {
+        fd_sessions.erase(session);
+    }
 
     return NvResult::Success;
 }

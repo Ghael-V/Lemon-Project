@@ -88,4 +88,30 @@ void nvhost_nvdec::OnClose(DeviceFD fd) {
     }
 }
 
+void nvhost_nvdec::OnCloseForRestore(DeviceFD fd) {
+    // The decoder keeps running: a Quick Load to a save made during the video goes on decoding
+    // from frames it has, where a new decoder would refuse every frame until the next key frame.
+    LOG_INFO(Service_NVDRV, "NVDEC video stream ended (its decoder kept for a Quick Load)");
+    if (const auto it = sessions.find(fd); it != sessions.end()) {
+        if (const auto* session = core.GetSession(it->second);
+            session != nullptr && session->process != nullptr) {
+            system.NotifyNVDECChannelClose(session->process->GetId());
+        }
+    }
+}
+
+void nvhost_nvdec::OnReopenForRestore(NvCore::SessionId session_id, DeviceFD fd) {
+    LOG_INFO(Service_NVDRV, "NVDEC video stream started again by a Quick Load");
+    sessions[fd] = session_id;
+    if (const auto* session = core.GetSession(session_id);
+        session != nullptr && session->process != nullptr) {
+        system.NotifyNVDECChannelOpen(session->process->GetId());
+    }
+}
+
+void nvhost_nvdec::OnReleaseForRestore(DeviceFD fd) {
+    host1x.StopDevice(fd, Tegra::Host1x::ChannelType::NvDec);
+    sessions.erase(fd);
+}
+
 } // namespace Service::Nvidia::Devices
