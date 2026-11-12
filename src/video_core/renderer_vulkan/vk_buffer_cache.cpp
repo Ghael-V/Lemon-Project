@@ -111,6 +111,14 @@ VkBufferView Buffer::View(u32 offset, u32 size, VideoCore::Surface::PixelFormat 
     if (it != views.end()) {
         return *it->handle;
     }
+    // A shader can declare a texture buffer whose slot is dead and resolves to no format. The
+    // descriptor still has to be written (the update template expects one entry per slot, in
+    // order), but SurfaceFormat has no entry for Invalid, so give the view any small format the
+    // driver accepts; the shader never reads through a dead slot.
+    const VkFormat vk_format =
+        format == VideoCore::Surface::PixelFormat::Invalid
+            ? VK_FORMAT_R8_UINT
+            : MaxwellToVK::SurfaceFormat(*device, FormatType::Buffer, false, format).format;
     views.push_back({
         .offset = offset,
         .size = size,
@@ -120,7 +128,7 @@ VkBufferView Buffer::View(u32 offset, u32 size, VideoCore::Surface::PixelFormat 
             .pNext = nullptr,
             .flags = 0,
             .buffer = *buffer,
-            .format = MaxwellToVK::SurfaceFormat(*device, FormatType::Buffer, false, format).format,
+            .format = vk_format,
             .offset = offset,
             .range = size,
         }),

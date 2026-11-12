@@ -1551,6 +1551,10 @@ bool Image::IsRescaled() const noexcept {
 }
 
 bool Image::ScaleUp(bool ignore) {
+    if (!runtime) {
+        // The NULL_IMAGE_ID placeholder is never fully constructed; nothing to rescale.
+        return false;
+    }
     const auto& resolution = runtime->resolution;
     if (!resolution.active) {
         return false;
@@ -1588,6 +1592,10 @@ bool Image::ScaleUp(bool ignore) {
 }
 
 bool Image::ScaleDown(bool ignore) {
+    if (!runtime) {
+        // The NULL_IMAGE_ID placeholder is never fully constructed; nothing to rescale.
+        return false;
+    }
     const auto& resolution = runtime->resolution;
     if (!resolution.active) {
         return false;
