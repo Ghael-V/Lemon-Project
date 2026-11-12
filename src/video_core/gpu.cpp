@@ -317,6 +317,18 @@ struct GPU::Impl {
             return;
         }
         gpu_thread.InvalidateRegion(addr, size);
+    bool DownloadGpuWrittenImages(DAddr addr, u64 size) {
+        VideoCore::RasterizerInterface* const rasterizer = renderer->ReadRasterizer();
+        if (!rasterizer->HasGpuWrittenImages(addr, size)) {
+            return false;
+        }
+        const u64 fence = RequestSyncOperation(
+            [rasterizer, addr, size] { rasterizer->DownloadGpuWrittenImages(addr, size); });
+        gpu_thread.TickGPU(is_async);
+        WaitForSyncOperation(fence);
+        return true;
+    }
+
     }
 
     bool OnCPUWrite(DAddr addr, u64 size) {
@@ -562,6 +574,10 @@ void GPU::Start() {
 
 void GPU::NotifyShutdown() {
     impl->NotifyShutdown();
+}
+
+bool GPU::DownloadGpuWrittenImages(DAddr addr, u64 size) {
+    return impl->DownloadGpuWrittenImages(addr, size);
 }
 
 void GPU::ObtainContext() {

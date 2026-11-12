@@ -165,6 +165,10 @@ public:
 
     void WaitForSyncOperation(u64 fence);
 
+    /// Copies the images the GPU drew in [addr, addr + size) back to guest memory, on the GPU
+    /// thread. Returns whether there were any.
+    bool DownloadGpuWrittenImages(DAddr addr, u64 size);
+
     /// Tick pending requests within the GPU.
     void TickWork();
 

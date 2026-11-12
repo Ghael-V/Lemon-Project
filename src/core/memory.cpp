@@ -799,6 +799,43 @@ struct Memory::Impl {
         return true;
     }
 
+    size_t DownloadGpuWrittenImages(VAddr v_address, size_t size) {
+        if (!gpu_device_memory) [[unlikely]] {
+            gpu_device_memory = &system.Host1x().MemoryManager();
+        }
+        auto& gpu = system.GPU();
+        Common::ScratchBuffer<u32> scratch;
+        size_t runs_with_images = 0;
+        DAddr run_start = 0;
+        DAddr run_end = 0;
+        const auto flush_run = [&] {
+            if (run_end > run_start &&
+                gpu.DownloadGpuWrittenImages(run_start, run_end - run_start)) {
+                runs_with_images++;
+            }
+            run_start = run_end = 0;
+        };
+        const VAddr end = v_address + size;
+        for (VAddr page = Common::AlignDown(v_address, YUZU_PAGESIZE); page < end;
+             page += YUZU_PAGESIZE) {
+            const u8* p = GetPointerSilent(page);
+            if (p == nullptr) {
+                continue;
+            }
+            gpu_device_memory->ApplyOpOnPointer(p, scratch, [&](DAddr address) {
+                if (address == run_end && run_end != 0) {
+                    run_end += YUZU_PAGESIZE;
+                    return;
+                }
+                flush_run();
+                run_start = address;
+                run_end = address + YUZU_PAGESIZE;
+            });
+        }
+        flush_run();
+        return runs_with_images;
+    }
+
     void HandleRasterizerDownload(VAddr v_address, size_t size) {
         const auto* p = GetPointerImpl(
             v_address, []() {}, []() {});
@@ -1018,6 +1055,11 @@ std::string Memory::ReadCString(Common::ProcessAddress vaddr, std::size_t max_le
 bool Memory::ReadBlock(const Common::ProcessAddress src_addr, void* dest_buffer,
                        const std::size_t size) {
     return impl->ReadBlock(src_addr, dest_buffer, size);
+}
+
+std::size_t Memory::DownloadGpuWrittenImages(const Common::ProcessAddress addr,
+                                             const std::size_t size) {
+    return impl->DownloadGpuWrittenImages(GetInteger(addr), size);
 }
 
 bool Memory::ReadBlockUnsafe(const Common::ProcessAddress src_addr, void* dest_buffer,

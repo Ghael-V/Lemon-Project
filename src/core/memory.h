@@ -366,6 +366,15 @@ public:
      */
     bool ReadBlockUnsafe(Common::ProcessAddress src_addr, void* dest_buffer, std::size_t size);
 
+    /**
+     * Copies the images the GPU drew in the given range of the current process' address space
+     * back to it, so a read with ReadBlockUnsafe sees what the GPU drew. Unmapped pages are
+     * skipped.
+     *
+     * @returns How many device memory runs held such images.
+     */
+    std::size_t DownloadGpuWrittenImages(Common::ProcessAddress addr, std::size_t size);
+
     const u8* GetSpan(const VAddr src_addr, const std::size_t size) const;
     u8* GetSpan(const VAddr src_addr, const std::size_t size);
 

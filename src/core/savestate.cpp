@@ -352,6 +352,27 @@ bool ReadSavedSignature(const std::string& path, std::vector<u32>& out) {
     return thread_count == 0 || file.ReadSpan<u32>(out) == out.size();
 }
 
+size_t CopyGpuDrawnImages(Core::System& system) {
+    auto* process = system.ApplicationProcess();
+    if (process == nullptr) {
+        return 0;
+    }
+    // Capture reads memory without asking the GPU for its copy, so what the GPU drew into images
+    // was not in the save; a load that rebuilt those images from memory drew a black 3D scene.
+    // Copy those images back to memory first: only the ones the GPU wrote since the last copy.
+    auto& memory = system.ApplicationMemory();
+    const auto start = std::chrono::steady_clock::now();
+    size_t runs = 0;
+    for (const auto& region : EnumerateScannableRegions(process->GetPageTable())) {
+        runs += memory.DownloadGpuWrittenImages(region.address, region.size);
+    }
+    LOG_INFO(Core, "SaveState: copied GPU-drawn images back in {} run(s), {} ms", runs,
+             std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::steady_clock::now() - start)
+                 .count());
+    return runs;
+}
+
 bool Capture(Core::System& system, const std::string& path) {
     auto* process = system.ApplicationProcess();
     if (process == nullptr) {
@@ -375,6 +396,8 @@ bool Capture(Core::System& system, const std::string& path) {
     }
 
     const auto regions = EnumerateScannableRegions(page_table);
+
+    CopyGpuDrawnImages(system);
 
     const auto tmp_path = path + ".tmp";
     Common::FS::IOFile file{tmp_path, Common::FS::FileAccessMode::Write};

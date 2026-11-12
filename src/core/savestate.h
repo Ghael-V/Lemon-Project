@@ -52,6 +52,10 @@ enum class RestoreFailure {
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path,
                            RestoreFailure* failure = nullptr);
 
+/// Copies the images the GPU drew back to guest memory, so a capture holds them. Returns how many
+/// device memory runs held such images.
+size_t CopyGpuDrawnImages(Core::System& system);
+
 // Services (HLE) take this shared while they receive a request and while they complete and answer
 // it; a save or a restore takes it exclusively. A service answers by writing into the guest's
 // memory and waking the thread that asked, and it runs on its own host thread, which pausing the
