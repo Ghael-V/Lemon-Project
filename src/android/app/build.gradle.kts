@@ -10,7 +10,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-parcelize")
-    kotlin("plugin.serialization") version "1.9.20"
+    kotlin("plugin.serialization") version "1.9.24"
     id("androidx.navigation.safeargs.kotlin")
     id("org.jlleitschuh.gradle.ktlint") version "11.4.0"
     id("com.github.triplet.play") version "3.8.6"
@@ -32,6 +32,12 @@ android {
 
     buildFeatures {
         viewBinding = true
+        compose = true
+    }
+
+    composeOptions {
+        // Compose compiler paired with Kotlin 1.9.24.
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     compileOptions {
@@ -250,6 +256,10 @@ dependencies {
     implementation("androidx.navigation:navigation-ui-ktx:2.7.4")
     implementation("info.debatty:java-string-similarity:2.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
+    implementation("androidx.compose.ui:ui:1.7.8")
+    implementation("androidx.compose.foundation:foundation:1.7.8")
+    implementation("androidx.compose.ui:ui-graphics-android:1.7.8")
+    implementation("androidx.compose.ui:ui-text-android:1.7.8")
 }
 
 fun runGitCommand(command: List<String>): String {
