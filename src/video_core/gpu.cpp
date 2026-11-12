@@ -367,18 +367,18 @@ struct GPU::Impl {
         auto snapshot = std::make_shared<GPU::EngineSnapshot>();
         const u64 fence = RequestSyncOperation([this, &snapshot] {
             for (const auto& [id, channel] : channels) {
-                if (!channel->initialized || !channel->payload) {
+                if (!channel->initialized) {
                     continue;
                 }
-                const auto& engines = *channel->payload;
+                const auto& engines = *channel;
                 auto& saved = snapshot->channels.emplace_back();
                 saved.bind_id = id;
-                saved.maxwell_3d = engines.maxwell_3d.regs;
-                saved.maxwell_3d_shadow = engines.maxwell_3d.shadow_state;
-                saved.maxwell_3d_state = engines.maxwell_3d.state;
-                saved.kepler_compute = engines.kepler_compute.regs;
-                saved.fermi_2d = engines.fermi_2d.regs;
-                saved.kepler_memory = engines.kepler_memory.regs;
+                saved.maxwell_3d = engines.maxwell_3d->regs;
+                saved.maxwell_3d_shadow = engines.maxwell_3d->shadow_state;
+                saved.maxwell_3d_state = engines.maxwell_3d->state;
+                saved.kepler_compute = engines.kepler_compute->regs;
+                saved.fermi_2d = engines.fermi_2d->regs;
+                saved.kepler_memory = engines.kepler_memory->regs;
             }
         });
         gpu_thread.WakeForSyncRequest();
@@ -392,17 +392,17 @@ struct GPU::Impl {
             for (const auto& saved : snapshot.channels) {
                 // A channel closed since the save has nothing to put its state into.
                 const auto it = channels.find(saved.bind_id);
-                if (it == channels.end() || !it->second->initialized || !it->second->payload) {
+                if (it == channels.end() || !it->second->initialized) {
                     continue;
                 }
-                auto& engines = *it->second->payload;
-                engines.maxwell_3d.regs = saved.maxwell_3d;
-                engines.maxwell_3d.shadow_state = saved.maxwell_3d_shadow;
-                engines.maxwell_3d.state = saved.maxwell_3d_state;
-                engines.maxwell_3d.dirty.flags.set();
-                engines.kepler_compute.regs = saved.kepler_compute;
-                engines.fermi_2d.regs = saved.fermi_2d;
-                engines.kepler_memory.regs = saved.kepler_memory;
+                auto& engines = *it->second;
+                engines.maxwell_3d->regs = saved.maxwell_3d;
+                engines.maxwell_3d->shadow_state = saved.maxwell_3d_shadow;
+                engines.maxwell_3d->state = saved.maxwell_3d_state;
+                engines.maxwell_3d->dirty.flags.set();
+                engines.kepler_compute->regs = saved.kepler_compute;
+                engines.fermi_2d->regs = saved.fermi_2d;
+                engines.kepler_memory->regs = saved.kepler_memory;
                 restored++;
             }
         });

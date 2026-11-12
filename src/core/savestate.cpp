@@ -376,7 +376,7 @@ Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& 
     Result moved = ResultUnknown;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
     while (R_FAILED(moved = thread->MoveThreadLocalRegionForRestore(
-                        kernel, Common::ProcessAddress(saved.tls))) &&
+                        Common::ProcessAddress(saved.tls))) &&
            std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

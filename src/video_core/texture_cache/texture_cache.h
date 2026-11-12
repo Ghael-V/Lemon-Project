@@ -627,7 +627,7 @@ template <class P>
 void TextureCache<P>::DiscardGpuModifiedImages(DAddr cpu_addr, size_t size) {
     ForEachImageInRegion(cpu_addr, size, [this](ImageId image_id, Image& image) {
         // Only the ones DownloadGpuModifiedImages would copy: guest memory holds no copy of others.
-        if (False(image.flags & ImageFlagBits::GpuModified) || !IsDownloadable(image)) {
+        if (False(image.flags & ImageFlagBits::GpuModified) || !image.IsSafeDownload()) {
             return;
         }
         image.flags &= ~ImageFlagBits::GpuModified;
