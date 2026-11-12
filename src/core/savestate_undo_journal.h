@@ -137,6 +137,13 @@ public:
         }
     }
 
+    /// Whether changes are being followed since a save made in this run of the game (Start), as
+    /// opposed to none made yet, or one from before the game or the app was closed (Stop).
+    bool IsRecording() {
+        std::scoped_lock lock{mutex};
+        return recording;
+    }
+
     bool CanUndo() {
         std::scoped_lock lock{mutex};
         return recording && usable;

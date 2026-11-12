@@ -671,6 +671,12 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
 
+    // A save from before the game started (an earlier run) cannot be loaded: refused at once, not
+    // after looks that could never match (its threads all "ended").
+    if (!Core::SaveState::HasSaveFromThisSession()) {
+        return QuickLoadResult::NotThisSession;
+    }
+
     // The game is paused, but other parts of the emulator can still wake its threads in the
     // milliseconds between looking at them and restoring (the restore itself checks again and
     // refuses, see RestoreFailure::NotSettled): so wait, try, and wait again if it was refused

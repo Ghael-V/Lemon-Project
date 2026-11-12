@@ -151,6 +151,11 @@ struct LoadCheck {
                                   const std::vector<u64>& saved_tls,
                                   const std::vector<u32>& saved_svc, bool allow_rebuild);
 
+// Whether a save was made since the game started: a save made before it (an earlier run of the
+// game, or of the app) cannot be loaded, as nothing that changed since was followed (see
+// UndoJournal).
+[[nodiscard]] bool HasSaveFromThisSession();
+
 // Reads the signature stored in a savestate file without loading anything else, and the
 // thread-local storage address of each saved thread if asked, with (when `svc` is also given) the
 // kernel call each was in.

@@ -276,6 +276,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                             NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
                             NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
                             NativeLibrary.QUICK_LOAD_GAME_LOADING -> R.string.emulation_quick_load_state_game_loading
+                            NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION -> R.string.emulation_quick_load_state_not_this_session
                             else -> R.string.emulation_quick_load_state_failure
                         }
                     }

@@ -66,6 +66,7 @@ public:
         Incompatible = 2, // refused: a change since the save cannot be undone
         NoSafeMoment = 3, // a lock handoff was in progress for the whole wait; nothing was changed
         GameLoading = 4,  // threads of the save ended and are not back yet; nothing was changed
+        NotThisSession = 5, // no save made since the game started; nothing was changed
     };
     QuickLoadResult QuickLoadState();
     std::vector<Core::MemorySearch::Match> CheatSearch(s32 needle_value,

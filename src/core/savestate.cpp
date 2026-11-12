@@ -807,6 +807,11 @@ LoadCheck CheckLoad(Core::System& system, const std::vector<u32>& saved_signatur
     return check;
 }
 
+bool HasSaveFromThisSession() {
+    return UndoJournal::Memory().IsRecording() && UndoJournal::Gpu().IsRecording() &&
+           UndoJournal::Services().IsRecording();
+}
+
 bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vector<u64>* tls,
                         std::vector<u32>* svc) {
     Common::FS::IOFile file{path, Common::FS::FileAccessMode::Read};
