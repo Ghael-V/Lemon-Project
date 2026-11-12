@@ -25,7 +25,7 @@ val autoVersion = (((System.currentTimeMillis() / 1000) - 1451606400) / 10).toIn
 
 @Suppress("UnstableApiUsage")
 android {
-    namespace = "org.yuzu.yuzu_emu"
+    namespace = "dev.ironlemon.ironlemon_emulator"
 
     compileSdkVersion = "android-34"
     ndkVersion = "26.1.10909125"
