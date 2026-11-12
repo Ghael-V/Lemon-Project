@@ -595,7 +595,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     if (!SignaturesMatch(saved_signature, live_signature)) {
         LOG_WARNING(Core,
                     "SaveState::Restore: the guest's threads are not waiting as they were at the "
-                    "save (some are waking or sleeping), refusing for now");
+                    "save (some are waking or sleeping), refusing for now: {}",
+                    DescribeWaitDifferences(saved_signature, live_signature));
         if (failure != nullptr) {
             *failure = RestoreFailure::NotSettled;
         }
@@ -656,8 +657,12 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             live_threads[i]->GetContext().pc != thread_contexts[i].pc) {
             LOG_WARNING(Core,
                         "SaveState::Restore: thread {} cannot be moved to its saved wait, refusing "
-                        "for now",
-                        i);
+                        "for now: saved {}, live {}; waiting on a condition variable {}, pc {:#x} "
+                        "(saved {:#x})",
+                        i, DescribeWaitWord(saved_signature[i]),
+                        DescribeWaitWord(live_signature[i]),
+                        live_threads[i]->IsWaitingForConditionVariable(),
+                        live_threads[i]->GetContext().pc, thread_contexts[i].pc);
             if (failure != nullptr) {
                 *failure = RestoreFailure::NotSettled;
             }
@@ -1063,6 +1068,57 @@ bool HasRiskyPendingWaits(Core::System& system) {
         }
     }
     return false;
+}
+
+std::string DescribeWaitWord(u32 word) {
+    static constexpr std::array<const char*, 4> States{"initialized", "waiting", "runnable",
+                                                       "terminated"};
+    static constexpr std::array<const char*, 7> Reasons{
+        "none", "sleep", "ipc", "sync", "condvar", "arbitration", "suspended"};
+    const u32 state = (word >> 8) & 0xF;
+    const u32 reason = word & 0x7F;
+    return fmt::format("{} {}{} target {:04x}", state < States.size() ? States[state] : "?",
+                       reason < Reasons.size() ? Reasons[reason] : "?",
+                       (word & 0x80) != 0 ? " in-svc" : "", word >> 16);
+}
+
+std::string DescribeWaitDifferences(const std::vector<u32>& saved, const std::vector<u32>& live) {
+    if (saved.size() != live.size()) {
+        return fmt::format("thread count differs (saved {}, live {})", saved.size(), live.size());
+    }
+    std::string out;
+    for (size_t i = 0; i < saved.size(); i++) {
+        if (SignaturesMatch(std::vector<u32>{saved[i]}, std::vector<u32>{live[i]})) {
+            continue;
+        }
+        if (!out.empty()) {
+            out += "; ";
+        }
+        out += fmt::format("thread {}: saved {}, live {}", i, DescribeWaitWord(saved[i]),
+                           DescribeWaitWord(live[i]));
+    }
+    return out.empty() ? "none" : out;
+}
+
+std::string DescribeRiskyPendingWaits(Core::System& system) {
+    auto* process = system.ApplicationProcess();
+    if (process == nullptr) {
+        return "no process";
+    }
+    std::string out;
+    u32 index = 0;
+    for (auto& thread : process->GetThreadList()) {
+        if (thread.GetWaitReasonForDebugging() ==
+            Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+            if (!out.empty()) {
+                out += ", ";
+            }
+            out += fmt::format("thread {} (id {}, address {:#x})", index, thread.GetThreadId(),
+                               thread.GetAddressKey().GetValue());
+        }
+        index++;
+    }
+    return out.empty() ? "none" : out;
 }
 
 } // namespace Core::SaveState

@@ -170,6 +170,12 @@ public:
     /// Returns false if it did not finish in time.
     [[nodiscard]] bool WaitForIdleFor(std::chrono::milliseconds timeout);
 
+    /// Waits, for up to `timeout`, for the GPU to finish the commands queued before the call and
+    /// for the host GPU to finish them too, releasing their fences (so the syncpoints they
+    /// increment, and the guest threads waiting on those, are where they will stay while the guest
+    /// is paused). Returns false if it did not finish in time.
+    [[nodiscard]] bool SettleFor(std::chrono::milliseconds timeout);
+
     /// Copies the images the GPU drew in [addr, addr + size) back to guest memory, on the GPU
     /// thread. Returns whether there were any.
     bool DownloadGpuWrittenImages(DAddr addr, u64 size);

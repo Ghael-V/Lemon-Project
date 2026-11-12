@@ -116,15 +116,24 @@ private:
     std::shared_ptr<FileSys::VfsFilesystem> m_vfs;
     Core::SystemResultStatus m_load_result{Core::SystemResultStatus::ErrorNotInitialized};
     std::atomic<bool> m_is_running = false;
-    /// With the system paused: lets the game run on in 30 ms steps (when `can_run`) for up to about
-    /// three seconds, or until `deadline`, until it is at a safe moment, and returns whether it got
-    /// there. No thread may
-    /// be in an address-arbiter wait, and the threads' wait signature must either equal `target`
-    /// (a load: the one stored in the save) or, with no target (a save), have been the same for
-    /// three looks in a row. See Core::SaveState::WaitSignature.
+    /// With the system paused: lets the game run on in short steps (when `can_run`) for up to
+    /// about three seconds, or until `deadline`, until it is at a safe moment, and returns whether
+    /// it got there. No thread may be in an address-arbiter wait, and the threads' wait signature
+    /// must either match `target` (a load: the one stored in the save) or, with no target (a
+    /// save), be each thread's usual state. See Core::SaveState::WaitSignature.
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max());
+    /// For the log: how often one thread's wait changed between WaitForSafeMoment's looks, and
+    /// its last change.
+    struct ThreadChurn {
+        int changes{};
+        u32 from{};
+        u32 to{};
+    };
+    /// Logs what kept WaitForSafeMoment from finding a moment.
+    void LogNoSafeMoment(const std::vector<u32>* target, const std::vector<u32>& last, int looks,
+                         int arbiter_looks, const std::vector<ThreadChurn>& churn, const char* why);
     /// With the system paused: waits (up to two seconds) for the GPU to finish the commands the
     /// game gave it, so a save does not read memory the GPU is still writing and a load is not
     /// followed by GPU work from after the save. `what` names the caller in the log.

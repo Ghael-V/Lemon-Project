@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include <chrono>
+#include <random>
+#include <unordered_map>
 #include <codecvt>
 #include <locale>
 #include <string>
@@ -372,15 +375,117 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
     static constexpr auto Step = std::chrono::milliseconds(30);
     std::vector<u32> previous;
     int equal_in_a_row = 0;
+    // For the log: how often each thread's wait changed from one look to the next, and the last
+    // change, plus the looks that found an arbitration wait (see LogNoSafeMoment).
+    int looks = 0;
+    int arbiter_looks = 0;
+    std::vector<ThreadChurn> churn;
+    std::minstd_rand jitter{
+        static_cast<u32>(std::chrono::steady_clock::now().time_since_epoch().count())};
+    // For a save: a load has to find every thread in the state it had at the save, and
+    // a save caught a busy thread in a passing state (the main thread mid-work, another in the
+    // middle of a kernel call) could not be loaded again for a long time.
+    // So first watch the threads for a while and count each one's states; then save at a look where
+    // each thread is in the state it was seen in most, the one a load is most likely to find again.
+    static constexpr int ObserveLooks = 30;
+    static constexpr int StrictLooks = 50; // then one thread may be off its usual state
+    std::vector<std::unordered_map<u32, int>> seen;
+    std::vector<u32> usual;
+    int observed = 0;
+    int picking = 0;
     for (int attempt = 0; attempt < MaxAttempts && std::chrono::steady_clock::now() < deadline;
          attempt++) {
+        looks++;
+        // Some threads wait on the GPU (one on a request the GPU completes, another on a GPU
+        // event). Whether they are still waiting depends on whether the GPU has caught up, and the
+        // save and the restore wait for it, which woke them after they were looked at (a load
+        // refused itself 133 times on one of them). So let the GPU catch up before every look, at a
+        // save and at a load alike, and compare the threads as they are once it has.
+        (void)m_system.GPU().SettleFor(std::chrono::milliseconds(2000));
         const std::vector<u32> now = Core::SaveState::WaitSignature(m_system);
         const bool arbiter = Core::SaveState::HasRiskyPendingWaits(m_system);
+        if (arbiter) {
+            arbiter_looks++;
+        }
+        if (churn.size() != now.size()) {
+            churn.assign(now.size(), {});
+        }
+        if (!previous.empty() && previous.size() == now.size()) {
+            for (size_t i = 0; i < now.size(); i++) {
+                if (previous[i] != now[i]) {
+                    churn[i].changes++;
+                    churn[i].from = previous[i];
+                    churn[i].to = now[i];
+                }
+            }
+        }
         equal_in_a_row = (now == previous) ? equal_in_a_row + 1 : 0;
         previous = now;
 
         bool good = false;
-        if (!arbiter) {
+        if (target == nullptr && can_run) {
+            if (seen.size() != now.size()) {
+                // The thread count changed: start counting again.
+                seen.assign(now.size(), {});
+                usual.clear();
+                observed = 0;
+                picking = 0;
+            }
+            if (observed < ObserveLooks) {
+                for (size_t i = 0; i < now.size(); i++) {
+                    seen[i][now[i]]++;
+                }
+                if (++observed == ObserveLooks) {
+                    usual.resize(now.size());
+                    for (size_t i = 0; i < now.size(); i++) {
+                        usual[i] = std::max_element(seen[i].begin(), seen[i].end(),
+                                                    [](const auto& a, const auto& b) {
+                                                        return a.second < b.second;
+                                                    })
+                                       ->first;
+                    }
+                }
+            } else if (!arbiter) {
+                std::vector<size_t> off;
+                for (size_t i = 0; i < now.size(); i++) {
+                    if (now[i] != usual[i]) {
+                        off.push_back(i);
+                    }
+                }
+                // No thread off its usual state waiting for a service's answer: the service
+                // answers within milliseconds, also while the game is paused, so a load finds it
+                // there only now and then and it has moved on by the time the restore looks again
+                // (a load refused itself 8 times on one such thread).
+                const bool passing_ipc = std::ranges::any_of(off, [&](size_t i) {
+                    return (now[i] & 0x7F) ==
+                           static_cast<u32>(Kernel::ThreadWaitReasonForDebugging::IPC);
+                });
+                const size_t allowed = ++picking <= StrictLooks ? 0 : 1;
+                if (!passing_ipc && off.size() <= allowed) {
+                    // The save waits for the GPU and copies what it drew first; the GPU work that
+                    // finishes then can wake a thread (one waiting on an event was saved as
+                    // running), so do that now and take this look only if nothing changed.
+                    Core::SaveState::CopyGpuDrawnImages(m_system);
+                    (void)m_system.GPU().SettleFor(std::chrono::milliseconds(2000));
+                    const std::vector<u32> settled = Core::SaveState::WaitSignature(m_system);
+                    if (settled != now) {
+                        LOG_INFO(Frontend,
+                                 "Quick Save: threads changed while the GPU caught up, looking "
+                                 "again: {}",
+                                 Core::SaveState::DescribeWaitDifferences(now, settled));
+                        m_system.Run();
+                        std::this_thread::sleep_for(Step);
+                        m_system.Pause();
+                        continue;
+                    }
+                    LOG_INFO(Frontend,
+                             "Quick Save: typical moment after {} look(s), {} thread(s) off its "
+                             "usual state",
+                             looks, off.size());
+                    return true;
+                }
+            }
+        } else if (!arbiter) {
             good = target != nullptr ? Core::SaveState::SignaturesMatch(*target, now)
                                      : equal_in_a_row >= 2;
         }
@@ -390,13 +495,50 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
         if (!can_run) {
             // Held paused by the user: nothing will change. A save has no way to check for
             // stability, so it only needs the lock handoff to be over; a load needs the match.
-            return target == nullptr && !arbiter;
+            const bool ok = target == nullptr && !arbiter;
+            if (!ok) {
+                LogNoSafeMoment(target, now, looks, arbiter_looks, churn, "paused by the user");
+            }
+            return ok;
         }
         m_system.Run();
-        std::this_thread::sleep_for(Step);
+        // A little longer or shorter each time: with a fixed step the looks could keep falling on
+        // the same point of the game's frame and never see the states that come at another.
+        std::this_thread::sleep_for(Step / 2 + std::chrono::milliseconds(jitter() % Step.count()));
         m_system.Pause();
     }
+    LogNoSafeMoment(target, previous, looks, arbiter_looks, churn, "out of attempts or time");
     return false;
+}
+
+void EmulationSession::LogNoSafeMoment(const std::vector<u32>* target, const std::vector<u32>& last,
+                                       int looks, int arbiter_looks,
+                                       const std::vector<ThreadChurn>& churn, const char* why) {
+    // What kept WaitForSafeMoment from finding a moment: for a load, the threads not as at the
+    // save; for a save, the threads whose wait kept changing.
+    std::vector<size_t> order;
+    for (size_t i = 0; i < churn.size(); i++) {
+        if (churn[i].changes > 0) {
+            order.push_back(i);
+        }
+    }
+    std::sort(order.begin(), order.end(),
+              [&](size_t a, size_t b) { return churn[a].changes > churn[b].changes; });
+    std::string changing;
+    for (size_t n = 0; n < order.size() && n < 8; n++) {
+        const auto& c = churn[order[n]];
+        changing += fmt::format("{}thread {}: {} change(s), last {} -> {}", n > 0 ? "; " : "",
+                                order[n], c.changes, Core::SaveState::DescribeWaitWord(c.from),
+                                Core::SaveState::DescribeWaitWord(c.to));
+    }
+    LOG_WARNING(Frontend,
+                "No safe moment ({}, {} look(s)): threads not matching the save: {}; threads whose "
+                "wait kept changing: {}; looks with an arbitration wait: {} (now: {})",
+                why, looks,
+                target != nullptr ? Core::SaveState::DescribeWaitDifferences(*target, last)
+                                  : std::string{"n/a (saving)"},
+                changing.empty() ? std::string{"none"} : changing, arbiter_looks,
+                Core::SaveState::DescribeRiskyPendingWaits(m_system));
 }
 
 void EmulationSession::WaitForGpuIdle(const char* what) {

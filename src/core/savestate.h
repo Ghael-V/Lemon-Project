@@ -52,8 +52,21 @@ enum class RestoreFailure {
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path,
                            RestoreFailure* failure = nullptr);
 
-/// Copies the images the GPU drew back to guest memory, so a capture holds them. Returns how many
-/// device memory runs held such images.
+// For the log: one WaitSignature() word as text: kernel state, wait reason, whether the thread is
+// inside a kernel call, and the folded wait target.
+[[nodiscard]] std::string DescribeWaitWord(u32 word);
+
+// For the log: the threads whose wait (see WaitSignature) differs between the two signatures, as
+// "thread i: saved <state reason [svc] target>, live <...>".
+[[nodiscard]] std::string DescribeWaitDifferences(const std::vector<u32>& saved,
+                                                  const std::vector<u32>& live);
+
+// For the log: the threads that HasRiskyPendingWaits() counts.
+[[nodiscard]] std::string DescribeRiskyPendingWaits(Core::System& system);
+
+/// Copies the images the GPU drew back to guest memory, so a capture holds them. Capture does
+/// this itself; done earlier, it lets the caller see which threads the GPU work this finishes
+/// wakes. Returns how many device memory runs held such images.
 size_t CopyGpuDrawnImages(Core::System& system);
 
 // Services (HLE) take this shared while they receive a request and while they complete and answer

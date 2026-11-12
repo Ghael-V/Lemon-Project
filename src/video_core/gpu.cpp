@@ -327,6 +327,18 @@ struct GPU::Impl {
         gpu_thread.InvalidateRegion(addr, size);
     }
 
+    bool SettleFor(std::chrono::milliseconds timeout) {
+        VideoCore::RasterizerInterface* const rasterizer = renderer->ReadRasterizer();
+        const u64 fence = RequestSyncOperation([rasterizer] {
+            rasterizer->FlushCommands();
+            rasterizer->ReleaseFences(true);
+        });
+        gpu_thread.TickGPU(is_async);
+        std::unique_lock lck{sync_request_mutex};
+        return sync_request_cv.wait_for(
+            lck, timeout, [this, fence] { return CurrentSyncRequestFence() >= fence; });
+    }
+
     bool DownloadGpuWrittenImages(DAddr addr, u64 size) {
         VideoCore::RasterizerInterface* const rasterizer = renderer->ReadRasterizer();
         if (!rasterizer->HasGpuWrittenImages(addr, size)) {
@@ -586,6 +598,10 @@ void GPU::NotifyShutdown() {
 
 bool GPU::WaitForIdleFor(std::chrono::milliseconds timeout) {
     return impl->WaitForIdleFor(timeout);
+}
+
+bool GPU::SettleFor(std::chrono::milliseconds timeout) {
+    return impl->SettleFor(timeout);
 }
 
 bool GPU::DownloadGpuWrittenImages(DAddr addr, u64 size) {
