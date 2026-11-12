@@ -337,12 +337,18 @@ thread_local ServiceGateHold* t_gate_hold = nullptr;
 // Takes the gate exclusively for a save or a load. Polled rather than waited for: a waiting writer
 // would hold back every service meanwhile. A service in the middle of an answer is let finish.
 bool TakeServiceGate(std::unique_lock<std::shared_timed_mutex>& gate) {
-    for (int attempt = 0; attempt < 500 && !gate.try_lock(); attempt++) {
+    return CloseServiceGate(gate, std::chrono::milliseconds(500));
+}
+} // namespace
+
+bool CloseServiceGate(std::unique_lock<std::shared_timed_mutex>& gate,
+                      std::chrono::milliseconds timeout) {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (!gate.owns_lock() && !gate.try_lock() && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     return gate.owns_lock();
 }
-} // namespace
 
 ServiceGateHold::ServiceGateHold() : previous{t_gate_hold} {
     ServiceReplyGate().lock_shared();
@@ -651,14 +657,16 @@ bool Capture(Core::System& system, const std::string& path) {
     return true;
 }
 
-bool Restore(Core::System& system, const std::string& path, RestoreFailure* failure) {
+bool Restore(Core::System& system, const std::string& path, RestoreFailure* failure,
+             std::unique_lock<std::shared_timed_mutex>* held_gate) {
     if (failure != nullptr) {
         *failure = RestoreFailure::Other;
     }
     // No service may answer a request while the restore runs (see ServiceReplyGate); the threads
     // are compared once it is closed.
     std::unique_lock gate{ServiceReplyGate(), std::defer_lock};
-    if (!TakeServiceGate(gate)) {
+    const bool gate_held = held_gate != nullptr && held_gate->owns_lock();
+    if (!gate_held && !TakeServiceGate(gate)) {
         LOG_WARNING(Core,
                     "SaveState::Restore: a service is still answering a request, refusing for now");
         if (failure != nullptr) {

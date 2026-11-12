@@ -16,6 +16,7 @@
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
 #include "core/memory_search.h"
 #include "core/perf_stats.h"
+#include "core/savestate.h"
 #include "frontend_common/content_manager.h"
 #include "jni/emu_window/emu_window.h"
 #include "video_core/rasterizer_interface.h"
@@ -122,11 +123,15 @@ private:
     /// stored in the save) or, with no target (a save), be each thread's usual state, an
     /// address-arbiter wait only where that is the usual state. See
     /// Core::SaveState::WaitSignature. For a load, `target_tls` leaves out the threads the game
-    /// started after the save, which the restore ends.
+    /// started after the save, which the restore ends. With `gate`, each look is made with the
+    /// service reply gate closed, and it stays closed when this returns true, for
+    /// Core::SaveState::Restore: a thread waiting for a service's answer cannot get it between the
+    /// look that matched and the restore.
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max(),
-                           const std::vector<u64>* target_tls = nullptr);
+                           const std::vector<u64>* target_tls = nullptr,
+                           std::unique_lock<std::shared_timed_mutex>* gate = nullptr);
     /// For the log: how often one thread's wait changed between WaitForSafeMoment's looks, and
     /// its last change.
     struct ThreadChurn {

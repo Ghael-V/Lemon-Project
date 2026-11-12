@@ -372,7 +372,8 @@ std::string GetQuickSavePath() {
 
 bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target,
                                          std::chrono::steady_clock::time_point deadline,
-                                         const std::vector<u64>* target_tls) {
+                                         const std::vector<u64>* target_tls,
+                                         std::unique_lock<std::shared_timed_mutex>* gate) {
     static constexpr int MaxAttempts = 100;
     static constexpr auto Step = std::chrono::milliseconds(30);
     std::vector<u32> previous;
@@ -404,6 +405,12 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
         // refused itself 133 times on one of them). So let the GPU catch up before every look, at a
         // save and at a load alike, and compare the threads as they are once it has.
         (void)m_system.GPU().SettleFor(std::chrono::milliseconds(2000));
+        // A load looks with no service able to answer (see the gate parameter): a game had a
+        // thread waiting for an answer about half the time, and after a look found it waiting as
+        // at the save, the answer came before the restore looked again, up to 13 times in a row,
+        // until the load gave up.
+        const bool gate_closed = gate != nullptr && Core::SaveState::CloseServiceGate(
+                                                        *gate, std::chrono::milliseconds(50));
         const std::vector<u32> now = Core::SaveState::WaitSignature(m_system, target_tls);
         const bool arbiter = Core::SaveState::HasRiskyPendingWaits(m_system);
         if (arbiter) {
@@ -499,12 +506,16 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
         } else if (target != nullptr) {
             // The signature match already asks for every arbiter wait of the save, on the same
             // address, and no other (the restore checks the full address).
-            good = Core::SaveState::SignaturesMatch(*target, now);
+            good =
+                Core::SaveState::SignaturesMatch(*target, now) && (gate == nullptr || gate_closed);
         } else if (!arbiter) {
             good = equal_in_a_row >= 2;
         }
         if (good) {
             return true;
+        }
+        if (gate != nullptr && gate->owns_lock()) {
+            gate->unlock();
         }
         if (!can_run) {
             // Held paused by the user: nothing will change. A save has no way to check for
@@ -660,13 +671,17 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
             }
             return QuickLoadResult::Failed; // no usable save
         }
-        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls)) {
+        std::unique_lock gate{Core::SaveState::ServiceReplyGate(), std::defer_lock};
+        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls, &gate)) {
             no_safe_moment = true;
             break;
         }
 
         WaitForGpuIdle("Quick Load");
-        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
+        restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure, &gate);
+        if (gate.owns_lock()) {
+            gate.unlock();
+        }
         if (restored) {
             RewindSyncpoints();
             AudioCore::Renderer::System::RestoreAll(m_saved_audio);

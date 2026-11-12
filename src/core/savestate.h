@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <shared_mutex>
 #include <string>
 #include <vector>
@@ -48,9 +49,12 @@ enum class RestoreFailure {
     MemoryLayoutChanged,
 };
 
-// `failure`, when given, receives why a false return happened.
+// `failure`, when given, receives why a false return happened. `held_gate`, when it holds the
+// service reply gate already (CloseServiceGate), is used instead of taking it again: the caller
+// closed it before it last looked at the threads, so none of them can have had an answer since.
 [[nodiscard]] bool Restore(Core::System& system, const std::string& path,
-                           RestoreFailure* failure = nullptr);
+                           RestoreFailure* failure = nullptr,
+                           std::unique_lock<std::shared_timed_mutex>* held_gate = nullptr);
 
 // For the log: one WaitSignature() word as text: kernel state, wait reason, whether the thread is
 // inside a kernel call, and the folded wait target.
@@ -77,6 +81,10 @@ size_t CopyGpuDrawnImages(Core::System& system);
 // overwrote it and rewound the thread, and the game aborted on an invalid reply (2010-0212) - the
 // failure seen in roughly one load out of seven, with or without dying in between.
 [[nodiscard]] std::shared_timed_mutex& ServiceReplyGate();
+
+// Closes the gate for the caller: waits up to `timeout` for the services answering a request now.
+[[nodiscard]] bool CloseServiceGate(std::unique_lock<std::shared_timed_mutex>& gate,
+                                    std::chrono::milliseconds timeout);
 
 // Held by a service thread while it receives and answers a request.
 class ServiceGateHold {
