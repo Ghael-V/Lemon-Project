@@ -7,6 +7,7 @@
 #include <cstring>
 #include <map>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <thread>
 #include <tuple>
@@ -171,7 +172,22 @@ void TakeSnapshot(Core::System& system) {
             continue;
         }
 
-        std::vector<u8> data(region.size);
+        // The snapshot holds every heap region in host RAM at once - often gigabytes on top of
+        // the emulated RAM itself - so on lower-memory devices this can genuinely run out. An
+        // uncaught bad_alloc here would cross the JNI boundary and abort the whole app; drop the
+        // snapshot instead so the next compare just reports that there's none.
+        std::vector<u8> data;
+        try {
+            data.resize(region.size);
+        } catch (const std::bad_alloc&) {
+            LOG_ERROR(Core,
+                      "MemorySearch::TakeSnapshot: out of memory after {} byte(s), discarding "
+                      "the snapshot",
+                      total_bytes_read);
+            g_snapshot.clear();
+            g_snapshot.shrink_to_fit();
+            return;
+        }
         if (!memory.ReadBlockUnsafe(region.address, data.data(), data.size())) {
             continue;
         }
@@ -316,20 +332,27 @@ void SetFrozen(Core::System& system, u64 address, s32 value) {
 }
 
 void ClearFrozen(u64 address) {
-    std::scoped_lock lock(g_freeze_mutex);
-    g_frozen.erase(address);
-
-    if (g_frozen.empty()) {
-        // Assigning over a joinable jthread requests a stop and joins it - same idiom as
-        // PlayTimeManager::Stop() in frontend_common/play_time_manager.cpp.
-        g_freeze_thread = {};
+    // Destroying a joinable jthread requests a stop and joins it. That has to happen after
+    // g_freeze_mutex is released: FreezeLoop() takes the same mutex at the top of every tick,
+    // so joining while holding it deadlocks whenever the thread has just woken up and is
+    // waiting for the lock (and ClearAllFrozen() runs on session shutdown).
+    std::jthread to_join;
+    {
+        std::scoped_lock lock(g_freeze_mutex);
+        g_frozen.erase(address);
+        if (g_frozen.empty()) {
+            to_join = std::move(g_freeze_thread);
+        }
     }
 }
 
 void ClearAllFrozen() {
-    std::scoped_lock lock(g_freeze_mutex);
-    g_frozen.clear();
-    g_freeze_thread = {};
+    std::jthread to_join; // See ClearFrozen(): joined only after the lock is released.
+    {
+        std::scoped_lock lock(g_freeze_mutex);
+        g_frozen.clear();
+        to_join = std::move(g_freeze_thread);
+    }
 }
 
 std::vector<Match> GetFrozen() {
