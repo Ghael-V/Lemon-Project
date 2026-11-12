@@ -14,11 +14,25 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -41,8 +55,6 @@ import dev.ironlemon.ironlemon_emulator.model.StepState
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
 import dev.ironlemon.ironlemon_emulator.utils.DirectoryInitialization
 import dev.ironlemon.ironlemon_emulator.utils.NativeConfig
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.setVisible
 import dev.ironlemon.ironlemon_emulator.utils.collect
 
 class SetupFragment : Fragment() {
@@ -54,6 +66,12 @@ class SetupFragment : Fragment() {
     private lateinit var mainActivity: MainActivity
 
     private lateinit var hasBeenWarned: BooleanArray
+
+    private val pages = mutableListOf<SetupPage>()
+
+    // Back and Next show from the second page on; Next hides on the last one.
+    private var backVisible by mutableStateOf(false)
+    private var nextVisible by mutableStateOf(false)
 
     companion object {
         const val KEY_NEXT_VISIBILITY = "NextButtonVisibility"
@@ -96,7 +114,7 @@ class SetupFragment : Fragment() {
         requireActivity().window.navigationBarColor =
             ContextCompat.getColor(requireContext(), android.R.color.transparent)
 
-        val pages = mutableListOf<SetupPage>()
+        pages.clear()
         pages.apply {
             add(
                 SetupPage(
@@ -228,22 +246,34 @@ class SetupFragment : Fragment() {
                 super.onPageSelected(position)
 
                 if (position == 1 && previousPosition == 0) {
-                    ViewUtils.showView(binding.buttonNext)
-                    ViewUtils.showView(binding.buttonBack)
+                    nextVisible = true
+                    backVisible = true
                 } else if (position == 0 && previousPosition == 1) {
-                    ViewUtils.hideView(binding.buttonBack)
-                    ViewUtils.hideView(binding.buttonNext)
+                    backVisible = false
+                    nextVisible = false
                 } else if (position == pages.size - 1 && previousPosition == pages.size - 2) {
-                    ViewUtils.hideView(binding.buttonNext)
+                    nextVisible = false
                 } else if (position == pages.size - 2 && previousPosition == pages.size - 1) {
-                    ViewUtils.showView(binding.buttonNext)
+                    nextVisible = true
                 }
 
                 previousPosition = position
             }
         })
 
-        binding.buttonNext.setOnClickListener {
+        binding.constraintButtons.setContent {
+            SetupButtons(
+                backVisible = backVisible,
+                nextVisible = nextVisible,
+                onBack = { pageBackward() },
+                onNext = ::onNextClicked
+            )
+        }
+        restoreState(savedInstanceState)
+    }
+
+    private fun onNextClicked() {
+        run {
             val index = binding.viewPager2.currentItem
             val currentPage = pages[index]
 
@@ -252,7 +282,7 @@ class SetupFragment : Fragment() {
                 val stepState = currentPage.stepCompleted.invoke()
                 if (stepState != StepState.INCOMPLETE) {
                     pageForward()
-                    return@setOnClickListener
+                    return@run
                 }
 
                 if (!hasBeenWarned[index]) {
@@ -262,20 +292,21 @@ class SetupFragment : Fragment() {
                         currentPage.warningHelpLinkId,
                         index
                     ).show(childFragmentManager, SetupWarningDialogFragment.TAG)
-                    return@setOnClickListener
+                    return@run
                 }
             }
             pageForward()
         }
-        binding.buttonBack.setOnClickListener { pageBackward() }
+    }
 
+    private fun restoreState(savedInstanceState: Bundle?) {
         if (savedInstanceState != null) {
             val nextIsVisible = savedInstanceState.getBoolean(KEY_NEXT_VISIBILITY)
             val backIsVisible = savedInstanceState.getBoolean(KEY_BACK_VISIBILITY)
             hasBeenWarned = savedInstanceState.getBooleanArray(KEY_HAS_BEEN_WARNED)!!
 
-            binding.buttonNext.setVisible(nextIsVisible)
-            binding.buttonBack.setVisible(backIsVisible)
+            nextVisible = nextIsVisible
+            backVisible = backIsVisible
         } else {
             hasBeenWarned = BooleanArray(pages.size)
         }
@@ -291,8 +322,8 @@ class SetupFragment : Fragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         if (_binding != null) {
-            outState.putBoolean(KEY_NEXT_VISIBILITY, binding.buttonNext.isVisible)
-            outState.putBoolean(KEY_BACK_VISIBILITY, binding.buttonBack.isVisible)
+            outState.putBoolean(KEY_NEXT_VISIBILITY, nextVisible)
+            outState.putBoolean(KEY_BACK_VISIBILITY, backVisible)
         }
         outState.putBooleanArray(KEY_HAS_BEEN_WARNED, hasBeenWarned)
     }
@@ -393,4 +424,40 @@ class SetupFragment : Fragment() {
             }
             windowInsets
         }
+}
+
+@Composable
+private fun SetupButtons(
+    backVisible: Boolean,
+    nextVisible: Boolean,
+    onBack: () -> Unit,
+    onNext: () -> Unit
+) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp)) {
+        AnimatedVisibility(
+            visible = backVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            IronLemonButton(
+                text = stringResource(R.string.back),
+                iconRes = R.drawable.ic_back,
+                onClick = onBack
+            )
+        }
+        AnimatedVisibility(
+            visible = nextVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            IronLemonButton(
+                text = stringResource(R.string.next),
+                iconRes = R.drawable.ic_arrow_forward,
+                primary = true,
+                onClick = onNext
+            )
+        }
+    }
 }
