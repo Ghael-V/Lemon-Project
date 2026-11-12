@@ -103,8 +103,10 @@ public:
     // text may be an Atmosphere cheat file, or codes copied from a web page with the cheat names on
     // their own lines and no brackets. Returns how many cheats it holds (master code included); 0
     // when it holds none and -1 when they could not be saved, and nothing is written then.
+    // With a `folder_name` (downloaded cheats), they go in that folder instead, replacing its file
+    // for this build: cheats it already had keep their switch, new ones start off.
     [[nodiscard]] long AddCheats(const VirtualFilesystem& vfs, const BuildID& build_id,
-                                 std::string_view text) const;
+                                 std::string_view text, std::string_view folder_name = {}) const;
 
     // Currently tracked RomFS patches:
     // - Game Updates

@@ -689,7 +689,7 @@
     <string name="cheats_reading">Leyendo el juego…</string>
     <string name="cheats_no_build_id">No se pudo leer el build ID de este juego, así que no se le pueden añadir trucos.</string>
     <string name="cheats_build_id">Build ID: %1$s. Los códigos de trucos solo funcionan en la versión para la que se hicieron: comprueba que los tuyos son para esta.</string>
-    <string name="cheats_empty">Todavía no hay trucos para esta versión. Usa Añadir trucos para pegar los códigos hechos para el build %1$s.</string>
+    <string name="cheats_empty">Todavía no hay trucos para esta versión. Usa Descargar, o Añadir trucos para pegar los códigos hechos para el build %1$s.</string>
     <string name="cheats_add">Añadir trucos</string>
     <string name="cheats_add_confirm">Añadir</string>
     <string name="cheats_add_description">Pega los códigos para el build %1$s: un archivo de trucos de Atmosphère, o los trucos copiados de una web de trucos, con cada nombre en su propia línea.</string>
@@ -706,5 +706,16 @@
     <plurals name="cheats_added">
         <item quantity="one">%d truco añadido</item>
         <item quantity="other">%d trucos añadidos</item>
+    </plurals>
+    <string name="cheats_download">Descargar</string>
+    <string name="cheats_download_confirm">Descargar</string>
+    <string name="cheats_download_description">Lemon descarga los trucos del build %1$s de switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), una base de datos que se actualiza cada día desde gbatemp.net y NX-60FPS-RES-GFX-Cheats. Todo el mérito es de los autores de los códigos.\n\nSolo se envía el ID del juego, a GitHub. Los trucos se guardan desactivados: activa los que quieras. Volver a descargar los actualiza y conserva lo que tengas activado.</string>
+    <string name="cheats_downloading">Descargando trucos…</string>
+    <string name="cheats_download_failed">No se pudieron descargar los trucos. Comprueba la conexión y vuelve a intentarlo.</string>
+    <string name="cheats_download_not_found">La base de datos no tiene trucos para este juego.</string>
+    <string name="cheats_download_other_versions">La base de datos tiene trucos para este juego, pero no para el build %1$s. Solo funcionan en la versión para la que se hicieron.</string>
+    <plurals name="cheats_downloaded">
+        <item quantity="one">%d truco descargado, los nuevos desactivados</item>
+        <item quantity="other">%d trucos descargados, los nuevos desactivados</item>
     </plurals>
 </resources>

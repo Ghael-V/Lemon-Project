@@ -1312,7 +1312,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="cheats_reading">Reading the game…</string>
     <string name="cheats_no_build_id">Couldn\'t read this game\'s build ID, so cheats can\'t be added for it.</string>
     <string name="cheats_build_id">Build ID: %1$s. Cheat codes only work on the build they were made for: check that yours are for this one.</string>
-    <string name="cheats_empty">No cheats for this build yet. Use Add cheats to paste the codes made for build %1$s.</string>
+    <string name="cheats_empty">No cheats for this build yet. Use Download, or Add cheats to paste the codes made for build %1$s.</string>
     <string name="cheats_add">Add cheats</string>
     <string name="cheats_add_confirm">Add</string>
     <string name="cheats_add_description">Paste the codes for build %1$s: an Atmosphère cheat file, or the cheats copied from a cheat website, with each name on its own line.</string>
@@ -1329,5 +1329,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <plurals name="cheats_added">
         <item quantity="one">%d cheat added</item>
         <item quantity="other">%d cheats added</item>
+    </plurals>
+    <string name="cheats_download">Download</string>
+    <string name="cheats_download_confirm">Download</string>
+    <string name="cheats_download_description">Lemon downloads the cheats for build %1$s from switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), a database updated every day from gbatemp.net and NX-60FPS-RES-GFX-Cheats. All credit goes to the authors of the codes.\n\nOnly the game\'s ID is sent, to GitHub. The cheats are saved off: turn on the ones you want. Downloading again updates them and keeps your switches.</string>
+    <string name="cheats_downloading">Downloading cheats…</string>
+    <string name="cheats_download_failed">Couldn\'t download the cheats. Check the connection and try again.</string>
+    <string name="cheats_download_not_found">The cheat database has no cheats for this game.</string>
+    <string name="cheats_download_other_versions">The cheat database has cheats for this game, but not for build %1$s. They only work on the version they were made for.</string>
+    <plurals name="cheats_downloaded">
+        <item quantity="one">%d cheat downloaded, new ones off</item>
+        <item quantity="other">%d cheats downloaded, new ones off</item>
     </plurals>
 </resources>

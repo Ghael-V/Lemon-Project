@@ -618,7 +618,7 @@ PatchManager::CheatToggleResult PatchManager::SetCheatEnabled(const VirtualFiles
 }
 
 long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_id,
-                             std::string_view text) const {
+                             std::string_view text, std::string_view folder_name) const {
     const std::string normalized = NormalizeCheatText(text);
     const Core::Memory::TextCheatParser parser;
     const auto parsed = parser.Parse(normalized);
@@ -636,10 +636,14 @@ long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_
     }
 
     // One folder per paste, so each keeps its own master code and can be removed as a whole from
-    // the add-ons screen. The first folder without a file for this build takes it.
+    // the add-ons screen. The first folder without a file for this build takes it. Downloaded
+    // cheats have their own folder, and a new download replaces what an earlier one saved there.
+    const bool replace = !folder_name.empty();
     const std::string build = Common::HexToString(build_id, true).substr(0, sizeof(u64) * 2);
     for (u32 n = 1; n < 100; n++) {
-        const std::string folder = n == 1 ? "Lemon cheats" : fmt::format("Lemon cheats {}", n);
+        const std::string folder = replace  ? std::string(folder_name)
+                                   : n == 1 ? std::string("Lemon cheats")
+                                            : fmt::format("Lemon cheats {}", n);
         const auto mod_dir = load_dir->GetSubdirectory(folder);
         const auto existing = mod_dir != nullptr ? FindSubdirectoryCaseless(mod_dir, "cheats") : nullptr;
         // An empty file is what a failed save left behind: take its place.
@@ -647,11 +651,19 @@ long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_
             const auto file = existing != nullptr ? existing->GetFile(file_name) : nullptr;
             return file != nullptr && file->GetSize() > 0;
         };
-        if (taken(build + ".txt") || taken(Common::ToLower(build) + ".txt")) {
+        if (replace) {
+            // The file is named as it was before (Atmosphere accepts either case).
+            if (existing != nullptr && existing->GetFile(Common::ToLower(build) + ".txt") != nullptr) {
+                existing->DeleteFile(Common::ToLower(build) + ".txt");
+            }
+        } else if (taken(build + ".txt") || taken(Common::ToLower(build) + ".txt")) {
             continue;
         }
         const auto cheats_dir = GetOrCreateDirectoryRelative(load_dir, folder + "/cheats");
-        const auto file = cheats_dir != nullptr ? cheats_dir->CreateFile(build + ".txt") : nullptr;
+        auto file = cheats_dir != nullptr ? cheats_dir->GetFile(build + ".txt") : nullptr;
+        if (file == nullptr && cheats_dir != nullptr) {
+            file = cheats_dir->CreateFile(build + ".txt");
+        }
         const bool written =
             file != nullptr && file->Resize(normalized.size()) &&
             file->WriteBytes(std::vector<u8>(normalized.begin(), normalized.end())) ==
@@ -664,19 +676,26 @@ long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_
             }
             return -1;
         }
-        // Every cheat starts off: a long list switched on together overflows the VM, which then
-        // runs none of them.
-        std::vector<std::pair<std::string, bool>> toggles;
+        // Every new cheat starts off: a long list switched on together overflows the VM, which
+        // then runs none of them. A download again keeps the switches of the cheats it had (the
+        // file is shared by every build in the folder).
+        auto toggles = replace ? ReadCheatToggles(cheats_dir)
+                               : std::vector<std::pair<std::string, bool>>{};
         for (const auto& entry : parsed) {
-            if (entry.cheat_id != 0 && entry.definition.num_opcodes > 0) {
-                toggles.emplace_back(CheatName(entry), false);
+            if (entry.cheat_id == 0 || entry.definition.num_opcodes == 0) {
+                continue;
+            }
+            const auto name = CheatName(entry);
+            if (std::ranges::find(toggles, name, &std::pair<std::string, bool>::first) ==
+                toggles.end()) {
+                toggles.emplace_back(name, false);
             }
         }
         if (!toggles.empty() && !WriteCheatToggles(cheats_dir, toggles)) {
             LOG_WARNING(Loader, "Cheats: could not write {}/cheats/toggles.txt", folder);
         }
-        LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt, all off", count, folder,
-                 build);
+        LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt, new ones off", count,
+                 folder, build);
         return count;
     }
     LOG_ERROR(Loader, "Cheats: every Lemon cheats folder already has a file for {}", build);

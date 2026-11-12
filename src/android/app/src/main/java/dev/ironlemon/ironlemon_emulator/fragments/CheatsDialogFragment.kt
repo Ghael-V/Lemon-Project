@@ -28,14 +28,16 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.model.Game
+import dev.ironlemon.ironlemon_emulator.utils.CheatDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * Lemon's cheat manager: the Atmosphere cheats of a game for the build it has installed, each
- * switched on or off, and new ones pasted or imported from a file. Opened from the game's page
- * before it runs, or from the in-game menu, where a change takes effect at once.
+ * switched on or off, and new ones pasted, imported from a file or downloaded (see CheatDatabase).
+ * Opened from the game's page before it runs, or from the in-game menu, where a change takes effect
+ * at once.
  */
 class CheatsDialogFragment : DialogFragment() {
     private lateinit var game: Game
@@ -74,6 +76,7 @@ class CheatsDialogFragment : DialogFragment() {
             .setView(ScrollView(context).apply { addView(content) })
             .setPositiveButton(R.string.close, null)
             .setNeutralButton(R.string.cheats_add, null)
+            .setNegativeButton(R.string.cheats_download, null)
             .create()
         dialog.setOnShowListener {
             // Adding opens a second dialog; this one stays open to show the result.
@@ -82,6 +85,10 @@ class CheatsDialogFragment : DialogFragment() {
                 // without one is not possible.
                 isEnabled = buildId.isNotEmpty()
                 setOnClickListener { showAddDialog() }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).apply {
+                isEnabled = buildId.isNotEmpty()
+                setOnClickListener { confirmDownload() }
             }
         }
         loadBuildId()
@@ -100,6 +107,7 @@ class CheatsDialogFragment : DialogFragment() {
             }
             status.text = getString(R.string.cheats_build_id, buildId)
             (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEUTRAL)?.isEnabled = true
+            (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEGATIVE)?.isEnabled = true
             refreshList()
         }
     }
@@ -251,7 +259,7 @@ class CheatsDialogFragment : DialogFragment() {
     private fun addCheats(text: String, addDialog: AlertDialog) {
         lifecycleScope.launch {
             val count = withContext(Dispatchers.IO) {
-                NativeLibrary.addCheats(game.programId, buildId, text)
+                NativeLibrary.addCheats(game.programId, buildId, text, "")
             }
             if (count <= 0) {
                 Toast.makeText(
@@ -269,6 +277,68 @@ class CheatsDialogFragment : DialogFragment() {
             addDialog.dismiss()
             refreshList()
         }
+    }
+
+    /** Says where the cheats come from and what is sent before anything is downloaded. */
+    private fun confirmDownload() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.cheats_download)
+            .setMessage(getString(R.string.cheats_download_description, buildId))
+            .setPositiveButton(R.string.cheats_download_confirm) { _, _ -> downloadCheats() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun downloadCheats() {
+        val downloadButton = (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEGATIVE)
+        downloadButton?.isEnabled = false
+        status.setText(R.string.cheats_downloading)
+        val titleId = "%016X".format(game.programId.toLongOrNull() ?: 0L)
+        lifecycleScope.launch {
+            val results = CheatDatabase.Kind.entries.map { kind ->
+                kind to CheatDatabase.fetch(kind, titleId, buildId)
+            }
+            var added = 0
+            var saveFailed = false
+            for ((kind, result) in results) {
+                if (result !is CheatDatabase.Result.Found) {
+                    continue
+                }
+                val count = withContext(Dispatchers.IO) {
+                    NativeLibrary.addCheats(game.programId, buildId, result.text, folderFor(kind))
+                }
+                if (count < 0) {
+                    saveFailed = true
+                } else {
+                    added += count
+                }
+            }
+            if (!isAdded) {
+                return@launch
+            }
+            status.text = getString(R.string.cheats_build_id, buildId)
+            downloadButton?.isEnabled = true
+            val outcomes = results.map { it.second }
+            val message = when {
+                added > 0 -> resources.getQuantityString(R.plurals.cheats_downloaded, added, added)
+                saveFailed -> getString(R.string.cheats_save_failed)
+                outcomes.any { it is CheatDatabase.Result.Failed } ->
+                    getString(R.string.cheats_download_failed)
+                outcomes.all { it is CheatDatabase.Result.NotFound } ->
+                    getString(R.string.cheats_download_not_found)
+                else -> getString(R.string.cheats_download_other_versions, buildId)
+            }
+            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+            if (added > 0) {
+                refreshList()
+            }
+        }
+    }
+
+    /** Each kind of downloaded cheats has its own folder, replaced by the next download. */
+    private fun folderFor(kind: CheatDatabase.Kind) = when (kind) {
+        CheatDatabase.Kind.GAMEPLAY -> "Downloaded cheats"
+        CheatDatabase.Kind.GRAPHICS -> "Downloaded cheats (60 FPS, graphics)"
     }
 
     private fun importCheatFile(uri: Uri) {

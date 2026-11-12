@@ -1608,12 +1608,12 @@ void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_reloadCheats(JNIEnv* e
 
 jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_addCheats(JNIEnv* env, jobject jobj,
                                                      jstring jprogramId, jstring jbuildId,
-                                                     jstring jtext) {
+                                                     jstring jtext, jstring jfolder) {
     const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
     const long count = CheatPatchManager(program_id).AddCheats(
         EmulationSession::GetInstance().System().GetFilesystem(),
         ParseBuildId(Common::Android::GetJString(env, jbuildId)),
-        Common::Android::GetJString(env, jtext));
+        Common::Android::GetJString(env, jtext), Common::Android::GetJString(env, jfolder));
     if (count > 0 && IsRunningGame(program_id)) {
         EmulationSession::GetInstance().System().ReloadCheats();
     }
