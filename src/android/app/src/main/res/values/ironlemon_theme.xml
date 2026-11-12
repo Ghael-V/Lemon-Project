@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<!--
+Iron Lemon's only theme: the palette of the Compose screens (ui/modern/IronLemonTheme.kt), always
+dark. Every activity uses it, so the classic screens that remain look like the rest of the app.
+-->
+<resources>
+
+    <!-- Surfaces: warm near-black, as IronLemonColors -->
+    <color name="ironlemon_background">#0F0E0C</color>
+    <color name="ironlemon_surface">#1F1D1A</color>
+    <color name="ironlemon_surface_raised">#2A2723</color>
+    <color name="ironlemon_outline">#3A3631</color>
+    <color name="ironlemon_text">#F5F0E6</color>
+    <color name="ironlemon_text_muted">#BDB5A8</color>
+
+    <!-- Accent: the lemon's yellow to the controller's red -->
+    <color name="ironlemon_yellow">#FFD43B</color>
+    <color name="ironlemon_orange">#FF8A1F</color>
+    <color name="ironlemon_red">#F0432E</color>
+    <color name="ironlemon_on_accent">#1A1814</color>
+    <color name="ironlemon_yellow_container">#3A3115</color>
+    <color name="ironlemon_orange_container">#3D2614</color>
+    <color name="ironlemon_red_container">#40191A</color>
+
+    <style name="Theme.IronLemon" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/ironlemon_yellow</item>
+        <item name="colorOnPrimary">@color/ironlemon_on_accent</item>
+        <item name="colorPrimaryContainer">@color/ironlemon_yellow_container</item>
+        <item name="colorOnPrimaryContainer">@color/ironlemon_yellow</item>
+        <item name="colorSecondary">@color/ironlemon_orange</item>
+        <item name="colorOnSecondary">@color/ironlemon_on_accent</item>
+        <item name="colorSecondaryContainer">@color/ironlemon_orange_container</item>
+        <item name="colorOnSecondaryContainer">@color/ironlemon_orange</item>
+        <item name="colorTertiary">@color/ironlemon_red</item>
+        <item name="colorOnTertiary">@color/ironlemon_text</item>
+        <item name="colorTertiaryContainer">@color/ironlemon_red_container</item>
+        <item name="colorOnTertiaryContainer">@color/ironlemon_red</item>
+        <item name="colorError">@color/ironlemon_red</item>
+        <item name="colorErrorContainer">@color/ironlemon_red_container</item>
+        <item name="colorOnError">@color/ironlemon_text</item>
+        <item name="colorOnErrorContainer">@color/ironlemon_red</item>
+        <item name="android:colorBackground">@color/ironlemon_background</item>
+        <item name="colorOnBackground">@color/ironlemon_text</item>
+        <item name="colorSurface">@color/ironlemon_background</item>
+        <item name="colorOnSurface">@color/ironlemon_text</item>
+        <item name="colorSurfaceVariant">@color/ironlemon_surface_raised</item>
+        <item name="colorOnSurfaceVariant">@color/ironlemon_text_muted</item>
+        <item name="colorSurfaceContainerLowest">@color/ironlemon_background</item>
+        <item name="colorSurfaceContainerLow">@color/ironlemon_surface</item>
+        <item name="colorSurfaceContainer">@color/ironlemon_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/ironlemon_surface_raised</item>
+        <item name="colorSurfaceContainerHighest">@color/ironlemon_surface_raised</item>
+        <item name="colorOutline">@color/ironlemon_outline</item>
+        <item name="colorOutlineVariant">@color/ironlemon_outline</item>
+        <item name="colorOnSurfaceInverse">@color/ironlemon_background</item>
+        <item name="colorSurfaceInverse">@color/ironlemon_text</item>
+        <item name="colorPrimaryInverse">@color/ironlemon_orange</item>
+        <item name="android:shadowColor">#000000</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <item name="sliderStyle">@style/YuzuSlider</item>
+        <item name="materialAlertDialogTheme">@style/IronLemonDialog</item>
+
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+
+    <style name="Theme.IronLemon.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ironlemon_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_yuzu</item>
+        <item name="postSplashScreenTheme">@style/Theme.IronLemon</item>
+    </style>
+
+    <style name="IronLemonDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/ironlemon_yellow</item>
+        <item name="colorSurface">@color/ironlemon_surface_raised</item>
+        <item name="colorSurfaceContainerHigh">@color/ironlemon_surface_raised</item>
+        <item name="colorSecondary">@color/ironlemon_orange</item>
+        <item name="android:textColorLink">@color/ironlemon_orange</item>
+        <item name="buttonBarPositiveButtonStyle">@style/IronLemonDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/IronLemonDialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/IronLemonDialogButton</item>
+    </style>
+
+    <style name="IronLemonDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/ironlemon_orange</item>
+        <item name="rippleColor">@color/ironlemon_orange_container</item>
+    </style>
+
+</resources>

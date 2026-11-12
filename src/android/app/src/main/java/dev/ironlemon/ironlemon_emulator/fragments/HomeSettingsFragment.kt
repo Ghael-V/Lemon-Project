@@ -247,20 +247,6 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
-                    R.string.preferences_theme,
-                    R.string.theme_and_color_description,
-                    R.drawable.ic_palette,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsActivity(
-                            null,
-                            Settings.MenuTag.SECTION_THEME
-                        )
-                        findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
                     R.string.about,
                     R.string.about_description,
                     R.drawable.ic_info_outline,

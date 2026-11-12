@@ -36,7 +36,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <activity
             android:name="dev.ironlemon.ironlemon_emulator.ui.main.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Yuzu.Splash.Main">
+            android:theme="@style/Theme.IronLemon.Splash">
 
             <!-- This intentfilter marks this Activity as the one that gets launched from Home screen. -->
             <intent-filter>
@@ -49,12 +49,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
         <activity
             android:name="dev.ironlemon.ironlemon_emulator.features.settings.ui.SettingsActivity"
-            android:theme="@style/Theme.Yuzu.Main"
+            android:theme="@style/Theme.IronLemon"
             android:label="@string/preferences_settings"/>
 
         <activity
             android:name="dev.ironlemon.ironlemon_emulator.activities.EmulationActivity"
-            android:theme="@style/Theme.Yuzu.Main"
+            android:theme="@style/Theme.IronLemon"
             android:launchMode="singleTop"
             android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode"

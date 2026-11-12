@@ -20,25 +20,13 @@ import dev.ironlemon.ironlemon_emulator.ui.main.ThemeProvider
 object ThemeHelper {
     const val SYSTEM_BAR_ALPHA = 0.9f
 
+    /**
+     * Iron Lemon has one theme, always dark, with the colors of its Compose screens: every
+     * activity uses it, so no classic screen is left in yuzu's colors.
+     */
     fun setTheme(activity: AppCompatActivity) {
         setThemeMode(activity)
-        when (Theme.from(IntSetting.THEME.getInt())) {
-            Theme.Default -> activity.setTheme(R.style.Theme_Yuzu_Main)
-            Theme.MaterialYou -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    activity.setTheme(R.style.Theme_Yuzu_Main_MaterialYou)
-                } else {
-                    activity.setTheme(R.style.Theme_Yuzu_Main)
-                }
-            }
-        }
-
-        // Using a specific night mode check because this could apply incorrectly when using the
-        // light app mode, dark system mode, and black backgrounds. Launching the settings activity
-        // will then show light mode colors/navigation bars but with black backgrounds.
-        if (BooleanSetting.BLACK_BACKGROUNDS.getBoolean() && isNightMode(activity)) {
-            activity.setTheme(R.style.ThemeOverlay_Yuzu_Dark)
-        }
+        activity.setTheme(R.style.Theme_IronLemon)
     }
 
     @ColorInt
@@ -60,20 +48,10 @@ object ThemeHelper {
     }
 
     fun setThemeMode(activity: AppCompatActivity) {
-        val themeMode = IntSetting.THEME_MODE.getInt()
-        activity.delegate.localNightMode = themeMode
-        val windowController = WindowCompat.getInsetsController(
-            activity.window,
-            activity.window.decorView
+        activity.delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_YES
+        setDarkModeSystemBars(
+            WindowCompat.getInsetsController(activity.window, activity.window.decorView)
         )
-        when (themeMode) {
-            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM -> when (isNightMode(activity)) {
-                false -> setLightModeSystemBars(windowController)
-                true -> setDarkModeSystemBars(windowController)
-            }
-            AppCompatDelegate.MODE_NIGHT_NO -> setLightModeSystemBars(windowController)
-            AppCompatDelegate.MODE_NIGHT_YES -> setDarkModeSystemBars(windowController)
-        }
     }
 
     private fun isNightMode(activity: AppCompatActivity): Boolean {
