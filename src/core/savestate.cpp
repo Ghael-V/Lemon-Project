@@ -142,6 +142,17 @@ bool IsParkedInKernel(Kernel::KThread& thread) {
            reason != Kernel::ThreadWaitReasonForDebugging::IPC;
 }
 
+// The address a thread asleep on a condition variable or in an address-arbiter wait waits on. An
+// arbiter wait (WaitForAddress) keeps its address in the condition variable key, not the address
+// key: that one still held the lock of the thread's last mutex or condition variable wait, so two
+// arbiter waits on different addresses looked alike.
+u64 WaitKey(const Kernel::KThread& thread) {
+    if (thread.GetWaitReasonForDebugging() == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+        return thread.GetAddressArbiterKey();
+    }
+    return thread.GetAddressKey().GetValue();
+}
+
 // Writes the 4 KiB chunks of `data` that differ from guest memory, in runs. A false return means
 // part of the range is not mapped.
 bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
@@ -286,7 +297,7 @@ std::vector<u32> WaitSignature(Core::System& system) {
                 u64 what = 0;
                 if (reason == Kernel::ThreadWaitReasonForDebugging::ConditionVar ||
                     reason == Kernel::ThreadWaitReasonForDebugging::Arbitration) {
-                    what = thread.GetAddressKey().GetValue();
+                    what = WaitKey(thread);
                 } else if (reason == Kernel::ThreadWaitReasonForDebugging::Synchronization &&
                            thread.IsCallingSvc()) {
                     // WaitSynchronization(handles = x1, count = x2), as the call was made.
@@ -669,6 +680,29 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             return false;
         }
         move_wait[i] = true;
+    }
+
+    // A thread in an address-arbiter wait (WaitForAddress) waits on exactly the address it waited
+    // on at the save, not only one with the same 16-bit hash in the signature: the save holds the
+    // call's arguments in its registers, the address in x0. The kernel's list of who waits on which
+    // address is the live one, so only then do it and the restored memory agree.
+    for (u32 i = 0; i < thread_count; i++) {
+        const auto* thread = live_threads[i];
+        if (thread->GetState() != Kernel::ThreadState::Waiting ||
+            thread->GetWaitReasonForDebugging() !=
+                Kernel::ThreadWaitReasonForDebugging::Arbitration) {
+            continue;
+        }
+        if (thread_contexts[i].r[0] != thread->GetAddressArbiterKey()) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread {} waits on address {:#x}, at the save on "
+                        "{:#x}, refusing for now",
+                        i, thread->GetAddressArbiterKey(), thread_contexts[i].r[0]);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
+            return false;
+        }
     }
 
     // Saved handle value -> live handle value of each thread slot's own handle.
@@ -1114,7 +1148,7 @@ std::string DescribeRiskyPendingWaits(Core::System& system) {
                 out += ", ";
             }
             out += fmt::format("thread {} (id {}, address {:#x})", index, thread.GetThreadId(),
-                               thread.GetAddressKey().GetValue());
+                               WaitKey(thread));
         }
         index++;
     }

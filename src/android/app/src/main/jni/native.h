@@ -118,9 +118,10 @@ private:
     std::atomic<bool> m_is_running = false;
     /// With the system paused: lets the game run on in short steps (when `can_run`) for up to
     /// about three seconds, or until `deadline`, until it is at a safe moment, and returns whether
-    /// it got there. No thread may be in an address-arbiter wait, and the threads' wait signature
-    /// must either match `target` (a load: the one stored in the save) or, with no target (a
-    /// save), be each thread's usual state. See Core::SaveState::WaitSignature.
+    /// it got there. The threads' wait signature must either match `target` (a load: the one
+    /// stored in the save) or, with no target (a save), be each thread's usual state, an
+    /// address-arbiter wait only where that is the usual state. See
+    /// Core::SaveState::WaitSignature.
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max());

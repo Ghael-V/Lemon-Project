@@ -135,6 +135,11 @@ private:
 // here), so counting them made this check true all the time and useless.
 // Touches nothing and doesn't look at any savestate file; meant to be polled
 // while the game is paused, letting it run on in short steps until it is false.
+// Since the signature holds what each thread waits on (WaitSignature), a load
+// no longer needs this: a matching signature has every arbiter wait of the save
+// on the same address and no other, and Restore checks the full address. A save
+// allows the arbiter waits that are a thread's usual state, so this only still
+// decides a save made while the user holds the game paused.
 [[nodiscard]] bool HasRiskyPendingWaits(Core::System& system);
 
 } // namespace Core::SaveState
