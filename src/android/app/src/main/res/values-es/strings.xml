@@ -621,4 +621,45 @@
     <string name="statistics">Estadísticas</string>
     <string name="statistics_sort_by">Ordenar por</string>
 
+
+    <!-- Iron Lemon UI (from Lemon) -->
+    <string name="buymeacoffee_link_button">Invítame a un café</string>
+    <string name="check_updates_now">Buscar actualizaciones</string>
+    <string name="discord_link_button">Discord</string>
+    <string name="faq_link">https://lemon-emu.org/es/faq.html</string>
+    <string name="faq_link_button">Preguntas frecuentes</string>
+    <string name="github_link_button">GitHub (espejo)</string>
+    <string name="guide_link">https://lemon-emu.org/es/guia.html</string>
+    <string name="guide_link_button">Guía de ajustes</string>
+    <string name="kofi_link_button">Ko-fi</string>
+    <string name="lemon_about_credits_body">Construido sobre el trabajo de la comunidad de emulación de código abierto, desde yuzu hasta todos los proyectos que vinieron después. Gracias.</string>
+    <string name="lemon_about_credits_title">Créditos</string>
+    <string name="lemon_perf_driver">Controlador de GPU</string>
+    <string name="lemon_perf_resolution">Resolución</string>
+    <string name="lemon_perf_speed">Límite de velocidad</string>
+    <string name="lemon_perf_title">Perfil de rendimiento</string>
+    <string name="lemon_search_settings">Buscar ajustes</string>
+    <string name="lemon_tab_data">Datos y guardado</string>
+    <string name="lemon_welcome_feature_driver">Controlador de GPU Lemon-Ade integrado</string>
+    <string name="lemon_welcome_feature_lite">Ajustes ligeros para GPUs menos potentes</string>
+    <string name="lemon_welcome_feature_migrate">Trae tus partidas de Eden o Citron</string>
+    <string name="lemon_welcome_feature_savestate">Guardado rápido en cualquier juego</string>
+    <string name="lemon_welcome_start">Empezar</string>
+    <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
+    <string name="lemon_welcome_title">Bienvenido a Lemon</string>
+    <string name="logo_credit">Logo diseñado por Madeleine, que lo hizo de forma desinteresada y con muchísima paciencia. ¡Mil gracias, Madeleine!</string>
+    <string name="patrons_thanks">¡Gracias a nuestros mecenas, Gi4nnelli, Xaphiron, Seak, Overlord, Lucky-Kris, Xefir, Pieguy744 y Wiz, por apoyar Lemon!</string>
+    <string name="reset_playtime">Borrar tiempo de juego</string>
+    <string name="settings_search_no_results">Ningún ajuste coincide con la búsqueda</string>
+    <string name="setup_later">Después</string>
+    <string name="setup_required">Obligatorio</string>
+    <string name="setup_step_of">Paso %1$d de %2$d</string>
+    <string name="source_link_button">Código fuente</string>
+    <string name="team_link">https://lemon-emu.org/es/#team</string>
+    <string name="website_link_button">Sitio web</string>
+
+    <!-- Iron Lemon welcome -->
+    <string name="ironlemon_welcome_feature_core">El núcleo original de yuzu, sin los cambios de Eden</string>
+    <string name="ironlemon_welcome_feature_adreno">Los arreglos de Lemon para GPU Adreno y drivers de GPU propios</string>
+    <string name="ironlemon_welcome_feature_library">Una biblioteca rápida con tiempo de juego y favoritos</string>
 </resources>

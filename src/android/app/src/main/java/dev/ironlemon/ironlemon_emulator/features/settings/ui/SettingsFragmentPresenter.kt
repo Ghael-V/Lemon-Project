@@ -30,7 +30,7 @@ import dev.ironlemon.ironlemon_emulator.utils.NativeConfig
 
 class SettingsFragmentPresenter(
     private val settingsViewModel: SettingsViewModel,
-    private val adapter: SettingsAdapter,
+    private val adapter: SettingsAdapter?,
     private var menuTag: MenuTag
 ) {
     private var settingsList = ArrayList<SettingsItem>()
@@ -79,8 +79,28 @@ class SettingsFragmentPresenter(
         loadSettingsList()
     }
 
+    /** The rows of a section, without showing them (the settings search walks every section). */
+    fun buildSettingsList(tag: MenuTag): List<SettingsItem> {
+        val previous = menuTag
+        menuTag = tag
+        try {
+            return buildList()
+        } finally {
+            menuTag = previous
+        }
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     fun loadSettingsList(notifyDataSetChanged: Boolean = false) {
+        settingsList = buildList()
+        adapter?.submitList(settingsList) {
+            if (notifyDataSetChanged) {
+                adapter?.notifyDataSetChanged()
+            }
+        }
+    }
+
+    private fun buildList(): ArrayList<SettingsItem> {
         val sl = ArrayList<SettingsItem>()
         when (menuTag) {
             MenuTag.SECTION_ROOT -> addConfigSettings(sl)
@@ -99,12 +119,7 @@ class SettingsFragmentPresenter(
             MenuTag.SECTION_THEME -> addThemeSettings(sl)
             MenuTag.SECTION_DEBUG -> addDebugSettings(sl)
         }
-        settingsList = sl
-        adapter.submitList(settingsList) {
-            if (notifyDataSetChanged) {
-                adapter.notifyDataSetChanged()
-            }
-        }
+        return sl
     }
 
     private fun addConfigSettings(sl: ArrayList<SettingsItem>) {

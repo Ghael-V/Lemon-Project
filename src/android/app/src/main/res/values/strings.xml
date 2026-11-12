@@ -1196,4 +1196,51 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="statistics">Statistics</string>
     <string name="statistics_sort_by">Sort by</string>
 
+
+    <!-- Iron Lemon UI (from Lemon) -->
+    <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
+    <string name="buymeacoffee_link_button">Buy me a coffee</string>
+    <string name="check_updates_now">Check for updates</string>
+    <string name="discord_link" translatable="false">https://discord.com/invite/PEE7Q5TVM5</string>
+    <string name="discord_link_button">Discord</string>
+    <string name="faq_link">https://lemon-emu.org/faq.html</string>
+    <string name="faq_link_button">FAQ</string>
+    <string name="github_link_button">GitHub (mirror)</string>
+    <string name="guide_link">https://lemon-emu.org/guide.html</string>
+    <string name="guide_link_button">Settings guide</string>
+    <string name="kofi_link" translatable="false">https://ko-fi.com/LemonProject</string>
+    <string name="kofi_link_button">Ko-fi</string>
+    <string name="lemon_about_credits_body">Built on the work of the open-source emulation community, from yuzu to every project that came after it. Thank you.</string>
+    <string name="lemon_about_credits_title">Credits</string>
+    <string name="lemon_perf_driver">GPU driver</string>
+    <string name="lemon_perf_resolution">Resolution</string>
+    <string name="lemon_perf_speed">Speed limit</string>
+    <string name="lemon_perf_title">Performance profile</string>
+    <string name="lemon_search_settings">Search settings</string>
+    <string name="lemon_tab_data">Data and saves</string>
+    <string name="lemon_welcome_feature_driver">Lemon-Ade GPU driver built in</string>
+    <string name="lemon_welcome_feature_lite">Lighter settings for less powerful GPUs</string>
+    <string name="lemon_welcome_feature_migrate">Bring your saves over from Eden or Citron</string>
+    <string name="lemon_welcome_feature_savestate">Quick save in any game</string>
+    <string name="lemon_welcome_start">Get started</string>
+    <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
+    <string name="lemon_welcome_title">Welcome to Lemon</string>
+    <string name="logo_credit">Logo designed by Madeleine, who made it for free and with endless patience. Thank you so much, Madeleine!</string>
+    <string name="patrons_thanks">Thanks to our patrons, Gi4nnelli, Xaphiron, Seak, Overlord, Lucky-Kris, Xefir, Pieguy744 and Wiz, for supporting Lemon!</string>
+    <string name="reset_playtime">Clear Playtime</string>
+    <string name="settings_search_no_results">No settings match your search</string>
+    <string name="setup_later">Later</string>
+    <string name="setup_required">Required</string>
+    <string name="setup_step_of">Step %1$d of %2$d</string>
+    <string name="source_link" translatable="false">https://git.lemon-emu.org/lemon/Lemon-Project</string>
+    <string name="source_link_button">Source code</string>
+    <string name="team_lemon" translatable="false">Team Lemon</string>
+    <string name="team_lemon_members" translatable="false">Ghael · Seak · Sidgey · BitRanger</string>
+    <string name="team_link">https://lemon-emu.org/#team</string>
+    <string name="website_link_button">Website</string>
+
+    <!-- Iron Lemon welcome -->
+    <string name="ironlemon_welcome_feature_core">The original yuzu core, without Eden\'s changes</string>
+    <string name="ironlemon_welcome_feature_adreno">Lemon\'s fixes for Adreno GPUs, and custom GPU drivers</string>
+    <string name="ironlemon_welcome_feature_library">A fast library with play time and favorites</string>
 </resources>
