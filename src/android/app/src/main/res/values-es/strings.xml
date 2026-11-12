@@ -677,4 +677,5 @@
     <string name="lemon_cheater_invalid_float">Introduce un número, p. ej. 87.5</string>
     <string name="lemon_cheater_type_changed">Tipo de valor cambiado - empieza una nueva búsqueda</string>
     <string name="emulation_quick_load_state_incompatible">No se puede cargar: el juego ha cambiado desde que guardaste (suele pasar tras morir o entrar en una zona nueva). La carga rápida solo funciona en la misma situación en la que guardaste, y no se ha cambiado nada.</string>
+    <string name="emulation_quick_state_no_safe_moment">No se pudo en este momento exacto (el juego estaba a mitad de algo). Inténtalo de nuevo en un segundo.</string>
 </resources>
