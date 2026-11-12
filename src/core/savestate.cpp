@@ -10,6 +10,7 @@
 #include <shared_mutex>
 #include <span>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "common/alignment.h"
@@ -19,6 +20,7 @@
 #include "common/logging/log.h"
 #include "common/scope_exit.h"
 #include "core/core.h"
+#include "core/hle/ipc.h"
 #include "core/hle/kernel/k_auto_object.h"
 #include "core/hle/kernel/k_handle_table.h"
 #include "core/hle/kernel/k_hardware_timer.h"
@@ -347,13 +349,42 @@ Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& 
     return thread;
 }
 
-// Writes the 4 KiB chunks of `data` that differ from guest memory, in runs. A false return means
-// part of the range is not mapped.
+// Writes `size` bytes of `data` to `address`, except the parts inside the `keep` ranges (address,
+// size), which are not touched at all.
+bool WriteExcept(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
+                 std::span<const std::pair<u64, u64>> keep) {
+    bool ok = true;
+    const u64 end = address + size;
+    for (u64 pos = address; pos < end;) {
+        u64 write_end = end;
+        u64 skip_to = pos;
+        for (const auto& [start, length] : keep) {
+            if (start + length <= pos || start >= end) {
+                continue;
+            }
+            if (start <= pos) {
+                skip_to = std::max(skip_to, start + length);
+            } else {
+                write_end = std::min(write_end, start);
+            }
+        }
+        if (skip_to > pos) {
+            pos = std::min(skip_to, end);
+            continue;
+        }
+        ok = memory.WriteBlock(pos, data + (pos - address), write_end - pos) && ok;
+        pos = write_end;
+    }
+    return ok;
+}
+
+// Writes the 4 KiB chunks of `data` that differ from guest memory, in runs, leaving the `keep`
+// ranges as they are. A false return means part of the range is not mapped.
 bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
-                  std::vector<u8>& live, u64& written) {
+                  std::vector<u8>& live, u64& written, std::span<const std::pair<u64, u64>> keep) {
     live.resize(size);
     if (!memory.ReadBlockUnsafe(address, live.data(), size)) {
-        return memory.WriteBlock(address, data, size);
+        return WriteExcept(memory, address, data, size, keep);
     }
     bool ok = true;
     u64 run_start = 0;
@@ -368,7 +399,9 @@ bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64
             in_run = true;
         } else if (!differs && in_run) {
             const u64 run_end = std::min(offset, size);
-            ok = memory.WriteBlock(address + run_start, data + run_start, run_end - run_start) && ok;
+            ok = WriteExcept(memory, address + run_start, data + run_start, run_end - run_start,
+                             keep) &&
+                 ok;
             written += run_end - run_start;
             in_run = false;
         }
@@ -1567,6 +1600,31 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
                  runs);
     }
 
+    // A thread that waited for a service's answer at the save, and is in a service request again
+    // now, gets the answer to the live request: a service thread writes it into the thread's
+    // message buffer (the start of its TLS) at any moment, also while the game is paused for this
+    // load. The saved buffer only holds the request sent then, and writing it back over an answer
+    // that came in the meantime left the game reading its own request as the answer (it aborted
+    // on the reply's header). That buffer is left as it is.
+    std::vector<std::pair<u64, u64>> live_message_buffers;
+    for (u32 i = 0; i < thread_count; i++) {
+        const auto* thread = live_threads[i];
+        if (thread == nullptr || plan.slots[i] != SlotPlan::AsSaved ||
+            !IsSavedWait(saved_signature[i], Kernel::ThreadWaitReasonForDebugging::IPC) ||
+            !thread->IsCallingSvc() ||
+            thread->GetSvcId() != static_cast<u8>(Kernel::Svc::SvcId::SendSyncRequest)) {
+            continue;
+        }
+        live_message_buffers.emplace_back(thread->GetTlsAddress().GetValue(),
+                                          IPC::COMMAND_BUFFER_LENGTH * sizeof(u32));
+    }
+    if (!live_message_buffers.empty()) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: {} thread(s) waiting for a service's answer keep their live "
+                 "message buffer",
+                 live_message_buffers.size());
+    }
+
     std::vector<u8> live_buffer;
     u64 written_bytes = 0;
     std::vector<u8> buffer;
@@ -1635,7 +1693,8 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         // every page changed, including the ones backing what the GPU itself drew or computed when
         // the level loaded, which it then threw away and reloaded from guest memory that never
         // held it (Garfield: the HUD came back, the 3D scene stayed black).
-        if (!WriteChanged(memory, address, buffer.data(), size, live_buffer, written_bytes)) {
+        if (!WriteChanged(memory, address, buffer.data(), size, live_buffer, written_bytes,
+                          live_message_buffers)) {
             LOG_WARNING(Core,
                        "SaveState::Restore: {} byte(s) at {:#x} are no longer fully mapped - "
                        "skipping (already-mapped pages within this region were still written)",
