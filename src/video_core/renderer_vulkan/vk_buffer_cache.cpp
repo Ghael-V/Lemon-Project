@@ -662,13 +662,7 @@ void BufferCacheRuntime::BindGsScratchStorageBuffer() {
             .queueFamilyIndexCount = 0,
             .pQueueFamilyIndices = nullptr,
         };
-        if (device.IsBufferDeviceAddressSupported()) {
-            create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-        }
         gs_scratch_buffer = memory_allocator.CreateBuffer(create_info, MemoryUsage::DeviceLocal);
-        if (device.IsBufferDeviceAddressSupported()) {
-            gs_scratch_address = device.GetLogical().GetBufferDeviceAddress(*gs_scratch_buffer);
-        }
         // Generation 0 is never used by a draw: zeroed slots are unclaimed.
         scheduler.RequestOutsideRenderPassOperationContext();
         scheduler.Record([buffer = *gs_scratch_buffer](vk::CommandBuffer cmdbuf) {
@@ -683,7 +677,7 @@ void BufferCacheRuntime::BindGsScratchStorageBuffer() {
                                    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, BARRIER);
         });
     }
-    guest_descriptor_queue.AddBuffer(*gs_scratch_buffer, gs_scratch_address, 0, size);
+    guest_descriptor_queue.AddBuffer(*gs_scratch_buffer, 0, size);
 }
 
 vk::Buffer BufferCacheRuntime::CreateNullBuffer() {

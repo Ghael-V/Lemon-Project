@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "common/logging.h"
+#include "common/logging/log.h"
 #include "common/settings.h"
 #include "shader_recompiler/backend/spirv/emit_spirv.h"
 #include "shader_recompiler/backend/spirv/emit_spirv_instructions.h"

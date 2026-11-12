@@ -168,7 +168,6 @@ private:
 
     vk::Buffer null_buffer;
     vk::Buffer gs_scratch_buffer;
-    VkDeviceAddress gs_scratch_address{};
 
     std::unique_ptr<Uint8Pass> uint8_pass;
     QuadIndexedPass quad_index_pass;

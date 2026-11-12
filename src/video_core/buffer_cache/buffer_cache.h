@@ -423,7 +423,7 @@ void BufferCache<P>::BindGraphicsStorageBuffer(size_t stage, size_t ssbo_index, 
     if (cbuf_index == Shader::GS_SCRATCH_CBUF_INDEX) {
         // Not guest memory: BindHostGraphicsStorageBuffers binds the host's scratch buffer.
         channel_state->scratch_storage_buffers[stage] |= 1U << ssbo_index;
-        return true;
+        return;
     }
     const auto& cbufs = maxwell3d->state.shader_stages[stage];
     const GPUVAddr ssbo_addr = cbufs.const_buffers[cbuf_index].address + cbuf_offset;
