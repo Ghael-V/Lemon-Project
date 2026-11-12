@@ -4,6 +4,7 @@
 package dev.ironlemon.ironlemon_emulator.utils
 
 import android.app.Activity
+import android.view.Window
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -14,8 +15,10 @@ import androidx.core.view.WindowInsetsControllerCompat
  * focus back (a dialog or the system can bring the bars back).
  */
 object FullscreenHelper {
-    fun hideSystemBars(activity: Activity) {
-        val window = activity.window
+    fun hideSystemBars(activity: Activity) = hideSystemBars(activity.window)
+
+    /** The same for a dialog's own window, which would otherwise bring the bars back. */
+    fun hideSystemBars(window: Window) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.systemBars())

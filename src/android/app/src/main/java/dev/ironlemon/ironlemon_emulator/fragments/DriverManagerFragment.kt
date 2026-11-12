@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
@@ -66,11 +67,27 @@ class DriverManagerFragment : Fragment() {
         homeViewModel.setStatusBarShadeVisibility(visible = false)
 
         driverViewModel.onOpenDriverManager(args.game)
+        binding.toolbarDrivers.inflateMenu(R.menu.menu_driver_download)
+        binding.toolbarDrivers.setOnMenuItemClickListener {
+            if (it.itemId == R.id.menu_driver_download) {
+                DriverDownloadDialogFragment()
+                    .show(childFragmentManager, DriverDownloadDialogFragment.TAG)
+                true
+            } else {
+                false
+            }
+        }
         if (NativeConfig.isPerGameConfigLoaded()) {
             binding.toolbarDrivers.inflateMenu(R.menu.menu_driver_manager)
             driverViewModel.showClearButton(!StringSetting.DRIVER_PATH.global)
             binding.toolbarDrivers.setOnMenuItemClickListener {
                 when (it.itemId) {
+                    R.id.menu_driver_download -> {
+                        DriverDownloadDialogFragment()
+                            .show(childFragmentManager, DriverDownloadDialogFragment.TAG)
+                        true
+                    }
+
                     R.id.menu_driver_use_global -> {
                         StringSetting.DRIVER_PATH.global = true
                         driverViewModel.updateDriverList()
@@ -148,6 +165,34 @@ class DriverManagerFragment : Fragment() {
             windowInsets
         }
 
+    /** A driver zip kept in the driver directory joins the list, selected. False if it was there. */
+    private suspend fun addDriver(driverPath: String): Boolean {
+        val driverData = GpuDriverHelper.getMetadataFromZip(File(driverPath))
+        if (driverViewModel.driverData.any { it.second == driverData }) {
+            return false
+        }
+        driverViewModel.onDriverAdded(Pair(driverPath, driverData))
+        withContext(Dispatchers.Main) {
+            if (_binding != null) {
+                val adapter = binding.listDrivers.adapter as DriverAdapter
+                adapter.addItem(driverData.toDriver())
+                adapter.selectItem(adapter.currentList.indices.last)
+                driverViewModel.showClearButton(!StringSetting.DRIVER_PATH.global)
+                binding.listDrivers.smoothScrollToPosition(adapter.currentList.indices.last)
+            }
+        }
+        return true
+    }
+
+    /** A driver the download dialog kept in the driver directory. */
+    fun onDriverDownloaded(driverPath: String) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            if (!addDriver(driverPath)) {
+                File(driverPath).delete()
+            }
+        }
+    }
+
     private val getDriver =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
             if (result == null) {
@@ -175,23 +220,8 @@ class DriverManagerFragment : Fragment() {
                     return@newInstance getString(R.string.select_gpu_driver_error)
                 }
 
-                val driverData = GpuDriverHelper.getMetadataFromZip(driverFile)
-                val driverInList =
-                    driverViewModel.driverData.firstOrNull { it.second == driverData }
-                if (driverInList != null) {
+                if (!addDriver(driverPath)) {
                     return@newInstance getString(R.string.driver_already_installed)
-                } else {
-                    driverViewModel.onDriverAdded(Pair(driverPath, driverData))
-                    withContext(Dispatchers.Main) {
-                        if (_binding != null) {
-                            val adapter = binding.listDrivers.adapter as DriverAdapter
-                            adapter.addItem(driverData.toDriver())
-                            adapter.selectItem(adapter.currentList.indices.last)
-                            driverViewModel.showClearButton(!StringSetting.DRIVER_PATH.global)
-                            binding.listDrivers
-                                .smoothScrollToPosition(adapter.currentList.indices.last)
-                        }
-                    }
                 }
                 return@newInstance Any()
             }.show(childFragmentManager, ProgressDialogFragment.TAG)

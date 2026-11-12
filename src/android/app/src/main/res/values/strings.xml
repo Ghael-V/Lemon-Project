@@ -1342,4 +1342,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <item quantity="one">%d cheat downloaded, new ones off</item>
         <item quantity="other">%d cheats downloaded, new ones off</item>
     </plurals>
+    <!-- GPU driver downloader -->
+    <string name="driver_download_title">Download drivers</string>
+    <string name="driver_download_description">Drivers published on GitHub, ready to install. Only Adreno GPUs can load them.</string>
+    <string name="driver_download_loading">Reading the releases…</string>
+    <string name="driver_download_list_failed">Couldn\'t read the releases. Check the connection and try again.</string>
+    <string name="driver_download_retry">Try again</string>
+    <string name="driver_download_install">Install</string>
+    <string name="driver_download_prerelease">Pre-release · %1$s</string>
+    <string name="driver_download_downloading">Downloading %1$s…</string>
+    <string name="driver_download_done">%1$s installed: select it in the list</string>
+    <string name="driver_download_failed">The download failed</string>
+    <string name="driver_download_invalid">That file isn\'t a driver this app can load</string>
+    <string name="driver_download_needs_newer_android">That driver needs a newer Android version</string>
 </resources>

@@ -719,4 +719,17 @@
         <item quantity="other">%d trucos descargados, los nuevos desactivados</item>
     </plurals>
     <string name="emulation_quick_load_state_moved_past">El juego ya pasó este guardado. No se puede cargar. Haz un nuevo guardado rápido.</string>
+    <!-- Descargador de drivers GPU -->
+    <string name="driver_download_title">Descargar drivers</string>
+    <string name="driver_download_description">Drivers publicados en GitHub, listos para instalar. Solo las GPU Adreno pueden cargarlos.</string>
+    <string name="driver_download_loading">Leyendo las versiones…</string>
+    <string name="driver_download_list_failed">No se pudieron leer las versiones. Revisa la conexión e inténtalo de nuevo.</string>
+    <string name="driver_download_retry">Reintentar</string>
+    <string name="driver_download_install">Instalar</string>
+    <string name="driver_download_prerelease">Versión previa · %1$s</string>
+    <string name="driver_download_downloading">Descargando %1$s…</string>
+    <string name="driver_download_done">%1$s instalado: selecciónalo en la lista</string>
+    <string name="driver_download_failed">La descarga ha fallado</string>
+    <string name="driver_download_invalid">Ese archivo no es un driver que se pueda cargar</string>
+    <string name="driver_download_needs_newer_android">Ese driver necesita una versión de Android más nueva</string>
 </resources>
