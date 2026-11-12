@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <utility>
+#include <vector>
 
 #include "common/assert.h"
 #include "common/common_types.h"
@@ -14,6 +16,7 @@
 #include "core/hle/service/nvdrv/core/syncpoint_manager.h"
 #include "core/hle/service/nvdrv/devices/nvhost_nvdec_common.h"
 #include "core/memory.h"
+#include "core/savestate_undo_journal.h"
 #include "video_core/host1x/host1x.h"
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_base.h"
@@ -139,9 +142,24 @@ NvResult nvhost_nvdec_common::GetWaitbase(IoctlGetWaitbase& params) {
 NvResult nvhost_nvdec_common::MapBuffer(IoctlMapBuffer& params, std::span<MapBufferEntry> entries,
                                         DeviceFD fd) {
     const size_t num_entries = std::min(params.num_entries, static_cast<u32>(entries.size()));
+    std::vector<u32> pinned;
     for (size_t i = 0; i < num_entries; i++) {
         DAddr pin_address = nvmap.PinHandle(entries[i].map_handle, true);
         entries[i].map_address = static_cast<u32>(pin_address);
+        if (pin_address != 0) {
+            pinned.push_back(entries[i].map_handle);
+        }
+    }
+    // A Quick Load unpins them again (see Core::SaveState::UndoJournal): a handle the game
+    // allocated after the save can only be freed again once nothing pins it.
+    if (!pinned.empty()) {
+        auto& journal = Core::SaveState::UndoJournal::Gpu();
+        journal.Record("nvdec map", [map = &nvmap, pinned = std::move(pinned)] {
+            for (const u32 handle : pinned) {
+                map->UnpinHandle(handle);
+            }
+            return true;
+        });
     }
 
     return NvResult::Success;
@@ -150,9 +168,28 @@ NvResult nvhost_nvdec_common::MapBuffer(IoctlMapBuffer& params, std::span<MapBuf
 NvResult nvhost_nvdec_common::UnmapBuffer(IoctlMapBuffer& params,
                                           std::span<MapBufferEntry> entries) {
     const size_t num_entries = std::min(params.num_entries, static_cast<u32>(entries.size()));
+    std::vector<std::pair<u32, u32>> unpinned; // handle, the address it was pinned at
     for (size_t i = 0; i < num_entries; i++) {
+        if (auto handle = nvmap.GetHandle(entries[i].map_handle)) {
+            std::scoped_lock lock(handle->mutex);
+            unpinned.emplace_back(entries[i].map_handle, handle->pin_virt_address);
+        }
         nvmap.UnpinHandle(entries[i].map_handle);
         entries[i] = {};
+    }
+    // A Quick Load pins them again. The game was told their addresses, so a handle has to come
+    // back at the same one (it does while its mapping is kept, see NvMap::UnpinHandle).
+    if (!unpinned.empty()) {
+        auto& journal = Core::SaveState::UndoJournal::Gpu();
+        journal.Record("nvdec unmap", [map = &nvmap, unpinned = std::move(unpinned)] {
+            bool ok = true;
+            for (const auto& [handle, address] : unpinned) {
+                if (map->PinHandle(handle, true) != address) {
+                    ok = false;
+                }
+            }
+            return ok;
+        });
     }
 
     params = {};
