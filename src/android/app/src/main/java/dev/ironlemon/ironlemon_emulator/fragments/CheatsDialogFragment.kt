@@ -76,7 +76,9 @@ class CheatsDialogFragment : DialogFragment() {
         dialog.setOnShowListener {
             // Adding opens a second dialog; this one stays open to show the result.
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).apply {
-                isEnabled = false
+                // The build ID may already be known (instantly while the game runs): only adding
+                // without one is not possible.
+                isEnabled = buildId.isNotEmpty()
                 setOnClickListener { showAddDialog() }
             }
         }
