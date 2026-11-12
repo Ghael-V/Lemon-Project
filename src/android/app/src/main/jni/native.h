@@ -13,6 +13,7 @@
 #include "core/core.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/hle/service/acc/profile_manager.h"
+#include "core/hle/service/nvnflinger/buffer_queue_core.h"
 #include "core/memory_search.h"
 #include "core/perf_stats.h"
 #include "frontend_common/content_manager.h"
@@ -137,6 +138,8 @@ private:
     std::optional<std::array<u32, 192>> m_saved_syncpoints;
     /// The audio renderers' working memory at the last Quick Save of this session.
     std::vector<AudioCore::Renderer::System::WorkbufferSnapshot> m_saved_audio;
+    /// The display queue slots the game held at the last Quick Save of this session.
+    std::vector<Service::android::BufferQueueCore::ProducerSlots> m_saved_display_slots;
 
     std::atomic<bool> m_is_paused = false;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};

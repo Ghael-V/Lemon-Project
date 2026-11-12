@@ -4,6 +4,7 @@
 // Parts of this implementation were based on:
 // https://cs.android.com/android/platform/superproject/+/android-5.1.1_r38:frameworks/native/libs/gui/BufferQueueCore.cpp
 
+#include <algorithm>
 #include <mutex>
 #include <vector>
 
@@ -11,6 +12,7 @@
 #include "core/savestate.h"
 
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
+#include "core/hle/service/nvnflinger/ui/graphic_buffer.h"
 
 namespace Service::android {
 
@@ -51,6 +53,90 @@ size_t BufferQueueCore::RewindFencesForRestore(u32 id, u32 delta) {
         }
     }
     return moved;
+std::vector<BufferQueueCore::ProducerSlots> BufferQueueCore::SnapshotProducerSlots() {
+    std::vector<ProducerSlots> out;
+    std::scoped_lock lock{g_queues_mutex};
+    for (BufferQueueCore* core : g_queues) {
+        std::scoped_lock core_lock{core->mutex};
+        ProducerSlots entry{.core = core};
+        for (s32 n = 0; n < BufferQueueDefs::NUM_BUFFER_SLOTS; n++) {
+            entry.dequeued[n] = core->slots[n].buffer_state == BufferState::Dequeued;
+            entry.requested[n] = core->slots[n].request_buffer_called;
+        }
+        out.push_back(entry);
+    }
+    return out;
+}
+
+void BufferQueueCore::RestoreProducerSlots(const std::vector<ProducerSlots>& saved) {
+    std::scoped_lock lock{g_queues_mutex};
+    for (const auto& entry : saved) {
+        const auto it = std::ranges::find(g_queues, entry.core);
+        if (it == g_queues.end()) {
+            continue;
+        }
+        BufferQueueCore* core = *it;
+        std::scoped_lock core_lock{core->mutex};
+        bool freed_any = false;
+        for (s32 n = 0; n < BufferQueueDefs::NUM_BUFFER_SLOTS; n++) {
+            BufferSlot& slot = core->slots[n];
+            const bool held_now = slot.buffer_state == BufferState::Dequeued;
+            if (held_now && !entry.dequeued[n]) {
+                // As CancelBuffer would have, had the game known it held it.
+                slot.buffer_state = BufferState::Free;
+                slot.frame_number = 0;
+                freed_any = true;
+                LOG_INFO(Service_Nvnflinger,
+                         "Quick Load: slot {} freed (the game held it after the "
+                         "save, not at it)",
+                         n);
+            } else if (!held_now && entry.dequeued[n]) {
+                if (slot.buffer_state == BufferState::Free && slot.graphic_buffer != nullptr) {
+                    slot.buffer_state = BufferState::Dequeued;
+                    slot.request_buffer_called = entry.requested[n];
+                    slot.fence = Fence::NoFence();
+                    LOG_INFO(Service_Nvnflinger,
+                             "Quick Load: slot {} given back to the game (it "
+                             "held it at the save)",
+                             n);
+                } else if (slot.buffer_state == BufferState::Queued &&
+                           slot.graphic_buffer != nullptr) {
+                    // Waiting for the display. Take it out of the queue and give it back.
+                    std::erase_if(core->queue,
+                                  [n](const BufferItem& item) { return item.slot == n; });
+                    slot.buffer_state = BufferState::Dequeued;
+                    slot.request_buffer_called = entry.requested[n];
+                    slot.fence = Fence::NoFence();
+                    LOG_INFO(Service_Nvnflinger,
+                             "Quick Load: slot {} taken out of the display "
+                             "queue for the game (it held it at the save)",
+                             n);
+                } else if (slot.buffer_state == BufferState::Acquired &&
+                           slot.graphic_buffer != nullptr) {
+                    // On screen now. Take it back; the display's release of it is then stale,
+                    // and its next acquire of this slot hands it the buffer again.
+                    slot.buffer_state = BufferState::Dequeued;
+                    slot.request_buffer_called = entry.requested[n];
+                    slot.fence = Fence::NoFence();
+                    slot.needs_cleanup_on_release = true;
+                    slot.acquire_called = false;
+                    LOG_INFO(Service_Nvnflinger,
+                             "Quick Load: slot {} taken back from the display "
+                             "for the game (it held it at the save)",
+                             n);
+                } else {
+                    LOG_INFO(Service_Nvnflinger,
+                             "Quick Load: slot {} held by the game at the save is {} now, left", n,
+                             static_cast<u32>(slot.buffer_state));
+                }
+            }
+        }
+        if (freed_any) {
+            core->SignalDequeueCondition();
+        }
+    }
+}
+
 }
 
 void BufferQueueCore::SignalDequeueCondition() {

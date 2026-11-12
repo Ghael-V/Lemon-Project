@@ -458,6 +458,7 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
                                                                         : QuickSaveResult::Failed;
         if (result == QuickSaveResult::Saved) {
             m_saved_audio = AudioCore::Renderer::System::SnapshotAll();
+            m_saved_display_slots = Service::android::BufferQueueCore::SnapshotProducerSlots();
             auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
             m_saved_syncpoints.emplace();
             for (u32 id = 0; id < m_saved_syncpoints->size(); id++) {
@@ -511,6 +512,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         if (restored) {
             RewindSyncpoints();
             AudioCore::Renderer::System::RestoreAll(m_saved_audio);
+            Service::android::BufferQueueCore::RestoreProducerSlots(m_saved_display_slots);
         }
         if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
             break;

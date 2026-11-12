@@ -203,6 +203,8 @@ void AudioRenderer::Main(std::stop_token stop_token) {
 
                     if (index == 0) {
                         streams[index]->WaitFreeSpace(stop_token);
+                    }
+
                     // A Quick Load put back the renderer state, and this list was made from the
                     // state before it: run, its commands write to the game's memory where its
                     // buffers were then (an aux effect's samples landed on a game object, which
@@ -217,8 +219,6 @@ void AudioRenderer::Main(std::stop_token stop_token) {
                         command_buffer.remaining_command_count = 0;
                         command_buffer.render_time_taken_us = 0;
                         continue;
-                    }
-
                     }
 
                     // Process the command list
