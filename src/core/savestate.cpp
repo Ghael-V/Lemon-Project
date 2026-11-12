@@ -7,7 +7,7 @@
 
 #include "common/fs/file.h"
 #include "common/fs/fs.h"
-#include "common/logging.h"
+#include "common/logging/log.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/k_thread.h"

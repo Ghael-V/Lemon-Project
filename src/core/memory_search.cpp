@@ -7,7 +7,7 @@
 #include <cstring>
 #include <optional>
 
-#include "common/logging.h"
+#include "common/logging/log.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_memory_block.h"
 #include "core/hle/kernel/k_process.h"
