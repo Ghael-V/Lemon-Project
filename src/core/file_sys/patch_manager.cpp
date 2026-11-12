@@ -547,9 +547,15 @@ std::vector<PatchManager::CheatInfo> PatchManager::ListCheats(const BuildID& bui
     return out;
 }
 
-bool PatchManager::SetCheatEnabled(std::string_view folder, std::string_view name,
-                                   bool enabled) const {
-    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
+// The mod directory is opened read-only, and files made in it inherit that: creating them works,
+// but resizing or writing fails (EINVAL). Writes go through the same directory opened read-write.
+static VirtualDir WritableDirectory(const VirtualFilesystem& vfs, const VirtualDir& dir) {
+    return dir != nullptr ? vfs->OpenDirectory(dir->GetFullPath(), OpenMode::ReadWrite) : nullptr;
+}
+
+bool PatchManager::SetCheatEnabled(const VirtualFilesystem& vfs, std::string_view folder,
+                                   std::string_view name, bool enabled) const {
+    const auto load_dir = WritableDirectory(vfs, fs_controller.GetModificationLoadRoot(title_id));
     const auto mod_dir = load_dir != nullptr && !folder.empty()
                              ? load_dir->GetSubdirectory(folder)
                              : nullptr;
@@ -582,7 +588,8 @@ bool PatchManager::SetCheatEnabled(std::string_view folder, std::string_view nam
     return written;
 }
 
-long PatchManager::AddCheats(const BuildID& build_id, std::string_view text) const {
+long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_id,
+                             std::string_view text) const {
     const std::string normalized = NormalizeCheatText(text);
     const Core::Memory::TextCheatParser parser;
     const auto parsed = parser.Parse(normalized);
@@ -593,7 +600,7 @@ long PatchManager::AddCheats(const BuildID& build_id, std::string_view text) con
                     text.size(), normalized.size());
         return 0;
     }
-    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
+    const auto load_dir = WritableDirectory(vfs, fs_controller.GetModificationLoadRoot(title_id));
     if (load_dir == nullptr) {
         LOG_ERROR(Loader, "Cheats: no mod directory for title {:016X}", title_id);
         return -1;
@@ -606,23 +613,26 @@ long PatchManager::AddCheats(const BuildID& build_id, std::string_view text) con
         const std::string folder = n == 1 ? "Lemon cheats" : fmt::format("Lemon cheats {}", n);
         const auto mod_dir = load_dir->GetSubdirectory(folder);
         const auto existing = mod_dir != nullptr ? FindSubdirectoryCaseless(mod_dir, "cheats") : nullptr;
-        if (existing != nullptr &&
-            (existing->GetFile(build + ".txt") != nullptr ||
-             existing->GetFile(Common::ToLower(build) + ".txt") != nullptr)) {
+        // An empty file is what a failed save left behind: take its place.
+        const auto taken = [&](const std::string& file_name) {
+            const auto file = existing != nullptr ? existing->GetFile(file_name) : nullptr;
+            return file != nullptr && file->GetSize() > 0;
+        };
+        if (taken(build + ".txt") || taken(Common::ToLower(build) + ".txt")) {
             continue;
         }
         const auto cheats_dir = GetOrCreateDirectoryRelative(load_dir, folder + "/cheats");
         const auto file = cheats_dir != nullptr ? cheats_dir->CreateFile(build + ".txt") : nullptr;
-        if (file == nullptr || !file->Resize(normalized.size())) {
-            LOG_ERROR(Loader, "Cheats: could not create {}/cheats/{}.txt", folder, build);
-            return -1;
-        }
         const bool written =
+            file != nullptr && file->Resize(normalized.size()) &&
             file->WriteBytes(std::vector<u8>(normalized.begin(), normalized.end())) ==
-            normalized.size();
-        file->Flush();
+                normalized.size() &&
+            file->Flush();
         if (!written) {
             LOG_ERROR(Loader, "Cheats: could not write {}/cheats/{}.txt", folder, build);
+            if (cheats_dir != nullptr) {
+                cheats_dir->DeleteFile(build + ".txt");
+            }
             return -1;
         }
         LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt", count, folder, build);

@@ -1539,6 +1539,7 @@ jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setCheatEnabled(JN
                                                                jboolean enabled) {
     const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
     const bool ok = CheatPatchManager(program_id).SetCheatEnabled(
+        EmulationSession::GetInstance().System().GetFilesystem(),
         Common::Android::GetJString(env, jfolder), Common::Android::GetJString(env, jname),
         enabled);
     if (ok && IsRunningGame(program_id)) {
@@ -1552,6 +1553,7 @@ jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_addCheats(JNIEnv* env,
                                                      jstring jtext) {
     const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
     const long count = CheatPatchManager(program_id).AddCheats(
+        EmulationSession::GetInstance().System().GetFilesystem(),
         ParseBuildId(Common::Android::GetJString(env, jbuildId)),
         Common::Android::GetJString(env, jtext));
     if (count > 0 && IsRunningGame(program_id)) {

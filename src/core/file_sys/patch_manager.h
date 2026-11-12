@@ -84,14 +84,17 @@ public:
     [[nodiscard]] std::vector<CheatInfo> ListCheats(const BuildID& build_id) const;
 
     // Switches one cheat of a mod folder on or off, in the folder's cheats/toggles.txt (Atmosphere's
-    // format). False if the folder has no cheats directory or the file can't be written.
-    bool SetCheatEnabled(std::string_view folder, std::string_view name, bool enabled) const;
+    // format). False if the folder has no cheats directory or the file can't be written. `vfs` opens
+    // the folder for writing (the mod directory itself is opened read-only).
+    bool SetCheatEnabled(const VirtualFilesystem& vfs, std::string_view folder,
+                         std::string_view name, bool enabled) const;
 
     // Saves cheat codes pasted by the user for `build_id` in a new "Lemon cheats" mod folder. The
     // text may be an Atmosphere cheat file, or codes copied from a web page with the cheat names on
     // their own lines and no brackets. Returns how many cheats it holds (master code included); 0
     // when it holds none and -1 when they could not be saved, and nothing is written then.
-    [[nodiscard]] long AddCheats(const BuildID& build_id, std::string_view text) const;
+    [[nodiscard]] long AddCheats(const VirtualFilesystem& vfs, const BuildID& build_id,
+                                 std::string_view text) const;
 
     // Currently tracked RomFS patches:
     // - Game Updates
