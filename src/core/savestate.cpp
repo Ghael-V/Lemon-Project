@@ -739,6 +739,54 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     // cleanly at a scheduler dispatch boundary by the caller's Pause(): that suspend
     // path (SuspendType::System, KernelCore::SuspendEmulation) never touches this field,
     // so checking it here still reflects each thread's state as of this restore.
+    //
+    // A thread asleep in the same kernel call as at the save (same instruction, same
+    // lock and condition variable) gets its saved registers below and its saved stack, as a
+    // move_wait thread does, whether the guest destroyed and created it again since or not. Being
+    // asleep in the same place does not mean it slept the whole time: it may have woken, worked
+    // and gone back to the same wait, and its stack then holds what it worked on after the save
+    // (after a Quick Load across scenes, at the next scene change a long-lived thread read
+    // through a null pointer forever). One that did sleep the whole time
+    // has its saved registers and stack already, so nothing changes for it. A thread whose stack
+    // shares a region with one left asleep is left as before, as that region is not written.
+    std::vector<bool> rewind_parked(thread_count, false);
+    for (u32 i = 0; i < thread_count; i++) {
+        if (!IsParkedInKernel(*live_threads[i]) || move_wait[i]) {
+            continue;
+        }
+        const auto& live = live_threads[i]->GetContext();
+        const auto& saved = thread_contexts[i];
+        rewind_parked[i] =
+            live.pc == saved.pc && live.r[0] == saved.r[0] && live.r[1] == saved.r[1];
+    }
+    const auto region_holds = [](const std::pair<u64, u64>& region, u64 stack_top) {
+        return stack_top > region.first && stack_top <= region.first + region.second;
+    };
+    u32 rewinds_cancelled = 0;
+    for (bool changed = true; changed;) {
+        changed = false;
+        for (const auto& region : region_ranges) {
+            bool holds_left = false;
+            for (u32 i = 0; i < thread_count; i++) {
+                if (IsParkedInKernel(*live_threads[i]) && !move_wait[i] && !rewind_parked[i] &&
+                    region_holds(region, live_threads[i]->GetUserStackTop().GetValue())) {
+                    holds_left = true;
+                    break;
+                }
+            }
+            if (!holds_left) {
+                continue;
+            }
+            for (u32 i = 0; i < thread_count; i++) {
+                if (rewind_parked[i] &&
+                    region_holds(region, live_threads[i]->GetUserStackTop().GetValue())) {
+                    rewind_parked[i] = false;
+                    rewinds_cancelled++;
+                    changed = true;
+                }
+            }
+        }
+    }
     std::vector<u64> sleeping_stack_tops;
     // Diagnostic only - which specific wait each excluded thread is parked in. A high count
     // by itself isn't necessarily a problem (e.g. an idle worker pool sitting in ConditionVar
@@ -747,10 +795,16 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     std::array<u32, 7> wait_reason_counts{};
     for (u32 i = 0; i < thread_count; i++) {
         auto* thread = live_threads[i];
-        if (IsParkedInKernel(*thread) && !move_wait[i]) {
+        if (IsParkedInKernel(*thread) && !move_wait[i] && !rewind_parked[i]) {
             sleeping_stack_tops.push_back(thread->GetUserStackTop().GetValue());
             wait_reason_counts[static_cast<size_t>(thread->GetWaitReasonForDebugging())]++;
         }
+    }
+    if (rewinds_cancelled > 0) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: {} thread(s) asleep in their saved wait left as they are: "
+                 "their stack shares a region with a thread left asleep",
+                 rewinds_cancelled);
     }
     LOG_INFO(Core,
               "SaveState::Restore: {} thread(s) asleep at restore time - None excluded, "
@@ -934,19 +988,14 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     for (size_t i = 0; i < live_threads.size(); i++) {
         if (IsParkedInKernel(*live_threads[i])) {
             // A sleeping thread keeps its live registers and stack, except one asleep in the same
-            // kernel call as at the save that is either a thread the guest destroyed and created
-            // again since (same instruction, same lock and condition variable) or one moved back to
-            // its saved condition variable (move_wait). It gets its saved registers: when it wakes,
+            // kernel call as at the save (same instruction, same lock and condition variable; see
+            // rewind_parked) or one moved back to its saved condition variable (move_wait). It
+            // gets its saved registers, and its saved stack is written above: when it wakes,
             // the kernel finishes that call and resumes it from them, so it carries on in the saved
             // world, on its saved stack, instead of in the later one - where a recreated worker of
             // Super Mario 3D World had already finished the job the restored main thread handed it
             // again, and went back to sleep without doing it (the game then waited forever).
-            const auto& live = live_threads[i]->GetContext();
-            const auto& saved = thread_contexts[i];
-            const bool recreated = live_threads[i]->GetThreadId() != saved_threads[i].id;
-            const bool same_wait =
-                live.pc == saved.pc && live.r[0] == saved.r[0] && live.r[1] == saved.r[1];
-            if (!(recreated && same_wait) && !move_wait[i]) {
+            if (!rewind_parked[i] && !move_wait[i]) {
                 continue;
             }
             rewound_parked++;
