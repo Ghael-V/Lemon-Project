@@ -352,7 +352,7 @@ IR::Program TranslateProgram(ObjectPool<IR::Inst>& inst_pool, ObjectPool<IR::Blo
 
     CollectInterpolationInfo(env, program);
     AddNVNStorageBuffers(program);
-    AddGeometryScratchBuffer(program, normalized_host_info);
+    AddGeometryScratchBuffer(program, host_info);
     return program;
 }
 
