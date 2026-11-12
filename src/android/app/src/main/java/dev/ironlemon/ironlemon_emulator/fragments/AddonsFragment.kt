@@ -5,37 +5,41 @@ package dev.ironlemon.ironlemon_emulator.fragments
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.findNavController
 import androidx.navigation.fragment.navArgs
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.transition.MaterialSharedAxis
-import kotlinx.coroutines.launch
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.adapters.AddonAdapter
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentAddonsBinding
 import dev.ironlemon.ironlemon_emulator.model.AddonViewModel
-import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
+import dev.ironlemon.ironlemon_emulator.model.Patch
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonActionCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonCardGrid
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonIconButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSwitch
 import dev.ironlemon.ironlemon_emulator.utils.AddonUtil
 import dev.ironlemon.ironlemon_emulator.utils.FileUtil.copyFilesTo
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
 import dev.ironlemon.ironlemon_emulator.utils.collect
 import java.io.File
 
-class AddonsFragment : Fragment() {
-    private var _binding: FragmentAddonsBinding? = null
-    private val binding get() = _binding!!
-
-    private val homeViewModel: HomeViewModel by activityViewModels()
+class AddonsFragment : IronLemonComposeFragment() {
     private val addonViewModel: AddonViewModel by activityViewModels()
 
     private val args by navArgs<AddonsFragmentArgs>()
@@ -43,39 +47,61 @@ class AddonsFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         addonViewModel.onOpenAddons(args.game)
-        enterTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
-        returnTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
-        reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentAddonsBinding.inflate(inflater)
-        return binding.root
+    @Composable
+    override fun Content() {
+        val addons by addonViewModel.addonList.collectAsState()
+        IronLemonPage(
+            title = stringResource(R.string.addons_game, args.game.title),
+            onBack = ::goBack
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                IronLemonCardGrid(bottom = 112.dp) {
+                    items(addons) { addon -> AddonCard(addon) }
+                }
+                IronLemonButton(
+                    text = stringResource(R.string.install),
+                    iconRes = R.drawable.ic_add,
+                    primary = true,
+                    height = 56.dp,
+                    onClick = {
+                        ContentTypeSelectionDialogFragment().show(
+                            parentFragmentManager,
+                            ContentTypeSelectionDialogFragment.TAG
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp)
+                )
+            }
+        }
+    }
+
+    /** An add-on: tap or switch to enable it (saved when the screen closes), or delete it. */
+    @Composable
+    private fun AddonCard(addon: Patch) {
+        var enabled by remember(addon) { mutableStateOf(addon.enabled) }
+        val toggle = {
+            enabled = !enabled
+            addon.enabled = enabled
+        }
+        IronLemonActionCard(
+            title = addon.name,
+            description = addon.version,
+            selected = enabled,
+            onClick = toggle
+        ) {
+            IronLemonSwitch(checked = enabled)
+            IronLemonIconButton(
+                iconRes = R.drawable.ic_delete,
+                description = stringResource(R.string.delete),
+                onClick = { addonViewModel.setAddonToDelete(addon) }
+            )
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        homeViewModel.setNavigationVisibility(visible = false, animated = false)
-        homeViewModel.setStatusBarShadeVisibility(false)
-
-        binding.toolbarAddons.setNavigationOnClickListener {
-            binding.root.findNavController().popBackStack()
-        }
-
-        binding.toolbarAddons.title = getString(R.string.addons_game, args.game.title)
-
-        binding.listAddons.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = AddonAdapter(addonViewModel)
-        }
-
-        addonViewModel.addonList.collect(viewLifecycleOwner) {
-            (binding.listAddons.adapter as AddonAdapter).submitList(it)
-        }
         addonViewModel.showModInstallPicker.collect(
             viewLifecycleOwner,
             resetState = { addonViewModel.showModInstallPicker(false) }
@@ -111,14 +137,6 @@ class AddonsFragment : Fragment() {
             }
         }
 
-        binding.buttonInstall.setOnClickListener {
-            ContentTypeSelectionDialogFragment().show(
-                parentFragmentManager,
-                ContentTypeSelectionDialogFragment.TAG
-            )
-        }
-
-        setInsets()
     }
 
     override fun onResume() {
@@ -174,32 +192,5 @@ class AddonsFragment : Fragment() {
             } else {
                 errorMessage.show(parentFragmentManager, MessageDialogFragment.TAG)
             }
-        }
-
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { _: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            binding.toolbarAddons.updateMargins(left = leftInsets, right = rightInsets)
-            binding.listAddons.updateMargins(left = leftInsets, right = rightInsets)
-            binding.listAddons.updatePadding(
-                bottom = barInsets.bottom +
-                    resources.getDimensionPixelSize(R.dimen.spacing_bottom_list_fab)
-            )
-
-            val fabSpacing = resources.getDimensionPixelSize(R.dimen.spacing_fab)
-            binding.buttonInstall.updateMargins(
-                left = leftInsets + fabSpacing,
-                right = rightInsets + fabSpacing,
-                bottom = barInsets.bottom + fabSpacing
-            )
-
-            windowInsets
         }
 }

@@ -723,7 +723,7 @@ private fun SettingRow(
 
 
 @Composable
-private fun IronLemonSwitch(checked: Boolean) {
+fun IronLemonSwitch(checked: Boolean) {
     val thumb by animateDpAsState(
         targetValue = if (checked) 24.dp else 4.dp,
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
