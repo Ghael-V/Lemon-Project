@@ -1,51 +1,82 @@
 // SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
-import android.content.DialogInterface
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
-import android.text.InputType
-import android.util.TypedValue
-import android.view.Gravity
-import android.widget.CompoundButton
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import android.widget.Toast
-import com.google.android.material.button.MaterialButton
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.os.BundleCompat
-import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.materialswitch.MaterialSwitch
-import dev.ironlemon.ironlemon_emulator.NativeLibrary
-import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.model.Game
-import dev.ironlemon.ironlemon_emulator.utils.CheatDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.ironlemon.ironlemon_emulator.NativeLibrary
+import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.model.Game
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSwitchRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
+import dev.ironlemon.ironlemon_emulator.utils.CheatDatabase
 
 /**
- * Lemon's cheat manager: the Atmosphere cheats of a game for the build it has installed, each
- * switched on or off, and new ones pasted, imported from a file or downloaded (see CheatDatabase).
- * Opened from the game's page before it runs, or from the in-game menu, where a change takes effect
- * at once.
+ * The cheat manager: the Atmosphère cheats of the game's build, one switch each, grouped by the mod
+ * folder they are in. Cheats can be pasted or imported from a file, or downloaded from
+ * switch-cheats-db; a folder can be deleted with its cheats. While the game runs, every change is
+ * loaded into it at once.
  */
-class CheatsDialogFragment : DialogFragment() {
-    private lateinit var game: Game
-    private var buildId = ""
+class CheatsDialogFragment : IronLemonComposeDialogFragment() {
+    override val widthFraction = 0.84f
+    override val heightFraction = 0.88f
 
-    private lateinit var status: TextView
-    private lateinit var list: LinearLayout
-    private var addInput: EditText? = null
+    private lateinit var game: Game
+
+    private sealed interface Page {
+        data object List : Page
+        data object Add : Page
+        data object ConfirmDownload : Page
+        data class ConfirmDeleteFolder(val folder: String) : Page
+    }
+
+    private var page by mutableStateOf<Page>(Page.List)
+    private var buildId by mutableStateOf("")
+    private var status by mutableStateOf<String?>(null)
+    private var rows by mutableStateOf<List<CheatRow>?>(null)
+    private var downloading by mutableStateOf(false)
+    private var addText by mutableStateOf("")
 
     private val importFile =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -54,45 +85,204 @@ class CheatsDialogFragment : DialogFragment() {
             }
         }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         game = BundleCompat.getParcelable(requireArguments(), ARG_GAME, Game::class.java)!!
-        val context = requireContext()
-        val padding = dp(20)
-
-        status = TextView(context).apply {
-            setText(R.string.cheats_reading)
-            setPadding(0, 0, 0, dp(8))
-        }
-        list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, dp(8), padding, 0)
-            addView(status)
-            addView(list)
-        }
-
-        val dialog = MaterialAlertDialogBuilder(context)
-            .setTitle(getString(R.string.cheats_title, game.title))
-            .setView(ScrollView(context).apply { addView(content) })
-            .setPositiveButton(R.string.close, null)
-            .setNeutralButton(R.string.cheats_add, null)
-            .setNegativeButton(R.string.cheats_download, null)
-            .create()
-        dialog.setOnShowListener {
-            // Adding opens a second dialog; this one stays open to show the result.
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).apply {
-                // The build ID may already be known (instantly while the game runs): only adding
-                // without one is not possible.
-                isEnabled = buildId.isNotEmpty()
-                setOnClickListener { showAddDialog() }
-            }
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).apply {
-                isEnabled = buildId.isNotEmpty()
-                setOnClickListener { confirmDownload() }
-            }
-        }
+        status = getString(R.string.cheats_reading)
         loadBuildId()
-        return dialog
+    }
+
+    @Composable
+    override fun DialogContent() {
+        val shape = RoundedCornerShape(28.dp)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .background(IronLemonColors.Background)
+                .border(1.dp, IronLemonColors.gradient(0.5f), shape)
+                .padding(28.dp)
+        ) {
+            when (val current = page) {
+                Page.List -> ListPage()
+                Page.Add -> AddPage()
+                Page.ConfirmDownload -> ConfirmPage(
+                    title = stringResource(R.string.cheats_download),
+                    message = stringResource(R.string.cheats_download_description, buildId),
+                    confirm = stringResource(R.string.cheats_download_confirm)
+                ) {
+                    page = Page.List
+                    downloadCheats()
+                }
+
+                is Page.ConfirmDeleteFolder -> ConfirmPage(
+                    title = stringResource(R.string.cheats_delete_folder),
+                    message = stringResource(R.string.cheats_delete_folder_confirm, current.folder),
+                    confirm = stringResource(R.string.cheats_delete_folder)
+                ) {
+                    page = Page.List
+                    deleteFolder(current.folder)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun androidx.compose.foundation.layout.ColumnScope.ListPage() {
+        BasicText(stringResource(R.string.cheats_title, game.title), style = IronLemonType.Heading)
+        status?.let {
+            Spacer(Modifier.height(6.dp))
+            BasicText(it, style = IronLemonType.Body)
+        }
+        Spacer(Modifier.height(16.dp))
+        val list = rows
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (list != null && list.isEmpty()) {
+                item { IronLemonDialogText(stringResource(R.string.cheats_empty, buildId)) }
+            }
+            val groups = list.orEmpty().groupBy { it.folder }
+            groups.forEach { (folder, cheats) ->
+                item(key = "folder:$folder") { FolderHeader(folder) }
+                items(cheats, key = { "${it.folder}/${it.name}" }) { row -> CheatSwitch(row) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        val ready = buildId.isNotEmpty()
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IronLemonButton(
+                text = stringResource(R.string.cheats_download),
+                iconRes = R.drawable.ic_download,
+                height = 48.dp,
+                onClick = { if (ready && !downloading) page = Page.ConfirmDownload }
+            )
+            IronLemonButton(
+                text = stringResource(R.string.cheats_add),
+                iconRes = R.drawable.ic_add,
+                height = 48.dp,
+                onClick = { if (ready) page = Page.Add }
+            )
+            Spacer(Modifier.weight(1f))
+            IronLemonButton(
+                text = stringResource(R.string.close),
+                primary = true,
+                height = 48.dp,
+                onClick = ::dismiss
+            )
+        }
+    }
+
+    /** The folder's name and, for a mod folder, a button that deletes it with its cheats. */
+    @Composable
+    private fun FolderHeader(folder: String) {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BasicText(
+                folder.ifEmpty { stringResource(R.string.cheats_loose_files) },
+                style = IronLemonType.Label,
+                modifier = Modifier.weight(1f)
+            )
+            if (folder.isNotEmpty()) {
+                IronLemonButton(
+                    text = stringResource(R.string.cheats_delete_folder),
+                    iconRes = R.drawable.ic_delete,
+                    height = 40.dp,
+                    onClick = { page = Page.ConfirmDeleteFolder(folder) }
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun CheatSwitch(row: CheatRow) {
+        val label = if (row.master) stringResource(R.string.cheats_master, row.name) else row.name
+        // The master code runs whenever its cheats do, and loose cheat_*.txt files have no place to
+        // keep a switch.
+        val switchable = !row.master && row.folder.isNotEmpty()
+        IronLemonSwitchRow(label, row.enabled) { checked ->
+            if (switchable) {
+                setEnabled(row, checked)
+            }
+        }
+    }
+
+    @Composable
+    private fun androidx.compose.foundation.layout.ColumnScope.AddPage() {
+        BasicText(stringResource(R.string.cheats_add), style = IronLemonType.Heading)
+        Spacer(Modifier.height(8.dp))
+        BasicText(stringResource(R.string.cheats_add_description, buildId), style = IronLemonType.Body)
+        Spacer(Modifier.height(12.dp))
+        val shape = RoundedCornerShape(16.dp)
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(shape)
+                .background(IronLemonColors.Surface)
+                .border(1.dp, IronLemonColors.Outline, shape)
+                .padding(16.dp)
+        ) {
+            if (addText.isEmpty()) {
+                BasicText(stringResource(R.string.cheats_paste_hint), style = IronLemonType.Body)
+            }
+            BasicTextField(
+                value = addText,
+                onValueChange = { addText = it },
+                textStyle = IronLemonType.Body.copy(
+                    color = IronLemonColors.Text,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                ),
+                cursorBrush = SolidColor(IronLemonColors.Lemon),
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IronLemonButton(
+                text = stringResource(R.string.cheats_import_file),
+                iconRes = R.drawable.ic_import,
+                height = 48.dp,
+                onClick = {
+                    importFile.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+                }
+            )
+            Spacer(Modifier.weight(1f))
+            IronLemonButton(
+                text = stringResource(android.R.string.cancel),
+                height = 48.dp,
+                onClick = {
+                    addText = ""
+                    page = Page.List
+                }
+            )
+            IronLemonButton(
+                text = stringResource(R.string.cheats_add_confirm),
+                primary = true,
+                height = 48.dp,
+                onClick = { addCheats(addText) }
+            )
+        }
+    }
+
+    @Composable
+    private fun ConfirmPage(title: String, message: String, confirm: String, onConfirm: () -> Unit) {
+        BasicText(title, style = IronLemonType.Heading)
+        Spacer(Modifier.height(12.dp))
+        Column(Modifier.heightIn(max = 520.dp)) { IronLemonDialogText(message) }
+        Spacer(Modifier.height(24.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+            IronLemonButton(
+                text = stringResource(android.R.string.cancel),
+                height = 48.dp,
+                onClick = { page = Page.List }
+            )
+            IronLemonButton(text = confirm, primary = true, height = 48.dp, onClick = onConfirm)
+        }
     }
 
     private fun loadBuildId() {
@@ -102,171 +292,55 @@ class CheatsDialogFragment : DialogFragment() {
                 NativeLibrary.getCheatBuildId(game.path, game.programId)
             }
             if (buildId.isEmpty()) {
-                status.setText(R.string.cheats_no_build_id)
+                status = getString(R.string.cheats_no_build_id)
                 return@launch
             }
-            status.text = getString(R.string.cheats_build_id, buildId)
-            (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEUTRAL)?.isEnabled = true
-            (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEGATIVE)?.isEnabled = true
+            status = getString(R.string.cheats_build_id, buildId)
             refreshList()
         }
     }
 
     private fun refreshList() {
         lifecycleScope.launch {
-            val rows = withContext(Dispatchers.IO) {
+            rows = withContext(Dispatchers.IO) {
                 NativeLibrary.getCheats(game.programId, buildId)
             }.map { CheatRow.parse(it) }
-            list.removeAllViews()
-            if (rows.isEmpty()) {
-                list.addView(TextView(requireContext()).apply {
-                    text = getString(R.string.cheats_empty, buildId)
-                    setPadding(0, dp(8), 0, dp(8))
-                })
-                return@launch
+        }
+    }
+
+    private fun setEnabled(row: CheatRow, checked: Boolean) {
+        // Shown at once; put back if it can't be saved.
+        rows = rows?.map { if (it == row) it.copy(enabled = checked) else it }
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                NativeLibrary.setCheatEnabled(game.programId, buildId, row.folder, row.name, checked)
             }
-            var lastFolder: String? = null
-            for (row in rows) {
-                if (row.folder != lastFolder) {
-                    list.addView(folderHeader(row.folder))
-                    lastFolder = row.folder
+            if (result != 0) {
+                rows = rows?.map {
+                    if (it.folder == row.folder && it.name == row.name) it.copy(enabled = !checked) else it
                 }
-                list.addView(cheatSwitch(row))
+                toast(if (result == 2) R.string.cheats_too_many else R.string.cheats_toggle_failed, true)
             }
         }
     }
 
-    /** The folder's name and, for a mod folder, a button that deletes it with its cheats. */
-    private fun folderHeader(folder: String) = LinearLayout(requireContext()).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, dp(12), 0, dp(2))
-        addView(
-            TextView(context).apply {
-                text = folder.ifEmpty { getString(R.string.cheats_loose_files) }
-                setTypeface(typeface, Typeface.BOLD)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        )
-        if (folder.isNotEmpty()) {
-            addView(
-                MaterialButton(
-                    context,
-                    null,
-                    com.google.android.material.R.attr.borderlessButtonStyle
-                ).apply {
-                    setText(R.string.cheats_delete_folder)
-                    setOnClickListener { confirmDeleteFolder(folder) }
-                }
-            )
+    private fun deleteFolder(folder: String) {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                NativeLibrary.removeMod(game.programId, folder)
+                NativeLibrary.reloadCheats(game.programId)
+            }
+            refreshList()
         }
     }
 
-    private fun confirmDeleteFolder(folder: String) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.cheats_delete_folder)
-            .setMessage(getString(R.string.cheats_delete_folder_confirm, folder))
-            .setPositiveButton(R.string.cheats_delete_folder) { _, _ ->
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        NativeLibrary.removeMod(game.programId, folder)
-                        NativeLibrary.reloadCheats(game.programId)
-                    }
-                    refreshList()
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun cheatSwitch(row: CheatRow) = MaterialSwitch(requireContext()).apply {
-        text = if (row.master) getString(R.string.cheats_master, row.name) else row.name
-        isChecked = row.enabled
-        // The master code runs whenever its cheats do, and loose cheat_*.txt files have no place to
-        // keep a switch.
-        isEnabled = !row.master && row.folder.isNotEmpty()
-        minHeight = dp(48)
-        setOnCheckedChangeListener(listener(row))
-    }
-
-    private fun listener(row: CheatRow): CompoundButton.OnCheckedChangeListener =
-        CompoundButton.OnCheckedChangeListener { view, checked ->
-            lifecycleScope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    NativeLibrary.setCheatEnabled(
-                        game.programId,
-                        buildId,
-                        row.folder,
-                        row.name,
-                        checked
-                    )
-                }
-                if (result != 0) {
-                    // Put the switch back without saving that again.
-                    view.setOnCheckedChangeListener(null)
-                    view.isChecked = !checked
-                    view.setOnCheckedChangeListener(listener(row))
-                    Toast.makeText(
-                        view.context,
-                        if (result == 2) R.string.cheats_too_many else R.string.cheats_toggle_failed,
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-
-    private fun showAddDialog() {
-        val context = requireContext()
-        val input = EditText(context).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-            typeface = Typeface.MONOSPACE
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            minLines = 6
-            gravity = Gravity.TOP or Gravity.START
-            setHint(R.string.cheats_paste_hint)
-        }
-        addInput = input
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), 0)
-            addView(TextView(context).apply {
-                text = getString(R.string.cheats_add_description, buildId)
-                setPadding(0, 0, 0, dp(8))
-            })
-            addView(input)
-        }
-        val addDialog = MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.cheats_add)
-            .setView(ScrollView(context).apply { addView(content) })
-            .setPositiveButton(R.string.cheats_add_confirm, null)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.cheats_import_file, null)
-            .create()
-        addDialog.setOnShowListener {
-            addDialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener {
-                importFile.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
-            }
-            addDialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener {
-                addCheats(input.text.toString(), addDialog)
-            }
-        }
-        addDialog.setOnDismissListener { addInput = null }
-        addDialog.show()
-    }
-
-    private fun addCheats(text: String, addDialog: AlertDialog) {
+    private fun addCheats(text: String) {
         lifecycleScope.launch {
             val count = withContext(Dispatchers.IO) {
                 NativeLibrary.addCheats(game.programId, buildId, text, "")
             }
             if (count <= 0) {
-                Toast.makeText(
-                    requireContext(),
-                    if (count < 0) R.string.cheats_save_failed else R.string.cheats_none_found,
-                    Toast.LENGTH_LONG
-                ).show()
+                toast(if (count < 0) R.string.cheats_save_failed else R.string.cheats_none_found, true)
                 return@launch
             }
             Toast.makeText(
@@ -274,25 +348,15 @@ class CheatsDialogFragment : DialogFragment() {
                 resources.getQuantityString(R.plurals.cheats_added, count, count),
                 Toast.LENGTH_SHORT
             ).show()
-            addDialog.dismiss()
+            addText = ""
+            page = Page.List
             refreshList()
         }
     }
 
-    /** Says where the cheats come from and what is sent before anything is downloaded. */
-    private fun confirmDownload() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.cheats_download)
-            .setMessage(getString(R.string.cheats_download_description, buildId))
-            .setPositiveButton(R.string.cheats_download_confirm) { _, _ -> downloadCheats() }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
     private fun downloadCheats() {
-        val downloadButton = (dialog as? AlertDialog)?.getButton(AlertDialog.BUTTON_NEGATIVE)
-        downloadButton?.isEnabled = false
-        status.setText(R.string.cheats_downloading)
+        downloading = true
+        status = getString(R.string.cheats_downloading)
         val titleId = "%016X".format(game.programId.toLongOrNull() ?: 0L)
         lifecycleScope.launch {
             val results = CheatDatabase.Kind.entries.map { kind ->
@@ -313,11 +377,11 @@ class CheatsDialogFragment : DialogFragment() {
                     added += count
                 }
             }
+            downloading = false
             if (!isAdded) {
                 return@launch
             }
-            status.text = getString(R.string.cheats_build_id, buildId)
-            downloadButton?.isEnabled = true
+            status = getString(R.string.cheats_build_id, buildId)
             val outcomes = results.map { it.second }
             val message = when {
                 added > 0 -> resources.getQuantityString(R.plurals.cheats_downloaded, added, added)
@@ -335,7 +399,10 @@ class CheatsDialogFragment : DialogFragment() {
         }
     }
 
-    /** Each kind of downloaded cheats has its own folder, replaced by the next download. */
+    /**
+     * Each kind of downloaded cheats has its own folder, replaced by the next download. These are
+     * folder names on disk (the same in every language), not text of the app.
+     */
     private fun folderFor(kind: CheatDatabase.Kind) = when (kind) {
         CheatDatabase.Kind.GAMEPLAY -> "Downloaded cheats"
         CheatDatabase.Kind.GRAPHICS -> "Downloaded cheats (60 FPS, graphics)"
@@ -359,15 +426,18 @@ class CheatsDialogFragment : DialogFragment() {
                 }.getOrNull()
             }
             if (text.isNullOrBlank()) {
-                Toast.makeText(requireContext(), R.string.cheats_none_found, Toast.LENGTH_LONG)
-                    .show()
+                toast(R.string.cheats_none_found, true)
                 return@launch
             }
-            addInput?.setText(text)
+            addText = text
         }
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun toast(message: Int, long: Boolean = false) = Toast.makeText(
+        requireContext(),
+        message,
+        if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+    ).show()
 
     private data class CheatRow(
         val folder: String,
