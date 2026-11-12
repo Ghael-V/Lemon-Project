@@ -198,8 +198,41 @@ NvResult nvhost_as_gpu::AllocateSpace(IoctlAllocSpace& params) {
         .big_pages = params.page_size != VM::YUZU_PAGESIZE,
     };
 
-    Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
+    // A Quick Load gives the space back (see Core::SaveState::UndoJournal). A game reserved space
+    // as it played, even within one room, which made every load refuse. The save cannot refer to
+    // space reserved after it, and buffers mapped into it since are unmapped by newer steps first,
+    // so the reservation must be empty by the time this is undone. Like the undo of a buffer
+    // mapping, this frees the space in the allocator but leaves its linear allocation cursor where
+    // it is: later reservations land elsewhere, which nothing depends on.
+    Core::SaveState::UndoJournal::Gpu().Record(
+        "gpu allocate space", [this, offset = params.offset, size, page_size = params.page_size] {
+            std::scoped_lock undo_lock(mutex);
+            const auto it = allocation_map.find(offset);
+            if (it == allocation_map.end() || it->second.size != size ||
+                it->second.page_size != page_size || HasLiveMappingsLocked(it->second)) {
+                return false;
+            }
+            if (it->second.sparse) {
+                gmmu->Unmap(offset, size);
+            }
+            auto& space_allocator{page_size == VM::YUZU_PAGESIZE ? *vm.small_page_allocator
+                                                                 : *vm.big_page_allocator};
+            const u32 bits{page_size == VM::YUZU_PAGESIZE ? VM::PAGE_SIZE_BITS
+                                                          : vm.big_page_size_bits};
+            space_allocator.Free(static_cast<u32>(offset >> bits), static_cast<u32>(size >> bits));
+            allocation_map.erase(it);
+            return true;
+        });
     return NvResult::Success;
+}
+
+bool nvhost_as_gpu::HasLiveMappingsLocked(const Allocation& allocation) const {
+    // UnmapBuffer leaves a fixed mapping listed in its allocation: only those still in
+    // mapping_map are live.
+    return std::ranges::any_of(allocation.mappings, [this](const auto& mapping) {
+        const auto it = mapping_map.find(mapping->offset);
+        return it != mapping_map.end() && it->second == mapping;
+    });
 }
 
 void nvhost_as_gpu::FreeMappingLocked(u64 offset) {
@@ -246,6 +279,10 @@ NvResult nvhost_as_gpu::FreeSpace(IoctlFreeSpace& params) {
             return NvResult::BadValue;
         }
 
+        // A Quick Load reserves the space again (see AllocateSpace), when nothing was mapped in it:
+        // the buffers freed with it here are not recorded, so such a free stays not undoable.
+        const bool undoable = !HasLiveMappingsLocked(allocation);
+
         for (const auto& mapping : allocation.mappings) {
             FreeMappingLocked(mapping->offset);
         }
@@ -263,7 +300,42 @@ NvResult nvhost_as_gpu::FreeSpace(IoctlFreeSpace& params) {
         allocator.Free(static_cast<u32>(params.offset >> page_size_bits),
                        static_cast<u32>(allocation.size >> page_size_bits));
         allocation_map.erase(params.offset);
-        Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
+        if (!undoable) {
+            Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
+            return NvResult::Success;
+        }
+        allocation.mappings.clear(); // only stale entries of buffers already unmapped
+        Core::SaveState::UndoJournal::Gpu().Record(
+            "gpu free space", [this, offset = params.offset, allocation] {
+                std::scoped_lock undo_lock(mutex);
+                const u64 end = offset + allocation.size;
+                // Whatever was placed in the range after the free has been undone already (newer
+                // steps run first); refuse if anything is still there.
+                if (const auto next = allocation_map.lower_bound(offset);
+                    (next != allocation_map.end() && next->first < end) ||
+                    (next != allocation_map.begin() &&
+                     std::prev(next)->first + std::prev(next)->second.size > offset)) {
+                    return false;
+                }
+                if (const auto next = mapping_map.lower_bound(offset);
+                    (next != mapping_map.end() && next->first < end) ||
+                    (next != mapping_map.begin() &&
+                     std::prev(next)->first + std::prev(next)->second->size > offset)) {
+                    return false;
+                }
+                auto& space_allocator{allocation.page_size == VM::YUZU_PAGESIZE
+                                          ? *vm.small_page_allocator
+                                          : *vm.big_page_allocator};
+                const u32 bits{allocation.page_size == VM::YUZU_PAGESIZE ? VM::PAGE_SIZE_BITS
+                                                                         : vm.big_page_size_bits};
+                space_allocator.AllocateFixed(static_cast<u32>(offset >> bits),
+                                              static_cast<u32>(allocation.size >> bits));
+                if (allocation.sparse) {
+                    gmmu->MapSparse(offset, allocation.size);
+                }
+                allocation_map[offset] = allocation;
+                return true;
+            });
     } catch (const std::out_of_range&) {
         return NvResult::BadValue;
     }

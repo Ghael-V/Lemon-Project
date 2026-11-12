@@ -154,6 +154,9 @@ private:
     void FreeMappingLocked(u64 offset);
 
     struct Mapping;
+    struct Allocation;
+    // Whether a buffer is still mapped in `allocation`. `mutex` must be held.
+    bool HasLiveMappingsLocked(const Allocation& allocation) const;
     // Unmaps the buffer mapped at `offset` (which must exist). `mutex` must be held.
     void UnmapLocked(u64 offset);
     // Quick Load support (see Core::SaveState::UndoJournal): maps a buffer again exactly where it
