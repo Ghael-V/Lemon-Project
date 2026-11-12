@@ -1,21 +1,36 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
-import android.app.Dialog
-import android.content.DialogInterface
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.DialogFragment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.activityViewModels
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.slider.Slider
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.DialogEditTextBinding
-import dev.ironlemon.ironlemon_emulator.databinding.DialogSliderBinding
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.input.model.AnalogDirection
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.AnalogInputSetting
@@ -26,20 +41,25 @@ import dev.ironlemon.ironlemon_emulator.features.settings.model.view.SingleChoic
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.SliderSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.StringInputSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.StringSingleChoiceSetting
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonChoiceList
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSlider
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 import dev.ironlemon.ironlemon_emulator.utils.ParamPackage
-import dev.ironlemon.ironlemon_emulator.utils.collect
 
-class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener {
+/**
+ * Changes one setting: pick one of its choices, move its slider, type its text, or confirm putting
+ * it back to its default ([TYPE_RESET_SETTING]).
+ */
+class SettingsDialogFragment : IronLemonComposeDialogFragment() {
     private var type = 0
     private var position = 0
 
-    private var defaultCancelListener =
-        DialogInterface.OnClickListener { _: DialogInterface?, _: Int -> closeDialog() }
-
     private val settingsViewModel: SettingsViewModel by activityViewModels()
-
-    private lateinit var sliderBinding: DialogSliderBinding
-    private lateinit var stringInputBinding: DialogEditTextBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,182 +69,178 @@ class SettingsDialogFragment : DialogFragment(), DialogInterface.OnClickListener
         if (settingsViewModel.clickedItem == null) dismiss()
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        return when (type) {
-            TYPE_RESET_SETTING -> {
-                MaterialAlertDialogBuilder(requireContext())
-                    .setMessage(R.string.reset_setting_confirmation)
-                    .setPositiveButton(android.R.string.ok) { _: DialogInterface, _: Int ->
-                        when (val item = settingsViewModel.clickedItem) {
-                            is AnalogInputSetting -> {
-                                val stickParam = NativeInput.getStickParam(
-                                    item.playerIndex,
-                                    item.nativeAnalog
-                                )
-                                if (stickParam.get("engine", "") == "analog_from_button") {
-                                    when (item.analogDirection) {
-                                        AnalogDirection.Up -> stickParam.erase("up")
-                                        AnalogDirection.Down -> stickParam.erase("down")
-                                        AnalogDirection.Left -> stickParam.erase("left")
-                                        AnalogDirection.Right -> stickParam.erase("right")
-                                    }
-                                    NativeInput.setStickParam(
-                                        item.playerIndex,
-                                        item.nativeAnalog,
-                                        stickParam
-                                    )
-                                    settingsViewModel.setAdapterItemChanged(position)
-                                } else {
-                                    NativeInput.setStickParam(
-                                        item.playerIndex,
-                                        item.nativeAnalog,
-                                        ParamPackage()
-                                    )
-                                    settingsViewModel.setDatasetChanged(true)
-                                }
-                            }
-
-                            is ButtonInputSetting -> {
-                                NativeInput.setButtonParam(
-                                    item.playerIndex,
-                                    item.nativeButton,
-                                    ParamPackage()
-                                )
-                                settingsViewModel.setAdapterItemChanged(position)
-                            }
-
-                            else -> {
-                                settingsViewModel.clickedItem!!.setting.reset()
-                                settingsViewModel.setAdapterItemChanged(position)
-                            }
-                        }
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .create()
-            }
-
+    @Composable
+    override fun DialogContent() {
+        val item = settingsViewModel.clickedItem ?: return
+        when (type) {
+            TYPE_RESET_SETTING -> ResetContent()
             SettingsItem.TYPE_SINGLE_CHOICE -> {
-                val item = settingsViewModel.clickedItem as SingleChoiceSetting
-                val value = getSelectionForSingleChoiceValue(item)
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(item.title)
-                    .setSingleChoiceItems(item.choicesId, value, this)
-                    .create()
-            }
-
-            SettingsItem.TYPE_SLIDER -> {
-                sliderBinding = DialogSliderBinding.inflate(layoutInflater)
-                val item = settingsViewModel.clickedItem as SliderSetting
-
-                settingsViewModel.setSliderTextValue(item.getSelectedValue().toFloat(), item.units)
-                sliderBinding.slider.apply {
-                    valueFrom = item.min.toFloat()
-                    valueTo = item.max.toFloat()
-                    value = settingsViewModel.sliderProgress.value.toFloat()
-                    addOnChangeListener { _: Slider, value: Float, _: Boolean ->
-                        settingsViewModel.setSliderTextValue(value, item.units)
-                    }
-                }
-
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(item.title)
-                    .setView(sliderBinding.root)
-                    .setPositiveButton(android.R.string.ok, this)
-                    .setNegativeButton(android.R.string.cancel, defaultCancelListener)
-                    .create()
-            }
-
-            SettingsItem.TYPE_STRING_INPUT -> {
-                stringInputBinding = DialogEditTextBinding.inflate(layoutInflater)
-                val item = settingsViewModel.clickedItem as StringInputSetting
-                stringInputBinding.editText.setText(item.getSelectedValue())
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(item.title)
-                    .setView(stringInputBinding.root)
-                    .setPositiveButton(android.R.string.ok, this)
-                    .setNegativeButton(android.R.string.cancel, defaultCancelListener)
-                    .create()
+                val setting = item as SingleChoiceSetting
+                ChoiceContent(
+                    setting.title,
+                    stringArrayResource(setting.choicesId).toList(),
+                    getSelectionForSingleChoiceValue(setting)
+                ) { which -> setting.setSelectedValue(getValueForSingleChoiceSelection(setting, which)) }
             }
 
             SettingsItem.TYPE_STRING_SINGLE_CHOICE -> {
-                val item = settingsViewModel.clickedItem as StringSingleChoiceSetting
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(item.title)
-                    .setSingleChoiceItems(item.choices, item.selectedValueIndex, this)
-                    .create()
+                val setting = item as StringSingleChoiceSetting
+                ChoiceContent(setting.title, setting.choices.toList(), setting.selectedValueIndex) {
+                    setting.setSelectedValue(setting.getValueAt(it))
+                }
             }
 
             SettingsItem.TYPE_INT_SINGLE_CHOICE -> {
-                val item = settingsViewModel.clickedItem as IntSingleChoiceSetting
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(item.title)
-                    .setSingleChoiceItems(item.choices, item.selectedValueIndex, this)
-                    .create()
+                val setting = item as IntSingleChoiceSetting
+                ChoiceContent(setting.title, setting.choices.toList(), setting.selectedValueIndex) {
+                    setting.setSelectedValue(setting.getValueAt(it))
+                }
             }
 
-            else -> super.onCreateDialog(savedInstanceState)
+            SettingsItem.TYPE_SLIDER -> SliderContent(item as SliderSetting)
+            SettingsItem.TYPE_STRING_INPUT -> StringContent(item as StringInputSetting)
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return when (type) {
-            SettingsItem.TYPE_SLIDER -> sliderBinding.root
-            SettingsItem.TYPE_STRING_INPUT -> stringInputBinding.root
-            else -> super.onCreateView(inflater, container, savedInstanceState)
-        }
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        when (type) {
-            SettingsItem.TYPE_SLIDER -> {
-                settingsViewModel.sliderTextValue.collect(viewLifecycleOwner) {
-                    sliderBinding.textValue.text = it
-                }
-                settingsViewModel.sliderProgress.collect(viewLifecycleOwner) {
-                    sliderBinding.slider.value = it.toFloat()
+    /** A choice applies and closes at once, as the classic single-choice dialog did. */
+    @Composable
+    private fun ChoiceContent(
+        title: String,
+        choices: List<String>,
+        selected: Int,
+        apply: (Int) -> Unit
+    ) {
+        IronLemonDialogCard(title = title) {
+            androidx.compose.foundation.layout.Column(
+                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())
+            ) {
+                IronLemonChoiceList(choices, selected) {
+                    apply(it)
+                    closeDialog()
                 }
             }
         }
     }
 
-    override fun onClick(dialog: DialogInterface, which: Int) {
-        when (settingsViewModel.clickedItem) {
-            is SingleChoiceSetting -> {
-                val scSetting = settingsViewModel.clickedItem as SingleChoiceSetting
-                val value = getValueForSingleChoiceSelection(scSetting, which)
-                scSetting.setSelectedValue(value)
-            }
+    @Composable
+    private fun SliderContent(setting: SliderSetting) {
+        val progress by settingsViewModel.sliderProgress.collectAsState()
+        val text by settingsViewModel.sliderTextValue.collectAsState()
+        if (text.isEmpty()) {
+            settingsViewModel.setSliderTextValue(setting.getSelectedValue().toFloat(), setting.units)
+        }
+        IronLemonDialogCard(
+            title = setting.title,
+            buttons = { OkCancel { setting.setSelectedValue(settingsViewModel.sliderProgress.value) } }
+        ) {
+            BasicText(text, style = IronLemonType.Heading.copy(color = IronLemonColors.Lemon))
+            Spacer(Modifier.height(12.dp))
+            IronLemonSlider(
+                value = progress - setting.min,
+                steps = setting.max - setting.min,
+                onChange = {
+                    settingsViewModel.setSliderTextValue((it + setting.min).toFloat(), setting.units)
+                }
+            )
+        }
+    }
 
-            is StringSingleChoiceSetting -> {
-                val scSetting = settingsViewModel.clickedItem as StringSingleChoiceSetting
-                val value = scSetting.getValueAt(which)
-                scSetting.setSelectedValue(value)
-            }
+    @Composable
+    private fun StringContent(setting: StringInputSetting) {
+        var text by remember { mutableStateOf(setting.getSelectedValue()) }
+        val shape = RoundedCornerShape(16.dp)
+        IronLemonDialogCard(
+            title = setting.title,
+            buttons = { OkCancel { setting.setSelectedValue(text) } }
+        ) {
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                textStyle = IronLemonType.Button,
+                cursorBrush = SolidColor(IronLemonColors.Lemon),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(IronLemonColors.Surface)
+                    .border(1.dp, IronLemonColors.Outline, shape)
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            )
+        }
+    }
 
-            is IntSingleChoiceSetting -> {
-                val scSetting = settingsViewModel.clickedItem as IntSingleChoiceSetting
-                val value = scSetting.getValueAt(which)
-                scSetting.setSelectedValue(value)
-            }
+    @Composable
+    private fun ResetContent() {
+        IronLemonDialogCard(
+            title = null,
+            buttons = { OkCancel { resetSetting() } }
+        ) {
+            IronLemonDialogText(stringResource(R.string.reset_setting_confirmation))
+        }
+    }
 
-            is SliderSetting -> {
-                val sliderSetting = settingsViewModel.clickedItem as SliderSetting
-                sliderSetting.setSelectedValue(settingsViewModel.sliderProgress.value)
+    @Composable
+    private fun OkCancel(onOk: () -> Unit) {
+        IronLemonButton(
+            text = stringResource(android.R.string.cancel),
+            height = 44.dp,
+            onClick = ::closeDialog
+        )
+        IronLemonButton(
+            text = stringResource(android.R.string.ok),
+            primary = true,
+            height = 44.dp,
+            onClick = {
+                onOk()
+                closeDialog()
             }
+        )
+    }
 
-            is StringInputSetting -> {
-                val stringInputSetting = settingsViewModel.clickedItem as StringInputSetting
-                stringInputSetting.setSelectedValue(
-                    (stringInputBinding.editText.text ?: "").toString()
+    private fun resetSetting() {
+        when (val item = settingsViewModel.clickedItem) {
+            is AnalogInputSetting -> {
+                val stickParam = NativeInput.getStickParam(
+                    item.playerIndex,
+                    item.nativeAnalog
                 )
+                if (stickParam.get("engine", "") == "analog_from_button") {
+                    when (item.analogDirection) {
+                        AnalogDirection.Up -> stickParam.erase("up")
+                        AnalogDirection.Down -> stickParam.erase("down")
+                        AnalogDirection.Left -> stickParam.erase("left")
+                        AnalogDirection.Right -> stickParam.erase("right")
+                    }
+                    NativeInput.setStickParam(
+                        item.playerIndex,
+                        item.nativeAnalog,
+                        stickParam
+                    )
+                    settingsViewModel.setAdapterItemChanged(position)
+                } else {
+                    NativeInput.setStickParam(
+                        item.playerIndex,
+                        item.nativeAnalog,
+                        ParamPackage()
+                    )
+                    settingsViewModel.setDatasetChanged(true)
+                }
+            }
+
+            is ButtonInputSetting -> {
+                NativeInput.setButtonParam(
+                    item.playerIndex,
+                    item.nativeButton,
+                    ParamPackage()
+                )
+                settingsViewModel.setAdapterItemChanged(position)
+            }
+
+            else -> {
+                settingsViewModel.clickedItem!!.setting.reset()
+                settingsViewModel.setAdapterItemChanged(position)
             }
         }
-        closeDialog()
     }
 
     private fun closeDialog() {
