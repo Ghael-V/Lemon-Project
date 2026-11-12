@@ -28,6 +28,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -135,8 +143,98 @@ fun IronLemonDialogCard(
             Spacer(Modifier.height(24.dp))
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, androidx.compose.ui.Alignment.End)
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
             ) { buttons() }
         }
+    }
+}
+
+/** A dialog's message text, scrolling when long. */
+@Composable
+fun IronLemonDialogText(text: CharSequence) {
+    val annotated = text as? androidx.compose.ui.text.AnnotatedString
+        ?: androidx.compose.ui.text.AnnotatedString(text.toString())
+    BasicText(
+        annotated,
+        style = IronLemonType.Body.copy(color = IronLemonColors.Text),
+        modifier = Modifier
+            .heightIn(max = 420.dp)
+            .verticalScroll(rememberScrollState())
+    )
+}
+
+/** Options to pick one of, each a row with a selection ring, the picked one marked. */
+@Composable
+fun IronLemonChoiceList(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEachIndexed { index, option ->
+            val isSelected = index == selected
+            val shape = RoundedCornerShape(18.dp)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .lemonInteractive(
+                        shape = shape,
+                        cornerRadius = 18.dp,
+                        selected = isSelected,
+                        focusScale = 1.02f,
+                        onClick = { onSelect(index) }
+                    )
+                    .clip(shape)
+                    .background(IronLemonColors.Surface)
+                    .border(
+                        if (isSelected) 2.dp else 1.dp,
+                        if (isSelected) IronLemonColors.Gradient else SolidColor(IronLemonColors.Outline),
+                        shape
+                    )
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IronLemonRadio(isSelected)
+                Spacer(Modifier.width(16.dp))
+                BasicText(option, style = IronLemonType.Button)
+            }
+        }
+    }
+}
+
+/** The selection ring used by option lists and the driver list. */
+@Composable
+fun IronLemonRadio(selected: Boolean) {
+    Box(
+        Modifier
+            .size(22.dp)
+            .clip(CircleShape)
+            .border(2.dp, if (selected) IronLemonColors.Orange else IronLemonColors.TextMuted, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Box(Modifier.size(11.dp).clip(CircleShape).background(IronLemonColors.Gradient))
+        }
+    }
+}
+
+/** A setting that is on or off: its label and the switch, the whole row toggling it. */
+@Composable
+fun IronLemonSwitchRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = 18.dp,
+                focusScale = 1.02f,
+                onClick = { onToggle(!checked) }
+            )
+            .clip(shape)
+            .background(IronLemonColors.Surface)
+            .border(1.dp, IronLemonColors.Outline, shape)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BasicText(label, style = IronLemonType.Button, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(16.dp))
+        IronLemonSwitch(checked)
     }
 }

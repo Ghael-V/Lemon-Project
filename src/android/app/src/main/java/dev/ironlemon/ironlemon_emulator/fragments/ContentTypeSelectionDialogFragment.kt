@@ -1,57 +1,87 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
-import android.content.DialogInterface
 import android.os.Bundle
-import androidx.fragment.app.DialogFragment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.activityViewModels
 import androidx.preference.PreferenceManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.model.AddonViewModel
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonChoiceList
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
 
-class ContentTypeSelectionDialogFragment : DialogFragment() {
+/** Add-ons: install an update or DLC, or a mod or cheat folder. */
+class ContentTypeSelectionDialogFragment : IronLemonComposeDialogFragment() {
     private val addonViewModel: AddonViewModel by activityViewModels()
 
     private val preferences get() =
         PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext)
 
-    private var selectedItem = 0
+    private var selectedItem by mutableIntStateOf(0)
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val launchOptions =
-            arrayOf(getString(R.string.updates_and_dlc), getString(R.string.mods_and_cheats))
-
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         if (savedInstanceState != null) {
             selectedItem = savedInstanceState.getInt(SELECTED_ITEM)
         }
+    }
 
-        val mainActivity = requireActivity() as MainActivity
-        return MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.select_content_type)
-            .setPositiveButton(android.R.string.ok) { _: DialogInterface, _: Int ->
-                when (selectedItem) {
-                    0 -> mainActivity.installGameUpdate.launch(arrayOf("*/*"))
-                    else -> {
-                        if (!preferences.getBoolean(MOD_NOTICE_SEEN, false)) {
-                            preferences.edit().putBoolean(MOD_NOTICE_SEEN, true).apply()
-                            addonViewModel.showModNoticeDialog(true)
-                            return@setPositiveButton
-                        }
-                        addonViewModel.showModInstallPicker(true)
+    @Composable
+    override fun DialogContent() {
+        IronLemonDialogCard(
+            title = stringResource(R.string.select_content_type),
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(android.R.string.cancel),
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
+                IronLemonButton(
+                    text = stringResource(android.R.string.ok),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = {
+                        confirm()
+                        dismiss()
                     }
+                )
+            }
+        ) {
+            IronLemonChoiceList(
+                options = listOf(
+                    stringResource(R.string.updates_and_dlc),
+                    stringResource(R.string.mods_and_cheats)
+                ),
+                selected = selectedItem,
+                onSelect = { selectedItem = it }
+            )
+        }
+    }
+
+    private fun confirm() {
+        when (selectedItem) {
+            0 -> (requireActivity() as MainActivity).installGameUpdate.launch(arrayOf("*/*"))
+            else -> {
+                if (!preferences.getBoolean(MOD_NOTICE_SEEN, false)) {
+                    preferences.edit().putBoolean(MOD_NOTICE_SEEN, true).apply()
+                    addonViewModel.showModNoticeDialog(true)
+                    return
                 }
+                addonViewModel.showModInstallPicker(true)
             }
-            .setSingleChoiceItems(launchOptions, 0) { _: DialogInterface, i: Int ->
-                selectedItem = i
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

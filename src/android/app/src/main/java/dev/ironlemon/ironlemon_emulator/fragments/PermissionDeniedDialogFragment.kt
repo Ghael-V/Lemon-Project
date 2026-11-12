@@ -1,34 +1,51 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
-import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.provider.Settings
-import androidx.fragment.app.DialogFragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 
-class PermissionDeniedDialogFragment : DialogFragment() {
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        return MaterialAlertDialogBuilder(requireContext())
-            .setPositiveButton(R.string.home_settings) { _: DialogInterface?, _: Int ->
-                openSettings()
+/** A permission was refused for good: it can only be given in the system's app settings. */
+class PermissionDeniedDialogFragment : IronLemonComposeDialogFragment() {
+    @Composable
+    override fun DialogContent() {
+        IronLemonDialogCard(
+            title = stringResource(R.string.permission_denied),
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(android.R.string.cancel),
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
+                IronLemonButton(
+                    text = stringResource(R.string.home_settings),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = {
+                        openSettings()
+                        dismiss()
+                    }
+                )
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setTitle(R.string.permission_denied)
-            .setMessage(R.string.permission_denied_description)
-            .show()
+        ) {
+            IronLemonDialogText(stringResource(R.string.permission_denied_description))
+        }
     }
 
     private fun openSettings() {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-        val uri = Uri.fromParts("package", requireActivity().packageName, null)
-        intent.data = uri
+        intent.data = Uri.fromParts("package", requireActivity().packageName, null)
         startActivity(intent)
     }
 

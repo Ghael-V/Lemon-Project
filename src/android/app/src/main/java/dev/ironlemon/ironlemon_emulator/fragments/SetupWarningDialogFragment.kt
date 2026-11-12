@@ -1,18 +1,23 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
-import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import androidx.fragment.app.DialogFragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 
-class SetupWarningDialogFragment : DialogFragment() {
+/** First-run setup: a step was left undone; skip it anyway or go back to it. */
+class SetupWarningDialogFragment : IronLemonComposeDialogFragment() {
     private var titleId: Int = 0
     private var descriptionId: Int = 0
     private var helpLinkId: Int = 0
@@ -30,31 +35,42 @@ class SetupWarningDialogFragment : DialogFragment() {
         setupFragment = requireParentFragment() as SetupFragment
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val builder = MaterialAlertDialogBuilder(requireContext())
-            .setPositiveButton(R.string.warning_skip) { _: DialogInterface?, _: Int ->
-                setupFragment.pageForward()
-                setupFragment.setPageWarned(page)
+    @Composable
+    override fun DialogContent() {
+        IronLemonDialogCard(
+            title = if (titleId != 0) stringResource(titleId) else null,
+            buttons = {
+                if (helpLinkId != 0) {
+                    IronLemonButton(
+                        text = stringResource(R.string.warning_help),
+                        height = 44.dp,
+                        onClick = {
+                            val helpLink = getString(R.string.install_prod_keys_warning_help)
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(helpLink)))
+                        }
+                    )
+                }
+                IronLemonButton(
+                    text = stringResource(R.string.warning_cancel),
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
+                IronLemonButton(
+                    text = stringResource(R.string.warning_skip),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = {
+                        setupFragment.pageForward()
+                        setupFragment.setPageWarned(page)
+                        dismiss()
+                    }
+                )
             }
-            .setNegativeButton(R.string.warning_cancel, null)
-
-        if (titleId != 0) {
-            builder.setTitle(titleId)
-        } else {
-            builder.setTitle("")
-        }
-        if (descriptionId != 0) {
-            builder.setMessage(descriptionId)
-        }
-        if (helpLinkId != 0) {
-            builder.setNeutralButton(R.string.warning_help) { _: DialogInterface?, _: Int ->
-                val helpLink = resources.getString(R.string.install_prod_keys_warning_help)
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(helpLink))
-                startActivity(intent)
+        ) {
+            if (descriptionId != 0) {
+                IronLemonDialogText(stringResource(descriptionId))
             }
         }
-
-        return builder.show()
     }
 
     companion object {

@@ -1,33 +1,56 @@
-// SPDX-FileCopyrightText: 2024 yuzu Emulator Project
+// SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
 import android.content.DialogInterface
 import android.os.Bundle
-import androidx.fragment.app.DialogFragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 
-class CoreErrorDialogFragment : DialogFragment() {
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        MaterialAlertDialogBuilder(requireActivity())
-            .setTitle(requireArguments().getString(TITLE))
-            .setMessage(requireArguments().getString(MESSAGE))
-            .setPositiveButton(R.string.continue_button, null)
-            .setNegativeButton(R.string.abort_button) { _: DialogInterface?, _: Int ->
-                NativeLibrary.coreErrorAlertResult = false
-                synchronized(NativeLibrary.coreErrorAlertLock) {
-                    NativeLibrary.coreErrorAlertLock.notify()
-                }
+/**
+ * An error from the core while a game runs: go on or stop. The core thread waits on
+ * [NativeLibrary.coreErrorAlertLock] for the answer; closing the dialog any other way goes on.
+ */
+class CoreErrorDialogFragment : IronLemonComposeDialogFragment() {
+    private var aborted = false
+
+    @Composable
+    override fun DialogContent() {
+        IronLemonDialogCard(
+            title = requireArguments().getString(TITLE),
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(R.string.abort_button),
+                    height = 44.dp,
+                    onClick = {
+                        aborted = true
+                        dismiss()
+                    }
+                )
+                IronLemonButton(
+                    text = stringResource(R.string.continue_button),
+                    primary = true,
+                    height = 44.dp,
+                    onClick = ::dismiss
+                )
             }
-            .create()
+        ) {
+            IronLemonDialogText(requireArguments().getString(MESSAGE).orEmpty())
+        }
+    }
 
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
-        NativeLibrary.coreErrorAlertResult = true
+        NativeLibrary.coreErrorAlertResult = !aborted
         synchronized(NativeLibrary.coreErrorAlertLock) { NativeLibrary.coreErrorAlertLock.notify() }
     }
 
