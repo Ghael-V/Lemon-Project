@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <span>
 
 #include "audio_core/adsp/apps/audio_renderer/audio_renderer.h"
@@ -96,9 +98,83 @@ u64 System::GetWorkBufferSize(const AudioRendererParameterInternal& params) {
     return size;
 }
 
+namespace {
+// The live renderers, for System::SnapshotAll and System::RestoreAll.
+std::mutex g_systems_mutex;
+std::vector<System*> g_systems;
+} // namespace
+
 System::System(Core::System& core_, Kernel::KEvent* adsp_rendered_event_)
     : core{core_}, audio_renderer{core.AudioCore().ADSP().AudioRenderer()},
-      adsp_rendered_event{adsp_rendered_event_} {}
+      adsp_rendered_event{adsp_rendered_event_} {
+    std::scoped_lock registry_lock{g_systems_mutex};
+    g_systems.push_back(this);
+}
+
+System::~System() {
+    std::scoped_lock registry_lock{g_systems_mutex};
+    std::erase(g_systems, this);
+}
+
+std::vector<System::WorkbufferSnapshot> System::SnapshotAll() {
+    std::vector<WorkbufferSnapshot> snapshots;
+    std::scoped_lock registry_lock{g_systems_mutex};
+    for (System* system : g_systems) {
+        std::scoped_lock system_lock{system->lock};
+        if (!system->initialized || !system->workbuffer) {
+            continue;
+        }
+        // Not the performance and command buffers at its end: the command buffer is written anew
+        // for every update and read by the ADSP thread, which a copy put back from the save
+        // handed garbage ("Command has invalid magic", 120,000 times in 4.5 s; the game stopped).
+        const u8* begin = system->workbuffer.get();
+        const u8* end = !system->performance_workbuffer.empty()
+                            ? system->performance_workbuffer.data()
+                            : system->command_workbuffer.data();
+        if (end == nullptr || end < begin || end > begin + system->workbuffer_size) {
+            end = begin + system->workbuffer_size;
+        }
+        snapshots.push_back({system, begin, system->session_id, std::vector<u8>(begin, end)});
+    }
+    return snapshots;
+}
+
+void System::RestoreAll(const std::vector<WorkbufferSnapshot>& snapshots) {
+    std::scoped_lock registry_lock{g_systems_mutex};
+    for (const auto& snapshot : snapshots) {
+        const auto it = std::ranges::find(g_systems, snapshot.system);
+        System* system = it != g_systems.end() ? *it : nullptr;
+        if (system == nullptr) {
+            LOG_WARNING(Service_Audio,
+                        "Quick Load: audio renderer session {} is gone, not restored",
+                        snapshot.session_id);
+            continue;
+        }
+        std::scoped_lock system_lock{system->lock};
+        if (!system->initialized || system->workbuffer.get() != snapshot.workbuffer ||
+            system->workbuffer_size < snapshot.bytes.size()) {
+            LOG_WARNING(Service_Audio,
+                        "Quick Load: audio renderer session {} was set up again since the save, "
+                        "not restored",
+                        snapshot.session_id);
+            continue;
+        }
+        std::memcpy(system->workbuffer.get(), snapshot.bytes.data(), snapshot.bytes.size());
+        LOG_INFO(Service_Audio, "Quick Load: audio renderer session {} put back ({} bytes)",
+                 snapshot.session_id, snapshot.bytes.size());
+    }
+    // Every live session's pending command list was made from the state before the load: the ADSP
+    // drops it rather than run it, the next one is made from the state put back, and the samples
+    // already queued for output (from after the save) are cleared.
+    for (System* system : g_systems) {
+        std::scoped_lock system_lock{system->lock};
+        if (!system->initialized) {
+            continue;
+        }
+        system->reset_command_buffers = true;
+        system->audio_renderer.DiscardPendingCommands(system->session_id);
+    }
+}
 
 Result System::Initialize(const AudioRendererParameterInternal& params,
                           Kernel::KTransferMemory* transfer_memory, u64 transfer_memory_size,

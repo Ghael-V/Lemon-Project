@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+#include <vector>
 
 #include "audio_core/renderer/behavior/behavior_info.h"
 #include "audio_core/renderer/command/command_processing_time_estimator.h"
@@ -57,6 +58,23 @@ class System {
 
 public:
     explicit System(Core::System& core, Kernel::KEvent* adsp_rendered_event);
+    ~System();
+
+    /// Quick Save: a copy of one renderer's working memory, which holds its voices, mixes, effects
+    /// and how far each voice has played, none of which is in the guest memory a Quick Save holds.
+    struct WorkbufferSnapshot {
+        const System* system{};
+        const u8* workbuffer{};
+        s32 session_id{};
+        std::vector<u8> bytes;
+    };
+
+    /// Copies the working memory of every initialized renderer.
+    static std::vector<WorkbufferSnapshot> SnapshotAll();
+
+    /// Puts copies from SnapshotAll back into the renderers that still exist with the same working
+    /// memory; logs each one.
+    static void RestoreAll(const std::vector<WorkbufferSnapshot>& snapshots);
 
     /**
      * Calculate the total size required for all audio render workbuffers.

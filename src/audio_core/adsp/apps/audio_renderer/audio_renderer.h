@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <memory>
 #include <thread>
 
@@ -66,6 +67,12 @@ public:
      */
     void Stop();
 
+    /**
+     * Quick Load: drop the command list of a session that is set up or part done rather than run
+     * it (see System::RestoreAll), the next time the render loop reaches it.
+     */
+    void DiscardPendingCommands(s32 session_id) noexcept;
+
     void Signal();
     void Wait();
 
@@ -104,6 +111,8 @@ private:
     std::atomic<bool> running{};
     /// Shared memory of input command buffers, set by host, read by DSP
     std::array<CommandBuffer, MaxRendererSessions> command_buffers{};
+    /// Set by DiscardPendingCommands, taken by the render loop.
+    std::array<std::atomic<bool>, MaxRendererSessions> discard_pending{};
     /// The command lists to process
     std::array<CommandListProcessor, MaxRendererSessions> command_list_processors{};
     /// The streams which will receive the processed samples

@@ -457,6 +457,7 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
         result = Core::SaveState::Capture(m_system, GetQuickSavePath()) ? QuickSaveResult::Saved
                                                                         : QuickSaveResult::Failed;
         if (result == QuickSaveResult::Saved) {
+            m_saved_audio = AudioCore::Renderer::System::SnapshotAll();
             auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
             m_saved_syncpoints.emplace();
             for (u32 id = 0; id < m_saved_syncpoints->size(); id++) {
@@ -509,6 +510,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
         if (restored) {
             RewindSyncpoints();
+            AudioCore::Renderer::System::RestoreAll(m_saved_audio);
         }
         if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
             break;
