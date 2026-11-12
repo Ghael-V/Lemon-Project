@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 #include "common/common_types.h"
 #include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/vfs/vfs_types.h"
@@ -65,8 +67,31 @@ public:
     [[nodiscard]] bool HasNSOPatch(const BuildID& build_id, std::string_view name) const;
 
     // Creates a CheatList object with all
+    // With `out_folders`, also the mod folder each entry comes from ("" for a cheat_*.txt file at
+    // the root of the title's mod directory), one per entry.
     [[nodiscard]] std::vector<Core::Memory::CheatEntry> CreateCheatList(
-        const BuildID& build_id) const;
+        const BuildID& build_id, std::vector<std::string>* out_folders = nullptr) const;
+
+    // Lemon's cheat manager (Atmosphere cheat files under the title's mod directory).
+    struct CheatInfo {
+        std::string folder; // the mod folder; empty for a root cheat_*.txt, which can't be switched
+        std::string name;
+        bool enabled;
+        bool master; // the master code ({...}): always on while its file is
+    };
+
+    // The cheats CreateCheatList loads for `build_id`, in the same order, without empty entries.
+    [[nodiscard]] std::vector<CheatInfo> ListCheats(const BuildID& build_id) const;
+
+    // Switches one cheat of a mod folder on or off, in the folder's cheats/toggles.txt (Atmosphere's
+    // format). False if the folder has no cheats directory or the file can't be written.
+    bool SetCheatEnabled(std::string_view folder, std::string_view name, bool enabled) const;
+
+    // Saves cheat codes pasted by the user for `build_id` in a new "Lemon cheats" mod folder. The
+    // text may be an Atmosphere cheat file, or codes copied from a web page with the cheat names on
+    // their own lines and no brackets. Returns how many cheats it holds (master code included); 0
+    // when it holds none, and nothing is written then.
+    [[nodiscard]] size_t AddCheats(const BuildID& build_id, std::string_view text) const;
 
     // Currently tracked RomFS patches:
     // - Game Updates

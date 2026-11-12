@@ -194,7 +194,9 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::KProcess& process, Core::
     if (pm) {
         system.SetApplicationProcessBuildID(nso_header.build_id);
         const auto cheats = pm->CreateCheatList(nso_header.build_id);
-        if (!cheats.empty()) {
+        // The main module gets an engine even without cheats yet, so cheats added or switched on
+        // while the game runs can be loaded into it (the cheat manager).
+        if (!cheats.empty() || name == "main") {
             system.RegisterCheatList(cheats, nso_header.build_id, load_base, image_size);
         }
     }

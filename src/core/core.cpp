@@ -828,6 +828,16 @@ void System::RegisterCheatList(const std::vector<Memory::CheatEntry>& list,
     impl->cheat_engine->SetMainMemoryParameters(main_region_begin, main_region_size);
 }
 
+bool System::ReloadCheats() {
+    if (!impl->cheat_engine) {
+        return false;
+    }
+    const FileSys::PatchManager pm{GetApplicationProcessProgramID(), GetFileSystemController(),
+                                   GetContentProvider()};
+    impl->cheat_engine->Reload(pm.CreateCheatList(GetApplicationProcessBuildID()));
+    return true;
+}
+
 void System::SetFrontendAppletSet(Service::AM::Frontend::FrontendAppletSet&& set) {
     impl->frontend_applets.SetFrontendAppletSet(std::move(set));
 }

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include "common/common_types.h"
 #include "core/memory/dmnt_cheat_types.h"
@@ -78,6 +79,9 @@ private:
     CheatProcessMetadata metadata;
 
     std::vector<CheatEntry> cheats;
+    // Reload() runs on another thread than FrameCallback (Lemon's cheat manager switches cheats
+    // while the game runs).
+    std::mutex cheats_mutex;
     std::atomic_bool is_pending_reload{false};
 
     std::shared_ptr<Core::Timing::EventType> event;

@@ -265,6 +265,7 @@ void CheatEngine::SetMainMemoryParameters(VAddr main_region_begin, u64 main_regi
 }
 
 void CheatEngine::Reload(std::vector<CheatEntry> reload_cheats) {
+    std::scoped_lock lock{cheats_mutex};
     cheats = std::move(reload_cheats);
     is_pending_reload.exchange(true);
 }
@@ -273,6 +274,7 @@ MICROPROFILE_DEFINE(Cheat_Engine, "Add-Ons", "Cheat Engine", MP_RGB(70, 200, 70)
 
 void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {
     if (is_pending_reload.exchange(false)) {
+        std::scoped_lock lock{cheats_mutex};
         vm.LoadProgram(cheats);
     }
 

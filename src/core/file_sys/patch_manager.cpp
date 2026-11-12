@@ -102,6 +102,140 @@ std::optional<std::vector<Core::Memory::CheatEntry>> ReadCheatFileFromFolder(
     return parser.Parse(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()));
 }
 
+// A cheat's name as the parser stored it.
+std::string CheatName(const Core::Memory::CheatEntry& entry) {
+    const auto& name = entry.definition.readable_name;
+    return std::string(name.data(), ::strnlen(name.data(), name.size()));
+}
+
+std::string_view TrimCheatLine(std::string_view line) {
+    while (!line.empty() && ::isspace(static_cast<unsigned char>(line.front()))) {
+        line.remove_prefix(1);
+    }
+    while (!line.empty() && ::isspace(static_cast<unsigned char>(line.back()))) {
+        line.remove_suffix(1);
+    }
+    return line;
+}
+
+// Atmosphere's toggles.txt beside the cheat files of a folder: "[name]", then "true" or "false" on
+// the next line. A cheat it does not name keeps its default (on).
+std::vector<std::pair<std::string, bool>> ReadCheatToggles(const VirtualDir& cheats_dir) {
+    std::vector<std::pair<std::string, bool>> toggles;
+    const auto file = cheats_dir != nullptr ? cheats_dir->GetFile("toggles.txt") : nullptr;
+    if (file == nullptr) {
+        return toggles;
+    }
+    const auto bytes = file->ReadAllBytes();
+    const std::string_view text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    std::optional<std::string> name;
+    size_t start = 0;
+    while (start <= text.size()) {
+        const size_t end = (std::min)(text.find('\n', start), text.size());
+        const auto line = TrimCheatLine(text.substr(start, end - start));
+        start = end + 1;
+        if (line.size() >= 2 && line.front() == '[' && line.back() == ']') {
+            name = std::string(line.substr(1, line.size() - 2));
+        } else if (name && !line.empty()) {
+            const bool value = Common::ToLower(std::string(line)) == "true";
+            const auto it = std::ranges::find(toggles, *name, &std::pair<std::string, bool>::first);
+            if (it != toggles.end()) {
+                it->second = value;
+            } else {
+                toggles.emplace_back(*name, value);
+            }
+            name.reset();
+        }
+        if (end == text.size()) {
+            break;
+        }
+    }
+    return toggles;
+}
+
+void ApplyCheatToggles(const VirtualDir& cheats_dir,
+                       std::vector<Core::Memory::CheatEntry>& entries) {
+    const auto toggles = ReadCheatToggles(cheats_dir);
+    if (toggles.empty()) {
+        return;
+    }
+    for (auto& entry : entries) {
+        // The master code runs whenever its file is loaded, as in Atmosphere.
+        if (entry.cheat_id == 0 || entry.definition.num_opcodes == 0) {
+            continue;
+        }
+        const auto name = CheatName(entry);
+        const auto it = std::ranges::find(toggles, name, &std::pair<std::string, bool>::first);
+        if (it != toggles.end()) {
+            entry.enabled = it->second;
+        }
+    }
+}
+
+// Whether a line is cheat code: one or more words of exactly eight hex digits.
+bool IsCheatCodeLine(std::string_view line) {
+    size_t words = 0;
+    size_t i = 0;
+    while (i < line.size()) {
+        if (::isspace(static_cast<unsigned char>(line[i]))) {
+            i++;
+            continue;
+        }
+        size_t length = 0;
+        while (i + length < line.size() && !::isspace(static_cast<unsigned char>(line[i + length]))) {
+            if (!::isxdigit(static_cast<unsigned char>(line[i + length]))) {
+                return false;
+            }
+            length++;
+        }
+        if (length != 8) {
+            return false;
+        }
+        words++;
+        i += length;
+    }
+    return words > 0;
+}
+
+// Turns pasted cheats into an Atmosphere cheat file. Web pages show each cheat's name on its own
+// line without brackets ("Master Code", "Inf. Stamina", then the codes): such a line becomes
+// "[name]", or "{name}" for a first section named like a master code. Lines already in brackets
+// and code lines are kept as they are; codes with no name before them get one.
+std::string NormalizeCheatText(std::string_view text) {
+    std::string out;
+    bool in_section = false;
+    bool any_section = false;
+    size_t start = 0;
+    while (start <= text.size()) {
+        const size_t end = (std::min)(text.find('\n', start), text.size());
+        const auto line = TrimCheatLine(text.substr(start, end - start));
+        start = end + 1;
+        if (!line.empty()) {
+            if (line.front() == '[' || line.front() == '{') {
+                out.append(line).push_back('\n');
+                in_section = any_section = true;
+            } else if (IsCheatCodeLine(line)) {
+                if (!in_section) {
+                    out += "[Cheat]\n";
+                    in_section = any_section = true;
+                }
+                out.append(line).push_back('\n');
+            } else {
+                std::string name(line.substr(0, 0x3F));
+                std::erase_if(name, [](char c) { return c == '[' || c == ']' || c == '{' || c == '}'; });
+                const bool master = !any_section &&
+                                    Common::ToLower(name).find("master") != std::string::npos;
+                out += master ? "{" + name + "}\n" : "[" + name + "]\n";
+                in_section = any_section = true;
+            }
+        }
+        if (end == text.size()) {
+            break;
+        }
+    }
+    return out;
+}
+
 void AppendCommaIfNotEmpty(std::string& to, std::string_view with) {
     if (to.empty()) {
         to += with;
@@ -314,7 +448,7 @@ bool PatchManager::HasNSOPatch(const BuildID& build_id_, std::string_view name) 
 }
 
 std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(
-    const BuildID& build_id_) const {
+    const BuildID& build_id_, std::vector<std::string>* out_folders) const {
     const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
     if (load_dir == nullptr) {
         LOG_ERROR(Loader, "Cannot load mods for invalid title_id={:016X}", title_id);
@@ -334,18 +468,112 @@ std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(
 
         auto cheats_dir = FindSubdirectoryCaseless(subdir, "cheats");
         if (cheats_dir != nullptr) {
-            if (const auto res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, true)) {
-                std::copy(res->begin(), res->end(), std::back_inserter(out));
-                continue;
+            // The file named with the build id in upper case, else in lower case.
+            auto res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, true);
+            if (!res) {
+                res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, false);
             }
-
-            if (const auto res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, false)) {
+            if (res) {
+                ApplyCheatToggles(cheats_dir, *res);
                 std::copy(res->begin(), res->end(), std::back_inserter(out));
+                if (out_folders != nullptr) {
+                    out_folders->resize(out.size(), subdir->GetName());
+                }
             }
         }
     }
 
     return out;
+}
+
+std::vector<PatchManager::CheatInfo> PatchManager::ListCheats(const BuildID& build_id) const {
+    std::vector<std::string> folders;
+    const auto entries = CreateCheatList(build_id, &folders);
+    std::vector<CheatInfo> out;
+    for (size_t i = 0; i < entries.size(); i++) {
+        if (entries[i].definition.num_opcodes == 0) {
+            continue; // the empty master code slot of a file without one
+        }
+        out.push_back({
+            .folder = i < folders.size() ? folders[i] : std::string{},
+            .name = CheatName(entries[i]),
+            .enabled = entries[i].enabled,
+            .master = entries[i].cheat_id == 0,
+        });
+    }
+    return out;
+}
+
+bool PatchManager::SetCheatEnabled(std::string_view folder, std::string_view name,
+                                   bool enabled) const {
+    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
+    const auto mod_dir = load_dir != nullptr && !folder.empty()
+                             ? load_dir->GetSubdirectory(folder)
+                             : nullptr;
+    const auto cheats_dir = mod_dir != nullptr ? FindSubdirectoryCaseless(mod_dir, "cheats") : nullptr;
+    if (cheats_dir == nullptr) {
+        return false;
+    }
+
+    auto toggles = ReadCheatToggles(cheats_dir);
+    const auto it = std::ranges::find(toggles, name, &std::pair<std::string, bool>::first);
+    if (it != toggles.end()) {
+        it->second = enabled;
+    } else {
+        toggles.emplace_back(std::string(name), enabled);
+    }
+    std::string text;
+    for (const auto& [toggle_name, value] : toggles) {
+        text += fmt::format("[{}]\n{}\n\n", toggle_name, value ? "true" : "false");
+    }
+
+    auto file = cheats_dir->GetFile("toggles.txt");
+    if (file == nullptr) {
+        file = cheats_dir->CreateFile("toggles.txt");
+    }
+    if (file == nullptr || !file->Resize(text.size())) {
+        return false;
+    }
+    const bool written = file->WriteBytes(std::vector<u8>(text.begin(), text.end())) == text.size();
+    file->Flush();
+    return written;
+}
+
+size_t PatchManager::AddCheats(const BuildID& build_id, std::string_view text) const {
+    const std::string normalized = NormalizeCheatText(text);
+    const Core::Memory::TextCheatParser parser;
+    const auto parsed = parser.Parse(normalized);
+    const size_t count = static_cast<size_t>(std::ranges::count_if(
+        parsed, [](const auto& entry) { return entry.definition.num_opcodes > 0; }));
+    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
+    if (count == 0 || load_dir == nullptr) {
+        return 0;
+    }
+
+    // One folder per paste, so each keeps its own master code and can be removed as a whole from
+    // the add-ons screen. The first folder without a file for this build takes it.
+    const std::string build = Common::HexToString(build_id, true).substr(0, sizeof(u64) * 2);
+    for (u32 n = 1; n < 100; n++) {
+        const std::string folder = n == 1 ? "Lemon cheats" : fmt::format("Lemon cheats {}", n);
+        const auto mod_dir = load_dir->GetSubdirectory(folder);
+        const auto existing = mod_dir != nullptr ? FindSubdirectoryCaseless(mod_dir, "cheats") : nullptr;
+        if (existing != nullptr &&
+            (existing->GetFile(build + ".txt") != nullptr ||
+             existing->GetFile(Common::ToLower(build) + ".txt") != nullptr)) {
+            continue;
+        }
+        const auto cheats_dir = GetOrCreateDirectoryRelative(load_dir, folder + "/cheats");
+        const auto file = cheats_dir != nullptr ? cheats_dir->CreateFile(build + ".txt") : nullptr;
+        if (file == nullptr || !file->Resize(normalized.size())) {
+            return 0;
+        }
+        const bool written =
+            file->WriteBytes(std::vector<u8>(normalized.begin(), normalized.end())) ==
+            normalized.size();
+        file->Flush();
+        return written ? count : 0;
+    }
+    return 0;
 }
 
 static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType type,

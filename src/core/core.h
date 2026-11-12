@@ -401,6 +401,10 @@ public:
     void SetExitRequested(bool requested);
     bool GetExitRequested() const;
 
+    /// Reads the running game's cheats again (Lemon's cheat manager switched or added some).
+    /// False when the game has no cheat engine.
+    bool ReloadCheats();
+
     void SetApplicationProcessBuildID(const CurrentBuildProcessID& id);
     [[nodiscard]] const CurrentBuildProcessID& GetApplicationProcessBuildID() const;
 
