@@ -802,9 +802,14 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         const size_t memory_steps = memory_journal.Size();
         const size_t gpu_steps = gpu_journal.Size();
         const size_t services_steps = services_journal.Size();
-        const bool memory_ok = memory_journal.UndoAll();
-        const bool gpu_ok = gpu_journal.UndoAll();
-        const bool services_ok = services_journal.UndoAll();
+        // Newest first across the three journals, not one journal after the other: see
+        // UndoJournal::UndoAllTogether.
+        const std::vector<bool> undone = UndoJournal::UndoAllTogether(
+            {std::addressof(memory_journal), std::addressof(gpu_journal),
+             std::addressof(services_journal)});
+        const bool memory_ok = undone[0];
+        const bool gpu_ok = undone[1];
+        const bool services_ok = undone[2];
         if (!memory_ok || !gpu_ok || !services_ok) {
             LOG_ERROR(Core,
                       "SaveState::Restore: undoing the changes since the save failed in part "
