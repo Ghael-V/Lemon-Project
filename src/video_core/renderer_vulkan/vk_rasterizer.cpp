@@ -361,8 +361,20 @@ void RasterizerVulkan::DrawTexture() {
         return;
     }
 
+    // DrawTexture rectangles go through the fragment pipeline, scissor included: Crysis
+    // Remastered draws its whole map scaled up and scissors it down to the minimap corner.
+    std::optional<VkRect2D> scissor;
+    if (maxwell3d->regs.scissor_test[0].enable) {
+        u32 up_scale = 1;
+        u32 down_shift = 0;
+        if (dst_rescaling) {
+            up_scale = Settings::values.resolution_info.up_scale;
+            down_shift = Settings::values.resolution_info.down_shift;
+        }
+        scissor = GetScissorState(maxwell3d->regs, 0, up_scale, down_shift);
+    }
     blit_image.BlitColor(framebuffer, texture.RenderTarget(), texture.ImageHandle(),
-                         sampler->Handle(), dst_region, src_region, src_size);
+                         sampler->Handle(), dst_region, src_region, src_size, scissor);
 }
 
 void RasterizerVulkan::Clear(u32 layer_count) {

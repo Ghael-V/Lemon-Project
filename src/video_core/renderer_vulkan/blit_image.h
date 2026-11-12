@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/renderer_vulkan/vk_descriptor_pool.h"
 #include "video_core/texture_cache/types.h"
@@ -50,7 +52,8 @@ public:
 
     void BlitColor(const Framebuffer* dst_framebuffer, VkImageView src_image_view,
                    VkImage src_image, VkSampler src_sampler, const Region2D& dst_region,
-                   const Region2D& src_region, const Extent3D& src_size);
+                   const Region2D& src_region, const Extent3D& src_size,
+                   const std::optional<VkRect2D>& scissor = std::nullopt);
 
     void BlitDepthStencil(const Framebuffer* dst_framebuffer, VkImageView src_depth_view,
                           VkImageView src_stencil_view, const Region2D& dst_region,

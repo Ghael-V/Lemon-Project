@@ -386,10 +386,8 @@ void TransitionImageLayout(vk::CommandBuffer& cmdbuf, VkImage image, VkImageLayo
                            0, barrier);
 }
 
-void BeginRenderPass(vk::CommandBuffer& cmdbuf, const Framebuffer* framebuffer) {
-    const VkRenderPass render_pass = framebuffer->RenderPass();
-    const VkFramebuffer framebuffer_handle = framebuffer->Handle();
-    const VkExtent2D render_area = framebuffer->RenderArea();
+void BeginRenderPass(vk::CommandBuffer& cmdbuf, VkRenderPass render_pass,
+                     VkFramebuffer framebuffer_handle, VkExtent2D render_area) {
     const VkRenderPassBeginInfo renderpass_bi{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .pNext = nullptr,
@@ -403,6 +401,11 @@ void BeginRenderPass(vk::CommandBuffer& cmdbuf, const Framebuffer* framebuffer) 
         .pClearValues = nullptr,
     };
     cmdbuf.BeginRenderPass(renderpass_bi, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void BeginRenderPass(vk::CommandBuffer& cmdbuf, const Framebuffer* framebuffer) {
+    BeginRenderPass(cmdbuf, framebuffer->RenderPass(), framebuffer->Handle(),
+                    framebuffer->RenderArea());
 }
 } // Anonymous namespace
 
@@ -474,24 +477,58 @@ void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView 
 void BlitImageHelper::BlitColor(const Framebuffer* dst_framebuffer, VkImageView src_image_view,
                                 VkImage src_image, VkSampler src_sampler,
                                 const Region2D& dst_region, const Region2D& src_region,
-                                const Extent3D& src_size) {
+                                const Extent3D& src_size, const std::optional<VkRect2D>& scissor) {
     const BlitImagePipelineKey key{
         .renderpass = dst_framebuffer->RenderPass(),
         .operation = Tegra::Engines::Fermi2D::Operation::SrcCopy,
     };
     const VkPipelineLayout layout = *one_texture_pipeline_layout;
     const VkPipeline pipeline = FindOrEmplaceColorPipeline(key);
+
+    // Clip the destination rectangle to the guest scissor. The viewport keeps the whole
+    // rectangle, so texture coordinates don't change.
+    std::optional<VkRect2D> clip;
+    if (scissor) {
+        const s64 left = std::max<s64>(std::min(dst_region.start.x, dst_region.end.x),
+                                       scissor->offset.x);
+        const s64 top = std::max<s64>(std::min(dst_region.start.y, dst_region.end.y),
+                                      scissor->offset.y);
+        const s64 right = std::min<s64>(std::max(dst_region.start.x, dst_region.end.x),
+                                        s64{scissor->offset.x} + scissor->extent.width);
+        const s64 bottom = std::min<s64>(std::max(dst_region.start.y, dst_region.end.y),
+                                         s64{scissor->offset.y} + scissor->extent.height);
+        if (right <= left || bottom <= top) {
+            return; // Nothing of the rectangle survives the scissor.
+        }
+        clip = VkRect2D{
+            .offset = {static_cast<s32>(left), static_cast<s32>(top)},
+            .extent = {static_cast<u32>(right - left), static_cast<u32>(bottom - top)},
+        };
+    }
+
+    // Read the framebuffer now, not in the worker: the texture cache can retire it in between,
+    // leaving a null handle (Turnip crashed in vkCmdBeginRenderPass in Crysis Remastered).
+    const VkRenderPass render_pass = dst_framebuffer->RenderPass();
+    const VkFramebuffer framebuffer_handle = dst_framebuffer->Handle();
+    const VkExtent2D render_area = dst_framebuffer->RenderArea();
     scheduler.RequestOutsideRenderPassOperationContext();
-    scheduler.Record([this, dst_framebuffer, src_image_view, src_image, src_sampler, dst_region,
-                      src_region, src_size, pipeline, layout](vk::CommandBuffer cmdbuf) {
-        TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-        BeginRenderPass(cmdbuf, dst_framebuffer);
+    scheduler.Record([this, render_pass, framebuffer_handle, render_area, src_image_view,
+                      src_image, src_sampler, dst_region, src_region, src_size, pipeline, layout,
+                      clip](vk::CommandBuffer cmdbuf) {
+        // Images stay in GENERAL everywhere, as the descriptor below says: only make earlier
+        // writes visible. Moving the source to a read-only layout left it there for good, so
+        // later render passes used it in the wrong layout.
+        TransitionImageLayout(cmdbuf, src_image, VK_IMAGE_LAYOUT_GENERAL);
+        BeginRenderPass(cmdbuf, render_pass, framebuffer_handle, render_area);
         const VkDescriptorSet descriptor_set = one_texture_descriptor_allocator.Commit();
         UpdateOneTextureDescriptorSet(device, descriptor_set, src_sampler, src_image_view);
         cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
         cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, descriptor_set,
                                   nullptr);
         BindBlitState(cmdbuf, layout, dst_region, src_region, src_size);
+        if (clip) {
+            cmdbuf.SetScissor(0, *clip);
+        }
         cmdbuf.Draw(3, 1, 0, 0);
         cmdbuf.EndRenderPass();
     });
