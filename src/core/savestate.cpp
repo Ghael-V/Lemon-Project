@@ -9,12 +9,11 @@
 #include "common/fs/fs.h"
 #include "common/logging.h"
 #include "core/core.h"
-#include "core/hle/kernel/k_memory_block.h"
 #include "core/hle/kernel/k_process.h"
-#include "core/hle/kernel/k_process_page_table.h"
 #include "core/hle/kernel/k_thread.h"
 #include "core/hle/kernel/svc_types.h"
 #include "core/memory.h"
+#include "core/memory_region_scan.h"
 #include "core/savestate.h"
 
 namespace Core::SaveState {
@@ -23,66 +22,6 @@ namespace {
 
 constexpr std::array<char, 4> Magic{'L', 'M', 'S', 'S'};
 constexpr u32 CurrentVersion = 1;
-
-struct Region {
-    u64 address;
-    u64 size;
-};
-
-// Only these carry actual guest-written data worth capturing. Everything else
-// (Free, Inaccessible, Kernel, Io*, Ipc/Transferred buffers, ASLR guard gaps,
-// etc.) is either unbacked or not meaningful for a CPU+memory-only savestate,
-// and including it risks trying to dump enormous unbacked address ranges.
-//
-// Code is deliberately excluded: under NCE those pages are directly-executable
-// host memory, and WriteBlock()-ing new bytes into them on restore doesn't
-// invalidate the CPU's instruction cache, so the core can end up fetching stale
-// instructions and fault with SIGILL. Since guest code doesn't change at
-// runtime for anything this MVP targets, it doesn't need to round-trip at all.
-constexpr bool IsCapturableState(Kernel::KMemoryState state) {
-    switch (state) {
-    case Kernel::KMemoryState::CodeData:
-    case Kernel::KMemoryState::Normal:
-    case Kernel::KMemoryState::Stack:
-    case Kernel::KMemoryState::ThreadLocal:
-    case Kernel::KMemoryState::Shared:
-        return true;
-    default:
-        return false;
-    }
-}
-
-// Walks the process' memory via the same QueryInfo mechanism svcQueryMemory uses,
-// collecting every region in a capturable state. Avoids probing the full 39-bit
-// address space byte by byte.
-std::vector<Region> EnumerateRegions(Kernel::KProcessPageTable& page_table) {
-    std::vector<Region> regions;
-
-    const auto start = page_table.GetAddressSpaceStart();
-    const auto end = start + page_table.GetAddressSpaceSize();
-
-    auto addr = start;
-    while (addr < end) {
-        Kernel::KMemoryInfo info{};
-        Kernel::Svc::PageInfo page_info{};
-        if (page_table.QueryInfo(&info, &page_info, addr).IsError()) {
-            break;
-        }
-
-        if (IsCapturableState(info.m_state)) {
-            regions.push_back({.address = info.m_address, .size = info.m_size});
-        }
-
-        const Common::ProcessAddress next = info.m_address + info.m_size;
-        if (next <= addr) {
-            // Didn't advance - stop rather than loop forever.
-            break;
-        }
-        addr = next;
-    }
-
-    return regions;
-}
 
 } // namespace
 
@@ -101,7 +40,7 @@ bool Capture(Core::System& system, const std::string& path) {
         thread_contexts.push_back(thread.GetContext());
     }
 
-    const auto regions = EnumerateRegions(page_table);
+    const auto regions = EnumerateScannableRegions(page_table);
 
     const auto tmp_path = path + ".tmp";
     Common::FS::IOFile file{tmp_path, Common::FS::FileAccessMode::Write};

@@ -273,6 +273,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_lemon_cheater -> {
+                    binding.cheatOverlay.visibility =
+                        if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                            View.GONE
+                        } else {
+                            View.VISIBLE
+                        }
+                    binding.inGameMenu.requestFocus()
+                    true
+                }
+
                 R.id.menu_settings -> {
                     val action = HomeNavigationDirections.actionGlobalSettingsActivity(
                         null,
