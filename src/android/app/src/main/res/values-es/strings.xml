@@ -718,4 +718,5 @@
         <item quantity="one">%d truco descargado, los nuevos desactivados</item>
         <item quantity="other">%d trucos descargados, los nuevos desactivados</item>
     </plurals>
+    <string name="emulation_quick_load_state_moved_past">El juego ya pasó este guardado. No se puede cargar. Haz un nuevo guardado rápido.</string>
 </resources>
