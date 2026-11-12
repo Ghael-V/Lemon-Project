@@ -133,6 +133,8 @@ private:
     /// Core::SaveState::CheckLoad: whether threads have to be put back (Restore's allow_rebuild),
     /// and whether threads of the save have ended for good; `target_svc` holds the kernel call
     /// each saved thread was in.
+    /// Lets the game run for a moment between WaitForSafeMoment's looks, and pauses it again.
+    void RunForAMoment(std::chrono::milliseconds duration);
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max(),

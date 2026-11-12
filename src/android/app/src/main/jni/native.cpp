@@ -24,6 +24,7 @@
 #include <frontend_common/content_manager.h>
 #include <jni.h>
 
+#include "audio_core/renderer/system_manager.h"
 #include "common/android/android_common.h"
 #include "common/android/id_cache.h"
 #include "common/detached_tasks.h"
@@ -375,7 +376,43 @@ std::string GetQuickSavePath() {
     return (dir / "quicksave.bin").string();
 }
 
+// The audio renderer goes on while the game is paused, signalling the game's audio thread every
+// few milliseconds: a Quick Save or Load comparing the game's threads found that thread awake
+// moments after it had looked, and looked again for seconds (often until it gave up). So it is
+// held while the game is paused for one, and goes on while the game runs between looks.
+bool audio_held = false;
+
+void HoldAudio() {
+    if (!AudioCore::Renderer::SystemManager::Hold()) {
+        LOG_WARNING(Frontend, "Quick Save/Load: an audio frame was still being made");
+    }
+}
+
+class QuickStateAudioHold {
+public:
+    QuickStateAudioHold() {
+        HoldAudio();
+        audio_held = true;
+    }
+    ~QuickStateAudioHold() {
+        audio_held = false;
+        AudioCore::Renderer::SystemManager::Release();
+    }
+};
+
 } // namespace
+
+void EmulationSession::RunForAMoment(std::chrono::milliseconds duration) {
+    if (audio_held) {
+        AudioCore::Renderer::SystemManager::Release();
+    }
+    m_system.Run();
+    std::this_thread::sleep_for(duration);
+    m_system.Pause();
+    if (audio_held) {
+        HoldAudio();
+    }
+}
 
 bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target,
                                          std::chrono::steady_clock::time_point deadline,
@@ -500,9 +537,7 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
                                  "Quick Save: threads changed while the GPU caught up, looking "
                                  "again: {}",
                                  Core::SaveState::DescribeWaitDifferences(now, settled));
-                        m_system.Run();
-                        std::this_thread::sleep_for(Step);
-                        m_system.Pause();
+                        RunForAMoment(Step);
                         continue;
                     }
                     LOG_INFO(Frontend,
@@ -552,11 +587,9 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
             }
             return ok;
         }
-        m_system.Run();
         // A little longer or shorter each time: with a fixed step the looks could keep falling on
         // the same point of the game's frame and never see the states that come at another.
-        std::this_thread::sleep_for(Step / 2 + std::chrono::milliseconds(jitter() % Step.count()));
-        m_system.Pause();
+        RunForAMoment(Step / 2 + std::chrono::milliseconds(jitter() % Step.count()));
     }
     LogNoSafeMoment(target, previous, looks, arbiter_looks, churn, "out of attempts or time");
     return false;
@@ -641,6 +674,7 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     if (!was_paused) {
         m_system.Pause();
     }
+    std::optional<QuickStateAudioHold> audio_hold{std::in_place};
 
     // A save made while a thread is in the middle of a lock handoff can never be loaded back
     // without freezing the game, so wait for a moment a load can find again (see
@@ -663,6 +697,7 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
         LOG_WARNING(Frontend, "Quick Save: no safe moment found, nothing was saved");
     }
 
+    audio_hold.reset();
     if (!was_paused) {
         m_system.Run();
     }
@@ -691,8 +726,12 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     bool restored = false;
     bool no_safe_moment = false;
     bool threads_missing = false;
+    std::optional<QuickStateAudioHold> audio_hold;
     for (int attempt = 0; attempt < MaxTries; attempt++) {
         m_system.Pause();
+        if (!audio_hold) {
+            audio_hold.emplace();
+        }
 
         // A restore done while threads are waking or going to sleep leaves the game frozen or
         // aborted (see WaitSignature): wait until they wait the way they did at the save.
@@ -701,6 +740,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         std::vector<u32> saved_svc;
         if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature, &saved_tls,
                                                  &saved_svc)) {
+            audio_hold.reset();
             if (!was_paused) {
                 m_system.Run();
             }
@@ -737,6 +777,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         }
     }
 
+    audio_hold.reset();
     if (!was_paused) {
         m_system.Run();
     }

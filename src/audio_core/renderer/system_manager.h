@@ -65,6 +65,21 @@ public:
      */
     bool Remove(System& system);
 
+    /**
+     * Holds every audio render loop before its next frame, and waits a moment for one that is
+     * signalling the game to finish doing so. While the game is paused, the loop goes on
+     * signalling the game's audio thread every few milliseconds, which changes the threads a
+     * Quick Save or Load compares.
+     *
+     * @return True if no loop is signalling the game, false if one did not finish in time.
+     */
+    static bool Hold();
+
+    /**
+     * Lets the audio render loops go on after Hold.
+     */
+    static void Release();
+
 private:
     /**
      * Main thread responsible for command generation.
