@@ -1245,4 +1245,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="ironlemon_welcome_feature_library">A fast library with play time and favorites</string>
 
     <string name="ironlemon_about_credits_body">Iron Lemon is the original yuzu, made by the yuzu team, with the improvements of the Lemon team. Thank you to everyone who built them.</string>
+
+    <string name="ironlemon_playtime">Played for %1$s</string>
+    <string name="ironlemon_never_played">Not played yet</string>
+    <string name="ironlemon_usage">%1$d sessions · last played %2$s</string>
 </resources>

@@ -3,6 +3,15 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import android.text.format.DateUtils
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.navigation.fragment.findNavController
+import dev.ironlemon.ironlemon_emulator.ui.modern.GameDetailActions
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernGameDetail
+import dev.ironlemon.ironlemon_emulator.utils.GameStatsUtils
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.os.Bundle
@@ -28,7 +37,6 @@ import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.adapters.GamePropertiesAdapter
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentGamePropertiesBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
 import dev.ironlemon.ironlemon_emulator.model.DriverViewModel
 import dev.ironlemon.ironlemon_emulator.model.GameProperty
@@ -49,8 +57,6 @@ import java.io.BufferedOutputStream
 import java.io.File
 
 class GamePropertiesFragment : Fragment() {
-    private var _binding: FragmentGamePropertiesBinding? = null
-    private val binding get() = _binding!!
 
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val gamesViewModel: GamesViewModel by activityViewModels()
@@ -65,50 +71,76 @@ class GamePropertiesFragment : Fragment() {
         reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
     }
 
+    private val propertiesState = mutableStateOf<List<GameProperty>>(emptyList())
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentGamePropertiesBinding.inflate(layoutInflater)
-        return binding.root
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        val game = args.game
+        val shortcutManager = requireActivity().getSystemService(ShortcutManager::class.java)
+        val actions = GameDetailActions(
+            onBack = { findNavController().popBackStack() },
+            onPlay = {
+                LaunchGameDialogFragment.newInstance(game)
+                    .show(childFragmentManager, LaunchGameDialogFragment.TAG)
+            },
+            onShortcut = ::pinShortcut,
+            onEditPlaytime = {}
+        )
+        setContent {
+            val context = LocalContext.current
+            val sessions = GameStatsUtils.getSessionCount(context, game)
+            val lastPlayed = GameStatsUtils.getLastPlayedMillis(context, game)
+            ModernGameDetail(
+                game = game,
+                playtime = GameStatsUtils.buildAbbreviated(context, game)
+                    ?.let { context.getString(R.string.ironlemon_playtime, it) }
+                    ?: context.getString(R.string.ironlemon_never_played),
+                usage = if (lastPlayed > 0) {
+                    context.getString(
+                        R.string.ironlemon_usage,
+                        sessions,
+                        DateUtils.getRelativeTimeSpanString(
+                            lastPlayed,
+                            System.currentTimeMillis(),
+                            DateUtils.MINUTE_IN_MILLIS
+                        )
+                    )
+                } else {
+                    ""
+                },
+                properties = propertiesState.value,
+                playEnabled = true,
+                canPinShortcut = shortcutManager.isRequestPinShortcutSupported,
+                actions = actions
+            )
+        }
+    }
+
+    private fun pinShortcut() {
+        val shortcutManager = requireActivity().getSystemService(ShortcutManager::class.java)
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val shortcut = ShortcutInfo.Builder(requireContext(), args.game.title)
+                    .setShortLabel(args.game.title)
+                    .setIcon(
+                        GameIconUtils.getShortcutIcon(requireActivity(), args.game)
+                            .toIcon(requireContext())
+                    )
+                    .setIntent(args.game.launchIntent)
+                    .build()
+                shortcutManager.requestPinShortcut(shortcut, null)
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         homeViewModel.setNavigationVisibility(visible = false, animated = true)
-        homeViewModel.setStatusBarShadeVisibility(true)
-
-        binding.buttonBack.setOnClickListener {
-            view.findNavController().popBackStack()
-        }
-
-        val shortcutManager = requireActivity().getSystemService(ShortcutManager::class.java)
-        binding.buttonShortcut.isEnabled = shortcutManager.isRequestPinShortcutSupported
-        binding.buttonShortcut.setOnClickListener {
-            viewLifecycleOwner.lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    val shortcut = ShortcutInfo.Builder(requireContext(), args.game.title)
-                        .setShortLabel(args.game.title)
-                        .setIcon(
-                            GameIconUtils.getShortcutIcon(requireActivity(), args.game)
-                                .toIcon(requireContext())
-                        )
-                        .setIntent(args.game.launchIntent)
-                        .build()
-                    shortcutManager.requestPinShortcut(shortcut, null)
-                }
-            }
-        }
-
-        GameIconUtils.loadGameIcon(args.game, binding.imageGameScreen)
-        binding.title.text = args.game.title
-        binding.title.marquee()
-
-        binding.buttonStart.setOnClickListener {
-            LaunchGameDialogFragment.newInstance(args.game)
-                .show(childFragmentManager, LaunchGameDialogFragment.TAG)
-        }
+        homeViewModel.setStatusBarShadeVisibility(false)
 
         reloadList()
 
@@ -120,8 +152,6 @@ class GamePropertiesFragment : Fragment() {
             viewLifecycleOwner,
             resetState = { homeViewModel.reloadPropertiesList(false) }
         ) { if (it) reloadList() }
-
-        setInsets()
     }
 
     override fun onDestroy() {
@@ -130,7 +160,7 @@ class GamePropertiesFragment : Fragment() {
     }
 
     private fun reloadList() {
-        _binding ?: return
+        view ?: return
 
         driverViewModel.updateDriverNameForGame(args.game)
         val properties = mutableListOf<GameProperty>().apply {
@@ -142,7 +172,7 @@ class GamePropertiesFragment : Fragment() {
                 ) {
                     val action = GamePropertiesFragmentDirections
                         .actionPerGamePropertiesFragmentToGameInfoFragment(args.game)
-                    binding.root.findNavController().navigate(action)
+                    findNavController().navigate(action)
                 }
             )
             add(
@@ -155,7 +185,7 @@ class GamePropertiesFragment : Fragment() {
                         args.game,
                         Settings.MenuTag.SECTION_ROOT
                     )
-                    binding.root.findNavController().navigate(action)
+                    findNavController().navigate(action)
                 }
             )
 
@@ -169,7 +199,7 @@ class GamePropertiesFragment : Fragment() {
                     ) {
                         val action = GamePropertiesFragmentDirections
                             .actionPerGamePropertiesFragmentToDriverManagerFragment(args.game)
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     }
                 )
             }
@@ -183,7 +213,7 @@ class GamePropertiesFragment : Fragment() {
                     ) {
                         val action = GamePropertiesFragmentDirections
                             .actionPerGamePropertiesFragmentToAddonsFragment(args.game)
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     }
                 )
                 add(
@@ -275,11 +305,7 @@ class GamePropertiesFragment : Fragment() {
                 }
             }
         }
-        binding.listProperties.apply {
-            layoutManager =
-                GridLayoutManager(requireContext(), resources.getInteger(R.integer.grid_columns))
-            adapter = GamePropertiesAdapter(viewLifecycleOwner, properties)
-        }
+        propertiesState.value = properties
     }
 
     override fun onResume() {
@@ -287,46 +313,6 @@ class GamePropertiesFragment : Fragment() {
         driverViewModel.updateDriverNameForGame(args.game)
     }
 
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { _: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            val smallLayout = resources.getBoolean(R.bool.small_layout)
-            if (smallLayout) {
-                binding.listAll.updateMargins(left = leftInsets, right = rightInsets)
-            } else {
-                if (ViewCompat.getLayoutDirection(binding.root) ==
-                    ViewCompat.LAYOUT_DIRECTION_LTR
-                ) {
-                    binding.listAll.updateMargins(right = rightInsets)
-                    binding.iconLayout!!.updateMargins(top = barInsets.top, left = leftInsets)
-                } else {
-                    binding.listAll.updateMargins(left = leftInsets)
-                    binding.iconLayout!!.updateMargins(top = barInsets.top, right = rightInsets)
-                }
-            }
-
-            val fabSpacing = resources.getDimensionPixelSize(R.dimen.spacing_fab)
-            binding.buttonStart.updateMargins(
-                left = leftInsets + fabSpacing,
-                right = rightInsets + fabSpacing,
-                bottom = barInsets.bottom + fabSpacing
-            )
-
-            binding.layoutAll.updatePadding(
-                top = barInsets.top,
-                bottom = barInsets.bottom +
-                    resources.getDimensionPixelSize(R.dimen.spacing_bottom_list_fab)
-            )
-
-            windowInsets
-        }
 
     private val importSaves =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->

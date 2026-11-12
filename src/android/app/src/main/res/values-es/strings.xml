@@ -664,4 +664,8 @@
     <string name="ironlemon_welcome_feature_library">Una biblioteca rápida con tiempo de juego y favoritos</string>
 
     <string name="ironlemon_about_credits_body">Iron Lemon es el yuzu original, hecho por el equipo de yuzu, con las mejoras del equipo de Lemon. Gracias a todos los que lo hicieron posible.</string>
+
+    <string name="ironlemon_playtime">Jugado %1$s</string>
+    <string name="ironlemon_never_played">Aún sin jugar</string>
+    <string name="ironlemon_usage">%1$d sesiones · última vez %2$s</string>
 </resources>

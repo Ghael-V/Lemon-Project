@@ -3,6 +3,10 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import dev.ironlemon.ironlemon_emulator.ui.modern.InGameMenuPanel
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
@@ -182,6 +186,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             override fun onDrawerOpened(drawerView: View) {
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
                 binding.inGameMenu.requestFocus()
+                // The panel re-reads the menu (titles change while playing) and takes focus.
+                inGameMenuTick.intValue++
                 emulationViewModel.setDrawerOpen(true)
             }
 
@@ -316,6 +322,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 else -> true
             }
         }
+        showInGameMenuPanel()
 
         setInsets()
 
@@ -457,6 +464,37 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
             }
         }
+    }
+
+    private val inGameMenuTick = mutableIntStateOf(0)
+
+    /**
+     * Iron Lemon's in-game panel (Compose), drawn over the classic drawer menu. It shows that same
+     * menu, and a tap goes through the menu's own handler, so every option behaves as before.
+     */
+    private fun showInGameMenuPanel() {
+        val menu = binding.inGameMenu.menu
+        val panel = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                InGameMenuPanel(
+                    menu = menu,
+                    game = game,
+                    tick = inGameMenuTick.intValue,
+                    performance = null,
+                    onItem = { id -> menu.performIdentifierAction(id, 0) }
+                )
+            }
+        }
+        // The classic list stays (its items anchor popups) but is no longer seen.
+        for (i in 0 until binding.inGameMenu.childCount) {
+            binding.inGameMenu.getChildAt(i).visibility = View.INVISIBLE
+        }
+        binding.inGameMenu.addView(
+            panel,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+        binding.inGameMenu.setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
 
     override fun onResume() {
