@@ -201,20 +201,20 @@ void EndThreadsNotInSave(Core::System& system, Kernel::KProcess& process,
                             ? std::string{"already ended"}
                             : fmt::format("asleep ({})",
                                           static_cast<u32>(thread->GetWaitReasonForDebugging())));
-        if (thread->Open(kernel)) {
+        if (thread->Open()) {
             held.push_back(thread);
         }
     }
     for (auto* thread : held) {
         if (thread->GetState() != Kernel::ThreadState::Terminated) {
-            thread->RequestTerminate(kernel);
+            thread->RequestTerminate();
         }
     }
 
     // Each runs once more, on its own, to exit (the game stays paused).
     const auto deadline = started + std::chrono::seconds(2);
     const auto all_ended = [&] {
-        return std::ranges::all_of(held, [&](auto* t) { return t->IsSignaled(kernel); });
+        return std::ranges::all_of(held, [&](auto* t) { return t->IsSignaled(); });
     };
     while (!all_ended() && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -232,12 +232,12 @@ void EndThreadsNotInSave(Core::System& system, Kernel::KProcess& process,
         });
     u32 closed = 0;
     for (const auto handle : handles) {
-        if (process.GetHandleTable().Remove(kernel, handle)) {
+        if (process.GetHandleTable().Remove(handle)) {
             closed++;
         }
     }
     for (auto* thread : held) {
-        thread->Close(kernel);
+        thread->Close();
     }
 
     // Wait for them to leave the thread list. Compared by address only: they may be gone already.
@@ -281,7 +281,7 @@ Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& 
                                         const Kernel::Svc::ThreadContext& context,
                                         Kernel::Handle* handle) {
     auto& kernel = system.Kernel();
-    Kernel::KScopedResourceReservation reservation(kernel, std::addressof(process),
+    Kernel::KScopedResourceReservation reservation(std::addressof(process),
                                                    Kernel::LimitableResource::ThreadCountMax, 1,
                                                    kernel.HardwareTimer().GetTick() + 100000000);
     if (!reservation.Succeeded()) {
@@ -294,7 +294,7 @@ Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& 
     }
     SCOPE_EXIT {
         // The process' thread list and the handle table hold their own references.
-        thread->Close(kernel);
+        thread->Close();
     };
     // A thread can have no ideal core (Svc::IdealCoreDontCare, -1), but it must be created on
     // one: the first core it may run on, its saved ideal core and affinity are set below.
@@ -334,15 +334,15 @@ Kernel::KThread* CreateThreadForRestore(Core::System& system, Kernel::KProcess& 
     reservation.Commit();
     if (saved.affinity_mask != 0 &&
         (saved.ideal_core != create_core || saved.affinity_mask != (1ULL << create_core))) {
-        (void)thread->SetCoreMask(kernel, saved.ideal_core, saved.affinity_mask);
+        (void)thread->SetCoreMask(saved.ideal_core, saved.affinity_mask);
     }
     Kernel::KThread::Register(kernel, thread);
-    if (R_FAILED(process.GetHandleTable().Add(kernel, handle, thread))) {
+    if (R_FAILED(process.GetHandleTable().Add(handle, thread))) {
         LOG_ERROR(Core, "SaveState::Restore: thread id {}: no handle left for it", saved.id);
         *handle = Kernel::Svc::InvalidHandle;
     }
     // Paused like the rest of the game: it runs when the game is let run again.
-    thread->RequestSuspend(kernel, Kernel::SuspendType::System);
+    thread->RequestSuspend(Kernel::SuspendType::System);
     thread->GetContext() = context;
     return thread;
 }
@@ -386,7 +386,7 @@ std::vector<SavedThread> CollectThreads(Core::System& system, Kernel::KProcess& 
     for (size_t i = 0; i < threads.size(); i++) {
         s32 ideal_core = 0;
         u64 affinity_mask = 0;
-        if (R_FAILED(threads[i]->GetCoreMask(system.Kernel(), &ideal_core, &affinity_mask))) {
+        if (R_FAILED(threads[i]->GetCoreMask(&ideal_core, &affinity_mask))) {
             ideal_core = threads[i]->GetActiveCore();
             affinity_mask = 1ULL << ideal_core;
         }
@@ -1653,7 +1653,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             if (const auto timeout = SavedCallTimeout(saved_threads[i].svc_id, context)) {
                 auto& kernel = system.Kernel();
                 const s64 now = kernel.HardwareTimer().GetTick();
-                const s64 was = live_threads[i]->SetWaitTimeoutForRestore(kernel, *timeout);
+                const s64 was = live_threads[i]->SetWaitTimeoutForRestore(*timeout);
                 if (was >= 0 && (was > 0) != (*timeout > 0)) {
                     timeouts_changed += fmt::format(
                         "{}thread {}: {} -> {}", timeouts_changed.empty() ? "" : "; ", i,
@@ -1672,7 +1672,7 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         // that slept on a condition variable at the save sleeps there again, with the lock, the
         // tag and the timeout of its saved call; its saved registers hold them (x0-x3).
         if (plan.slots[i] == SlotPlan::Recreate) {
-            if (const Result result = live_threads[i]->Run(system.Kernel()); R_FAILED(result)) {
+            if (const Result result = live_threads[i]->Run(); R_FAILED(result)) {
                 LOG_ERROR(Core,
                           "SaveState::Restore: thread {} created again could not start ({:#x})", i,
                           result.raw);

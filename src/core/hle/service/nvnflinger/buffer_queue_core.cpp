@@ -53,6 +53,8 @@ size_t BufferQueueCore::RewindFencesForRestore(u32 id, u32 delta) {
         }
     }
     return moved;
+}
+
 std::vector<BufferQueueCore::ProducerSlots> BufferQueueCore::SnapshotProducerSlots() {
     std::vector<ProducerSlots> out;
     std::scoped_lock lock{g_queues_mutex};

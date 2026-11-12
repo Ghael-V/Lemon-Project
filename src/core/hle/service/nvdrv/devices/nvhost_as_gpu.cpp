@@ -498,7 +498,7 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
 
         auto mapping{std::make_shared<Mapping>(params.handle, device_address, params.offset, size,
                                                true, use_big_pages, alloc->second.sparse)};
-        mapping->kind = params.kind;
+        mapping->kind = static_cast<u8>(params.kind);
         alloc->second.mappings.push_back(mapping);
         mapping_map[params.offset] = mapping;
     } else {
@@ -519,7 +519,7 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
 
         auto mapping{std::make_shared<Mapping>(params.handle, device_address, params.offset, size,
                                                false, big_page, false)};
-        mapping->kind = params.kind;
+        mapping->kind = static_cast<u8>(params.kind);
         mapping_map[params.offset] = mapping;
     }
 
