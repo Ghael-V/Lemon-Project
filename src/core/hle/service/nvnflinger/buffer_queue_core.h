@@ -34,6 +34,11 @@ public:
     BufferQueueCore();
     ~BufferQueueCore();
 
+    /// Quick Load: moves the fences on syncpoint `id` back by `delta`, in every buffer queue, along
+    /// with the syncpoint (see Tegra::Host1x::SyncpointManager::RewindForRestore). Returns how many
+    /// fences moved.
+    static size_t RewindFencesForRestore(u32 id, u32 delta);
+
 private:
     void SignalDequeueCondition();
     bool WaitForDequeueCondition(std::unique_lock<std::mutex>& lk);

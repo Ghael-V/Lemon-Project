@@ -118,6 +118,15 @@ u32 SyncpointManager::UpdateMin(u32 id) {
     return syncpoint.counter_min;
 }
 
+void SyncpointManager::RewindForRestore(u32 id, u32 delta) {
+    if (!IsSyncpointAllocated(id)) {
+        return;
+    }
+    auto& syncpoint = syncpoints.at(id);
+    syncpoint.counter_min -= delta;
+    syncpoint.counter_max -= delta;
+}
+
 NvFence SyncpointManager::GetSyncpointFence(u32 id) {
     auto& syncpoint = syncpoints.at(id);
 

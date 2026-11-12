@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <array>
 #include <optional>
 #include <span>
 #include <vector>
@@ -122,6 +123,17 @@ private:
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
                                std::chrono::steady_clock::time_point::max());
+    /// With the system paused: waits (up to two seconds) for the GPU to finish the commands the
+    /// game gave it, so a save does not read memory the GPU is still writing and a load is not
+    /// followed by GPU work from after the save. `what` names the caller in the log.
+    void WaitForGpuIdle(const char* what);
+    /// After a Quick Load, moves each GPU syncpoint back to its value at the Quick Save.
+    /// The game counts its own fences, in the memory a load rewinds, so without this they stay
+    /// behind the syncpoints by however far the GPU got between the save and the load, and every
+    /// wait for the GPU passes at once from then on.
+    void RewindSyncpoints();
+    /// The syncpoint values at the last Quick Save of this session.
+    std::optional<std::array<u32, 192>> m_saved_syncpoints;
 
     std::atomic<bool> m_is_paused = false;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};

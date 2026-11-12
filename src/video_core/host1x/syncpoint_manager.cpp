@@ -65,6 +65,13 @@ void SyncpointManager::IncrementHost(u32 syncpoint_id) {
     Increment(syncpoints_host[syncpoint_id], wait_host_cv, host_action_storage[syncpoint_id]);
 }
 
+size_t SyncpointManager::RewindForRestore(u32 syncpoint_id, u32 delta) {
+    std::scoped_lock lk(guard);
+    syncpoints_guest[syncpoint_id].fetch_sub(delta, std::memory_order_acq_rel);
+    syncpoints_host[syncpoint_id].fetch_sub(delta, std::memory_order_acq_rel);
+    return guest_action_storage[syncpoint_id].size() + host_action_storage[syncpoint_id].size();
+}
+
 void SyncpointManager::WaitGuest(u32 syncpoint_id, u32 expected_value) {
     Wait(syncpoints_guest[syncpoint_id], wait_guest_cv, expected_value);
 }

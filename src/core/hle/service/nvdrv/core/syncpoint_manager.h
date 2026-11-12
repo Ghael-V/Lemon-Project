@@ -89,6 +89,10 @@ public:
      */
     NvFence GetSyncpointFence(u32 id);
 
+    /// Quick Load: moves a reserved syncpoint's minimum and maximum back by `delta`, as
+    /// Tegra::Host1x::SyncpointManager::RewindForRestore does with its value.
+    void RewindForRestore(u32 id, u32 delta);
+
     static constexpr std::array<u32, static_cast<u32>(ChannelType::Max)> channel_syncpoints{
         0x0,  // `MsEnc` is unimplemented
         0xC,  // `VIC`

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 
 #include "common/bit_field.h"
@@ -164,6 +165,10 @@ public:
     [[nodiscard]] u64 CurrentSyncRequestFence() const;
 
     void WaitForSyncOperation(u64 fence);
+
+    /// Waits for the GPU to finish the commands queued before the call, for up to `timeout`.
+    /// Returns false if it did not finish in time.
+    [[nodiscard]] bool WaitForIdleFor(std::chrono::milliseconds timeout);
 
     /// Copies the images the GPU drew in [addr, addr + size) back to guest memory, on the GPU
     /// thread. Returns whether there were any.

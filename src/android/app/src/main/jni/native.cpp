@@ -53,6 +53,12 @@
 #include "core/hle/service/am/applet_manager.h"
 #include "core/hle/service/am/frontend/applets.h"
 #include "core/hle/service/filesystem/filesystem.h"
+#include "core/hle/service/nvdrv/core/container.h"
+#include "core/hle/service/nvdrv/core/syncpoint_manager.h"
+#include "core/hle/service/nvdrv/nvdrv.h"
+#include "core/hle/service/nvdrv/nvdrv_interface.h"
+#include "core/hle/service/nvnflinger/buffer_queue_core.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
 #include "core/memory_search.h"
 #include "core/savestate.h"
@@ -61,6 +67,8 @@
 #include "hid_core/hid_core.h"
 #include "hid_core/hid_types.h"
 #include "jni/native.h"
+#include "video_core/gpu.h"
+#include "video_core/host1x/host1x.h"
 #include "video_core/renderer_base.h"
 #include "video_core/renderer_vulkan/renderer_vulkan.h"
 #include "video_core/vulkan_common/vulkan_instance.h"
@@ -391,6 +399,49 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
     return false;
 }
 
+void EmulationSession::WaitForGpuIdle(const char* what) {
+    static constexpr auto Timeout = std::chrono::milliseconds(2000);
+    const auto start = std::chrono::steady_clock::now();
+    const bool idle = m_system.GPU().WaitForIdleFor(Timeout);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - start)
+                        .count();
+    if (!idle) {
+        LOG_WARNING(Frontend, "{}: GPU still busy after {} ms, going ahead anyway", what, ms);
+    }
+}
+
+void EmulationSession::RewindSyncpoints() {
+    if (!m_saved_syncpoints) {
+        LOG_WARNING(Frontend, "Quick Load: no syncpoint values from a save, left as they are");
+        return;
+    }
+    auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
+    auto nvdrv =
+        m_system.ServiceManager().GetService<Service::Nvidia::NVDRV>("nvdrv:s", true)->GetModule();
+    auto& nvdrv_syncpoints = nvdrv->GetContainer().GetSyncpointManager();
+    for (u32 id = 0; id < Tegra::Host1x::SyncpointManager::NumSyncpoints; id++) {
+        const u32 now = host1x.GetGuestSyncpointValue(id);
+        const u32 saved = (*m_saved_syncpoints)[id];
+        const u32 delta = now - saved;
+        if (delta == 0) {
+            continue;
+        }
+        if (delta > 0x7FFFFFFF) {
+            LOG_WARNING(Frontend, "Quick Load: syncpoint {} is at {}, behind the save's {}, left",
+                        id, now, saved);
+            continue;
+        }
+        const size_t waiting = host1x.RewindForRestore(id, delta);
+        nvdrv_syncpoints.RewindForRestore(id, delta);
+        const size_t fences = Service::android::BufferQueueCore::RewindFencesForRestore(id, delta);
+        LOG_INFO(Frontend,
+                 "Quick Load: syncpoint {} moved back {} to {} (host now {}), {} action(s) "
+                 "waiting on it, {} display fence(s) moved",
+                 id, delta, saved, host1x.GetHostSyncpointValue(id), waiting, fences);
+    }
+}
+
 EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     std::scoped_lock lock(m_mutex);
     const bool was_paused = m_is_paused;
@@ -402,8 +453,16 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
     // without freezing the game (see HasRiskyPendingWaits), so wait for a moment without one.
     QuickSaveResult result = QuickSaveResult::NoSafeMoment;
     if (WaitForSafeMoment(!was_paused, nullptr)) {
+        WaitForGpuIdle("Quick Save");
         result = Core::SaveState::Capture(m_system, GetQuickSavePath()) ? QuickSaveResult::Saved
                                                                         : QuickSaveResult::Failed;
+        if (result == QuickSaveResult::Saved) {
+            auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
+            m_saved_syncpoints.emplace();
+            for (u32 id = 0; id < m_saved_syncpoints->size(); id++) {
+                (*m_saved_syncpoints)[id] = host1x.GetGuestSyncpointValue(id);
+            }
+        }
     } else {
         LOG_WARNING(Frontend, "Quick Save: no safe moment found, nothing was saved");
     }
@@ -446,7 +505,11 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
             break;
         }
 
+        WaitForGpuIdle("Quick Load");
         restored = Core::SaveState::Restore(m_system, GetQuickSavePath(), &failure);
+        if (restored) {
+            RewindSyncpoints();
+        }
         if (restored || failure != Core::SaveState::RestoreFailure::NotSettled) {
             break;
         }

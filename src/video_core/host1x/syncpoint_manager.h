@@ -66,6 +66,12 @@ public:
         return syncpoints_host[syncpoint_id].load(std::memory_order_acquire) >= expected_value;
     }
 
+    static constexpr size_t NumSyncpoints = 192;
+
+    /// Quick Load: moves a syncpoint back by `delta` (guest and host value alike), to where the
+    /// restored guest memory expects it. Returns how many actions still wait on it.
+    size_t RewindForRestore(u32 syncpoint_id, u32 delta);
+
 private:
     void Increment(std::atomic<u32>& syncpoint, std::condition_variable& wait_cv,
                    std::list<RegisteredAction>& action_storage);

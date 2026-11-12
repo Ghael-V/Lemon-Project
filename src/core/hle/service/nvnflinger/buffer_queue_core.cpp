@@ -4,16 +4,54 @@
 // Parts of this implementation were based on:
 // https://cs.android.com/android/platform/superproject/+/android-5.1.1_r38:frameworks/native/libs/gui/BufferQueueCore.cpp
 
-#include "core/savestate.h"
+#include <mutex>
+#include <vector>
+
 #include "common/assert.h"
+#include "core/savestate.h"
 
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
 
 namespace Service::android {
 
-BufferQueueCore::BufferQueueCore() = default;
+namespace {
+// The live buffer queues, for a Quick Save and a Quick Load.
+std::mutex g_queues_mutex;
+std::vector<BufferQueueCore*> g_queues;
+} // namespace
 
-BufferQueueCore::~BufferQueueCore() = default;
+BufferQueueCore::BufferQueueCore() {
+    std::scoped_lock lock{g_queues_mutex};
+    g_queues.push_back(this);
+}
+
+BufferQueueCore::~BufferQueueCore() {
+    std::scoped_lock lock{g_queues_mutex};
+    std::erase(g_queues, this);
+}
+
+size_t BufferQueueCore::RewindFencesForRestore(u32 id, u32 delta) {
+    size_t moved = 0;
+    const auto rewind = [&](Fence& fence) {
+        for (u32 f = 0; f < fence.num_fences && f < fence.fences.size(); f++) {
+            if (fence.fences[f].id == static_cast<s32>(id)) {
+                fence.fences[f].value -= delta;
+                moved++;
+            }
+        }
+    };
+    std::scoped_lock lock{g_queues_mutex};
+    for (BufferQueueCore* core : g_queues) {
+        std::scoped_lock core_lock{core->mutex};
+        for (auto& slot : core->slots) {
+            rewind(slot.fence);
+        }
+        for (auto& item : core->queue) {
+            rewind(item.fence);
+        }
+    }
+    return moved;
+}
 
 void BufferQueueCore::SignalDequeueCondition() {
     dequeue_possible.store(true);
