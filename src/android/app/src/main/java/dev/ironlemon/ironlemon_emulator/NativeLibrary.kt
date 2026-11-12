@@ -162,6 +162,7 @@ object NativeLibrary {
     const val QUICK_LOAD_LOADED = 1 // restored
     const val QUICK_LOAD_INCOMPATIBLE = 2 // refused: a change since the save cannot be undone
     const val QUICK_LOAD_NO_SAFE_MOMENT = 3 // a lock handoff never ended; nothing was changed
+    const val QUICK_LOAD_GAME_LOADING = 4 // threads of the save are not back yet; nothing was changed
 
     /**
      * Scans all live guest process memory for a 4-byte value. [valueType] 0 reads memory as a

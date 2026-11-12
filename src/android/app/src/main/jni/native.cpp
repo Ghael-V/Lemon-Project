@@ -658,6 +658,7 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
     Core::SaveState::RestoreFailure failure = Core::SaveState::RestoreFailure::Other;
     bool restored = false;
     bool no_safe_moment = false;
+    bool threads_missing = false;
     for (int attempt = 0; attempt < MaxTries; attempt++) {
         m_system.Pause();
 
@@ -674,6 +675,11 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         std::unique_lock gate{Core::SaveState::ServiceReplyGate(), std::defer_lock};
         if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls, &gate)) {
             no_safe_moment = true;
+            // Threads of the save have ended and not come back yet: the game is between scenes
+            // (a death screen can end a level's workers until the level loads again). The restore
+            // cannot start them again; once the game has loaded, it can load.
+            threads_missing = Core::SaveState::WaitSignature(m_system, &saved_tls).size() <
+                              saved_signature.size();
             break;
         }
 
@@ -699,8 +705,9 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         m_system.Run();
     }
     if (no_safe_moment) {
-        LOG_WARNING(Frontend, "Quick Load: no safe moment found, nothing was changed");
-        return QuickLoadResult::NoSafeMoment;
+        LOG_WARNING(Frontend, "Quick Load: no safe moment found{}, nothing was changed",
+                    threads_missing ? " (threads of the save have ended since)" : "");
+        return threads_missing ? QuickLoadResult::GameLoading : QuickLoadResult::NoSafeMoment;
     }
     if (restored) {
         return QuickLoadResult::Loaded;
