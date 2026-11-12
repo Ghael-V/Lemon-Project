@@ -605,6 +605,20 @@ bool IsSavedWait(u32 saved_word, Kernel::ThreadWaitReasonForDebugging reason) {
            InSvc(saved_word) && ReasonOf(saved_word) == static_cast<u32>(reason);
 }
 
+// Whether a live thread whose wait matches a saved one's is also back from the same kernel call. A
+// thread runnable inside a call has finished it and is about to return, and its registers are made
+// from that call's result when it does, whatever a load puts in them; its wait does not say which
+// call it was. One saved back from a service request and found back from a timed condition
+// variable wait was given that wait's TimedOut as its request's result, and the game aborted
+// (2001-0117).
+bool BackFromSameCall(const Kernel::KThread& thread, u32 saved_word, u32 saved_svc_id) {
+    if (StateOf(saved_word) != static_cast<u32>(Kernel::ThreadState::Runnable) ||
+        !InSvc(saved_word)) {
+        return true;
+    }
+    return thread.GetSvcId() == saved_svc_id;
+}
+
 // Whether a saved thread slept on a condition variable (WaitProcessWideKeyAtomic). The kernel
 // gives a thread waiting for a user-mode mutex (ArbitrateLock) the same wait reason: such a thread
 // put on a condition variable with that call's arguments was never woken, and its "timeout" (a
@@ -738,12 +752,13 @@ LoadPlan PlanLoad(Core::System& system, Kernel::KProcess& process,
     for (size_t i = 0; i < count; i++) {
         auto* thread = plan.live[i];
         const u32 live_word = thread != nullptr ? WaitWord(system, *thread) : 0;
+        const u32 saved_svc_id = i < saved_svc.size() ? saved_svc[i] : 0;
         if (thread != nullptr &&
-            SignaturesMatch(std::vector<u32>{saved_signature[i]}, std::vector<u32>{live_word})) {
+            SignaturesMatch(std::vector<u32>{saved_signature[i]}, std::vector<u32>{live_word}) &&
+            BackFromSameCall(*thread, saved_signature[i], saved_svc_id)) {
             plan.slots[i] = SlotPlan::AsSaved;
             continue;
         }
-        const u32 saved_svc_id = i < saved_svc.size() ? saved_svc[i] : 0;
         if (allow_rebuild && CanBeCreatedAs(saved_signature[i], saved_svc_id)) {
             if (thread == nullptr) {
                 plan.slots[i] = SlotPlan::Recreate;
@@ -768,9 +783,9 @@ LoadPlan PlanLoad(Core::System& system, Kernel::KProcess& process,
         plan.blocked +=
             thread == nullptr
                 ? fmt::format("thread {}: saved {}, ended", i, DescribeWaitWord(saved_signature[i]))
-                : fmt::format("thread {}: saved {}, live {} (last call {:#x})", i,
-                              DescribeWaitWord(saved_signature[i]), DescribeWaitWord(live_word),
-                              thread->GetSvcId());
+                : fmt::format("thread {}: saved {} (call {:#x}), live {} (last call {:#x})", i,
+                              DescribeWaitWord(saved_signature[i]), saved_svc_id,
+                              DescribeWaitWord(live_word), thread->GetSvcId());
     }
     for (auto* thread : plan.extra) {
         if (!CanEndThread(*thread)) {
