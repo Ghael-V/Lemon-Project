@@ -127,6 +127,8 @@ VkResult MasterSemaphore::SubmitQueueTimeline(vk::CommandBuffer& cmdbuf,
     const std::array signal_semaphores{timeline_semaphore, signal_semaphore};
 
     const std::array cmdbuffers{*upload_cmdbuf, *cmdbuf};
+    // The upload command buffer is left out when nothing was recorded into it.
+    const u32 first_cmdbuf = *upload_cmdbuf == VK_NULL_HANDLE ? 1 : 0;
 
     const u32 num_wait_semaphores = wait_semaphore ? 1 : 0;
     const VkTimelineSemaphoreSubmitInfo timeline_si{
@@ -143,8 +145,8 @@ VkResult MasterSemaphore::SubmitQueueTimeline(vk::CommandBuffer& cmdbuf,
         .waitSemaphoreCount = num_wait_semaphores,
         .pWaitSemaphores = &wait_semaphore,
         .pWaitDstStageMask = wait_stage_masks.data(),
-        .commandBufferCount = static_cast<u32>(cmdbuffers.size()),
-        .pCommandBuffers = cmdbuffers.data(),
+        .commandBufferCount = static_cast<u32>(cmdbuffers.size()) - first_cmdbuf,
+        .pCommandBuffers = cmdbuffers.data() + first_cmdbuf,
         .signalSemaphoreCount = num_signal_semaphores,
         .pSignalSemaphores = signal_semaphores.data(),
     };
@@ -160,6 +162,8 @@ VkResult MasterSemaphore::SubmitQueueFence(vk::CommandBuffer& cmdbuf,
     const u32 num_wait_semaphores = wait_semaphore ? 1 : 0;
 
     const std::array cmdbuffers{*upload_cmdbuf, *cmdbuf};
+    // The upload command buffer is left out when nothing was recorded into it.
+    const u32 first_cmdbuf = *upload_cmdbuf == VK_NULL_HANDLE ? 1 : 0;
 
     const VkSubmitInfo submit_info{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -167,8 +171,8 @@ VkResult MasterSemaphore::SubmitQueueFence(vk::CommandBuffer& cmdbuf,
         .waitSemaphoreCount = num_wait_semaphores,
         .pWaitSemaphores = &wait_semaphore,
         .pWaitDstStageMask = wait_stage_masks.data(),
-        .commandBufferCount = static_cast<u32>(cmdbuffers.size()),
-        .pCommandBuffers = cmdbuffers.data(),
+        .commandBufferCount = static_cast<u32>(cmdbuffers.size()) - first_cmdbuf,
+        .pCommandBuffers = cmdbuffers.data() + first_cmdbuf,
         .signalSemaphoreCount = num_signal_semaphores,
         .pSignalSemaphores = &signal_semaphore,
     };
