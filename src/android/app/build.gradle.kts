@@ -156,6 +156,13 @@ android {
         }
     }
 
+    // Iron Lemon: -PprebuiltNativeDir=<dir> packages native libraries built outside Gradle
+    // (<dir>/arm64-v8a/*.so, e.g. from a Linux/WSL CMake build) instead of running CMake here.
+    val prebuiltNativeDir = project.findProperty("prebuiltNativeDir") as String?
+    if (prebuiltNativeDir != null) {
+        sourceSets.getByName("main").jniLibs.srcDir(prebuiltNativeDir)
+        defaultConfig.ndk.abiFilters += "arm64-v8a"
+    } else {
     externalNativeBuild {
         cmake {
             version = "3.22.1"
@@ -181,6 +188,7 @@ android {
                 abiFilters("arm64-v8a", "x86_64")
             }
         }
+    }
     }
 }
 
