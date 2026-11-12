@@ -3,6 +3,8 @@
 
 package dev.ironlemon.ironlemon_emulator.utils
 
+import androidx.annotation.StringRes
+import dev.ironlemon.ironlemon_emulator.R
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -19,7 +21,19 @@ import org.json.JSONArray
  * or the user is sent. Only Adreno GPUs can load custom drivers.
  */
 object DriverDownloader {
-    data class Source(val name: String, val description: String, val repository: String)
+    /**
+     * A repository whose releases hold drivers. [name] is the project's own name; what it is comes
+     * from [description], a string resource. [assetSuffix] picks the driver files among a release's
+     * downloads (null: every zip). PanVK builds ([forMali]) are made for one Mali GPU ([forGpu]).
+     */
+    data class Source(
+        val name: String,
+        @StringRes val description: Int,
+        val repository: String,
+        val assetSuffix: String? = null,
+        val forMali: Boolean = false,
+        val forGpu: String? = null
+    )
 
     data class Asset(val name: String, val url: String, val size: Long)
 
@@ -31,23 +45,57 @@ object DriverDownloader {
         val assets: List<Asset>
     )
 
-    val sources = listOf(
+    /** The repositories Lemon downloads from, Lemon's own Lemon-Ade always first. */
+    val allSources = listOf(
+        Source("Lemon-Ade Turnip", R.string.driver_source_lemon_ade, "Ghael-V/Turnip-Lemon-Ade"),
+        Source("Mr. Purple Turnip", R.string.driver_source_purple, "MrPurple666/purple-turnip"),
+        Source("GameHub Adreno 8xx", R.string.driver_source_gamehub, "crueter/GameHub-8Elite-Drivers"),
+        Source("KIMCHI Turnip", R.string.driver_source_kimchi, "K11MCH1/AdrenoToolsDrivers"),
+        Source("Weab-Chan Freedreno", R.string.driver_source_weab_chan, "Weab-chan/freedreno_turnip-CI"),
         Source(
-            "Adreno Tools Drivers",
-            "Qualcomm drivers repackaged and Turnip builds (K11MCH1)",
-            "K11MCH1/AdrenoToolsDrivers"
+            "Whitebelyash Turnip",
+            R.string.driver_source_whitebelyash,
+            "whitebelyash/freedreno_turnip-CI"
+        ),
+        Source("StevenMXZ Turnip", R.string.driver_source_stevenmxz, "StevenMXZ/Adreno-Tools-Drivers"),
+        Source("Balemuni Apex Turnip", R.string.driver_source_balemuni, "Balemuni/Balemunis-Aurora"),
+        // Mesa PanVK on the Mali kernel driver. The first repository also publishes bare libraries;
+        // only its adrenotools zip is the Android driver package.
+        Source(
+            "PanVK G615",
+            R.string.driver_source_panvk_g615,
+            "zenithblue-oss/panvk-kbase-android",
+            assetSuffix = "-adrenotools.zip",
+            forMali = true,
+            forGpu = "G615"
         ),
         Source(
-            "Turnip CI",
-            "Mesa Turnip built from upstream (Weab-chan)",
-            "Weab-chan/freedreno_turnip-CI"
+            "PanVK G720",
+            R.string.driver_source_panvk_g720,
+            "wonderkast02/panvk-g720-kbase-csf",
+            forMali = true,
+            forGpu = "G720"
         ),
         Source(
-            "Purple Turnip",
-            "Turnip with fixes for emulators (MrPurple666)",
-            "MrPurple666/purple-turnip"
+            "PanVK G52",
+            R.string.driver_source_panvk_g52,
+            "LukeValen/panvk-mali-g52",
+            forMali = true,
+            forGpu = "G52"
         )
     )
+
+    /**
+     * The sources for this device: the Turnip and Qualcomm builds on Adreno, and on Mali the PanVK
+     * builds for its GPU when [gpuName] tells which (a build for another Mali installs but doesn't
+     * start games).
+     */
+    fun sourcesFor(adreno: Boolean, gpuName: String?): List<Source> = allSources.filter { source ->
+        source.forMali != adreno && (
+            source.forGpu == null || gpuName == null ||
+                gpuName.contains(source.forGpu, ignoreCase = true)
+            )
+    }
 
     private const val API = "https://api.github.com/repos"
 
@@ -92,7 +140,9 @@ object DriverDownloader {
             }
             val assetArray = release.optJSONArray("assets") ?: JSONArray()
             val assets = (0 until assetArray.length()).map { assetArray.getJSONObject(it) }
-                .filter { it.optString("name").endsWith(".zip", ignoreCase = true) }
+                .filter {
+                    it.optString("name").endsWith(source.assetSuffix ?: ".zip", ignoreCase = true)
+                }
                 .map {
                     Asset(
                         name = it.getString("name"),

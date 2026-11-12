@@ -1355,4 +1355,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="driver_download_failed">The download failed</string>
     <string name="driver_download_invalid">That file isn\'t a driver this app can load</string>
     <string name="driver_download_needs_newer_android">That driver needs a newer Android version</string>
+    <string name="driver_download_button">Download</string>
+    <string name="driver_source_lemon_ade">Lemon\'s own Turnip build, tuned for the Adreno 830</string>
+    <string name="driver_source_purple">Turnip with fixes for emulators, for Adreno 6xx and 7xx</string>
+    <string name="driver_source_gamehub">Qualcomm drivers for the Adreno 8xx (Snapdragon 8 Elite)</string>
+    <string name="driver_source_kimchi">Qualcomm drivers repackaged and Turnip builds</string>
+    <string name="driver_source_weab_chan">Mesa Turnip built from upstream</string>
+    <string name="driver_source_whitebelyash">Another build of Mesa Turnip from upstream</string>
+    <string name="driver_source_stevenmxz">Qualcomm drivers repackaged for adrenotools</string>
+    <string name="driver_source_balemuni">Turnip builds for every Adreno and for the Snapdragon 8 Gen 2</string>
+    <string name="driver_source_panvk_g615">Mesa PanVK for the Mali-G615 (Android 15 or newer, experimental)</string>
+    <string name="driver_source_panvk_g720">Mesa PanVK for the Mali-G720 (Android 15 or newer, experimental)</string>
+    <string name="driver_source_panvk_g52">Mesa PanVK for the Mali-G52 (Android 9 or newer, experimental)</string>
 </resources>

@@ -8,12 +8,15 @@ import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -196,14 +200,20 @@ private fun DriverDownloadScreen(
 
 @Composable
 private fun DriverSources(onInstalled: (String) -> Unit) {
-    var source by remember { mutableStateOf(DriverDownloader.sources.first()) }
+    val sources = remember {
+        DriverDownloader.sourcesFor(
+            adreno = true,
+            gpuName = GpuDriverHelper.cachedSystemDriverInfo()?.getOrNull(1)
+        )
+    }
+    var source by remember { mutableStateOf(sources.first()) }
     var releases by remember { mutableStateOf<ReleasesState>(ReleasesState.Loading) }
     var reload by remember { mutableStateOf(0) }
     var install by remember { mutableStateOf<InstallState>(InstallState.Idle) }
     var progress by remember { mutableFloatStateOf(0f) }
     var job by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     LaunchedEffect(source, reload) {
         releases = ReleasesState.Loading
@@ -240,9 +250,12 @@ private fun DriverSources(onInstalled: (String) -> Unit) {
         }
     }
 
-    // Sources, as chips.
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        DriverDownloader.sources.forEach { candidate ->
+    // Sources, as chips (more than fit: they scroll sideways).
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.horizontalScroll(rememberScrollState())
+    ) {
+        sources.forEach { candidate ->
             val selected = candidate == source
             val chipShape = RoundedCornerShape(20.dp)
             Box(
@@ -273,7 +286,7 @@ private fun DriverSources(onInstalled: (String) -> Unit) {
         }
     }
     Spacer(Modifier.height(6.dp))
-    BasicText(source.description, style = IronLemonType.Body)
+    BasicText(stringResource(source.description), style = IronLemonType.Body)
     Spacer(Modifier.height(12.dp))
 
     when (val state = install) {
@@ -394,7 +407,7 @@ private fun ReleaseCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     BasicText(
-                        "%.1f MB".format(asset.size / (1024f * 1024f)),
+                        Formatter.formatShortFileSize(LocalContext.current, asset.size),
                         style = IronLemonType.Body
                     )
                 }

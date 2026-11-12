@@ -732,4 +732,16 @@
     <string name="driver_download_failed">La descarga ha fallado</string>
     <string name="driver_download_invalid">Ese archivo no es un driver que se pueda cargar</string>
     <string name="driver_download_needs_newer_android">Ese driver necesita una versión de Android más nueva</string>
+    <string name="driver_download_button">Descargar</string>
+    <string name="driver_source_lemon_ade">El Turnip propio de Lemon, ajustado para la Adreno 830</string>
+    <string name="driver_source_purple">Turnip con arreglos para emuladores, para Adreno 6xx y 7xx</string>
+    <string name="driver_source_gamehub">Drivers de Qualcomm para Adreno 8xx (Snapdragon 8 Elite)</string>
+    <string name="driver_source_kimchi">Drivers de Qualcomm reempaquetados y versiones de Turnip</string>
+    <string name="driver_source_weab_chan">Mesa Turnip compilado desde el código oficial</string>
+    <string name="driver_source_whitebelyash">Otra compilación de Mesa Turnip desde el código oficial</string>
+    <string name="driver_source_stevenmxz">Drivers de Qualcomm reempaquetados para adrenotools</string>
+    <string name="driver_source_balemuni">Versiones de Turnip para cualquier Adreno y para Snapdragon 8 Gen 2</string>
+    <string name="driver_source_panvk_g615">Mesa PanVK para la Mali-G615 (Android 15 o posterior, experimental)</string>
+    <string name="driver_source_panvk_g720">Mesa PanVK para la Mali-G720 (Android 15 o posterior, experimental)</string>
+    <string name="driver_source_panvk_g52">Mesa PanVK para la Mali-G52 (Android 9 o posterior, experimental)</string>
 </resources>
