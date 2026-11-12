@@ -235,7 +235,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             )
         }
 
-        binding.macroOverlay.onShowOverlayRequested = { toggleOverlay(true) }
+        // The macro panel's "Show on-screen controller": as the overlay options' Show overlay does.
+        binding.macroOverlay.onShowOverlayRequested = {
+            BooleanSetting.SHOW_INPUT_OVERLAY.setBoolean(true)
+            binding.surfaceInputOverlay.refreshControls()
+            binding.surfaceInputOverlay.setVisible(emulationViewModel.emulationStarted.value)
+        }
 
         binding.inGameMenu.setNavigationItemSelectedListener {
             when (it.itemId) {
