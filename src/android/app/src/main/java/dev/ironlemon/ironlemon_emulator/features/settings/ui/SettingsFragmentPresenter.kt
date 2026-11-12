@@ -475,6 +475,9 @@ class SettingsFragmentPresenter(
             val prettyControllerList = InputHandler.registeredControllers.mapNotNull {
                 return@mapNotNull if (it.get("port", 0) == 100) {
                     null
+                } else if (it.get("engine", "") == "any") {
+                    // The core names this entry "Any" in English.
+                    context.getString(R.string.input_device_any)
                 } else {
                     it.get("display", unknownString)
                 }
