@@ -3,65 +3,88 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonProgressBar
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.DialogProgressBarBinding
 import dev.ironlemon.ironlemon_emulator.model.TaskViewModel
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.setVisible
 import dev.ironlemon.ironlemon_emulator.utils.collect
 
-class ProgressDialogFragment : DialogFragment() {
+class ProgressDialogFragment : IronLemonComposeDialogFragment() {
     private val taskViewModel: TaskViewModel by activityViewModels()
 
-    private lateinit var binding: DialogProgressBarBinding
-
-    private val PROGRESS_BAR_RESOLUTION = 1000
-
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val titleId = requireArguments().getInt(TITLE)
-        val cancellable = requireArguments().getBoolean(CANCELLABLE)
-
-        binding = DialogProgressBarBinding.inflate(layoutInflater)
-        binding.progressBar.isIndeterminate = true
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(titleId)
-            .setView(binding.root)
-
-        if (cancellable) {
-            dialog.setNegativeButton(android.R.string.cancel, null)
-        }
-
-        val alertDialog = dialog.create()
-        alertDialog.setCanceledOnTouchOutside(false)
-
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Closed by the task finishing (or by Cancel), never by a tap outside or Back.
+        isCancelable = false
         if (!taskViewModel.isRunning.value) {
             taskViewModel.runTask()
         }
-        return alertDialog
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        return binding.root
+    @Composable
+    override fun DialogContent() {
+        val cancellable = requireArguments().getBoolean(CANCELLABLE)
+        val cancelled by taskViewModel.cancelled.collectAsState()
+        val progress by taskViewModel.progress.collectAsState()
+        val maxProgress by taskViewModel.maxProgress.collectAsState()
+        val message by taskViewModel.message.collectAsState()
+        val fraction = if (progress != 0.0 && maxProgress > 0.0 && !cancelled) {
+            (progress / maxProgress).toFloat().coerceIn(0f, 1f)
+        } else {
+            null
+        }
+
+        IronLemonDialogCard(
+            title = stringResource(
+                if (cancelled) R.string.cancelling else requireArguments().getInt(TITLE)
+            ),
+            buttons = if (cancellable && !cancelled) {
+                {
+                    IronLemonButton(
+                        text = stringResource(android.R.string.cancel),
+                        height = 44.dp,
+                        onClick = { taskViewModel.setCancelled(true) }
+                    )
+                }
+            } else {
+                null
+            }
+        ) {
+            if (message.isNotEmpty()) {
+                BasicText(
+                    message,
+                    style = IronLemonType.Body.copy(color = IronLemonColors.Text),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+            IronLemonProgressBar(fraction)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.message.isSelected = true
         taskViewModel.isComplete.collect(viewLifecycleOwner) {
             if (it) {
                 dismiss()
@@ -83,41 +106,6 @@ class ProgressDialogFragment : DialogFragment() {
                 }
                 taskViewModel.clear()
             }
-        }
-        taskViewModel.cancelled.collect(viewLifecycleOwner) {
-            if (it) {
-                dialog?.setTitle(R.string.cancelling)
-            }
-        }
-        taskViewModel.progress.collect(viewLifecycleOwner) {
-            if (it != 0.0) {
-                binding.progressBar.apply {
-                    isIndeterminate = false
-                    progress = (
-                        (it / taskViewModel.maxProgress.value) *
-                            PROGRESS_BAR_RESOLUTION
-                        ).toInt()
-                    min = 0
-                    max = PROGRESS_BAR_RESOLUTION
-                }
-            }
-        }
-        taskViewModel.message.collect(viewLifecycleOwner) {
-            binding.message.setVisible(it.isNotEmpty())
-            binding.message.text = it
-        }
-    }
-
-    // By default, the ProgressDialog will immediately dismiss itself upon a button being pressed.
-    // Setting the OnClickListener again after the dialog is shown overrides this behavior.
-    override fun onResume() {
-        super.onResume()
-        val alertDialog = dialog as AlertDialog
-        val negativeButton = alertDialog.getButton(Dialog.BUTTON_NEGATIVE)
-        negativeButton.setOnClickListener {
-            alertDialog.setTitle(getString(R.string.cancelling))
-            binding.progressBar.isIndeterminate = true
-            taskViewModel.setCancelled(true)
         }
     }
 

@@ -1,43 +1,36 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.DialogFragment
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.activityViewModels
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.DialogProgressBarBinding
 import dev.ironlemon.ironlemon_emulator.model.DriverViewModel
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonProgressBar
 import dev.ironlemon.ironlemon_emulator.utils.collect
 
-class DriversLoadingDialogFragment : DialogFragment() {
+/** Shown while the driver list is being read or drivers are being deleted. */
+class DriversLoadingDialogFragment : IronLemonComposeDialogFragment() {
     private val driverViewModel: DriverViewModel by activityViewModels()
 
-    private lateinit var binding: DialogProgressBarBinding
-
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        binding = DialogProgressBarBinding.inflate(layoutInflater)
-        binding.progressBar.isIndeterminate = true
-
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         isCancelable = false
-
-        return MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.loading)
-            .setView(binding.root)
-            .create()
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View = binding.root
+    @Composable
+    override fun DialogContent() {
+        IronLemonDialogCard(title = stringResource(R.string.loading)) {
+            IronLemonProgressBar(null)
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

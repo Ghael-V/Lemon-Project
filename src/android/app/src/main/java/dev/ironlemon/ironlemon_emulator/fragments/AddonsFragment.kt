@@ -50,7 +50,7 @@ class AddonsFragment : IronLemonComposeFragment() {
     }
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         val addons by addonViewModel.addonList.collectAsState()
         IronLemonPage(
             title = stringResource(R.string.addons_game, args.game.title),

@@ -44,7 +44,7 @@ class AppletLauncherFragment : IronLemonComposeFragment() {
     )
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         IronLemonPage(title = stringResource(R.string.applets), onBack = ::goBack) {
             IronLemonCardGrid {
                 items(applets) { applet ->

@@ -44,7 +44,7 @@ class GameFoldersFragment : IronLemonComposeFragment() {
     }
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         val folders by gamesViewModel.folders.collectAsState()
         IronLemonPage(title = stringResource(R.string.game_folders), onBack = ::goBack) {
             Box(Modifier.fillMaxSize()) {
@@ -56,7 +56,8 @@ class GameFoldersFragment : IronLemonComposeFragment() {
                                 ?.substringAfterLast('/')
                                 ?.ifBlank { null }
                                 ?: folder.uriString,
-                            description = Uri.parse(folder.uriString).path,
+                            // The tree path ("/tree/<volume>:<folder>") without its prefix.
+                            description = Uri.parse(folder.uriString).path?.removePrefix("/tree/"),
                             iconRes = R.drawable.ic_folder_open,
                             onClick = {
                                 GameFolderPropertiesDialogFragment.newInstance(folder)

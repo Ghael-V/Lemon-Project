@@ -41,7 +41,7 @@ class InstallableFragment : IronLemonComposeFragment() {
     private var installables by mutableStateOf<List<Installable>>(emptyList())
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         IronLemonPage(title = stringResource(R.string.manage_yuzu_data), onBack = ::goBack) {
             IronLemonCardGrid {
                 items(installables) { item ->

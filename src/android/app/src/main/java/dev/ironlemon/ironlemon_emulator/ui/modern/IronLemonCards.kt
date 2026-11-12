@@ -45,7 +45,7 @@ import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
 
 /**
  * A screen of the home navigation drawn in Compose: the shared-axis transitions, the home
- * navigation hidden, and [Content] filling the fragment. [goBack] leaves the screen.
+ * navigation hidden, and [ScreenContent] filling the fragment. [goBack] leaves the screen.
  */
 abstract class IronLemonComposeFragment : Fragment() {
     protected val homeViewModel: HomeViewModel by activityViewModels()
@@ -63,7 +63,7 @@ abstract class IronLemonComposeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-        setContent { Content() }
+        setContent { ScreenContent() }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -77,7 +77,7 @@ abstract class IronLemonComposeFragment : Fragment() {
     }
 
     @Composable
-    protected abstract fun Content()
+    protected abstract fun ScreenContent()
 }
 
 /** Cards in as many columns as fit, with room at the bottom for floating buttons if [bottom]. */

@@ -43,7 +43,7 @@ class GameInfoFragment : IronLemonComposeFragment() {
     }
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         val game = args.game
         val pathString = Uri.parse(game.path).path ?: ""
         val fields = buildList {

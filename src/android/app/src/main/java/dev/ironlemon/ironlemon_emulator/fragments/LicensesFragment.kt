@@ -68,7 +68,7 @@ class LicensesFragment : IronLemonComposeFragment() {
     )
 
     @Composable
-    override fun Content() {
+    override fun ScreenContent() {
         IronLemonPage(title = stringResource(R.string.licenses), onBack = ::goBack) {
             IronLemonCardGrid {
                 items(licenses) { license ->

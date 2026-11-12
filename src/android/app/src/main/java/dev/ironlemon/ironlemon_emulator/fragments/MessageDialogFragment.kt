@@ -3,94 +3,96 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
-import android.app.Dialog
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Html
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.model.MessageDialogViewModel
 import dev.ironlemon.ironlemon_emulator.utils.Log
 
-class MessageDialogFragment : DialogFragment() {
+class MessageDialogFragment : IronLemonComposeDialogFragment() {
     private val messageDialogViewModel: MessageDialogViewModel by activityViewModels()
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val titleId = requireArguments().getInt(TITLE_ID)
-        val title = if (titleId != 0) {
-            getString(titleId)
-        } else {
-            requireArguments().getString(TITLE_STRING)!!
-        }
-
-        val descriptionId = requireArguments().getInt(DESCRIPTION_ID)
-        val description = if (descriptionId != 0) {
-            getString(descriptionId)
-        } else {
-            requireArguments().getString(DESCRIPTION_STRING)!!
-        }
-
-        val positiveButtonId = requireArguments().getInt(POSITIVE_BUTTON_TITLE_ID)
-        val positiveButtonString = requireArguments().getString(POSITIVE_BUTTON_TITLE_STRING)!!
-        val positiveButton = if (positiveButtonId != 0) {
-            getString(positiveButtonId)
-        } else if (positiveButtonString.isNotEmpty()) {
-            positiveButtonString
-        } else if (messageDialogViewModel.positiveAction != null) {
-            getString(android.R.string.ok)
-        } else {
-            getString(R.string.close)
-        }
-
-        val negativeButtonId = requireArguments().getInt(NEGATIVE_BUTTON_TITLE_ID)
-        val negativeButtonString = requireArguments().getString(NEGATIVE_BUTTON_TITLE_STRING)!!
-        val negativeButton = if (negativeButtonId != 0) {
-            getString(negativeButtonId)
-        } else if (negativeButtonString.isNotEmpty()) {
-            negativeButtonString
-        } else {
-            getString(android.R.string.cancel)
-        }
-
-        val helpLinkId = requireArguments().getInt(HELP_LINK)
-        val dismissible = requireArguments().getBoolean(DISMISSIBLE)
-        val clearPositiveAction = requireArguments().getBoolean(CLEAR_ACTIONS)
-        val showNegativeButton = requireArguments().getBoolean(SHOW_NEGATIVE_BUTTON)
-
-        val builder = MaterialAlertDialogBuilder(requireContext())
-
-        if (clearPositiveAction) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        isCancelable = requireArguments().getBoolean(DISMISSIBLE)
+        if (requireArguments().getBoolean(CLEAR_ACTIONS)) {
             messageDialogViewModel.positiveAction = null
         }
+    }
 
-        builder.setPositiveButton(positiveButton) { _, _ ->
-            messageDialogViewModel.positiveAction?.invoke()
-        }
-        if (messageDialogViewModel.negativeAction != null || showNegativeButton) {
-            builder.setNegativeButton(negativeButton) { _, _ ->
-                messageDialogViewModel.negativeAction?.invoke()
+    private fun text(idKey: String, stringKey: String): String {
+        val id = requireArguments().getInt(idKey)
+        return if (id != 0) getString(id) else requireArguments().getString(stringKey).orEmpty()
+    }
+
+    @Composable
+    override fun DialogContent() {
+        val title = text(TITLE_ID, TITLE_STRING)
+        val description = text(DESCRIPTION_ID, DESCRIPTION_STRING)
+        val positiveButton = text(POSITIVE_BUTTON_TITLE_ID, POSITIVE_BUTTON_TITLE_STRING).ifEmpty {
+            if (messageDialogViewModel.positiveAction != null) {
+                getString(android.R.string.ok)
+            } else {
+                getString(R.string.close)
             }
         }
+        val negativeButton = text(NEGATIVE_BUTTON_TITLE_ID, NEGATIVE_BUTTON_TITLE_STRING)
+            .ifEmpty { getString(android.R.string.cancel) }
+        val helpLinkId = requireArguments().getInt(HELP_LINK)
+        // A dialog that asks to confirm something can always be turned down.
+        val showNegative = messageDialogViewModel.negativeAction != null ||
+            messageDialogViewModel.positiveAction != null ||
+            requireArguments().getBoolean(SHOW_NEGATIVE_BUTTON)
 
-        if (title.isNotEmpty()) builder.setTitle(title)
-        if (description.isNotEmpty()) {
-            builder.setMessage(Html.fromHtml(description, Html.FROM_HTML_MODE_LEGACY))
-        }
-
-        if (helpLinkId != 0) {
-            builder.setNeutralButton(R.string.learn_more) { _, _ ->
-                openLink(getString(helpLinkId))
+        IronLemonDialogCard(
+            title = title,
+            buttons = {
+                if (helpLinkId != 0) {
+                    IronLemonButton(text = getString(R.string.learn_more), height = 44.dp, onClick = {
+                        openLink(getString(helpLinkId))
+                        dismiss()
+                    })
+                }
+                if (showNegative) {
+                    IronLemonButton(text = negativeButton, height = 44.dp, onClick = {
+                        messageDialogViewModel.negativeAction?.invoke()
+                        dismiss()
+                    })
+                }
+                IronLemonButton(text = positiveButton, primary = true, height = 44.dp, onClick = {
+                    messageDialogViewModel.positiveAction?.invoke()
+                    dismiss()
+                })
+            }
+        ) {
+            if (description.isNotEmpty()) {
+                BasicText(
+                    AnnotatedString.fromHtml(description),
+                    style = IronLemonType.Body.copy(color = IronLemonColors.Text),
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                )
             }
         }
-
-        isCancelable = dismissible
-
-        return builder.show()
     }
 
     private fun openLink(link: String) {
