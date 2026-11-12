@@ -728,7 +728,7 @@
     <string name="driver_download_install">Instalar</string>
     <string name="driver_download_prerelease">Versión previa · %1$s</string>
     <string name="driver_download_downloading">Descargando %1$s…</string>
-    <string name="driver_download_done">%1$s instalado: selecciónalo en la lista</string>
+    <string name="driver_download_done">%1$s instalado y seleccionado</string>
     <string name="driver_download_failed">La descarga ha fallado</string>
     <string name="driver_download_invalid">Ese archivo no es un driver que se pueda cargar</string>
     <string name="driver_download_needs_newer_android">Ese driver necesita una versión de Android más nueva</string>

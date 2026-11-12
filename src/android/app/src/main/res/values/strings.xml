@@ -1351,7 +1351,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="driver_download_install">Install</string>
     <string name="driver_download_prerelease">Pre-release · %1$s</string>
     <string name="driver_download_downloading">Downloading %1$s…</string>
-    <string name="driver_download_done">%1$s installed: select it in the list</string>
+    <string name="driver_download_done">%1$s installed and selected</string>
     <string name="driver_download_failed">The download failed</string>
     <string name="driver_download_invalid">That file isn\'t a driver this app can load</string>
     <string name="driver_download_needs_newer_android">That driver needs a newer Android version</string>
