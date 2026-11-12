@@ -153,6 +153,108 @@ u64 WaitKey(const Kernel::KThread& thread) {
     return thread.GetAddressKey().GetValue();
 }
 
+// Whether a thread the save does not have can be ended now: already ended, or asleep inside a
+// kernel call, which it then leaves without running any more guest code. One running, or waiting
+// for a service's answer, is in the middle of something: try again.
+bool CanEndThread(Kernel::KThread& thread) {
+    if (thread.GetState() == Kernel::ThreadState::Terminated) {
+        return true;
+    }
+    return thread.GetState() == Kernel::ThreadState::Waiting && thread.IsCallingSvc() &&
+           IsParkedInKernel(thread) &&
+           thread.GetWaitReasonForDebugging() != Kernel::ThreadWaitReasonForDebugging::Suspended;
+}
+
+// Ends threads the game started after the save (see Restore) the way the kernel ends the threads
+// of an exiting process: each is woken from its wait with "termination requested" and exits before
+// it runs any more guest code. The game's handles to them are closed too, as the game would have
+// closed them once they ended: the restored memory holds none of them, so nothing else ever would.
+// Then the kernel lets go of them, which also frees their thread-local storage for the threads the
+// restored game starts again later.
+void EndThreadsNotInSave(Core::System& system, Kernel::KProcess& process,
+                         const std::vector<Kernel::KThread*>& threads) {
+    auto& kernel = system.Kernel();
+    const auto started = std::chrono::steady_clock::now();
+    std::vector<Kernel::KThread*> held;
+    std::string described;
+    for (auto* thread : threads) {
+        described +=
+            fmt::format("{}id {} tls {:#x} {}", described.empty() ? "" : "; ",
+                        thread->GetThreadId(), thread->GetTlsAddress().GetValue(),
+                        thread->GetState() == Kernel::ThreadState::Terminated
+                            ? std::string{"already ended"}
+                            : fmt::format("asleep ({})",
+                                          static_cast<u32>(thread->GetWaitReasonForDebugging())));
+        if (thread->Open(kernel)) {
+            held.push_back(thread);
+        }
+    }
+    for (auto* thread : held) {
+        if (thread->GetState() != Kernel::ThreadState::Terminated) {
+            thread->RequestTerminate(kernel);
+        }
+    }
+
+    // Each runs once more, on its own, to exit (the game stays paused).
+    const auto deadline = started + std::chrono::seconds(2);
+    const auto all_ended = [&] {
+        return std::ranges::all_of(held, [&](auto* t) { return t->IsSignaled(kernel); });
+    };
+    while (!all_ended() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    const bool ended = all_ended();
+
+    std::vector<Kernel::Handle> handles;
+    process.GetHandleTable().ForEachEntry(
+        kernel, [&](s32 index, u32 linear_id, Kernel::KAutoObject* object) {
+            if (std::ranges::find(held, object, [](auto* t) {
+                    return static_cast<Kernel::KAutoObject*>(t);
+                }) != held.end()) {
+                handles.push_back(EncodeHandleValue(static_cast<u32>(index), linear_id));
+            }
+        });
+    u32 closed = 0;
+    for (const auto handle : handles) {
+        if (process.GetHandleTable().Remove(kernel, handle)) {
+            closed++;
+        }
+    }
+    for (auto* thread : held) {
+        thread->Close(kernel);
+    }
+
+    // Wait for them to leave the thread list. Compared by address only: they may be gone already.
+    const auto in_list = [&] {
+        Kernel::KScopedLightLock list_lock{process.GetListLock()};
+        for (auto& thread : process.GetThreadList()) {
+            if (std::ranges::find(held, std::addressof(thread)) != held.end()) {
+                return true;
+            }
+        }
+        return false;
+    };
+    while (in_list() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    const bool gone = !in_list();
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - started)
+                        .count();
+    if (ended && gone) {
+        LOG_INFO(Core,
+                 "SaveState::Restore: ended {} thread(s) started after the save ({}): {} handle(s) "
+                 "closed, gone after {} ms",
+                 threads.size(), described, closed, ms);
+    } else {
+        LOG_WARNING(
+            Core,
+            "SaveState::Restore: ending {} thread(s) started after the save ({}): ended {}, "
+            "gone from the thread list {}, {} handle(s) closed, after {} ms",
+            threads.size(), described, ended, gone, closed, ms);
+    }
+}
+
 // Writes the 4 KiB chunks of `data` that differ from guest memory, in runs. A false return means
 // part of the range is not mapped.
 bool WriteChanged(Core::Memory::Memory& memory, u64 address, const u8* data, u64 size,
@@ -270,10 +372,15 @@ ServiceGateRelease::~ServiceGateRelease() {
     }
 }
 
-std::vector<u32> WaitSignature(Core::System& system) {
+std::vector<u32> WaitSignature(Core::System& system, const std::vector<u64>* saved_tls) {
     std::vector<u32> signature;
     if (auto* process = system.ApplicationProcess()) {
         for (auto& thread : process->GetThreadList()) {
+            if (saved_tls != nullptr &&
+                std::ranges::find(*saved_tls, thread.GetTlsAddress().GetValue()) ==
+                    saved_tls->end()) {
+                continue;
+            }
             // The kernel state (running/waiting/...) as well as the wait reason: a save/load pair
             // that disagreed only on the state (the main thread waiting at the save, runnable at
             // the load) froze the game while a reason-only signature said "same".
@@ -346,7 +453,7 @@ bool SignaturesMatch(const std::vector<u32>& saved, const std::vector<u32>& live
     return true;
 }
 
-bool ReadSavedSignature(const std::string& path, std::vector<u32>& out) {
+bool ReadSavedSignature(const std::string& path, std::vector<u32>& out, std::vector<u64>* tls) {
     Common::FS::IOFile file{path, Common::FS::FileAccessMode::Read};
     if (!file.IsOpen()) {
         return false;
@@ -360,7 +467,24 @@ bool ReadSavedSignature(const std::string& path, std::vector<u32>& out) {
         return false;
     }
     out.resize(thread_count);
-    return thread_count == 0 || file.ReadSpan<u32>(out) == out.size();
+    if (thread_count > 0 && file.ReadSpan<u32>(out) != out.size()) {
+        return false;
+    }
+    if (tls == nullptr) {
+        return true;
+    }
+    // The saved threads follow their contexts.
+    std::vector<SavedThread> saved(thread_count);
+    if (!file.Seek(static_cast<s64>(thread_count * sizeof(Kernel::Svc::ThreadContext)),
+                   Common::FS::SeekOrigin::CurrentPosition) ||
+        (thread_count > 0 && file.ReadSpan<SavedThread>(saved) != saved.size())) {
+        return false;
+    }
+    tls->clear();
+    for (const auto& thread : saved) {
+        tls->push_back(thread.tls);
+    }
+    return true;
 }
 
 size_t CopyGpuDrawnImages(Core::System& system) {
@@ -582,38 +706,6 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
         return false;
     }
 
-    // Match the live thread list against the captured one before touching anything -
-    // same list, so iteration order matches Capture()'s as long as nothing created or
-    // destroyed a thread in between. Checked before allocating anything sized from the file,
-    // so a corrupt count can't turn into a huge allocation.
-    std::vector<Kernel::KThread*> live_threads;
-    for (auto& thread : process->GetThreadList()) {
-        live_threads.push_back(std::addressof(thread));
-    }
-
-    if (live_threads.size() != thread_count) {
-        LOG_ERROR(Core,
-                   "SaveState::Restore: thread count mismatch (saved {}, live {}) - the guest's "
-                   "thread set changed since this savestate was captured, refusing to load",
-                   thread_count, live_threads.size());
-        return false;
-    }
-
-    // Refuse, before touching anything, when the threads are not waiting the way they were at the
-    // save: see WaitSignature. The caller normally waits for this to hold; this keeps any other
-    // caller from restoring onto a game caught mid-transition.
-    const std::vector<u32> live_signature = WaitSignature(system);
-    if (!SignaturesMatch(saved_signature, live_signature)) {
-        LOG_WARNING(Core,
-                    "SaveState::Restore: the guest's threads are not waiting as they were at the "
-                    "save (some are waking or sleeping), refusing for now: {}",
-                    DescribeWaitDifferences(saved_signature, live_signature));
-        if (failure != nullptr) {
-            *failure = RestoreFailure::NotSettled;
-        }
-        return false;
-    }
-
     std::vector<Kernel::Svc::ThreadContext> thread_contexts(thread_count);
     if (thread_count > 0 &&
         file.ReadSpan<Kernel::Svc::ThreadContext>(thread_contexts) != thread_contexts.size()) {
@@ -625,16 +717,78 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
     std::vector<SavedBlock> saved_blocks;
     {
         u32 block_count = 0;
-        bool read_ok = thread_count == 0 ||
-                       file.ReadSpan<SavedThread>(saved_threads) == saved_threads.size();
+        bool read_ok =
+            thread_count == 0 || file.ReadSpan<SavedThread>(saved_threads) == saved_threads.size();
         read_ok = read_ok && file.ReadObject(block_count) && block_count <= 1'000'000;
         if (read_ok) {
             saved_blocks.resize(block_count);
-            read_ok = block_count == 0 ||
-                      file.ReadSpan<SavedBlock>(saved_blocks) == saved_blocks.size();
+            read_ok =
+                block_count == 0 || file.ReadSpan<SavedBlock>(saved_blocks) == saved_blocks.size();
         }
         if (!read_ok) {
             LOG_ERROR(Core, "SaveState::Restore: truncated world section in '{}'", path);
+            return false;
+        }
+    }
+
+    // Match the live thread list against the captured one before touching anything -
+    // same list, so iteration order matches Capture()'s as long as nothing created or
+    // destroyed a thread in between.
+    //
+    // Except for threads the game started after the save in a thread-local storage slot no saved
+    // thread had: the restored game never started them and holds nothing of theirs, so they are
+    // left out here and ended just before anything is changed (EndThreadsNotInSave). A game
+    // started three each time it wrote its own save file and they lived on for a minute or more;
+    // every Quick Load in that time was refused for the thread count. A thread the save holds
+    // that has ended since is still refused: that would need it started again.
+    std::vector<u64> saved_tls;
+    for (const auto& thread : saved_threads) {
+        saved_tls.push_back(thread.tls);
+    }
+    std::vector<Kernel::KThread*> live_threads;
+    std::vector<Kernel::KThread*> extra_threads;
+    for (auto& thread : process->GetThreadList()) {
+        if (std::ranges::find(saved_tls, thread.GetTlsAddress().GetValue()) != saved_tls.end()) {
+            live_threads.push_back(std::addressof(thread));
+        } else {
+            extra_threads.push_back(std::addressof(thread));
+        }
+    }
+
+    if (live_threads.size() != thread_count) {
+        LOG_ERROR(Core,
+                  "SaveState::Restore: thread count mismatch (saved {}, live {} of the save's and "
+                  "{} started since) - the guest's thread set changed since this savestate was "
+                  "captured, refusing to load",
+                  thread_count, live_threads.size(), extra_threads.size());
+        return false;
+    }
+
+    // Refuse, before touching anything, when the threads are not waiting the way they were at the
+    // save: see WaitSignature. The caller normally waits for this to hold; this keeps any other
+    // caller from restoring onto a game caught mid-transition.
+    const std::vector<u32> live_signature = WaitSignature(system, &saved_tls);
+    if (!SignaturesMatch(saved_signature, live_signature)) {
+        LOG_WARNING(Core,
+                    "SaveState::Restore: the guest's threads are not waiting as they were at the "
+                    "save (some are waking or sleeping), refusing for now: {}",
+                    DescribeWaitDifferences(saved_signature, live_signature));
+        if (failure != nullptr) {
+            *failure = RestoreFailure::NotSettled;
+        }
+        return false;
+    }
+    for (auto* thread : extra_threads) {
+        if (!CanEndThread(*thread)) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: thread id {} (tls {:#x}), started after the save, is "
+                        "not asleep in a kernel call, refusing for now: state {}, wait reason {}",
+                        thread->GetThreadId(), thread->GetTlsAddress().GetValue(),
+                        static_cast<u32>(thread->GetState()),
+                        static_cast<u32>(thread->GetWaitReasonForDebugging()));
+            if (failure != nullptr) {
+                *failure = RestoreFailure::NotSettled;
+            }
             return false;
         }
     }
@@ -913,6 +1067,10 @@ bool Restore(Core::System& system, const std::string& path, RestoreFailure* fail
             }
             return false;
         }
+    }
+    // From here on the restore goes ahead.
+    if (!extra_threads.empty()) {
+        EndThreadsNotInSave(system, *process, extra_threads);
     }
     {
         const size_t memory_steps = memory_journal.Size();

@@ -113,14 +113,20 @@ private:
 // transition, which this shows as the signature changing from one look to the next, or differing
 // from the saved one. Over 33 save/load pairs on Super Mario 3D World every pair with identical
 // signatures loaded fine and every frozen load had a difference.
-[[nodiscard]] std::vector<u32> WaitSignature(Core::System& system);
+// Given the thread-local storage addresses of a save's threads (ReadSavedSignature), leaves out
+// live threads in a slot no saved thread had: threads the game started after that save, which
+// Restore ends.
+[[nodiscard]] std::vector<u32> WaitSignature(Core::System& system,
+                                             const std::vector<u64>* saved_tls = nullptr);
 
 // Whether a live signature allows restoring a save with the given one: equal, except for threads
 // asleep on another condition variable, which Restore moves back to the saved one.
 [[nodiscard]] bool SignaturesMatch(const std::vector<u32>& saved, const std::vector<u32>& live);
 
-// Reads the signature stored in a savestate file without loading anything else.
-[[nodiscard]] bool ReadSavedSignature(const std::string& path, std::vector<u32>& out);
+// Reads the signature stored in a savestate file without loading anything else, and the
+// thread-local storage address of each saved thread if asked.
+[[nodiscard]] bool ReadSavedSignature(const std::string& path, std::vector<u32>& out,
+                                      std::vector<u64>* tls = nullptr);
 
 // Read-only: true if any live thread is currently in an address-arbiter wait,
 // which is a lock handoff in progress (SignalToAddress/WaitForAddress). A save

@@ -371,7 +371,8 @@ std::string GetQuickSavePath() {
 } // namespace
 
 bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* target,
-                                         std::chrono::steady_clock::time_point deadline) {
+                                         std::chrono::steady_clock::time_point deadline,
+                                         const std::vector<u64>* target_tls) {
     static constexpr int MaxAttempts = 100;
     static constexpr auto Step = std::chrono::milliseconds(30);
     std::vector<u32> previous;
@@ -403,7 +404,7 @@ bool EmulationSession::WaitForSafeMoment(bool can_run, const std::vector<u32>* t
         // refused itself 133 times on one of them). So let the GPU catch up before every look, at a
         // save and at a load alike, and compare the threads as they are once it has.
         (void)m_system.GPU().SettleFor(std::chrono::milliseconds(2000));
-        const std::vector<u32> now = Core::SaveState::WaitSignature(m_system);
+        const std::vector<u32> now = Core::SaveState::WaitSignature(m_system, target_tls);
         const bool arbiter = Core::SaveState::HasRiskyPendingWaits(m_system);
         if (arbiter) {
             arbiter_looks++;
@@ -652,13 +653,14 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
         // A restore done while threads are waking or going to sleep leaves the game frozen or
         // aborted (see WaitSignature): wait until they wait the way they did at the save.
         std::vector<u32> saved_signature;
-        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature)) {
+        std::vector<u64> saved_tls;
+        if (!Core::SaveState::ReadSavedSignature(GetQuickSavePath(), saved_signature, &saved_tls)) {
             if (!was_paused) {
                 m_system.Run();
             }
             return QuickLoadResult::Failed; // no usable save
         }
-        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline)) {
+        if (!WaitForSafeMoment(!was_paused, &saved_signature, deadline, &saved_tls)) {
             no_safe_moment = true;
             break;
         }

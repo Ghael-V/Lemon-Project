@@ -121,10 +121,12 @@ private:
     /// it got there. The threads' wait signature must either match `target` (a load: the one
     /// stored in the save) or, with no target (a save), be each thread's usual state, an
     /// address-arbiter wait only where that is the usual state. See
-    /// Core::SaveState::WaitSignature.
+    /// Core::SaveState::WaitSignature. For a load, `target_tls` leaves out the threads the game
+    /// started after the save, which the restore ends.
     bool WaitForSafeMoment(bool can_run, const std::vector<u32>* target = nullptr,
                            std::chrono::steady_clock::time_point deadline =
-                               std::chrono::steady_clock::time_point::max());
+                               std::chrono::steady_clock::time_point::max(),
+                           const std::vector<u64>* target_tls = nullptr);
     /// For the log: how often one thread's wait changed between WaitForSafeMoment's looks, and
     /// its last change.
     struct ThreadChurn {
