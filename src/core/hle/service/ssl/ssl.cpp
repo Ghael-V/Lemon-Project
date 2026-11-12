@@ -405,7 +405,7 @@ public:
             {5, &ISslContext::ImportClientPki, "ImportClientPki"},
             {6, nullptr, "RemoveServerPki"},
             {7, nullptr, "RemoveClientPki"},
-            {8, nullptr, "RegisterInternalPki"},
+            {8, &ISslContext::RegisterInternalPki, "RegisterInternalPki"},
             {9, nullptr, "AddPolicyOid"},
             {10, nullptr, "ImportCrl"},
             {11, nullptr, "RemoveCrl"},
@@ -470,6 +470,22 @@ private:
         IPC::ResponseBuilder rb{ctx, 4};
         rb.Push(ResultSuccess);
         rb.Push(server_id);
+    }
+
+    void RegisterInternalPki(HLERequestContext& ctx) {
+        // Asks to present the console's own client certificate (InternalPki 1,
+        // DeviceClientCertDefault). There is none to give; like the PKI imports above, report an
+        // id and connect without it. Unhandled, the game got an error and aborted (Naruto online).
+        IPC::RequestParser rp{ctx};
+        const auto internal_pki = rp.Pop<u32>();
+
+        constexpr u64 certificate_id = 1;
+
+        LOG_WARNING(Service_SSL, "(STUBBED) called, internal_pki={}", internal_pki);
+
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(ResultSuccess);
+        rb.Push(certificate_id);
     }
 
     void ImportClientPki(HLERequestContext& ctx) {
