@@ -791,9 +791,18 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
     const u32 size = std::min(binding.size, (*channel_state->uniform_buffer_sizes)[stage][index]);
     Buffer& buffer = slot_buffers[binding.buffer_id];
     TouchBuffer(buffer, binding.buffer_id);
-    const bool use_fast_buffer = binding.buffer_id != NULL_BUFFER_ID &&
-                                 size <= channel_state->uniform_buffer_skip_cache_size &&
-                                 !memory_tracker.IsRegionGpuModified(device_addr, size);
+    // A uniform buffer the CPU rewrote since its last upload is streamed even when the frame-wide
+    // statistic picks the cached path: the cached path copies it into the host buffer, and that
+    // copy can't move ahead of the draws already using the buffer, so it ends the render pass and
+    // starts it again on every draw that changes it - thousands of times a second in big games,
+    // each costly on mobile drivers. Up to a full 64 KiB constant buffer (BOTW's are that size).
+    const bool has_host_buffer = binding.buffer_id != NULL_BUFFER_ID;
+    const bool cpu_rewritten =
+        has_host_buffer && size <= 64_KiB && memory_tracker.IsRegionCpuModified(device_addr, size);
+    const bool use_fast_buffer =
+        has_host_buffer &&
+        (size <= channel_state->uniform_buffer_skip_cache_size || cpu_rewritten) &&
+        !memory_tracker.IsRegionGpuModified(device_addr, size);
     if (use_fast_buffer) {
         if constexpr (IS_OPENGL) {
             if (runtime.HasFastBufferSubData()) {
