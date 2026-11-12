@@ -7,6 +7,7 @@ import android.graphics.SurfaceTexture
 import android.net.Uri
 import android.os.Build
 import android.view.Surface
+import androidx.preference.PreferenceManager
 import java.io.File
 import java.io.IOException
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
@@ -17,6 +18,37 @@ import java.util.zip.ZipException
 import java.util.zip.ZipFile
 
 object GpuDriverHelper {
+    // The system driver's version and name only change with a system update: ask the driver once
+    // (it means creating a whole Vulkan device) and keep the answer for this build of the system.
+    private const val PREF_SYSTEM_DRIVER_BUILD = "SystemDriverInfoBuild"
+    private const val PREF_SYSTEM_DRIVER_VERSION = "SystemDriverInfoVersion"
+    private const val PREF_SYSTEM_DRIVER_NAME = "SystemDriverInfoName"
+
+    /** The system driver's [version, name] if known already, without touching Vulkan. */
+    fun cachedSystemDriverInfo(): Array<String>? {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext)
+        if (prefs.getString(PREF_SYSTEM_DRIVER_BUILD, null) != Build.FINGERPRINT) {
+            return null
+        }
+        val version = prefs.getString(PREF_SYSTEM_DRIVER_VERSION, null) ?: return null
+        val name = prefs.getString(PREF_SYSTEM_DRIVER_NAME, null) ?: return null
+        return arrayOf(version, name)
+    }
+
+    /** Asks the system driver (slow: call it off the main thread) and remembers the answer. */
+    fun querySystemDriverInfo(): Array<String>? {
+        cachedSystemDriverInfo()?.let { return it }
+        val info = getSystemDriverInfo() ?: return null
+        if (info.size >= 2) {
+            PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext).edit()
+                .putString(PREF_SYSTEM_DRIVER_BUILD, Build.FINGERPRINT)
+                .putString(PREF_SYSTEM_DRIVER_VERSION, info[0])
+                .putString(PREF_SYSTEM_DRIVER_NAME, info[1])
+                .apply()
+        }
+        return info
+    }
+
     private const val META_JSON_FILENAME = "meta.json"
     private var fileRedirectionPath: String? = null
     var driverInstallationPath: String? = null

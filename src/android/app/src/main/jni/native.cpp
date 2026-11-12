@@ -560,24 +560,31 @@ jobjectArray Java_dev_ironlemon_ironlemon_1emulator_utils_GpuDriverHelper_getSys
     auto window =
         std::make_unique<EmuWindow_Android>(ANativeWindow_fromSurface(env, j_surf), driver_library);
 
-    Vulkan::vk::InstanceDispatch dld;
-    Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
-        *driver_library, dld, VK_API_VERSION_1_1, Core::Frontend::WindowSystemType::Android);
+    // Only to show the driver's version and name: if the driver can't be opened, say nothing
+    // instead of taking the app down.
+    try {
+        Vulkan::vk::InstanceDispatch dld;
+        Vulkan::vk::Instance vk_instance = Vulkan::CreateInstance(
+            *driver_library, dld, VK_API_VERSION_1_1, Core::Frontend::WindowSystemType::Android);
 
-    auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
+        auto surface = Vulkan::CreateSurface(vk_instance, window->GetWindowInfo());
 
-    auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
+        auto device = Vulkan::CreateDevice(vk_instance, dld, *surface);
 
-    auto driver_version = device.GetDriverVersion();
-    auto version_string =
-        fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(driver_version),
-                    VK_API_VERSION_MINOR(driver_version), VK_API_VERSION_PATCH(driver_version));
+        auto driver_version = device.GetDriverVersion();
+        auto version_string = fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(driver_version),
+                                          VK_API_VERSION_MINOR(driver_version),
+                                          VK_API_VERSION_PATCH(driver_version));
 
-    jobjectArray j_driver_info = env->NewObjectArray(
-        2, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
-    env->SetObjectArrayElement(j_driver_info, 1,
-                               Common::Android::ToJString(env, device.GetDriverName()));
-    return j_driver_info;
+        jobjectArray j_driver_info = env->NewObjectArray(
+            2, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
+        env->SetObjectArrayElement(j_driver_info, 1,
+                                   Common::Android::ToJString(env, device.GetDriverName()));
+        return j_driver_info;
+    } catch (const std::exception& e) {
+        LOG_ERROR(Frontend, "Couldn't read the system GPU driver's info: {}", e.what());
+        return nullptr;
+    }
 }
 
 jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_reloadKeys(JNIEnv* env, jclass clazz) {

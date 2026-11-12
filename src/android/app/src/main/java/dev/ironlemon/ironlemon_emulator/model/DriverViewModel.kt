@@ -66,7 +66,16 @@ class DriverViewModel : ViewModel() {
 
     fun updateDriverList() {
         val selectedDriver = GpuDriverHelper.customDriverSettingData
-        val systemDriverData = GpuDriverHelper.getSystemDriverInfo()
+        val systemDriverData = GpuDriverHelper.cachedSystemDriverInfo()
+        if (systemDriverData == null) {
+            // Not known yet: list the drivers now, and fill in the system one when the driver
+            // has answered (off the main thread: it takes creating a Vulkan device).
+            viewModelScope.launch(Dispatchers.IO) {
+                if (GpuDriverHelper.querySystemDriverInfo() != null) {
+                    withContext(Dispatchers.Main) { updateDriverList() }
+                }
+            }
+        }
         val newDriverList = mutableListOf(
             Driver(
                 selectedDriver == GpuDriverMetadata(),
