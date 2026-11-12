@@ -402,11 +402,6 @@ void BeginRenderPass(vk::CommandBuffer& cmdbuf, VkRenderPass render_pass,
     };
     cmdbuf.BeginRenderPass(renderpass_bi, VK_SUBPASS_CONTENTS_INLINE);
 }
-
-void BeginRenderPass(vk::CommandBuffer& cmdbuf, const Framebuffer* framebuffer) {
-    BeginRenderPass(cmdbuf, framebuffer->RenderPass(), framebuffer->Handle(),
-                    framebuffer->RenderArea());
-}
 } // Anonymous namespace
 
 BlitImageHelper::BlitImageHelper(const Device& device_, Scheduler& scheduler_,
