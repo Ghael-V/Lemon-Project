@@ -39,7 +39,9 @@ endif()
 # Glad
 add_subdirectory(glad)
 
-# mbedtls
+# mbedtls (vendored, see VENDORED.md)
+set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 add_subdirectory(mbedtls)
 target_include_directories(mbedtls PUBLIC ./mbedtls/include)
 if (NOT MSVC)
