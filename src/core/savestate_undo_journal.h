@@ -104,6 +104,29 @@ public:
         return covered >= end;
     }
 
+    /// The game is shutting down: forgets what was recorded and records nothing until the next
+    /// save. The steps hold what the game closed since the save (service objects, open host files)
+    /// and would otherwise keep it alive into the next game.
+    void Stop() {
+        std::vector<Step> dropped;
+        {
+            std::scoped_lock lock{mutex};
+            dropped.swap(undo);
+            restored_ranges.clear();
+            recording = false;
+            usable = false;
+        }
+        // Destroyed outside the lock: releasing a service object can run code that calls Record.
+        dropped.clear();
+    }
+
+    /// Stop() for every journal.
+    static void StopAll() {
+        Memory().Stop();
+        Gpu().Stop();
+        Services().Stop();
+    }
+
     /// A change happened that cannot be undone.
     void Invalidate() {
         std::scoped_lock lock{mutex};

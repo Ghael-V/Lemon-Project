@@ -322,6 +322,10 @@ void EmulationSession::ShutdownEmulation() {
 
     m_is_running = false;
     m_is_paused = false;
+    // What the last Quick Save kept on the host belongs to the game that just ended.
+    m_saved_syncpoints.reset();
+    m_saved_audio.clear();
+    m_saved_display_slots.clear();
 
     // Unload user input.
     m_system.HIDCore().UnloadInputDevices();

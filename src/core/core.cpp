@@ -55,6 +55,7 @@
 #include "core/memory/cheat_engine.h"
 #include "core/perf_stats.h"
 #include "core/reporter.h"
+#include "core/savestate_undo_journal.h"
 #include "core/telemetry_session.h"
 #include "core/tools/freezer.h"
 #include "core/tools/renderdoc.h"
@@ -428,6 +429,9 @@ struct System::Impl {
         core_timing.SyncPause(false);
         Network::CancelPendingSocketOperations();
         kernel.SuspendEmulation(true);
+        // A Quick Save's journals hold what the game closed since the save: let go of it with the
+        // game, while its services and the kernel are still there for it to close against.
+        Core::SaveState::UndoJournal::StopAll();
         kernel.CloseServices();
         kernel.ShutdownCores();
         services.reset();
