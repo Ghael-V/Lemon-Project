@@ -1551,7 +1551,7 @@ jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_addCheats(JNIEnv* env,
                                                      jstring jprogramId, jstring jbuildId,
                                                      jstring jtext) {
     const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
-    const size_t count = CheatPatchManager(program_id).AddCheats(
+    const long count = CheatPatchManager(program_id).AddCheats(
         ParseBuildId(Common::Android::GetJString(env, jbuildId)),
         Common::Android::GetJString(env, jtext));
     if (count > 0 && IsRunningGame(program_id)) {

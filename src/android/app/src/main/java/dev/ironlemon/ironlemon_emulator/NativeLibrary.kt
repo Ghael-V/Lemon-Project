@@ -501,7 +501,7 @@ object NativeLibrary {
 
     /**
      * Saves pasted cheat codes for [buildId] in a new "Lemon cheats" mod folder. Returns how many
-     * cheats the text holds; 0 if none, and then nothing is saved.
+     * cheats the text holds; 0 if none and -1 if they could not be saved, and then nothing is.
      */
     external fun addCheats(programId: String, buildId: String, text: String): Int
 

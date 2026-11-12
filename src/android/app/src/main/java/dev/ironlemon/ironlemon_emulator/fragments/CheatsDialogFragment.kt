@@ -199,9 +199,12 @@ class CheatsDialogFragment : DialogFragment() {
             val count = withContext(Dispatchers.IO) {
                 NativeLibrary.addCheats(game.programId, buildId, text)
             }
-            if (count == 0) {
-                Toast.makeText(requireContext(), R.string.cheats_none_found, Toast.LENGTH_LONG)
-                    .show()
+            if (count <= 0) {
+                Toast.makeText(
+                    requireContext(),
+                    if (count < 0) R.string.cheats_save_failed else R.string.cheats_none_found,
+                    Toast.LENGTH_LONG
+                ).show()
                 return@launch
             }
             Toast.makeText(

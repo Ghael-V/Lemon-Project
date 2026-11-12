@@ -201,7 +201,50 @@ bool IsCheatCodeLine(std::string_view line) {
 // line without brackets ("Master Code", "Inf. Stamina", then the codes): such a line becomes
 // "[name]", or "{name}" for a first section named like a master code. Lines already in brackets
 // and code lines are kept as they are; codes with no name before them get one.
-std::string NormalizeCheatText(std::string_view text) {
+// Text copied from a web page or a chat brings Unicode spaces (no-break, thin, ideographic...),
+// zero-width characters and a byte order mark, which the cheat parser takes for letters: then
+// it finds no code at all. Spaces become plain spaces and the invisible ones go.
+std::string CleanPastedText(std::string_view text) {
+    std::string out;
+    out.reserve(text.size());
+    for (size_t i = 0; i < text.size();) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        const auto at = [&](size_t n) {
+            return i + n < text.size() ? static_cast<unsigned char>(text[i + n]) : 0u;
+        };
+        if (c == 0xC2 && at(1) == 0xA0) { // no-break space
+            out += ' ';
+            i += 2;
+        } else if (c == 0xE2 && at(1) == 0x80 && at(2) >= 0x80 && at(2) <= 0x8A) { // en..hair space
+            out += ' ';
+            i += 3;
+        } else if (c == 0xE2 && at(1) == 0x80 &&
+                   (at(2) == 0x8B || at(2) == 0x8C || at(2) == 0x8D)) { // zero-width
+            i += 3;
+        } else if (c == 0xE2 && at(1) == 0x80 && (at(2) == 0xAF || at(2) == 0xA8)) {
+            out += at(2) == 0xA8 ? '\n' : ' '; // narrow no-break space, line separator
+            i += 3;
+        } else if (c == 0xE2 && at(1) == 0x81 && at(2) == 0xA0) { // word joiner
+            i += 3;
+        } else if (c == 0xE3 && at(1) == 0x80 && at(2) == 0x80) { // ideographic space
+            out += ' ';
+            i += 3;
+        } else if (c == 0xEF && at(1) == 0xBB && at(2) == 0xBF) { // byte order mark
+            i += 3;
+        } else if (c == '\t' || c == '\r') {
+            out += c == '\t' ? ' ' : '\n';
+            i++;
+        } else {
+            out += static_cast<char>(c);
+            i++;
+        }
+    }
+    return out;
+}
+
+std::string NormalizeCheatText(std::string_view raw_text) {
+    const std::string cleaned = CleanPastedText(raw_text);
+    const std::string_view text = cleaned;
     std::string out;
     bool in_section = false;
     bool any_section = false;
@@ -539,15 +582,21 @@ bool PatchManager::SetCheatEnabled(std::string_view folder, std::string_view nam
     return written;
 }
 
-size_t PatchManager::AddCheats(const BuildID& build_id, std::string_view text) const {
+long PatchManager::AddCheats(const BuildID& build_id, std::string_view text) const {
     const std::string normalized = NormalizeCheatText(text);
     const Core::Memory::TextCheatParser parser;
     const auto parsed = parser.Parse(normalized);
-    const size_t count = static_cast<size_t>(std::ranges::count_if(
+    const long count = static_cast<long>(std::ranges::count_if(
         parsed, [](const auto& entry) { return entry.definition.num_opcodes > 0; }));
-    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
-    if (count == 0 || load_dir == nullptr) {
+    if (count == 0) {
+        LOG_WARNING(Loader, "Cheats: no cheat in the pasted text ({} bytes, {} after cleaning up)",
+                    text.size(), normalized.size());
         return 0;
+    }
+    const auto load_dir = fs_controller.GetModificationLoadRoot(title_id);
+    if (load_dir == nullptr) {
+        LOG_ERROR(Loader, "Cheats: no mod directory for title {:016X}", title_id);
+        return -1;
     }
 
     // One folder per paste, so each keeps its own master code and can be removed as a whole from
@@ -565,15 +614,22 @@ size_t PatchManager::AddCheats(const BuildID& build_id, std::string_view text) c
         const auto cheats_dir = GetOrCreateDirectoryRelative(load_dir, folder + "/cheats");
         const auto file = cheats_dir != nullptr ? cheats_dir->CreateFile(build + ".txt") : nullptr;
         if (file == nullptr || !file->Resize(normalized.size())) {
-            return 0;
+            LOG_ERROR(Loader, "Cheats: could not create {}/cheats/{}.txt", folder, build);
+            return -1;
         }
         const bool written =
             file->WriteBytes(std::vector<u8>(normalized.begin(), normalized.end())) ==
             normalized.size();
         file->Flush();
-        return written ? count : 0;
+        if (!written) {
+            LOG_ERROR(Loader, "Cheats: could not write {}/cheats/{}.txt", folder, build);
+            return -1;
+        }
+        LOG_INFO(Loader, "Cheats: {} cheat(s) saved in {}/cheats/{}.txt", count, folder, build);
+        return count;
     }
-    return 0;
+    LOG_ERROR(Loader, "Cheats: every Lemon cheats folder already has a file for {}", build);
+    return -1;
 }
 
 static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType type,

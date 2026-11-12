@@ -1317,6 +1317,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="cheats_paste_hint">Paste the cheat codes here</string>
     <string name="cheats_import_file">Import file</string>
     <string name="cheats_none_found">No cheat codes found in that text.</string>
+    <string name="cheats_save_failed">Couldn\'t save the cheats.</string>
     <string name="cheats_master">%1$s (master code, always on)</string>
     <string name="cheats_toggle_failed">Couldn\'t save that change.</string>
     <string name="cheats_loose_files">Loose cheat files (can\'t be switched)</string>

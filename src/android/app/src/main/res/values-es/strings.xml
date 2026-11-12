@@ -696,6 +696,7 @@
     <string name="cheats_paste_hint">Pega aquí los códigos de los trucos</string>
     <string name="cheats_import_file">Importar archivo</string>
     <string name="cheats_none_found">No se han encontrado códigos de trucos en ese texto.</string>
+    <string name="cheats_save_failed">No se pudieron guardar los trucos.</string>
     <string name="cheats_master">%1$s (código maestro, siempre activo)</string>
     <string name="cheats_toggle_failed">No se pudo guardar ese cambio.</string>
     <string name="cheats_loose_files">Archivos de trucos sueltos (no se pueden activar por separado)</string>
