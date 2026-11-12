@@ -672,4 +672,8 @@
     <string name="ironlemon_playtime">Jugado %1$s</string>
     <string name="ironlemon_never_played">Aún sin jugar</string>
     <string name="ironlemon_usage">%1$d sesiones · última vez %2$s</string>
+    <string name="lemon_cheater_type_int">Entero</string>
+    <string name="lemon_cheater_type_float">Float</string>
+    <string name="lemon_cheater_invalid_float">Introduce un número, p. ej. 87.5</string>
+    <string name="lemon_cheater_type_changed">Tipo de valor cambiado - empieza una nueva búsqueda</string>
 </resources>
