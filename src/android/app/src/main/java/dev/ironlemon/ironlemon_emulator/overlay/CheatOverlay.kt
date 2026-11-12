@@ -1,21 +1,52 @@
 // SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.overlay
 
 import android.content.Context
-import android.text.InputType
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Toast
-import androidx.core.widget.doOnTextChanged
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.textfield.TextInputEditText
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.math.BigDecimal
 import java.math.MathContext
 import java.nio.ByteBuffer
@@ -32,7 +63,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.OverlayCheatPanelBinding
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButtonRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonIconButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
+import dev.ironlemon.ironlemon_emulator.ui.modern.lemonInteractive
 
 /**
  * "Lemon Cheater": a live memory search/edit panel that floats above the emulation surface.
@@ -57,11 +93,23 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         FLOAT(1),
     }
 
-    private val binding: OverlayCheatPanelBinding
-    private val adapter = CheatResultAdapter(
-        onRowClicked = { address, value -> showWriteDialog(address, value) },
-        onFreezeToggled = { address, value, currentlyFrozen -> onFreezeToggled(address, value, currentlyFrozen) }
-    )
+    // What the panel shows, drawn by [CheatPanel].
+    private var inputText by mutableStateOf("")
+    private var inputError by mutableStateOf<Int?>(null)
+    private var statusText by mutableStateOf("")
+    private var shownRows by mutableStateOf<List<Pair<Long, Int>>>(emptyList())
+    private var frozenKeys by mutableStateOf<Set<Long>>(emptySet())
+    private var frozenCount by mutableIntStateOf(0)
+    private var actionsEnabled by mutableStateOf(true)
+    private var shownType by mutableStateOf(ValueType.INT)
+    private var shownViewingFrozen by mutableStateOf(false)
+
+    // The value being edited in the panel (its address), or null.
+    private var editAddress by mutableStateOf<Long?>(null)
+    private var editText by mutableStateOf("")
+    private var editAsFloat = false
+
+    private val panel: ComposeView
 
     private var lastMatches: List<Match> = emptyList()
 
@@ -94,46 +142,18 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var isBusy = false
 
     init {
-        binding = OverlayCheatPanelBinding.inflate(LayoutInflater.from(context), this, false)
+        panel = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent { CheatPanel() }
+        }
         addView(
-            binding.root,
-            // Centered: this used to open pinned to the top-left, which put it right behind
-            // the in-game drawer menu that opens from that same side - it looked like the
-            // panel never opened at all. It's still fully draggable afterward.
+            panel,
+            // Centered: pinned to the top-left it sat right behind the in-game menu that opens
+            // from that same side. It is draggable afterward.
             LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER
             }
         )
-
-        binding.cheatResultsList.layoutManager = LinearLayoutManager(context)
-        binding.cheatResultsList.adapter = adapter
-
-        binding.cheatPanelClose.setOnClickListener { hide() }
-        binding.cheatSearchButton.setOnClickListener { onSearchClicked() }
-        binding.cheatRefineButton.setOnClickListener { onRefineClicked() }
-        binding.cheatBlindSearchButton.setOnClickListener { onBlindSearchClicked() }
-        binding.cheatIncreasedButton.setOnClickListener { onComparisonClicked(Comparison.INCREASED) }
-        binding.cheatDecreasedButton.setOnClickListener { onComparisonClicked(Comparison.DECREASED) }
-        binding.cheatUnchangedButton.setOnClickListener { onComparisonClicked(Comparison.UNCHANGED) }
-        binding.cheatValueInput.doOnTextChanged { _, _, _, _ ->
-            binding.cheatValueInputLayout.error = null
-        }
-        binding.cheatTypeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val newType = if (checkedId == R.id.cheat_type_float_button) ValueType.FLOAT else ValueType.INT
-            if (newType != valueType) onValueTypeChanged(newType)
-        }
-        binding.cheatViewToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            viewingFrozen = checkedId == R.id.cheat_view_frozen_button
-            if (viewingFrozen) {
-                reloadFrozenThenDisplay()
-            } else {
-                updateDisplay()
-            }
-        }
-
-        setupDragHandle()
 
         // Picks up any address still frozen from before this panel instance existed (e.g. the
         // activity/overlay was recreated while a game kept running), so its row shows a locked
@@ -163,64 +183,37 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         visibility = View.GONE
     }
 
-    private fun setupDragHandle() {
-        var startRawX = 0f
-        var startRawY = 0f
-        var startTranslationX = 0f
-        var startTranslationY = 0f
-
-        binding.cheatPanelTitleBar.setOnTouchListener { view, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startRawX = event.rawX
-                    startRawY = event.rawY
-                    startTranslationX = binding.root.translationX
-                    startTranslationY = binding.root.translationY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    binding.root.translationX = startTranslationX + (event.rawX - startRawX)
-                    binding.root.translationY = startTranslationY + (event.rawY - startRawY)
-                    true
-                }
-                else -> false
-            }
-        }
+    private fun dragBy(dx: Float, dy: Float) {
+        panel.translationX += dx
+        panel.translationY += dy
     }
 
     /** The same candidate bits mean different things as an int and as a float, so a type change
      *  starts over (a blind-search snapshot is raw memory and stays valid). */
     private fun onValueTypeChanged(newType: ValueType) {
         valueType = newType
-        binding.cheatValueInput.inputType = if (newType == ValueType.FLOAT) {
-            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED or
-                InputType.TYPE_NUMBER_FLAG_DECIMAL
-        } else {
-            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
-        }
-        binding.cheatValueInputLayout.error = null
+        shownType = newType
+        inputError = null
         val hadResults = lastMatches.isNotEmpty()
         lastMatches = emptyList()
         setButtonsEnabled(enabled = !isBusy)
         updateDisplay()
         if (hadResults) {
-            binding.cheatStatusText.text = context.getString(R.string.lemon_cheater_type_changed)
+            statusText = context.getString(R.string.lemon_cheater_type_changed)
         }
     }
 
     private fun parseValueOrShowError(): Needle? {
-        val text = binding.cheatValueInput.text?.toString().orEmpty()
+        val text = inputText
         val needle = if (valueType == ValueType.FLOAT) parseFloatNeedle(text) else {
             text.toIntOrNull()?.let { Needle(it, 0f) }
         }
         if (needle == null) {
-            binding.cheatValueInputLayout.error = context.getString(
-                if (valueType == ValueType.FLOAT) {
-                    R.string.lemon_cheater_invalid_float
-                } else {
-                    R.string.lemon_cheater_invalid_value
-                }
-            )
+            inputError = if (valueType == ValueType.FLOAT) {
+                R.string.lemon_cheater_invalid_float
+            } else {
+                R.string.lemon_cheater_invalid_value
+            }
         }
         return needle
     }
@@ -297,7 +290,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             awaitingBlindCompare = true
             lastMatches = emptyList()
             showResultsView()
-            binding.cheatStatusText.text = context.getString(R.string.lemon_cheater_snapshot_taken)
+            statusText = context.getString(R.string.lemon_cheater_snapshot_taken)
         }
     }
 
@@ -327,7 +320,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     /** Switches back to the "Results" view (e.g. after a new search/refine) and redisplays. */
     private fun showResultsView() {
         viewingFrozen = false
-        binding.cheatViewToggleGroup.check(R.id.cheat_view_results_button)
+        shownViewingFrozen = false
         updateDisplay()
     }
 
@@ -335,7 +328,7 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private fun runBusy(block: suspend () -> Unit) {
         isBusy = true
         setButtonsEnabled(enabled = false)
-        binding.cheatStatusText.text = context.getString(R.string.lemon_cheater_searching)
+        statusText = context.getString(R.string.lemon_cheater_searching)
 
         scope.launch {
             try {
@@ -348,14 +341,11 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {
-        binding.cheatSearchButton.isEnabled = enabled
-        binding.cheatBlindSearchButton.isEnabled = enabled
-        val hasCandidates = enabled && (awaitingBlindCompare || lastMatches.isNotEmpty())
-        binding.cheatRefineButton.isEnabled = enabled && lastMatches.isNotEmpty()
-        binding.cheatIncreasedButton.isEnabled = hasCandidates
-        binding.cheatDecreasedButton.isEnabled = hasCandidates
-        binding.cheatUnchangedButton.isEnabled = hasCandidates
+        actionsEnabled = enabled
     }
+
+    private val canRefine get() = actionsEnabled && lastMatches.isNotEmpty()
+    private val canCompare get() = actionsEnabled && (awaitingBlindCompare || lastMatches.isNotEmpty())
 
     /** Updates the results list and status text from whichever of [lastMatches]/[frozenValues]
      *  is currently selected (see [viewingFrozen]) - no native calls needed, every path that
@@ -367,12 +357,11 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         } else {
             lastMatches.take(DISPLAY_LIMIT).map { it.address to it.value }
         }
-        adapter.submitResults(rows, frozenValues.keys, ::formatValue)
+        shownRows = rows
+        frozenKeys = frozenValues.keys.toSet()
+        frozenCount = frozenValues.size
 
-        binding.cheatViewFrozenButton.text =
-            context.getString(R.string.lemon_cheater_view_frozen, frozenValues.size)
-
-        binding.cheatStatusText.text = if (viewingFrozen) {
+        statusText = if (viewingFrozen) {
             if (rows.isEmpty()) {
                 context.getString(R.string.lemon_cheater_no_frozen)
             } else {
@@ -422,67 +411,48 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         }
     }
 
-    private fun showWriteDialog(address: Long, currentValue: Int) {
-        val asFloat = if (viewingFrozen) address in frozenFloatAddresses else valueType == ValueType.FLOAT
-        val input = TextInputEditText(context).apply {
-            setText(if (asFloat) formatFloat(currentValue) else currentValue.toString())
-            inputType = if (asFloat) {
-                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED or
-                    InputType.TYPE_NUMBER_FLAG_DECIMAL
-            } else {
-                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
-            }
-        }
+    private fun startEdit(address: Long, currentValue: Int) {
+        editAsFloat = if (viewingFrozen) address in frozenFloatAddresses else valueType == ValueType.FLOAT
+        editText = if (editAsFloat) formatFloat(currentValue) else currentValue.toString()
+        editAddress = address
+    }
 
-        MaterialAlertDialogBuilder(context)
-            .setTitle(String.format("0x%016X", address))
-            .setView(input)
-            .setPositiveButton(R.string.lemon_cheater_write) { _, _ ->
-                val typed = input.text?.toString().orEmpty()
-                val newValue = if (asFloat) {
-                    typed.trim().replace(',', '.').toFloatOrNull()
-                        ?.takeIf { it.isFinite() }?.toRawBits()
+    private fun confirmEdit() {
+        val address = editAddress ?: return
+        val typed = editText
+        val newValue = if (editAsFloat) {
+            typed.trim().replace(',', '.').toFloatOrNull()?.takeIf { it.isFinite() }?.toRawBits()
+        } else {
+            typed.toIntOrNull()
+        } ?: return
+        editAddress = null
+        val isFrozen = frozenValues.containsKey(address)
+        runBusy {
+            // A frozen address gets rewritten by the native freeze thread roughly every 100ms:
+            // writing through cheatWrite() here would be overwritten by the old frozen value on
+            // the next tick. Update the frozen target itself instead, so this edit is what stays.
+            val ok = withContext(Dispatchers.Default) {
+                if (isFrozen) {
+                    NativeLibrary.cheatSetFrozen(address, newValue)
+                    true
                 } else {
-                    typed.toIntOrNull()
-                }
-                if (newValue == null) {
-                    return@setPositiveButton
-                }
-                val isFrozen = frozenValues.containsKey(address)
-                runBusy {
-                    // A frozen address gets rewritten by the native freeze thread roughly every
-                    // 100ms - writing through cheatWrite() here would just get silently
-                    // overwritten by the OLD frozen value on the next tick. Update the frozen
-                    // target itself instead, so this edit is what stays held.
-                    val ok = withContext(Dispatchers.Default) {
-                        if (isFrozen) {
-                            NativeLibrary.cheatSetFrozen(address, newValue)
-                            true
-                        } else {
-                            NativeLibrary.cheatWrite(address, intToLeBytes(newValue))
-                        }
-                    }
-                    if (ok) {
-                        if (isFrozen) {
-                            frozenValues[address] = newValue
-                        }
-                        // We just wrote this value ourselves - update it in place instead of
-                        // re-reading, so the row reflects it immediately.
-                        lastMatches = lastMatches.map {
-                            if (it.address == address) it.copy(value = newValue) else it
-                        }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            R.string.lemon_cheater_write_failure,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    updateDisplay()
+                    NativeLibrary.cheatWrite(address, intToLeBytes(newValue))
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            if (ok) {
+                if (isFrozen) {
+                    frozenValues[address] = newValue
+                }
+                // Written by us: update it in place instead of reading it back.
+                lastMatches = lastMatches.map {
+                    if (it.address == address) it.copy(value = newValue) else it
+                }
+            } else {
+                Toast.makeText(context, R.string.lemon_cheater_write_failure, Toast.LENGTH_SHORT)
+                    .show()
+            }
+            updateDisplay()
+        }
     }
 
     private fun intToLeBytes(value: Int): ByteArray =
@@ -507,6 +477,250 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
             interleaved[index * 2 + 1] = match.value.toLong()
         }
         return interleaved
+    }
+
+    @Composable
+    private fun CheatPanel() {
+        val shape = RoundedCornerShape(24.dp)
+        Column(
+            Modifier
+                .width(420.dp)
+                .heightIn(max = 560.dp)
+                .clip(shape)
+                .background(IronLemonColors.Background.copy(alpha = 0.96f))
+                .border(1.dp, IronLemonColors.gradient(0.6f), shape)
+        ) {
+            // The title bar drags the panel around.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, amount ->
+                            change.consume()
+                            dragBy(amount.x, amount.y)
+                        }
+                    }
+                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicText(
+                    stringResource(R.string.lemon_cheater),
+                    style = IronLemonType.Heading,
+                    modifier = Modifier.weight(1f)
+                )
+                IronLemonIconButton(
+                    iconRes = R.drawable.ic_clear,
+                    description = stringResource(R.string.emulation_done),
+                    size = 40.dp,
+                    onClick = ::hide
+                )
+            }
+            val address = editAddress
+            if (address != null) {
+                EditPage(address)
+            } else {
+                SearchPage()
+            }
+        }
+    }
+
+    @Composable
+    private fun SearchPage() {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(stringResource(R.string.lemon_cheater_type_int), shownType == ValueType.INT) {
+                    if (valueType != ValueType.INT) onValueTypeChanged(ValueType.INT)
+                }
+                Chip(stringResource(R.string.lemon_cheater_type_float), shownType == ValueType.FLOAT) {
+                    if (valueType != ValueType.FLOAT) onValueTypeChanged(ValueType.FLOAT)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            ValueField(
+                value = inputText,
+                hint = stringResource(R.string.lemon_cheater_value_hint),
+                float = shownType == ValueType.FLOAT,
+                onChange = {
+                    inputText = it
+                    inputError = null
+                }
+            )
+            inputError?.let {
+                BasicText(
+                    stringResource(it),
+                    style = IronLemonType.Body.copy(color = IronLemonColors.Red),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            IronLemonButtonRow {
+                SmallButton(stringResource(R.string.lemon_cheater_new_search), true, actionsEnabled) {
+                    onSearchClicked()
+                }
+                SmallButton(stringResource(R.string.lemon_cheater_refine), false, canRefine) {
+                    onRefineClicked()
+                }
+                SmallButton(stringResource(R.string.lemon_cheater_blind_search), false, actionsEnabled) {
+                    onBlindSearchClicked()
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            IronLemonButtonRow {
+                SmallButton(stringResource(R.string.lemon_cheater_increased), false, canCompare) {
+                    onComparisonClicked(Comparison.INCREASED)
+                }
+                SmallButton(stringResource(R.string.lemon_cheater_decreased), false, canCompare) {
+                    onComparisonClicked(Comparison.DECREASED)
+                }
+                SmallButton(stringResource(R.string.lemon_cheater_unchanged), false, canCompare) {
+                    onComparisonClicked(Comparison.UNCHANGED)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(stringResource(R.string.lemon_cheater_view_results), !shownViewingFrozen) {
+                    viewingFrozen = false
+                    shownViewingFrozen = false
+                    updateDisplay()
+                }
+                Chip(stringResource(R.string.lemon_cheater_view_frozen, frozenCount), shownViewingFrozen) {
+                    viewingFrozen = true
+                    shownViewingFrozen = true
+                    reloadFrozenThenDisplay()
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            BasicText(statusText, style = IronLemonType.Body)
+            Spacer(Modifier.height(6.dp))
+            LazyColumn(
+                Modifier.fillMaxWidth().heightIn(max = 200.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(shownRows, key = { it.first }) { (rowAddress, value) ->
+                    ResultRow(rowAddress, value, rowAddress in frozenKeys)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ResultRow(address: Long, value: Int, frozen: Boolean) {
+        val shape = RoundedCornerShape(12.dp)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .lemonInteractive(
+                    shape = shape,
+                    cornerRadius = 12.dp,
+                    focusScale = 1.02f,
+                    onClick = { startEdit(address, value) }
+                )
+                .clip(shape)
+                .background(IronLemonColors.Surface)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BasicText(
+                String.format(Locale.ROOT, "0x%016X", address),
+                style = IronLemonType.Body.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                modifier = Modifier.weight(1f)
+            )
+            BasicText(
+                formatValue(address, value),
+                style = IronLemonType.Button.copy(color = IronLemonColors.Lemon)
+            )
+            Spacer(Modifier.width(8.dp))
+            IronLemonIconButton(
+                iconRes = if (frozen) R.drawable.ic_lock else R.drawable.ic_unlock,
+                description = stringResource(
+                    if (frozen) R.string.lemon_cheater_unfreeze else R.string.lemon_cheater_freeze
+                ),
+                size = 36.dp,
+                onClick = { onFreezeToggled(address, value, frozen) }
+            )
+        }
+    }
+
+    @Composable
+    private fun EditPage(address: Long) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
+            BasicText(
+                String.format(Locale.ROOT, "0x%016X", address),
+                style = IronLemonType.Label
+            )
+            Spacer(Modifier.height(10.dp))
+            ValueField(value = editText, hint = "", float = editAsFloat, onChange = { editText = it })
+            Spacer(Modifier.height(12.dp))
+            IronLemonButtonRow {
+                SmallButton(stringResource(android.R.string.cancel), false, true) { editAddress = null }
+                SmallButton(stringResource(R.string.lemon_cheater_write), true, true) { confirmEdit() }
+            }
+        }
+    }
+
+    @Composable
+    private fun ValueField(value: String, hint: String, float: Boolean, onChange: (String) -> Unit) {
+        val shape = RoundedCornerShape(14.dp)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(IronLemonColors.Surface)
+                .border(1.dp, IronLemonColors.Outline, shape)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            if (value.isEmpty() && hint.isNotEmpty()) {
+                BasicText(hint, style = IronLemonType.Body)
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = IronLemonType.Button,
+                cursorBrush = SolidColor(IronLemonColors.Lemon),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (float) KeyboardType.Decimal else KeyboardType.Number
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    @Composable
+    private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+        val shape = RoundedCornerShape(16.dp)
+        Box(
+            Modifier
+                .lemonInteractive(shape = shape, cornerRadius = 16.dp, selected = selected, onClick = onClick)
+                .clip(shape)
+                .then(
+                    if (selected) {
+                        Modifier.background(IronLemonColors.Gradient)
+                    } else {
+                        Modifier.background(IronLemonColors.SurfaceRaised)
+                    }
+                )
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            BasicText(
+                text,
+                style = IronLemonType.Button.copy(
+                    color = if (selected) IronLemonColors.OnLemon else IronLemonColors.Text,
+                    fontSize = 14.sp
+                )
+            )
+        }
+    }
+
+    @Composable
+    private fun SmallButton(text: String, primary: Boolean, enabled: Boolean, onClick: () -> Unit) {
+        IronLemonButton(
+            text = text,
+            primary = primary && enabled,
+            height = 40.dp,
+            modifier = Modifier.alpha(if (enabled) 1f else 0.4f),
+            onClick = { if (enabled) onClick() }
+        )
     }
 
     private enum class Comparison(val nativeValue: Int) {
