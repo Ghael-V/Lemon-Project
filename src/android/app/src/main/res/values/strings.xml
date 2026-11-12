@@ -1243,4 +1243,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="ironlemon_welcome_feature_core">The original yuzu core, without Eden\'s changes</string>
     <string name="ironlemon_welcome_feature_adreno">Lemon\'s fixes for Adreno GPUs, and custom GPU drivers</string>
     <string name="ironlemon_welcome_feature_library">A fast library with play time and favorites</string>
+
+    <string name="ironlemon_about_credits_body">Iron Lemon is the original yuzu, made by the yuzu team, with the improvements of the Lemon team. Thank you to everyone who built them.</string>
 </resources>

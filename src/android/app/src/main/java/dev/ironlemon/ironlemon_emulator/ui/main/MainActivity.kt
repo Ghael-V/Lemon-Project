@@ -63,6 +63,13 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
     private val CHECKED_DECRYPTION = "CheckedDecryption"
     private var checkedDecryption = false
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            FullscreenHelper.hideSystemBars(this)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { !DirectoryInitialization.areDirectoriesReady }
@@ -87,6 +94,7 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        FullscreenHelper.hideSystemBars(this)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         window.statusBarColor =

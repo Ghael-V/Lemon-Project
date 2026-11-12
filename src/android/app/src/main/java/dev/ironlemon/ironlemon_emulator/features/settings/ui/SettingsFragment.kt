@@ -3,6 +3,19 @@
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.navigation.NavOptions
+import androidx.recyclerview.widget.RecyclerView
+import dev.ironlemon.ironlemon_emulator.SettingsNavigationDirections
+import dev.ironlemon.ironlemon_emulator.features.settings.SettingsCategories
+import dev.ironlemon.ironlemon_emulator.features.settings.SettingsSearchIndex
+import dev.ironlemon.ironlemon_emulator.features.settings.model.view.SubmenuSetting
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernSettingsList
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernSupportedTypes
+import dev.ironlemon.ironlemon_emulator.ui.modern.SettingsActions
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -147,6 +160,110 @@ class SettingsFragment : Fragment() {
         presenter.onViewCreated()
 
         setInsets()
+        showModernList(view)
+    }
+
+    /**
+     * The Iron Lemon list (Compose), drawn over the classic one. A section with a row type it
+     * can't draw keeps the classic list. Every tap goes to the adapter's own handler.
+     */
+    private fun showModernList(root: View) {
+        val adapter = settingsAdapter ?: return
+        val tick = mutableIntStateOf(0)
+        val highlight = mutableIntStateOf(-1)
+        val title = binding.toolbarSettingsLayout.title?.toString().orEmpty()
+        val rail = SettingsCategories.all.map {
+            SubmenuSetting(
+                titleId = it.titleId,
+                descriptionId = it.descriptionId,
+                iconId = it.iconId,
+                menuKey = it.menuTag
+            )
+        }
+        val actions = SettingsActions(
+            onSwitch = adapter::onBooleanClick,
+            onSingleChoice = adapter::onSingleChoiceClick,
+            onStringSingleChoice = adapter::onStringSingleChoiceClick,
+            onIntSingleChoice = adapter::onIntSingleChoiceClick,
+            onSlider = adapter::onSliderClick,
+            onDateTime = adapter::onDateTimeClick,
+            onStringInput = adapter::onStringInputClick,
+            onSubmenu = adapter::onSubmenuClick,
+            onInput = adapter::onInputClick,
+            onInputOptions = adapter::onInputOptionsClick,
+            onInputProfile = adapter::onInputProfileClick,
+            onClear = adapter::onClearClick,
+            onLongClick = { item, position -> adapter.onLongClick(item, position) },
+            onRailSection = { section ->
+                if (section.menuKey != args.menuTag) {
+                    val nav = root.findNavController()
+                    val options = NavOptions.Builder()
+                        .setPopUpTo(nav.currentDestination?.id ?: 0, true)
+                        .build()
+                    nav.navigate(
+                        SettingsNavigationDirections.actionGlobalSettingsFragment(
+                            section.menuKey,
+                            args.game
+                        ),
+                        options
+                    )
+                }
+            }
+        )
+
+        val composeView = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                IronLemonPage(
+                    title = title,
+                    onBack = { settingsViewModel.setShouldNavigateBack(true) }
+                ) {
+                    ModernSettingsList(
+                        items = adapter.currentList,
+                        tick = tick.intValue,
+                        isRoot = args.menuTag == Settings.MenuTag.SECTION_ROOT,
+                        currentSection = args.menuTag.name,
+                        railSections = rail,
+                        actions = actions,
+                        highlight = highlight.intValue,
+                        onHighlightShown = { highlight.intValue = -1 }
+                    )
+                }
+            }
+        }
+        (binding.root as ViewGroup).addView(
+            composeView,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+
+        fun refresh() {
+            val modern = adapter.currentList.all { it.type in ModernSupportedTypes }
+            composeView.visibility = if (modern) View.VISIBLE else View.GONE
+            binding.appbarSettings.visibility = if (modern) View.GONE else View.VISIBLE
+            binding.listSettings.visibility = if (modern) View.GONE else View.VISIBLE
+            // A settings search result for this section: scroll to its row and flash it.
+            SettingsSearchIndex.pendingTarget?.let { (tag, anchor) ->
+                if (tag == args.menuTag) {
+                    val index = adapter.currentList.indexOfFirst {
+                        it.setting.key == anchor || it.title == anchor
+                    }
+                    if (index >= 0) {
+                        highlight.intValue = index
+                        SettingsSearchIndex.pendingTarget = null
+                    }
+                }
+            }
+            tick.intValue++
+        }
+        adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() = refresh()
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) = refresh()
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int, payload: Any?) =
+                refresh()
+            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = refresh()
+            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) = refresh()
+        })
+        refresh()
     }
 
     private fun getPlayerIndex(): Int =

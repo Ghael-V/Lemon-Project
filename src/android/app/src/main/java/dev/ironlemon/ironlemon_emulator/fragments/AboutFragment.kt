@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.fragments
@@ -14,23 +15,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 import com.google.android.material.transition.MaterialSharedAxis
 import dev.ironlemon.ironlemon_emulator.BuildConfig
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentAboutBinding
 import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
-import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
+import dev.ironlemon.ironlemon_emulator.ui.modern.AboutActions
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernAbout
 
 class AboutFragment : Fragment() {
-    private var _binding: FragmentAboutBinding? = null
-    private val binding get() = _binding!!
-
     private val homeViewModel: HomeViewModel by activityViewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,81 +41,38 @@ class AboutFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentAboutBinding.inflate(layoutInflater)
-        return binding.root
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        val actions = AboutActions(
+            onBack = { findNavController().popBackStack() },
+            onCopyVersion = ::copyVersion,
+            onLicenses = {
+                exitTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
+                findNavController().navigate(R.id.action_aboutFragment_to_licensesFragment)
+            },
+            onCheckUpdates = {},
+            onLink = { openLink(getString(it)) }
+        )
+        setContent { ModernAbout(BuildConfig.VERSION_NAME, actions) }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         homeViewModel.setNavigationVisibility(visible = false, animated = true)
         homeViewModel.setStatusBarShadeVisibility(visible = false)
+    }
 
-        binding.toolbarAbout.setNavigationOnClickListener {
-            binding.root.findNavController().popBackStack()
+    private fun copyVersion() {
+        val clipBoard =
+            requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText(getString(R.string.build), BuildConfig.GIT_HASH)
+        clipBoard.setPrimaryClip(clip)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(requireContext(), R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
         }
-
-        binding.imageLogo.setOnLongClickListener {
-            Toast.makeText(
-                requireContext(),
-                R.string.gaia_is_not_real,
-                Toast.LENGTH_SHORT
-            ).show()
-            true
-        }
-
-        binding.buttonContributors.setOnClickListener {
-            openLink(
-                getString(R.string.contributors_link)
-            )
-        }
-        binding.buttonLicenses.setOnClickListener {
-            exitTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
-            binding.root.findNavController().navigate(R.id.action_aboutFragment_to_licensesFragment)
-        }
-
-        binding.textVersionName.text = BuildConfig.VERSION_NAME
-        binding.buttonVersionName.setOnClickListener {
-            val clipBoard =
-                requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText(getString(R.string.build), BuildConfig.GIT_HASH)
-            clipBoard.setPrimaryClip(clip)
-
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                Toast.makeText(
-                    requireContext(),
-                    R.string.copied_to_clipboard,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-
-        binding.buttonDiscord.setOnClickListener { openLink(getString(R.string.support_link)) }
-        binding.buttonWebsite.setOnClickListener { openLink(getString(R.string.website_link)) }
-        binding.buttonGithub.setOnClickListener { openLink(getString(R.string.github_link)) }
-
-        setInsets()
     }
 
     private fun openLink(link: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
-        startActivity(intent)
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
     }
-
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { _: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            binding.toolbarAbout.updateMargins(left = leftInsets, right = rightInsets)
-            binding.scrollAbout.updateMargins(left = leftInsets, right = rightInsets)
-
-            binding.contentAbout.updatePadding(bottom = barInsets.bottom)
-
-            windowInsets
-        }
 }

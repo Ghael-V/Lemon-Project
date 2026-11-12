@@ -32,6 +32,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels()
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            FullscreenHelper.hideSystemBars(this)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemeHelper.setTheme(this)
 
@@ -50,6 +57,7 @@ class SettingsActivity : AppCompatActivity() {
         navHostFragment.navController.setGraph(R.navigation.settings_navigation, intent.extras)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        FullscreenHelper.hideSystemBars(this)
 
         if (InsetsHelper.getSystemGestureType(applicationContext) !=
             InsetsHelper.GESTURE_NAVIGATION

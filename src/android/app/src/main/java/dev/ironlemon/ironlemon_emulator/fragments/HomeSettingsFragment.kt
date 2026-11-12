@@ -3,6 +3,14 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.fragment.findNavController
+import dev.ironlemon.ironlemon_emulator.features.settings.SettingsSearchIndex
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernHomeSettings
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -33,7 +41,6 @@ import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.adapters.HomeSettingAdapter
-import dev.ironlemon.ironlemon_emulator.databinding.FragmentHomeSettingsBinding
 import dev.ironlemon.ironlemon_emulator.features.DocumentProvider
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
 import dev.ironlemon.ironlemon_emulator.model.DriverViewModel
@@ -46,8 +53,6 @@ import dev.ironlemon.ironlemon_emulator.utils.Log
 import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
 
 class HomeSettingsFragment : Fragment() {
-    private var _binding: FragmentHomeSettingsBinding? = null
-    private val binding get() = _binding!!
 
     private lateinit var mainActivity: MainActivity
 
@@ -59,19 +64,50 @@ class HomeSettingsFragment : Fragment() {
         reenterTransition = MaterialSharedAxis(MaterialSharedAxis.X, false)
     }
 
+    private val homeOptions = mutableStateOf<List<HomeSetting>>(emptyList())
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentHomeSettingsBinding.inflate(layoutInflater)
-        return binding.root
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            IronLemonPage(
+                title = stringResource(R.string.preferences_settings),
+                onBack = { findNavController().popBackStack() }
+            ) {
+                ModernHomeSettings(
+                    options = homeOptions.value,
+                    onOptionClick = { model ->
+                        if (model.isEnabled.invoke()) {
+                            model.onClick.invoke()
+                        } else {
+                            MessageDialogFragment.newInstance(
+                                requireActivity(),
+                                titleId = model.disabledTitleId,
+                                descriptionId = model.disabledMessageId
+                            ).show(parentFragmentManager, MessageDialogFragment.TAG)
+                        }
+                    },
+                    onSearch = { query -> SettingsSearchIndex.search(requireContext(), query) },
+                    onResultClick = { entry ->
+                        // The section scrolls to the row and flashes it once it is shown.
+                        SettingsSearchIndex.pendingTarget = entry.menuTag to entry.anchor
+                        findNavController().navigate(
+                            HomeNavigationDirections.actionGlobalSettingsActivity(null, entry.menuTag)
+                        )
+                    }
+                )
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        homeViewModel.setNavigationVisibility(visible = true, animated = true)
-        homeViewModel.setStatusBarShadeVisibility(visible = true)
+        // Iron Lemon has no bottom navigation: the library and settings link to each other.
+        homeViewModel.setNavigationVisibility(visible = false, animated = false)
+        homeViewModel.setStatusBarShadeVisibility(visible = false)
         mainActivity = requireActivity() as MainActivity
 
         val optionsList: MutableList<HomeSetting> = mutableListOf<HomeSetting>().apply {
@@ -85,7 +121,7 @@ class HomeSettingsFragment : Fragment() {
                             null,
                             Settings.MenuTag.SECTION_ROOT
                         )
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     }
                 )
             )
@@ -99,7 +135,7 @@ class HomeSettingsFragment : Fragment() {
                             null,
                             Settings.MenuTag.SECTION_INPUT
                         )
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     }
                 )
             )
@@ -111,7 +147,7 @@ class HomeSettingsFragment : Fragment() {
                     {
                         val action = HomeSettingsFragmentDirections
                             .actionHomeSettingsFragmentToDriverManagerFragment(null)
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     },
                     { GpuDriverHelper.supportsCustomDriverLoading() },
                     R.string.custom_driver_not_supported,
@@ -125,7 +161,7 @@ class HomeSettingsFragment : Fragment() {
                     R.string.applets_description,
                     R.drawable.ic_applet,
                     {
-                        binding.root.findNavController()
+                        findNavController()
                             .navigate(R.id.action_homeSettingsFragment_to_appletLauncherFragment)
                     },
                     { NativeLibrary.isFirmwareAvailable() },
@@ -139,7 +175,7 @@ class HomeSettingsFragment : Fragment() {
                     R.string.manage_yuzu_data_description,
                     R.drawable.ic_install,
                     {
-                        binding.root.findNavController()
+                        findNavController()
                             .navigate(R.id.action_homeSettingsFragment_to_installableFragment)
                     }
                 )
@@ -150,7 +186,7 @@ class HomeSettingsFragment : Fragment() {
                     R.string.select_games_folder_description,
                     R.drawable.ic_add,
                     {
-                        binding.root.findNavController()
+                        findNavController()
                             .navigate(R.id.action_homeSettingsFragment_to_gameFoldersFragment)
                     }
                 )
@@ -219,7 +255,7 @@ class HomeSettingsFragment : Fragment() {
                             null,
                             Settings.MenuTag.SECTION_THEME
                         )
-                        binding.root.findNavController().navigate(action)
+                        findNavController().navigate(action)
                     }
                 )
             )
@@ -237,33 +273,9 @@ class HomeSettingsFragment : Fragment() {
             )
         }
 
-        if (!BuildConfig.PREMIUM) {
-            optionsList.add(
-                0,
-                HomeSetting(
-                    R.string.get_early_access,
-                    R.string.get_early_access_description,
-                    R.drawable.ic_diamond,
-                    {
-                        exitTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
-                        parentFragmentManager.primaryNavigationFragment?.findNavController()
-                            ?.navigate(R.id.action_homeSettingsFragment_to_earlyAccessFragment)
-                    }
-                )
-            )
-        }
+        homeOptions.value = optionsList
 
-        binding.homeSettingsList.apply {
-            layoutManager =
-                GridLayoutManager(requireContext(), resources.getInteger(R.integer.grid_columns))
-            adapter = HomeSettingAdapter(
-                requireActivity() as AppCompatActivity,
-                viewLifecycleOwner,
-                optionsList
-            )
-        }
 
-        setInsets()
     }
 
     override fun onStart() {
@@ -276,10 +288,6 @@ class HomeSettingsFragment : Fragment() {
         driverViewModel.updateDriverNameForGame(null)
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
 
     private fun openFileManager() {
         // First, try to open the user data folder directly
@@ -404,34 +412,4 @@ class HomeSettingsFragment : Fragment() {
         }
     }
 
-    private fun setInsets() =
-        ViewCompat.setOnApplyWindowInsetsListener(
-            binding.root
-        ) { view: View, windowInsets: WindowInsetsCompat ->
-            val barInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val spacingNavigation = resources.getDimensionPixelSize(R.dimen.spacing_navigation)
-            val spacingNavigationRail =
-                resources.getDimensionPixelSize(R.dimen.spacing_navigation_rail)
-
-            val leftInsets = barInsets.left + cutoutInsets.left
-            val rightInsets = barInsets.right + cutoutInsets.right
-
-            binding.scrollViewSettings.updatePadding(
-                top = barInsets.top,
-                bottom = barInsets.bottom
-            )
-
-            binding.scrollViewSettings.updateMargins(left = leftInsets, right = rightInsets)
-
-            binding.linearLayoutSettings.updatePadding(bottom = spacingNavigation)
-
-            if (ViewCompat.getLayoutDirection(view) == ViewCompat.LAYOUT_DIRECTION_LTR) {
-                binding.linearLayoutSettings.updatePadding(left = spacingNavigationRail)
-            } else {
-                binding.linearLayoutSettings.updatePadding(right = spacingNavigationRail)
-            }
-
-            windowInsets
-        }
 }

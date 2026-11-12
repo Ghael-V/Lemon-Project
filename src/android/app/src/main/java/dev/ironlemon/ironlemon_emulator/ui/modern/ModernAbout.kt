@@ -49,7 +49,7 @@ class AboutActions(
     val onLink: (Int) -> Unit
 )
 
-/** The About screen: what Lemon is, its build, where to find it, how to support it, and the credits. */
+/** The About screen: what Iron Lemon is, its build, and the credits. */
 @Composable
 fun ModernAbout(versionText: String, actions: AboutActions) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -109,41 +109,14 @@ fun ModernAbout(versionText: String, actions: AboutActions) {
                 }
 
                 Spacer(Modifier.height(20.dp))
-                // Every button is (icon, label, what it does). On a wide screen they sit three to a row.
-                val links = listOf(
-                    Triple(R.drawable.ic_refresh, stringResource(R.string.check_updates_now), actions.onCheckUpdates),
-                    Triple(R.drawable.ic_website, stringResource(R.string.website_link_button)) { actions.onLink(R.string.website_link) },
-                    Triple(R.drawable.ic_code, stringResource(R.string.source_link_button)) { actions.onLink(R.string.source_link) },
-                    Triple(R.drawable.ic_github, stringResource(R.string.github_link_button)) { actions.onLink(R.string.github_link) },
-                    Triple(R.drawable.ic_info_outline, stringResource(R.string.guide_link_button)) { actions.onLink(R.string.guide_link) },
-                    Triple(R.drawable.ic_info_outline, stringResource(R.string.faq_link_button)) { actions.onLink(R.string.faq_link) },
-                    Triple(R.drawable.ic_discord, stringResource(R.string.discord_link_button)) { actions.onLink(R.string.discord_link) },
-                    Triple(R.drawable.ic_coffee, stringResource(R.string.kofi_link_button)) { actions.onLink(R.string.kofi_link) },
-                    Triple(R.drawable.ic_coffee, stringResource(R.string.buymeacoffee_link_button)) { actions.onLink(R.string.buymeacoffee_link) }
-                )
-                if (landscape) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        links.chunked(3).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                row.forEach { (icon, label, onClick) -> LinkButton(icon, label, onClick) }
-                            }
-                        }
-                    }
-                } else {
-                    Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        links.forEach { (icon, label, onClick) -> LinkButton(icon, label, onClick) }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
                 Column(
                     Modifier.widthIn(max = 700.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     InfoCard(
                         title = stringResource(R.string.team_lemon),
-                        body = stringResource(R.string.team_lemon_members) + "\n\n" + stringResource(R.string.patrons_thanks),
-                        onClick = { actions.onLink(R.string.team_link) }
+                        body = stringResource(R.string.team_lemon_members),
+                        onClick = {}
                     )
                     InfoCard(
                         title = stringResource(R.string.licenses),
@@ -152,8 +125,8 @@ fun ModernAbout(versionText: String, actions: AboutActions) {
                     )
                     InfoCard(
                         title = stringResource(R.string.lemon_about_credits_title),
-                        body = stringResource(R.string.lemon_about_credits_body) + "\n\n" + stringResource(R.string.logo_credit),
-                        onClick = { actions.onLink(R.string.contributors_link) }
+                        body = stringResource(R.string.ironlemon_about_credits_body),
+                        onClick = {}
                     )
                 }
                 Spacer(Modifier.height(28.dp))
