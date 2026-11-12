@@ -18,6 +18,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -141,10 +143,7 @@ fun IronLemonDialogCard(
         content()
         if (buttons != null) {
             Spacer(Modifier.height(24.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-            ) { buttons() }
+            IronLemonButtonRow { buttons() }
         }
     }
 }
@@ -256,4 +255,18 @@ fun IronLemonTextField(value: String, onValueChange: (String) -> Unit, modifier:
             .border(1.dp, IronLemonColors.Outline, shape)
             .padding(horizontal = 18.dp, vertical = 14.dp)
     )
+}
+
+/** Buttons in a row, ending on the right, going on to a new line when they don't fit. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun IronLemonButtonRow(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    FlowRow(
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) { content() }
 }

@@ -102,12 +102,17 @@ class GamePropertiesFragment : Fragment() {
                 usage = if (lastPlayed > 0) {
                     context.getString(
                         R.string.ironlemon_usage,
-                        sessions,
+                        context.resources.getQuantityString(
+                            R.plurals.ironlemon_sessions,
+                            sessions,
+                            sessions
+                        ),
+                        // Inside a sentence: "last played 3 hours ago", not "...Hace 3 horas".
                         DateUtils.getRelativeTimeSpanString(
                             lastPlayed,
                             System.currentTimeMillis(),
                             DateUtils.MINUTE_IN_MILLIS
-                        )
+                        ).toString().replaceFirstChar { it.lowercase() }
                     )
                 } else {
                     ""

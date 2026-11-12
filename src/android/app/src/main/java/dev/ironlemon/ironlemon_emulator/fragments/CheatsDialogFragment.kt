@@ -45,6 +45,8 @@ import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButtonRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonIconButton
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
@@ -129,7 +131,18 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
 
     @Composable
     private fun androidx.compose.foundation.layout.ColumnScope.ListPage() {
-        BasicText(stringResource(R.string.cheats_title, game.title), style = IronLemonType.Heading)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BasicText(
+                stringResource(R.string.cheats_title, game.title),
+                style = IronLemonType.Heading,
+                modifier = Modifier.weight(1f)
+            )
+            IronLemonIconButton(
+                iconRes = R.drawable.ic_close,
+                description = stringResource(R.string.close),
+                onClick = ::dismiss
+            )
+        }
         status?.let {
             Spacer(Modifier.height(6.dp))
             BasicText(it, style = IronLemonType.Body)
@@ -151,7 +164,7 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
         }
         Spacer(Modifier.height(16.dp))
         val ready = buildId.isNotEmpty()
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        IronLemonButtonRow {
             IronLemonButton(
                 text = stringResource(R.string.cheats_download),
                 iconRes = R.drawable.ic_download,
@@ -163,13 +176,6 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
                 iconRes = R.drawable.ic_add,
                 height = 48.dp,
                 onClick = { if (ready) page = Page.Add }
-            )
-            Spacer(Modifier.weight(1f))
-            IronLemonButton(
-                text = stringResource(R.string.close),
-                primary = true,
-                height = 48.dp,
-                onClick = ::dismiss
             )
         }
     }
@@ -242,7 +248,7 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
             )
         }
         Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        IronLemonButtonRow {
             IronLemonButton(
                 text = stringResource(R.string.cheats_import_file),
                 iconRes = R.drawable.ic_import,
@@ -251,7 +257,6 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
                     importFile.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
                 }
             )
-            Spacer(Modifier.weight(1f))
             IronLemonButton(
                 text = stringResource(android.R.string.cancel),
                 height = 48.dp,
@@ -275,7 +280,7 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
         Spacer(Modifier.height(12.dp))
         Column(Modifier.heightIn(max = 520.dp)) { IronLemonDialogText(message) }
         Spacer(Modifier.height(24.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+        IronLemonButtonRow {
             IronLemonButton(
                 text = stringResource(android.R.string.cancel),
                 height = 48.dp,

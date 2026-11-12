@@ -104,7 +104,12 @@ fun IronLemonButton(
             )
             Spacer(Modifier.width(10.dp))
         }
-        BasicText(text = text, style = IronLemonType.Button.copy(color = contentColor))
+        BasicText(
+            text = text,
+            style = IronLemonType.Button.copy(color = contentColor),
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 

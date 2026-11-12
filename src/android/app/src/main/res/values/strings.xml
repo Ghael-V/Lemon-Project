@@ -1281,7 +1281,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="lemon_welcome_feature_savestate">Quick save in any game</string>
     <string name="lemon_welcome_start">Get started</string>
     <string name="lemon_welcome_subtitle">Switch on your Android, tuned for Adreno</string>
-    <string name="lemon_welcome_title">Welcome to Lemon</string>
+    <string name="lemon_welcome_title">Welcome to Iron Lemon</string>
     <string name="logo_credit">Logo designed by Madeleine, who made it for free and with endless patience. Thank you so much, Madeleine!</string>
     <string name="patrons_thanks">Thanks to our patrons, Gi4nnelli, Xaphiron, Seak, Overlord, Lucky-Kris, Xefir, Pieguy744 and Wiz, for supporting Lemon!</string>
     <string name="reset_playtime">Clear Playtime</string>
@@ -1305,7 +1305,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     <string name="ironlemon_playtime">Played for %1$s</string>
     <string name="ironlemon_never_played">Not played yet</string>
-    <string name="ironlemon_usage">%1$d sessions · last played %2$s</string>
+    <string name="ironlemon_usage">%1$s · last played %2$s</string>
     <!-- Cheat manager (Atmosphere cheats) -->
     <string name="cheats">Cheats</string>
     <string name="cheats_description">Atmosphère cheat codes: add them and switch each one on or off</string>
@@ -1333,7 +1333,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     </plurals>
     <string name="cheats_download">Download</string>
     <string name="cheats_download_confirm">Download</string>
-    <string name="cheats_download_description">Lemon downloads the cheats for build %1$s from switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), a database updated every day from gbatemp.net and NX-60FPS-RES-GFX-Cheats. All credit goes to the authors of the codes.\n\nOnly the game\'s ID is sent, to GitHub. The cheats are saved off: turn on the ones you want. Downloading again updates them and keeps your switches.</string>
+    <string name="cheats_download_description">Iron Lemon downloads the cheats for build %1$s from switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), a database updated every day from gbatemp.net and NX-60FPS-RES-GFX-Cheats. All credit goes to the authors of the codes.\n\nOnly the game\'s ID is sent, to GitHub. The cheats are saved off: turn on the ones you want. Downloading again updates them and keeps your switches.</string>
     <string name="cheats_downloading">Downloading cheats…</string>
     <string name="cheats_download_failed">Couldn\'t download the cheats. Check the connection and try again.</string>
     <string name="cheats_download_not_found">The cheat database has no cheats for this game.</string>
@@ -1367,4 +1367,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="driver_source_panvk_g615">Mesa PanVK for the Mali-G615 (Android 15 or newer, experimental)</string>
     <string name="driver_source_panvk_g720">Mesa PanVK for the Mali-G720 (Android 15 or newer, experimental)</string>
     <string name="driver_source_panvk_g52">Mesa PanVK for the Mali-G52 (Android 9 or newer, experimental)</string>
+    <plurals name="ironlemon_sessions">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
 </resources>

@@ -63,7 +63,7 @@ private enum class DetailTab(val titleRes: Int) {
 }
 
 private fun tabOf(property: GameProperty): DetailTab = when (property.titleId) {
-    R.string.add_ons -> DetailTab.Extras
+    R.string.add_ons, R.string.cheats -> DetailTab.Extras
     R.string.save_data,
     R.string.delete_save_data,
     R.string.clear_shader_cache,

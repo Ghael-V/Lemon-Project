@@ -650,7 +650,7 @@
     <string name="lemon_welcome_feature_savestate">Guardado rápido en cualquier juego</string>
     <string name="lemon_welcome_start">Empezar</string>
     <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
-    <string name="lemon_welcome_title">Bienvenido a Lemon</string>
+    <string name="lemon_welcome_title">Bienvenido a Iron Lemon</string>
     <string name="logo_credit">Logo diseñado por Madeleine, que lo hizo de forma desinteresada y con muchísima paciencia. ¡Mil gracias, Madeleine!</string>
     <string name="patrons_thanks">¡Gracias a nuestros mecenas, Gi4nnelli, Xaphiron, Seak, Overlord, Lucky-Kris, Xefir, Pieguy744 y Wiz, por apoyar Lemon!</string>
     <string name="reset_playtime">Borrar tiempo de juego</string>
@@ -671,7 +671,7 @@
 
     <string name="ironlemon_playtime">Jugado %1$s</string>
     <string name="ironlemon_never_played">Aún sin jugar</string>
-    <string name="ironlemon_usage">%1$d sesiones · última vez %2$s</string>
+    <string name="ironlemon_usage">%1$s · última vez %2$s</string>
     <string name="lemon_cheater_type_int">Entero</string>
     <string name="lemon_cheater_type_float">Float</string>
     <string name="lemon_cheater_invalid_float">Introduce un número, p. ej. 87.5</string>
@@ -709,7 +709,7 @@
     </plurals>
     <string name="cheats_download">Descargar</string>
     <string name="cheats_download_confirm">Descargar</string>
-    <string name="cheats_download_description">Lemon descarga los trucos del build %1$s de switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), una base de datos que se actualiza cada día desde gbatemp.net y NX-60FPS-RES-GFX-Cheats. Todo el mérito es de los autores de los códigos.\n\nSolo se envía el ID del juego, a GitHub. Los trucos se guardan desactivados: activa los que quieras. Volver a descargar los actualiza y conserva lo que tengas activado.</string>
+    <string name="cheats_download_description">Iron Lemon descarga los trucos del build %1$s de switch-cheats-db (github.com/HamletDuFromage/switch-cheats-db), una base de datos que se actualiza cada día desde gbatemp.net y NX-60FPS-RES-GFX-Cheats. Todo el mérito es de los autores de los códigos.\n\nSolo se envía el ID del juego, a GitHub. Los trucos se guardan desactivados: activa los que quieras. Volver a descargar los actualiza y conserva lo que tengas activado.</string>
     <string name="cheats_downloading">Descargando trucos…</string>
     <string name="cheats_download_failed">No se pudieron descargar los trucos. Comprueba la conexión y vuelve a intentarlo.</string>
     <string name="cheats_download_not_found">La base de datos no tiene trucos para este juego.</string>
@@ -744,4 +744,8 @@
     <string name="driver_source_panvk_g615">Mesa PanVK para la Mali-G615 (Android 15 o posterior, experimental)</string>
     <string name="driver_source_panvk_g720">Mesa PanVK para la Mali-G720 (Android 15 o posterior, experimental)</string>
     <string name="driver_source_panvk_g52">Mesa PanVK para la Mali-G52 (Android 9 o posterior, experimental)</string>
+    <plurals name="ironlemon_sessions">
+        <item quantity="one">%d sesión</item>
+        <item quantity="other">%d sesiones</item>
+    </plurals>
 </resources>
