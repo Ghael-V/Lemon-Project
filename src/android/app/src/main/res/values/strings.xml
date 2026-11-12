@@ -1303,4 +1303,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="ironlemon_playtime">Played for %1$s</string>
     <string name="ironlemon_never_played">Not played yet</string>
     <string name="ironlemon_usage">%1$d sessions · last played %2$s</string>
+    <!-- Cheat manager (Atmosphere cheats) -->
+    <string name="cheats">Cheats</string>
+    <string name="cheats_description">Atmosphère cheat codes: add them and switch each one on or off</string>
+    <string name="cheats_title">Cheats · %1$s</string>
+    <string name="cheats_reading">Reading the game…</string>
+    <string name="cheats_no_build_id">Couldn\'t read this game\'s build ID, so cheats can\'t be added for it.</string>
+    <string name="cheats_build_id">Build ID: %1$s. Cheat codes only work on the build they were made for: check that yours are for this one.</string>
+    <string name="cheats_empty">No cheats for this build yet. Use Add cheats to paste the codes made for build %1$s.</string>
+    <string name="cheats_add">Add cheats</string>
+    <string name="cheats_add_confirm">Add</string>
+    <string name="cheats_add_description">Paste the codes for build %1$s: an Atmosphère cheat file, or the cheats copied from a cheat website, with each name on its own line.</string>
+    <string name="cheats_paste_hint">Paste the cheat codes here</string>
+    <string name="cheats_import_file">Import file</string>
+    <string name="cheats_none_found">No cheat codes found in that text.</string>
+    <string name="cheats_master">%1$s (master code, always on)</string>
+    <string name="cheats_toggle_failed">Couldn\'t save that change.</string>
+    <string name="cheats_loose_files">Loose cheat files (can\'t be switched)</string>
+    <plurals name="cheats_added">
+        <item quantity="one">%d cheat added</item>
+        <item quantity="other">%d cheats added</item>
+    </plurals>
 </resources>

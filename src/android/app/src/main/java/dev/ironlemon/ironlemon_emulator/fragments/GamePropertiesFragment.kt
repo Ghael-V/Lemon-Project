@@ -236,6 +236,17 @@ class GamePropertiesFragment : Fragment() {
                         }
                     )
                 )
+                add(
+                    SubmenuProperty(
+                        R.string.cheats,
+                        R.string.cheats_description,
+                        R.drawable.ic_key,
+                        action = {
+                            CheatsDialogFragment.newInstance(args.game)
+                                .show(childFragmentManager, CheatsDialogFragment.TAG)
+                        }
+                    )
+                )
 
                 val saveDirFile = File(args.game.saveDir)
                 if (saveDirFile.exists()) {

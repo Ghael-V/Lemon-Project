@@ -19,6 +19,11 @@
         android:icon="@drawable/ic_search"
         android:title="@string/lemon_cheater" />
     <item
+        android:id="@+id/menu_cheats"
+        android:icon="@drawable/ic_key"
+        android:title="@string/cheats" />
+
+    <item
         android:id="@+id/menu_lemon_macro"
         android:icon="@drawable/ic_record"
         android:title="@string/lemon_macro" />

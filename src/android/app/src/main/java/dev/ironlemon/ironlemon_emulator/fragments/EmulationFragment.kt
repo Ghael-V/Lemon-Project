@@ -295,6 +295,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_cheats -> {
+                    game?.let {
+                        CheatsDialogFragment.newInstance(it)
+                            .show(childFragmentManager, CheatsDialogFragment.TAG)
+                    }
+                    true
+                }
+
                 R.id.menu_lemon_macro -> {
                     binding.macroOverlay.visibility =
                         if (binding.macroOverlay.visibility == View.VISIBLE) {

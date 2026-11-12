@@ -682,4 +682,25 @@
     <string name="emulation_quick_load_state_game_loading">El juego está cargando. Espera y vuelve a intentarlo.</string>
     <string name="emulation_quick_load_state_incompatible">No se puede cargar: desde que guardaste, el juego hizo algo que la carga rápida todavía no sabe deshacer. No se ha cambiado nada.</string>
     <string name="emulation_quick_load_state_not_this_session">No hay ningún guardado de esta sesión</string>
+    <!-- Gestor de trucos (trucos de Atmosphère) -->
+    <string name="cheats">Trucos</string>
+    <string name="cheats_description">Códigos de trucos de Atmosphère: añádelos y activa o desactiva cada uno</string>
+    <string name="cheats_title">Trucos · %1$s</string>
+    <string name="cheats_reading">Leyendo el juego…</string>
+    <string name="cheats_no_build_id">No se pudo leer el build ID de este juego, así que no se le pueden añadir trucos.</string>
+    <string name="cheats_build_id">Build ID: %1$s. Los códigos de trucos solo funcionan en la versión para la que se hicieron: comprueba que los tuyos son para esta.</string>
+    <string name="cheats_empty">Todavía no hay trucos para esta versión. Usa Añadir trucos para pegar los códigos hechos para el build %1$s.</string>
+    <string name="cheats_add">Añadir trucos</string>
+    <string name="cheats_add_confirm">Añadir</string>
+    <string name="cheats_add_description">Pega los códigos para el build %1$s: un archivo de trucos de Atmosphère, o los trucos copiados de una web de trucos, con cada nombre en su propia línea.</string>
+    <string name="cheats_paste_hint">Pega aquí los códigos de los trucos</string>
+    <string name="cheats_import_file">Importar archivo</string>
+    <string name="cheats_none_found">No se han encontrado códigos de trucos en ese texto.</string>
+    <string name="cheats_master">%1$s (código maestro, siempre activo)</string>
+    <string name="cheats_toggle_failed">No se pudo guardar ese cambio.</string>
+    <string name="cheats_loose_files">Archivos de trucos sueltos (no se pueden activar por separado)</string>
+    <plurals name="cheats_added">
+        <item quantity="one">%d truco añadido</item>
+        <item quantity="other">%d trucos añadidos</item>
+    </plurals>
 </resources>

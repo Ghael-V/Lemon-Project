@@ -64,6 +64,8 @@
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
+#include "core/loader/nso.h"
+#include "common/hex_util.h"
 #include "core/memory_search.h"
 #include "core/savestate.h"
 #include "frontend_common/config.h"
@@ -1400,6 +1402,162 @@ jobjectArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPatchesForF
         ++i;
     }
     return jpatchArray;
+}
+
+// ---- Lemon's cheat manager (Atmosphere cheats under the title's mod directory) ----
+
+} // extern "C"
+
+namespace {
+
+// The build id the cheats of a game are keyed by: its main executable's, with the installed update
+// applied (cheat codes only fit the build they were made for). Read from the game file, so it is
+// known before the game has ever run.
+std::optional<FileSys::PatchManager::BuildID> ReadMainBuildId(Core::System& system,
+                                                              const std::string& path,
+                                                              u64 program_id) {
+    const auto file = Core::GetGameFileFromPath(system.GetFilesystem(), path);
+    if (file == nullptr) {
+        return std::nullopt;
+    }
+    const auto loader = Loader::GetLoader(system, file);
+    if (loader == nullptr) {
+        return std::nullopt;
+    }
+
+    FileSys::VirtualDir exefs;
+    switch (loader->GetFileType()) {
+    case Loader::FileType::NSP: {
+        const FileSys::NSP nsp{file, program_id};
+        exefs = nsp.GetExeFS();
+        if (exefs == nullptr) {
+            if (const auto nca = nsp.GetNCA(program_id, FileSys::ContentRecordType::Program)) {
+                exefs = nca->GetExeFS();
+            }
+        }
+        break;
+    }
+    case Loader::FileType::XCI: {
+        const FileSys::XCI xci{file, program_id};
+        if (const auto nca_file = xci.GetProgramNCAFile()) {
+            exefs = FileSys::NCA{nca_file}.GetExeFS();
+        }
+        break;
+    }
+    case Loader::FileType::NCA:
+        exefs = FileSys::NCA{file}.GetExeFS();
+        break;
+    case Loader::FileType::DeconstructedRomDirectory:
+        exefs = file->GetContainingDirectory();
+        break;
+    default:
+        return std::nullopt; // homebrew: no cheats keyed by build id
+    }
+    if (exefs == nullptr) {
+        // As the NCA loader does: a program whose executable only the update holds.
+        if (const auto update = system.GetContentProvider().GetEntry(
+                FileSys::GetUpdateTitleID(program_id), FileSys::ContentRecordType::Program)) {
+            exefs = update->GetExeFS();
+        }
+    }
+
+    const FileSys::PatchManager pm{program_id, system.GetFileSystemController(),
+                                   system.GetContentProvider()};
+    exefs = pm.PatchExeFS(exefs);
+    const auto main = exefs != nullptr ? exefs->GetFile("main") : nullptr;
+    Loader::NSOHeader header{};
+    if (main == nullptr || main->ReadObject(&header) != sizeof(header) ||
+        header.magic != Common::MakeMagic('N', 'S', 'O', '0')) {
+        return std::nullopt;
+    }
+    return header.build_id;
+}
+
+// Whether `program_id` is the game running now.
+bool IsRunningGame(u64 program_id) {
+    auto& session = EmulationSession::GetInstance();
+    return session.IsRunning() &&
+           session.System().GetApplicationProcessProgramID() == program_id;
+}
+
+// The 16 hex digits cheat files are named after, back into a build id.
+FileSys::PatchManager::BuildID ParseBuildId(const std::string& hex) {
+    FileSys::PatchManager::BuildID id{};
+    const auto bytes = Common::HexStringToVector(hex.substr(0, 16), false);
+    std::copy_n(bytes.begin(), (std::min)(bytes.size(), id.size()), id.begin());
+    return id;
+}
+
+FileSys::PatchManager CheatPatchManager(u64 program_id) {
+    auto& system = EmulationSession::GetInstance().System();
+    return FileSys::PatchManager{program_id, system.GetFileSystemController(),
+                                 system.GetContentProvider()};
+}
+
+} // namespace
+
+extern "C" {
+
+jstring Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getCheatBuildId(JNIEnv* env, jobject jobj,
+                                                              jstring jpath, jstring jprogramId) {
+    auto& system = EmulationSession::GetInstance().System();
+    const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
+    std::optional<FileSys::PatchManager::BuildID> build_id;
+    if (IsRunningGame(program_id)) {
+        build_id = system.GetApplicationProcessBuildID();
+    } else {
+        build_id = ReadMainBuildId(system, Common::Android::GetJString(env, jpath), program_id);
+    }
+    if (!build_id) {
+        return Common::Android::ToJString(env, "");
+    }
+    return Common::Android::ToJString(env, Common::HexToString(*build_id, true).substr(0, 16));
+}
+
+jobjectArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getCheats(JNIEnv* env, jobject jobj,
+                                                             jstring jprogramId,
+                                                             jstring jbuildId) {
+    const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
+    const auto cheats = CheatPatchManager(program_id).ListCheats(
+        ParseBuildId(Common::Android::GetJString(env, jbuildId)));
+    // One string per cheat: folder, name, enabled, master, joined by \x1F.
+    jobjectArray out = env->NewObjectArray(static_cast<jsize>(cheats.size()),
+                                           Common::Android::GetStringClass(), nullptr);
+    for (size_t i = 0; i < cheats.size(); i++) {
+        const auto& cheat = cheats[i];
+        const std::string row = fmt::format("{}\x1F{}\x1F{}\x1F{}", cheat.folder, cheat.name,
+                                            cheat.enabled ? 1 : 0, cheat.master ? 1 : 0);
+        env->SetObjectArrayElement(out, static_cast<jsize>(i),
+                                   Common::Android::ToJString(env, row));
+    }
+    return out;
+}
+
+jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setCheatEnabled(JNIEnv* env, jobject jobj,
+                                                               jstring jprogramId,
+                                                               jstring jfolder, jstring jname,
+                                                               jboolean enabled) {
+    const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
+    const bool ok = CheatPatchManager(program_id).SetCheatEnabled(
+        Common::Android::GetJString(env, jfolder), Common::Android::GetJString(env, jname),
+        enabled);
+    if (ok && IsRunningGame(program_id)) {
+        EmulationSession::GetInstance().System().ReloadCheats();
+    }
+    return ok;
+}
+
+jint Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_addCheats(JNIEnv* env, jobject jobj,
+                                                     jstring jprogramId, jstring jbuildId,
+                                                     jstring jtext) {
+    const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
+    const size_t count = CheatPatchManager(program_id).AddCheats(
+        ParseBuildId(Common::Android::GetJString(env, jbuildId)),
+        Common::Android::GetJString(env, jtext));
+    if (count > 0 && IsRunningGame(program_id)) {
+        EmulationSession::GetInstance().System().ReloadCheats();
+    }
+    return static_cast<jint>(count);
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_removeUpdate(JNIEnv* env, jobject jobj,
