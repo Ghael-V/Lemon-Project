@@ -15,6 +15,7 @@
 #include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/nvnflinger/buffer_queue_core.h"
 #include "core/memory_search.h"
+#include "video_core/host1x/syncpoint_manager.h"
 #include "core/perf_stats.h"
 #include "core/savestate.h"
 #include "frontend_common/content_manager.h"
@@ -153,7 +154,8 @@ private:
     /// wait for the GPU passes at once from then on.
     void RewindSyncpoints();
     /// The syncpoint values at the last Quick Save of this session.
-    std::optional<std::array<u32, 192>> m_saved_syncpoints;
+    std::optional<std::array<u32, Tegra::Host1x::SyncpointManager::NumSyncpoints>>
+        m_saved_syncpoints;
     /// The audio renderers' working memory at the last Quick Save of this session.
     std::vector<AudioCore::Renderer::System::WorkbufferSnapshot> m_saved_audio;
     /// The display queue slots the game held at the last Quick Save of this session.
