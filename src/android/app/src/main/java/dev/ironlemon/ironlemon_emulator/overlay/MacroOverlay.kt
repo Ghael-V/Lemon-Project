@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.overlay
@@ -6,8 +7,6 @@ package dev.ironlemon.ironlemon_emulator.overlay
 import android.content.Context
 import android.util.AttributeSet
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import kotlinx.coroutines.CoroutineScope
@@ -18,11 +17,42 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.OverlayMacroPanelBinding
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeButton
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeAnalog
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButtonRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonIconButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSwitchRow
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 
 /**
  * Input macro recorder/player: records a sequence of on-screen controller events (via
@@ -35,10 +65,19 @@ import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
  * only really stops when this view is torn down with the emulation session).
  */
 class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs) {
-    private val binding: OverlayMacroPanelBinding
+    // What the panel shows, drawn by [MacroPanel].
+    private var statusText by mutableStateOf("")
+    private var recordLabel by mutableIntStateOf(R.string.lemon_macro_record)
+    private var recordEnabled by mutableStateOf(true)
+    private var playLabel by mutableIntStateOf(R.string.lemon_macro_play)
+    private var playEnabled by mutableStateOf(false)
+    private var overlayWarning by mutableStateOf(false)
+    private var repeat by mutableStateOf(false)
+
+    private val panel: ComposeView
 
     // Guards onVisibilityChanged(), which can fire from within the View constructor chain
-    // before init{} (and so `binding`) has run.
+    // before init{} has run.
     private var isSetUp = false
 
     private var scope = CoroutineScope(Dispatchers.Main + Job())
@@ -51,23 +90,16 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     var onShowOverlayRequested: (() -> Unit)? = null
 
     init {
-        binding = OverlayMacroPanelBinding.inflate(LayoutInflater.from(context), this, false)
+        panel = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent { MacroPanel() }
+        }
         addView(
-            binding.root,
+            panel,
             LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER
             }
         )
-
-        binding.macroPanelClose.setOnClickListener { hide() }
-        binding.macroRecordButton.setOnClickListener { onRecordClicked() }
-        binding.macroPlayButton.setOnClickListener { onPlayClicked() }
-        binding.macroShowOverlayButton.setOnClickListener {
-            onShowOverlayRequested?.invoke()
-            updateStatus()
-        }
-
-        setupDragHandle()
         isSetUp = true
         updateStatus()
     }
@@ -94,29 +126,9 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         visibility = View.GONE
     }
 
-    private fun setupDragHandle() {
-        var startRawX = 0f
-        var startRawY = 0f
-        var startTranslationX = 0f
-        var startTranslationY = 0f
-
-        binding.macroPanelTitleBar.setOnTouchListener { _, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startRawX = event.rawX
-                    startRawY = event.rawY
-                    startTranslationX = binding.root.translationX
-                    startTranslationY = binding.root.translationY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    binding.root.translationX = startTranslationX + (event.rawX - startRawX)
-                    binding.root.translationY = startTranslationY + (event.rawY - startRawY)
-                    true
-                }
-                else -> false
-            }
-        }
+    private fun dragBy(dx: Float, dy: Float) {
+        panel.translationX += dx
+        panel.translationY += dy
     }
 
     private fun onRecordClicked() {
@@ -188,7 +200,7 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
                             }
                         }
                     }
-                } while (binding.macroRepeatSwitch.isChecked)
+                } while (repeat)
             } finally {
                 held.forEach { (port, button) ->
                     NativeInput.onOverlayButtonEvent(port, button, NativeInput.ButtonState.RELEASED)
@@ -218,8 +230,7 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        // This can fire from within the View constructor chain, before init{} (and so
-        // `binding`) has run.
+        // This can fire from within the View constructor chain, before init{} has run.
         if (visibility == View.VISIBLE && isSetUp) {
             updateStatus()
         }
@@ -230,19 +241,13 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
         val isPlaying = playbackJob != null
         val overlayVisible = isOnScreenControllerVisible()
 
-        binding.macroOverlayWarning.visibility = if (overlayVisible) View.GONE else View.VISIBLE
+        overlayWarning = !overlayVisible
+        recordLabel = if (isRecording) R.string.lemon_macro_stop_recording else R.string.lemon_macro_record
+        recordEnabled = !isPlaying && (isRecording || overlayVisible)
+        playLabel = if (isPlaying) R.string.lemon_macro_stop_playing else R.string.lemon_macro_play
+        playEnabled = !isRecording && (isPlaying || MacroRecorder.lastRecordedMacro.isNotEmpty())
 
-        binding.macroRecordButton.text = context.getString(
-            if (isRecording) R.string.lemon_macro_stop_recording else R.string.lemon_macro_record
-        )
-        binding.macroRecordButton.isEnabled = !isPlaying && (isRecording || overlayVisible)
-        binding.macroPlayButton.text = context.getString(
-            if (isPlaying) R.string.lemon_macro_stop_playing else R.string.lemon_macro_play
-        )
-        binding.macroPlayButton.isEnabled = !isRecording &&
-            (isPlaying || MacroRecorder.lastRecordedMacro.isNotEmpty())
-
-        binding.macroStatusText.text = when {
+        statusText = when {
             isRecording -> context.getString(
                 R.string.lemon_macro_status_recording,
                 MacroRecorder.recordedEventCount
@@ -253,6 +258,83 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
                 R.string.lemon_macro_status_ready,
                 MacroRecorder.lastRecordedMacro.size
             )
+        }
+    }
+
+    @Composable
+    private fun MacroPanel() {
+        val shape = RoundedCornerShape(24.dp)
+        Column(
+            Modifier
+                .width(380.dp)
+                .clip(shape)
+                .background(IronLemonColors.Background.copy(alpha = 0.96f))
+                .border(1.dp, IronLemonColors.gradient(0.6f), shape)
+        ) {
+            // The title bar drags the panel around.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, amount ->
+                            change.consume()
+                            dragBy(amount.x, amount.y)
+                        }
+                    }
+                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicText(
+                    stringResource(R.string.lemon_macro),
+                    style = IronLemonType.Heading,
+                    modifier = Modifier.weight(1f)
+                )
+                IronLemonIconButton(
+                    iconRes = R.drawable.ic_clear,
+                    description = stringResource(R.string.emulation_done),
+                    size = 40.dp,
+                    onClick = ::hide
+                )
+            }
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
+                if (overlayWarning) {
+                    BasicText(
+                        stringResource(R.string.lemon_macro_overlay_hidden_warning),
+                        style = IronLemonType.Body.copy(color = IronLemonColors.Orange)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    IronLemonButton(
+                        text = stringResource(R.string.lemon_macro_show_overlay),
+                        height = 40.dp,
+                        onClick = {
+                            onShowOverlayRequested?.invoke()
+                            updateStatus()
+                        }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                BasicText(statusText, style = IronLemonType.Body.copy(color = IronLemonColors.Text))
+                Spacer(Modifier.height(12.dp))
+                IronLemonButtonRow {
+                    IronLemonButton(
+                        text = stringResource(recordLabel),
+                        iconRes = R.drawable.ic_record,
+                        height = 44.dp,
+                        modifier = Modifier.alpha(if (recordEnabled) 1f else 0.4f),
+                        onClick = { if (recordEnabled) onRecordClicked() }
+                    )
+                    IronLemonButton(
+                        text = stringResource(playLabel),
+                        iconRes = R.drawable.ic_play,
+                        primary = playEnabled,
+                        height = 44.dp,
+                        modifier = Modifier.alpha(if (playEnabled) 1f else 0.4f),
+                        onClick = { if (playEnabled) onPlayClicked() }
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                IronLemonSwitchRow(stringResource(R.string.lemon_macro_repeat), repeat) { repeat = it }
+            }
         }
     }
 }
