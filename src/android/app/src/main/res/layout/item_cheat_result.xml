@@ -3,6 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -31,5 +32,16 @@
         android:layout_marginStart="8dp"
         android:fontFamily="monospace"
         tools:text="3" />
+
+    <ImageButton
+        android:id="@+id/cheat_result_freeze"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/lemon_cheater_freeze"
+        android:padding="4dp"
+        android:src="@drawable/ic_unlock"
+        app:tint="?attr/colorOnSurfaceVariant" />
 
 </LinearLayout>

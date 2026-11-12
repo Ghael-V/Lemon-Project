@@ -37,6 +37,7 @@
     <string name="add_games_warning_description">No se mostrará ningún juego si no se ha seleccionado una carpeta de juegos.</string>
     <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
     <string name="home_search_games">Buscar juegos</string>
+    <string name="continue_playing">Continuar jugando</string>
     <string name="search_settings">Buscar configuración</string>
     <string name="games_dir_selected">Directorio de juegos seleccionado</string>
     <string name="install_prod_keys">Instalar prod.keys</string>
@@ -620,6 +621,9 @@
     <string name="seconds_abbr">s</string>
     <string name="statistics">Estadísticas</string>
     <string name="statistics_sort_by">Ordenar por</string>
+    <string name="statistics_sort_playtime">Tiempo jugado</string>
+    <string name="statistics_sort_last_played">Última vez jugado</string>
+    <string name="statistics_sort_sessions">Partidas jugadas</string>
 
 
     <!-- Iron Lemon UI (from Lemon) -->
