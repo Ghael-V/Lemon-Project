@@ -141,6 +141,11 @@ u128 InterpreterVisitor::GetVec(Vec v) {
 }
 
 u64 InterpreterVisitor::GetReg(Reg r) {
+    // Encoding 31 means XZR in this accessor: it always reads as zero.
+    // SP is a separate piece of state, reached through GetSp().
+    if (r == Reg::R31) {
+        return 0;
+    }
     return m_regs[static_cast<u32>(r)];
 }
 
@@ -157,6 +162,10 @@ void InterpreterVisitor::SetVec(Vec v, u128 value) {
 }
 
 void InterpreterVisitor::SetReg(Reg r, u64 value) {
+    // Writes to XZR are discarded; SP is updated through SetSp().
+    if (r == Reg::R31) {
+        return;
+    }
     m_regs[static_cast<u32>(r)] = value;
 }
 
