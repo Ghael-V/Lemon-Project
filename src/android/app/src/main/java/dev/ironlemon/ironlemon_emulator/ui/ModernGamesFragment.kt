@@ -1,0 +1,141 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon-Project / Iron Lemon
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package dev.ironlemon.ironlemon_emulator.ui
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.content.edit
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import androidx.preference.PreferenceManager
+import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
+import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.model.Game
+import dev.ironlemon.ironlemon_emulator.model.GamesViewModel
+import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
+import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
+import dev.ironlemon.ironlemon_emulator.ui.modern.LibraryActions
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernLibraryScreen
+import dev.ironlemon.ironlemon_emulator.ui.modern.PullToRefresh
+import dev.ironlemon.ironlemon_emulator.utils.GameIconUtils
+import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
+import dev.ironlemon.ironlemon_emulator.utils.GameStatsUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * The Iron Lemon library (see [ModernLibraryScreen]), hosted where yuzu's game list was. It keeps
+ * the gamesFragment destination, so every navigation action from it still works.
+ */
+class ModernGamesFragment : Fragment() {
+    private val gamesViewModel: GamesViewModel by activityViewModels()
+    private val homeViewModel: HomeViewModel by activityViewModels()
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            val games by gamesViewModel.games.collectAsState()
+            val reloading by gamesViewModel.isReloading.collectAsState()
+            val preferences = remember {
+                PreferenceManager.getDefaultSharedPreferences(requireContext().applicationContext)
+            }
+            val lastPlayedPath = remember(games) {
+                GameStatsUtils.findLastPlayed(requireContext(), games)?.path
+            }
+            val actions = remember { buildActions() }
+
+            PullToRefresh(
+                refreshing = reloading,
+                onRefresh = { gamesViewModel.reloadGames(false) },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                ModernLibraryScreen(
+                    games = games,
+                    loading = reloading,
+                    preferences = preferences,
+                    initialSelectedPath = lastPlayedPath,
+                    showQLaunch = false,
+                    actions = actions
+                )
+            }
+        }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // The library has its own settings and folder buttons: no bottom navigation here.
+        homeViewModel.setNavigationVisibility(visible = false, animated = false)
+        homeViewModel.setStatusBarShadeVisibility(false)
+    }
+
+    private fun buildActions() = LibraryActions(
+        onLaunch = { game ->
+            GameLaunchUtils.launchGame(
+                requireActivity() as AppCompatActivity,
+                game,
+                findNavController()
+            )
+        },
+        onDetails = { game ->
+            findNavController().navigate(
+                HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
+            )
+        },
+        onToggleFavorite = { game ->
+            val preferences =
+                PreferenceManager.getDefaultSharedPreferences(requireContext().applicationContext)
+            preferences.edit {
+                putBoolean(game.keyIsFavorite, !preferences.getBoolean(game.keyIsFavorite, false))
+            }
+        },
+        onSettings = { findNavController().navigate(R.id.homeSettingsFragment) },
+        onStatistics = null,
+        onAddGames = {
+            (requireActivity() as MainActivity).getGamesDirectory
+                .launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data)
+        },
+        onManageFolders = { findNavController().navigate(R.id.gameFoldersFragment) },
+        onInstallContent = { findNavController().navigate(R.id.installableFragment) },
+        onLaunchQLaunch = {},
+        onPerformance = null,
+        onDriverSettings = {},
+        onAddShortcut = ::requestPinShortcut,
+        hasDriverOption = false,
+        canPinShortcut = ShortcutManagerCompat.isRequestPinShortcutSupported(requireContext())
+    )
+
+    private fun requestPinShortcut(game: Game) {
+        val activity = requireActivity() as AppCompatActivity
+        activity.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val shortcut = ShortcutInfoCompat.Builder(activity, "pin_${game.path}")
+                    .setShortLabel(game.title)
+                    .setIcon(GameIconUtils.getShortcutIcon(activity, game))
+                    .setIntent(game.launchIntent)
+                    .build()
+                ShortcutManagerCompat.requestPinShortcut(activity, shortcut, null)
+            }
+        }
+    }
+}

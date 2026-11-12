@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<resources>
+    <!-- Library sort choices (ui/modern/GameListFilters.kt) -->
+    <item name="alphabetical" type="id" />
+    <item name="filter_recently_played" type="id" />
+    <item name="filter_recently_added" type="id" />
+    <item name="filter_favorites" type="id" />
+</resources>

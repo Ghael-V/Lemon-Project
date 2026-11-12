@@ -6,7 +6,7 @@
 
     <fragment
         android:id="@+id/gamesFragment"
-        android:name="dev.ironlemon.ironlemon_emulator.ui.GamesFragment"
+        android:name="dev.ironlemon.ironlemon_emulator.ui.ModernGamesFragment"
         android:label="PlatformGamesFragment" />
 
     <fragment

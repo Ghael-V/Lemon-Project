@@ -56,6 +56,7 @@ import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.model.EmulationViewModel
 import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayControl
 import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayLayout
+import dev.ironlemon.ironlemon_emulator.utils.GameStatsUtils
 import dev.ironlemon.ironlemon_emulator.utils.*
 import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.setVisible
 import java.lang.NullPointerException
@@ -458,7 +459,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Play time counts while the game is on screen (shown in the library).
+        if (::game.isInitialized) {
+            GameStatsUtils.startSession(game)
+        }
+    }
+
     override fun onPause() {
+        GameStatsUtils.endSession(requireContext())
         if (emulationState.isRunning && emulationActivity?.isInPictureInPictureMode != true) {
             emulationState.pause()
         }

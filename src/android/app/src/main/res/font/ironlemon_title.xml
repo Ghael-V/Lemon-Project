@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+    <font
+        android:font="@font/bricolage_grotesque"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        android:fontVariationSettings="'wght' 600" />
+    <font
+        android:font="@font/bricolage_grotesque"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        android:fontVariationSettings="'wght' 700" />
+    <font
+        android:font="@font/bricolage_grotesque"
+        android:fontStyle="normal"
+        android:fontWeight="800"
+        android:fontVariationSettings="'wght' 800" />
+</font-family>

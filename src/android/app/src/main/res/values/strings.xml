@@ -1167,4 +1167,33 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     </string>
 
+
+    <!-- Iron Lemon library (from Lemon) -->
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="add_to_home_screen">Add to Home Screen</string>
+    <string name="alphabetical">Alphabetical</string>
+    <string name="cancel">Cancel</string>
+    <string name="filter_favorites">Favorites</string>
+    <string name="freedreno_per_game_title">Freedreno Settings</string>
+    <string name="hours_abbr">h</string>
+    <string name="lemon_all_games">All games</string>
+    <string name="lemon_game_folders">Game folders</string>
+    <string name="lemon_library">Library</string>
+    <string name="lemon_manage_data">Manage data</string>
+    <string name="lemon_more_options">More options</string>
+    <string name="lemon_view_details">View details</string>
+    <string name="library_view">View</string>
+    <string name="library_view_carousel">Carousel</string>
+    <string name="library_view_grid">Grid</string>
+    <string name="library_view_list">List</string>
+    <string name="minutes_abbr">m</string>
+    <string name="performance_preset">Performance preset</string>
+    <string name="pull_release">Release to refresh</string>
+    <string name="pull_to_refresh">Pull down to refresh</string>
+    <string name="qlaunch_applet">Qlaunch</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="seconds_abbr">s</string>
+    <string name="statistics">Statistics</string>
+    <string name="statistics_sort_by">Sort by</string>
+
 </resources>

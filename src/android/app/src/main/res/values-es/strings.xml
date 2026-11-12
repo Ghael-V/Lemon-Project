@@ -592,4 +592,33 @@
     <!-- Licenses screen strings -->
     <string name="licenses">Licencias</string>
     <string name="license_fidelityfx_fsr_description">Upscaling de alta calidad de AMD</string>
-    </resources>
+    
+    <!-- Iron Lemon library (from Lemon) -->
+    <string name="add_to_favorites">Añadir a favoritos</string>
+    <string name="add_to_home_screen">Añadir a la pantalla de inicio</string>
+    <string name="alphabetical">Alfabético</string>
+    <string name="cancel">Cancelar</string>
+    <string name="filter_favorites">Favoritos</string>
+    <string name="freedreno_per_game_title">Ajustes de Freedreno</string>
+    <string name="hours_abbr">h</string>
+    <string name="lemon_all_games">Todos los juegos</string>
+    <string name="lemon_game_folders">Carpetas de juegos</string>
+    <string name="lemon_library">Biblioteca</string>
+    <string name="lemon_manage_data">Gestionar datos</string>
+    <string name="lemon_more_options">Más opciones</string>
+    <string name="lemon_view_details">Ver detalles</string>
+    <string name="library_view">Vista</string>
+    <string name="library_view_carousel">Carrusel</string>
+    <string name="library_view_grid">Cuadrícula</string>
+    <string name="library_view_list">Lista</string>
+    <string name="minutes_abbr">m</string>
+    <string name="performance_preset">Perfil de rendimiento</string>
+    <string name="pull_release">Suelta para actualizar</string>
+    <string name="pull_to_refresh">Desliza hacia abajo para actualizar</string>
+    <string name="qlaunch_applet">Qlaunch</string>
+    <string name="remove_from_favorites">Quitar de favoritos</string>
+    <string name="seconds_abbr">s</string>
+    <string name="statistics">Estadísticas</string>
+    <string name="statistics_sort_by">Ordenar por</string>
+
+</resources>

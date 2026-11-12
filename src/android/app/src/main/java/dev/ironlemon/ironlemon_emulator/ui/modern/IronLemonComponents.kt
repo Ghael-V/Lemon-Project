@@ -1,0 +1,263 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon-Project / Iron Lemon
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package dev.ironlemon.ironlemon_emulator.ui.modern
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.ironlemon.ironlemon_emulator.model.Game
+import dev.ironlemon.ironlemon_emulator.utils.GameIconUtils
+
+/** The game's icon, loaded off the main thread and cached by the shared icon loader. */
+@Composable
+fun rememberGameIcon(game: Game): ImageBitmap? {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val icon by produceState<ImageBitmap?>(initialValue = null, game.path, game.version) {
+        value = runCatching {
+            GameIconUtils.getGameIcon(lifecycleOwner, game).asImageBitmap()
+        }.getOrNull()
+    }
+    return icon
+}
+
+@Composable
+fun IronLemonButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    iconRes: Int? = null,
+    primary: Boolean = false,
+    height: Dp = 52.dp,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(height / 2)
+    val contentColor = if (primary) IronLemonColors.OnLemon else IronLemonColors.Text
+    Row(
+        modifier = modifier
+            .height(height)
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = height / 2,
+                glowColor = if (primary) IronLemonColors.Orange else IronLemonColors.Text,
+                onClick = onClick
+            )
+            .clip(shape)
+            .then(
+                if (primary) {
+                    Modifier.background(IronLemonColors.Gradient)
+                } else {
+                    Modifier.background(IronLemonColors.SurfaceRaised.copy(alpha = 0.7f))
+                }
+            )
+            .then(
+                if (primary) Modifier else Modifier.border(1.dp, IronLemonColors.Text.copy(alpha = 0.16f), shape)
+            )
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (iconRes != null) {
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(contentColor),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+        }
+        BasicText(text = text, style = IronLemonType.Button.copy(color = contentColor))
+    }
+}
+
+@Composable
+fun IronLemonIconButton(
+    iconRes: Int,
+    description: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .lemonInteractive(
+                shape = CircleShape,
+                cornerRadius = size / 2,
+                glowColor = IronLemonColors.Text,
+                onClick = onClick
+            )
+            .clip(CircleShape)
+            .background(IronLemonColors.SurfaceRaised.copy(alpha = 0.7f))
+            .border(1.dp, IronLemonColors.Text.copy(alpha = 0.16f), CircleShape)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(IronLemonColors.Text),
+            modifier = Modifier.size(size / 2)
+        )
+    }
+}
+
+/** A square game tile: the game's icon, its title along the bottom, and Lemon's interaction glow. */
+@Composable
+fun GameTile(
+    game: Game,
+    size: Dp,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    dimmed: Boolean = false,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(22.dp)
+    val icon = rememberGameIcon(game)
+    // Tiles that aren't the selected one fade back a little, so the selected one reads at a glance.
+    val alpha by animateFloatAsState(
+        targetValue = if (dimmed) 0.6f else 1f,
+        animationSpec = tween(250),
+        label = "tileAlpha"
+    )
+    Box(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer { this.alpha = alpha }
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = 22.dp,
+                selected = selected,
+                role = null,
+                onLongClick = onLongClick,
+                onClick = onClick
+            )
+            .clip(shape)
+            .background(IronLemonColors.Surface)
+            .semantics { contentDescription = game.title }
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+        }
+    }
+}
+
+/** A label size tiles share: made smaller while any of their labels does not fit on one line. */
+class LabelFit(start: TextUnit = 14.sp) {
+    var size by mutableStateOf(start)
+        private set
+
+    // One step down from the size a label did not fit at. Several labels that did not fit at the
+    // same size take that one step together, not a step each.
+    fun shrinkFrom(laidOut: TextUnit) {
+        if (size == laidOut && size > 10.sp) {
+            size = laidOut * 0.95f
+        }
+    }
+}
+
+/** Big glassy shortcut tile used in the row at the bottom of the library. */
+@Composable
+fun ShortcutTile(
+    iconRes: Int,
+    label: String,
+    modifier: Modifier = Modifier,
+    labelFit: LabelFit? = null,
+    onClick: () -> Unit
+) = ShortcutTile(iconRes, label, 14.sp, IronLemonColors.Text, modifier, labelFit, onClick)
+
+/** [ShortcutTile] with its label in [labelSize] and its icon in [iconColor]. */
+@Composable
+fun ShortcutTile(
+    iconRes: Int,
+    label: String,
+    labelSize: TextUnit,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
+    labelFit: LabelFit? = null,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier = modifier
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = 20.dp,
+                glowColor = IronLemonColors.Text,
+                onClick = onClick
+            )
+            .clip(shape)
+            .background(IronLemonColors.SurfaceRaised.copy(alpha = 0.55f))
+            .border(1.dp, IronLemonColors.Text.copy(alpha = 0.16f), shape)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(iconColor),
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        // One line, made smaller until it fits: wrapped at a space, only the label's first word
+        // showed ("Game" for "Game folders"), from the left edge.
+        val fit = labelFit ?: remember(label, labelSize) { LabelFit(labelSize) }
+        BasicText(
+            text = label,
+            style = IronLemonType.Button.copy(fontSize = fit.size, textAlign = TextAlign.Center),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { result ->
+                if (result.hasVisualOverflow) {
+                    fit.shrinkFrom(result.layoutInput.style.fontSize)
+                }
+            }
+        )
+    }
+}
