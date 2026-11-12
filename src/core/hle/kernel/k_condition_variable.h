@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "common/assert.h"
 
 #include "core/hle/kernel/k_scheduler.h"
@@ -33,6 +35,14 @@ public:
     void Signal(u64 cv_key, s32 count);
     Result Wait(KProcessAddress addr, u64 key, u32 value, s64 timeout);
 
+    // Savestate restore only: puts a thread that is not inside a kernel call (one created again by
+    // a load) to sleep on a condition variable, as WaitProcessWideKeyAtomic(addr, key, value,
+    // timeout_ns) leaves a caller, without touching the lock or the key in memory: the restored
+    // memory holds them as they were while the saved thread slept there. It has no call to return
+    // from, so when it wakes the call's result is put in its x0 here (see the queue), and it
+    // resumes at the instruction after the call, as the saved thread would have.
+    void WaitForRestore(KThread* thread, KProcessAddress addr, u64 key, u32 value, s64 timeout_ns);
+
 private:
     void SignalImpl(KThread* thread);
 
@@ -40,6 +50,7 @@ private:
     Core::System& m_system;
     KernelCore& m_kernel;
     ThreadTree m_tree{};
+    std::unique_ptr<KThreadQueue> m_restore_queue;
 };
 
 inline void BeforeUpdatePriority(KernelCore& kernel, KConditionVariable::ThreadTree* tree,

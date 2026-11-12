@@ -153,6 +153,11 @@ public:
         R_RETURN(m_page_table.MapPages(out_addr, num_pages, alignment, phys_addr, state, perm));
     }
 
+    Result MapPages(KProcessAddress address, size_t num_pages, KPhysicalAddress phys_addr,
+                    KMemoryState state, KMemoryPermission perm) {
+        R_RETURN(m_page_table.MapPages(address, num_pages, phys_addr, state, perm));
+    }
+
     Result MapPages(KProcessAddress* out_addr, size_t num_pages, KMemoryState state,
                     KMemoryPermission perm) {
         R_RETURN(m_page_table.MapPages(out_addr, num_pages, state, perm));

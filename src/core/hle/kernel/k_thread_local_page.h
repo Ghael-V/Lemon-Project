@@ -37,9 +37,14 @@ public:
     }
 
     Result Initialize(KernelCore& kernel, KProcess* process);
+    // Savestate restore only: maps the page at `address` (a thread created again by a load gets the
+    // thread-local storage it had at the save, which the restored memory refers to).
+    Result InitializeAt(KernelCore& kernel, KProcess* process, KProcessAddress address);
     Result Finalize();
 
     KProcessAddress Reserve();
+    // Savestate restore only: reserves the region at `addr`, if it is free.
+    bool ReserveAt(KProcessAddress addr);
     void Release(KProcessAddress addr);
 
     bool IsAllUsed() const {

@@ -10,6 +10,7 @@
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/k_thread_local_page.h"
 #include "core/hle/kernel/kernel.h"
+#include "core/hle/kernel/svc_results.h"
 
 namespace Kernel {
 
@@ -37,6 +38,28 @@ Result KThreadLocalPage::Initialize(KernelCore& kernel, KProcess* process) {
     return ResultSuccess;
 }
 
+Result KThreadLocalPage::InitializeAt(KernelCore& kernel, KProcess* process,
+                                      KProcessAddress address) {
+    m_owner = process;
+    m_kernel = std::addressof(kernel);
+
+    KPageBuffer* page_buf = KPageBuffer::Allocate(kernel);
+    R_UNLESS(page_buf != nullptr, ResultOutOfMemory);
+    auto page_buf_guard = SCOPE_GUARD {
+        KPageBuffer::Free(kernel, page_buf);
+    };
+
+    // Map it in at exactly that address. (A map in a region of that one page cannot work: the
+    // random placement wants the region larger than the map, and guard pages around it.)
+    const auto phys_addr = kernel.System().DeviceMemory().GetPhysicalAddr(page_buf);
+    R_TRY(m_owner->GetPageTable().MapPages(address, 1, phys_addr, KMemoryState::ThreadLocal,
+                                           KMemoryPermission::UserReadWrite));
+    m_virt_addr = address;
+
+    page_buf_guard.Cancel();
+    return ResultSuccess;
+}
+
 Result KThreadLocalPage::Finalize() {
     // Get the physical address of the page.
     KPhysicalAddress phys_addr{};
@@ -60,6 +83,18 @@ KProcessAddress KThreadLocalPage::Reserve() {
     }
 
     return 0;
+}
+
+bool KThreadLocalPage::ReserveAt(KProcessAddress addr) {
+    if (!this->Contains(addr) || !Common::IsAligned(GetInteger(addr), Svc::ThreadLocalRegionSize)) {
+        return false;
+    }
+    const size_t index = this->GetRegionIndex(addr);
+    if (!m_is_region_free[index]) {
+        return false;
+    }
+    m_is_region_free[index] = false;
+    return true;
 }
 
 void KThreadLocalPage::Release(KProcessAddress addr) {

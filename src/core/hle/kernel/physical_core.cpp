@@ -135,8 +135,10 @@ void PhysicalCore::RunThread(Kernel::KThread* thread) {
         if (supervisor_call) {
             // Perform call. While inside it, the thread's saved context still holds the arguments,
             // not the results (a savestate tells such a thread apart by this flag).
+            const u32 svc_id = interface->GetSvcNumber();
+            thread->SetSvcId(static_cast<u8>(svc_id));
             thread->SetIsCallingSvc();
-            Svc::Call(system, interface->GetSvcNumber());
+            Svc::Call(system, svc_id);
             thread->ClearIsCallingSvc();
             return;
         }

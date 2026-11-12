@@ -553,6 +553,10 @@ public:
 
     Result MapPages(KProcessAddress address, size_t num_pages, KMemoryState state,
                     KMemoryPermission perm);
+    // Savestate restore only: maps the given physical pages at exactly `address`, which must be
+    // free (see KThreadLocalPage::InitializeAt).
+    Result MapPages(KProcessAddress address, size_t num_pages, KPhysicalAddress phys_addr,
+                    KMemoryState state, KMemoryPermission perm);
     Result UnmapPages(KProcessAddress address, size_t num_pages, KMemoryState state);
 
     Result MapPageGroup(KProcessAddress* out_addr, const KPageGroup& pg,

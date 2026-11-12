@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: Copyright 2021 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <limits>
+#include <memory>
+
 #include "core/arm/exclusive_monitor.h"
 #include "core/core.h"
 #include "core/hle/kernel/k_condition_variable.h"
+#include "core/hle/kernel/k_hardware_timer.h"
 #include "core/hle/kernel/k_process.h"
 #include "core/hle/kernel/k_scheduler.h"
 #include "core/hle/kernel/k_scoped_scheduler_lock_and_sleep.h"
 #include "core/hle/kernel/k_thread.h"
 #include "core/hle/kernel/k_thread_queue.h"
 #include "core/hle/kernel/kernel.h"
+#include "core/hle/kernel/svc.h"
 #include "core/hle/kernel/svc_common.h"
 #include "core/hle/kernel/svc_results.h"
 #include "core/memory.h"
@@ -96,6 +101,41 @@ public:
         }
 
         // Invoke the base cancel wait handler.
+        KThreadQueue::CancelWait(waiting_thread, wait_result, cancel_timer_task);
+    }
+};
+
+// The wait of a thread a savestate restore created again in its saved condition variable wait
+// (KConditionVariable::WaitForRestore): as above, and as the thread is not inside the call, the
+// result the call would have returned goes straight into its x0, and it is no longer counted as
+// inside the call, as the call's return would have done.
+class ThreadQueueImplForRestoredConditionVariableWait final : public KThreadQueue {
+private:
+    KConditionVariable::ThreadTree* m_tree;
+
+public:
+    explicit ThreadQueueImplForRestoredConditionVariableWait(KernelCore& kernel,
+                                                             KConditionVariable::ThreadTree* t)
+        : KThreadQueue(kernel), m_tree(t) {
+        this->SetHardwareTimer(std::addressof(kernel.HardwareTimer()));
+    }
+
+    void EndWait(KThread* waiting_thread, Result wait_result) override {
+        waiting_thread->GetContext().r[0] = wait_result.raw;
+        waiting_thread->ClearIsCallingSvc();
+        KThreadQueue::EndWait(waiting_thread, wait_result);
+    }
+
+    void CancelWait(KThread* waiting_thread, Result wait_result, bool cancel_timer_task) override {
+        if (KThread* owner = waiting_thread->GetLockOwner(); owner != nullptr) {
+            owner->RemoveWaiter(waiting_thread);
+        }
+        if (waiting_thread->IsWaitingForConditionVariable()) {
+            m_tree->erase(m_tree->iterator_to(*waiting_thread));
+            waiting_thread->ClearConditionVariable();
+        }
+        waiting_thread->GetContext().r[0] = wait_result.raw;
+        waiting_thread->ClearIsCallingSvc();
         KThreadQueue::CancelWait(waiting_thread, wait_result, cancel_timer_task);
     }
 };
@@ -189,6 +229,32 @@ Result KConditionVariable::WaitForAddress(KernelCore& kernel, Handle handle, KPr
 
     // Get the wait result.
     R_RETURN(cur_thread->GetWaitResult());
+}
+
+void KConditionVariable::WaitForRestore(KThread* thread, KProcessAddress addr, u64 key, u32 value,
+                                        s64 timeout_ns) {
+    if (!m_restore_queue) {
+        m_restore_queue = std::make_unique<ThreadQueueImplForRestoredConditionVariableWait>(
+            m_kernel, std::addressof(m_tree));
+    }
+    // The timeout as WaitProcessWideKeyAtomic converts it, counted from now.
+    s64 timeout = -1;
+    if (timeout_ns > 0) {
+        timeout = m_kernel.HardwareTimer().GetTick() + timeout_ns + 2;
+        if (timeout <= 0) {
+            timeout = (std::numeric_limits<s64>::max)();
+        }
+    }
+    KHardwareTimer* timer{};
+    KScopedSchedulerLockAndSleep slp(m_kernel, std::addressof(timer), thread, timeout);
+    thread->SetConditionVariable(std::addressof(m_tree), addr, key, value);
+    m_tree.insert(*thread);
+    thread->BeginWait(m_restore_queue.get());
+    thread->SetWaitReasonForDebugging(ThreadWaitReasonForDebugging::ConditionVar);
+    // It sleeps as a caller of the call does (a later save or load tells such threads apart by
+    // this), until the queue above wakes it.
+    thread->SetSvcId(static_cast<u8>(Svc::SvcId::WaitProcessWideKeyAtomic));
+    thread->SetIsCallingSvc();
 }
 
 void KConditionVariable::SignalImpl(KThread* thread) {
