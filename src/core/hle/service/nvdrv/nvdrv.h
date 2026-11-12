@@ -105,7 +105,7 @@ private:
     FilesContainerType open_files;
 
     /// The session each open file descriptor was opened in.
-    ::Common::unordered_map<DeviceFD, NvCore::SessionId> fd_sessions;
+    std::unordered_map<DeviceFD, NvCore::SessionId> fd_sessions;
 
     KernelHelpers::ServiceContext service_context;
 

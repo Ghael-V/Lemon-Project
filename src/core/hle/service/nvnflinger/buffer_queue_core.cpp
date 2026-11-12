@@ -139,8 +139,6 @@ void BufferQueueCore::RestoreProducerSlots(const std::vector<ProducerSlots>& sav
     }
 }
 
-}
-
 void BufferQueueCore::SignalDequeueCondition() {
     dequeue_possible.store(true);
     dequeue_condition.notify_all();

@@ -166,8 +166,7 @@ bool WriteCheatToggles(const VirtualDir& cheats_dir,
         file = cheats_dir->CreateFile("toggles.txt");
     }
     return file != nullptr && file->Resize(text.size()) &&
-           file->WriteBytes(std::vector<u8>(text.begin(), text.end())) == text.size() &&
-           file->Flush();
+           file->WriteBytes(std::vector<u8>(text.begin(), text.end())) == text.size();
 }
 
 void ApplyCheatToggles(const VirtualDir& cheats_dir,
@@ -667,8 +666,7 @@ long PatchManager::AddCheats(const VirtualFilesystem& vfs, const BuildID& build_
         const bool written =
             file != nullptr && file->Resize(normalized.size()) &&
             file->WriteBytes(std::vector<u8>(normalized.begin(), normalized.end())) ==
-                normalized.size() &&
-            file->Flush();
+                normalized.size();
         if (!written) {
             LOG_ERROR(Loader, "Cheats: could not write {}/cheats/{}.txt", folder, build);
             if (cheats_dir != nullptr) {

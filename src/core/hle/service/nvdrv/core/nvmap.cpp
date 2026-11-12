@@ -367,11 +367,11 @@ bool NvMap::MapHandleForRestore(Handle::Id handle, s64 pins, u32 pin_virt_addres
     std::scoped_lock lock(handle_description->mutex);
     if (pin_virt_address != 0) {
         const auto aligned_size = handle_description->aligned_size;
-        if (host1x.gmmu_manager.GpuToCpuAddress(GPUVAddr(pin_virt_address))) {
+        if (host1x.GMMU().GpuToCpuAddress(GPUVAddr(pin_virt_address))) {
             return false;
         }
         host1x.Allocator().AllocateFixed(pin_virt_address, u32(aligned_size));
-        host1x.gmmu_manager.Map(GPUVAddr(pin_virt_address), mapped, aligned_size);
+        host1x.GMMU().Map(GPUVAddr(pin_virt_address), mapped, aligned_size);
         handle_description->pin_virt_address = pin_virt_address;
     }
     handle_description->pins = pins;

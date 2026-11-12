@@ -316,7 +316,7 @@ bool HeldBeyondHandles(Kernel::KernelCore& kernel, Kernel::KProcess& process,
             handles++;
         }
     });
-    const u32 running = thread.IsSignaled(kernel) ? 0 : 1;
+    const u32 running = thread.IsSignaled() ? 0 : 1;
     // A thread inside a service request keeps the request until the call returns, and the request
     // holds the thread. Answered, it is runnable with that reference: it lets go on its return, as
     // ending it does.
