@@ -184,6 +184,15 @@ public:
     /// to guest memory, on the GPU thread. Returns whether there were any.
     bool DiscardGpuWrittenImages(DAddr addr, u64 size);
 
+    /// Quick Save/Load: the state of every channel's engines (their registers and the 3D engine's
+    /// constant buffer bindings), which guest memory does not hold. Taken on the GPU thread.
+    struct EngineSnapshot;
+    std::shared_ptr<const EngineSnapshot> SnapshotEngines();
+
+    /// Puts the engine state of the channels in `snapshot` back, on the GPU thread, with all of
+    /// the 3D engine's state marked dirty. Returns how many channels it put back.
+    size_t RestoreEngines(const EngineSnapshot& snapshot);
+
     /// Tick pending requests within the GPU.
     void TickWork();
 

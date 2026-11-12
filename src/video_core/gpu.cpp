@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <list>
 #include <memory>
+#include <vector>
 
 #include "common/assert.h"
 #include "common/microprofile.h"
@@ -35,6 +36,19 @@
 #include "video_core/shader_notify.h"
 
 namespace Tegra {
+
+struct GPU::EngineSnapshot {
+    struct Channel {
+        s32 bind_id = -1;
+        Engines::Maxwell3D::Regs maxwell_3d;
+        Engines::Maxwell3D::Regs maxwell_3d_shadow;
+        Engines::Maxwell3D::State maxwell_3d_state;
+        Engines::KeplerCompute::Regs kepler_compute;
+        Engines::Fermi2D::Regs fermi_2d;
+        Engines::KeplerMemory::Regs kepler_memory;
+    };
+    std::vector<Channel> channels;
+};
 
 struct GPU::Impl {
     explicit Impl(GPU& gpu_, Core::System& system_, bool is_async_, bool use_nvdec_)
@@ -349,14 +363,61 @@ struct GPU::Impl {
         return true;
     }
 
+    std::shared_ptr<const GPU::EngineSnapshot> SnapshotEngines() {
+        auto snapshot = std::make_shared<GPU::EngineSnapshot>();
+        const u64 fence = RequestSyncOperation([this, &snapshot] {
+            for (const auto& [id, channel] : channels) {
+                if (!channel->initialized || !channel->payload) {
+                    continue;
+                }
+                const auto& engines = *channel->payload;
+                auto& saved = snapshot->channels.emplace_back();
+                saved.bind_id = id;
+                saved.maxwell_3d = engines.maxwell_3d.regs;
+                saved.maxwell_3d_shadow = engines.maxwell_3d.shadow_state;
+                saved.maxwell_3d_state = engines.maxwell_3d.state;
+                saved.kepler_compute = engines.kepler_compute.regs;
+                saved.fermi_2d = engines.fermi_2d.regs;
+                saved.kepler_memory = engines.kepler_memory.regs;
+            }
+        });
+        gpu_thread.WakeForSyncRequest();
+        WaitForSyncOperation(fence);
+        return snapshot;
+    }
+
+    size_t RestoreEngines(const GPU::EngineSnapshot& snapshot) {
+        size_t restored = 0;
+        const u64 fence = RequestSyncOperation([this, &snapshot, &restored] {
+            for (const auto& saved : snapshot.channels) {
+                // A channel closed since the save has nothing to put its state into.
+                const auto it = channels.find(saved.bind_id);
+                if (it == channels.end() || !it->second->initialized || !it->second->payload) {
+                    continue;
+                }
+                auto& engines = *it->second->payload;
+                engines.maxwell_3d.regs = saved.maxwell_3d;
+                engines.maxwell_3d.shadow_state = saved.maxwell_3d_shadow;
+                engines.maxwell_3d.state = saved.maxwell_3d_state;
+                engines.maxwell_3d.dirty.flags.set();
+                engines.kepler_compute.regs = saved.kepler_compute;
+                engines.fermi_2d.regs = saved.fermi_2d;
+                engines.kepler_memory.regs = saved.kepler_memory;
+                restored++;
+            }
+        });
+        gpu_thread.WakeForSyncRequest();
+        WaitForSyncOperation(fence);
+        return restored;
+    }
+
     bool DiscardGpuWrittenImages(DAddr addr, u64 size) {
-        VideoCore::RasterizerInterface* const rasterizer = renderer->ReadRasterizer();
         if (!rasterizer->HasGpuWrittenImages(addr, size)) {
             return false;
         }
         const u64 fence = RequestSyncOperation(
-            [rasterizer, addr, size] { rasterizer->DiscardGpuWrittenImages(addr, size); });
-        gpu_thread.TickGPU(is_async);
+            [this, addr, size] { rasterizer->DiscardGpuWrittenImages(addr, size); });
+        gpu_thread.WakeForSyncRequest();
         WaitForSyncOperation(fence);
         return true;
     }
@@ -620,6 +681,14 @@ bool GPU::DownloadGpuWrittenImages(DAddr addr, u64 size) {
 
 bool GPU::DiscardGpuWrittenImages(DAddr addr, u64 size) {
     return impl->DiscardGpuWrittenImages(addr, size);
+}
+
+std::shared_ptr<const GPU::EngineSnapshot> GPU::SnapshotEngines() {
+    return impl->SnapshotEngines();
+}
+
+size_t GPU::RestoreEngines(const EngineSnapshot& snapshot) {
+    return impl->RestoreEngines(snapshot);
 }
 
 void GPU::ObtainContext() {

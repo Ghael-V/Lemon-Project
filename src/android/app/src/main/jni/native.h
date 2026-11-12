@@ -20,6 +20,7 @@
 #include "core/savestate.h"
 #include "frontend_common/content_manager.h"
 #include "jni/emu_window/emu_window.h"
+#include "video_core/gpu.h"
 #include "video_core/rasterizer_interface.h"
 
 #pragma once
@@ -168,6 +169,10 @@ private:
     std::vector<AudioCore::Renderer::System::WorkbufferSnapshot> m_saved_audio;
     /// The display queue slots the game held at the last Quick Save of this session.
     std::vector<Service::android::BufferQueueCore::ProducerSlots> m_saved_display_slots;
+    /// The GPU engines' state at the last Quick Save of this session: memory does not hold it, and
+    /// a load that left it as the game set it later drew a black screen (the 3D engine read its
+    /// textures from a later scene's texture table).
+    std::shared_ptr<const Tegra::GPU::EngineSnapshot> m_saved_engines;
 
     std::atomic<bool> m_is_paused = false;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};

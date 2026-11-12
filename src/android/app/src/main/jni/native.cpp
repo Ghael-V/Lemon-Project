@@ -329,6 +329,7 @@ void EmulationSession::ShutdownEmulation() {
     m_saved_syncpoints.reset();
     m_saved_audio.clear();
     m_saved_display_slots.clear();
+    m_saved_engines.reset();
 
     // Unload user input.
     m_system.HIDCore().UnloadInputDevices();
@@ -686,6 +687,7 @@ EmulationSession::QuickSaveResult EmulationSession::QuickSaveState() {
                                                                         : QuickSaveResult::Failed;
         if (result == QuickSaveResult::Saved) {
             m_saved_audio = AudioCore::Renderer::System::SnapshotAll();
+            m_saved_engines = m_system.GPU().SnapshotEngines();
             m_saved_display_slots = Service::android::BufferQueueCore::SnapshotProducerSlots();
             auto& host1x = m_system.GPU().Host1x().GetSyncpointManager();
             m_saved_syncpoints.emplace();
@@ -765,6 +767,11 @@ EmulationSession::QuickLoadResult EmulationSession::QuickLoadState() {
             gate.unlock();
         }
         if (restored) {
+            if (m_saved_engines) {
+                const size_t channels = m_system.GPU().RestoreEngines(*m_saved_engines);
+                LOG_INFO(Frontend, "Quick Load: GPU engine state of {} channel(s) put back",
+                         channels);
+            }
             RewindSyncpoints();
             AudioCore::Renderer::System::RestoreAll(m_saved_audio);
             Service::android::BufferQueueCore::RestoreProducerSlots(m_saved_display_slots);
