@@ -87,6 +87,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     // One Quick Save/Load at a time: each runs on its own thread and can take seconds.
     private val quickStateRunning = AtomicBoolean(false)
 
+    // The Quick Save/Load message on screen. Android shows toasts one after another, so a new one
+    // replaces it rather than waiting behind it (which brought a quick second load's messages up
+    // seconds late, in the middle of play).
+    private var quickStateToast: Toast? = null
+    private val quickStateToastHandler = Handler(Looper.getMainLooper())
+
     private lateinit var powerManager: PowerManager
 
     override fun onAttach(context: Context) {
@@ -257,7 +263,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
                 R.id.menu_quick_save_state -> {
                     // It may wait a moment for a safe point to save at: not on the main thread.
-                    runQuickState(R.string.emulation_quick_save_state_working, Toast.LENGTH_SHORT) {
+                    runQuickState(
+                        R.string.emulation_quick_save_state_working,
+                        R.string.emulation_quick_save_state_still_working
+                    ) {
                         when (NativeLibrary.quickSaveState()) {
                             NativeLibrary.QUICK_SAVE_SAVED -> R.string.emulation_quick_save_state_success
                             NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
@@ -270,7 +279,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
                 R.id.menu_quick_load_state -> {
                     // Restoring about a gigabyte of memory takes a moment: not on the main thread.
-                    runQuickState(R.string.emulation_quick_load_state_working, Toast.LENGTH_LONG) {
+                    runQuickState(
+                        R.string.emulation_quick_load_state_working,
+                        R.string.emulation_quick_load_state_still_working
+                    ) {
                         when (NativeLibrary.quickLoadState()) {
                             NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
                             NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
@@ -583,12 +595,28 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
      * seconds) and shows the result. A second tap while one is running is ignored, so taps do not
      * queue up one load after another.
      */
-    private fun runQuickState(workingMessage: Int, resultLength: Int, action: () -> Int) {
+    private fun runQuickState(
+        workingMessage: Int,
+        stillWorkingMessage: Int,
+        action: () -> Int
+    ) {
         if (!quickStateRunning.compareAndSet(false, true)) {
             return
         }
         val appContext = requireContext().applicationContext
-        Toast.makeText(appContext, workingMessage, Toast.LENGTH_SHORT).show()
+        // Shown at once and kept up until the result replaces it: a toast lasts at most 3.5 s, so a
+        // longer one is followed by "… is still processing…".
+        showQuickStateToast(Toast.makeText(appContext, workingMessage, Toast.LENGTH_LONG), 0)
+        val stillWorking = object : Runnable {
+            override fun run() {
+                showQuickStateToast(
+                    Toast.makeText(appContext, stillWorkingMessage, Toast.LENGTH_LONG),
+                    0
+                )
+                quickStateToastHandler.postDelayed(this, QUICK_STATE_WORKING_SHOWN_MS)
+            }
+        }
+        quickStateToastHandler.postDelayed(stillWorking, QUICK_STATE_WORKING_SHOWN_MS)
         Thread {
             val message = try {
                 action()
@@ -596,13 +624,37 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 quickStateRunning.set(false)
             }
             activity?.runOnUiThread {
-                Toast.makeText(appContext, message, resultLength).show()
+                // The game being back where it was saved says it worked: a short note is enough.
+                // Other results are read in full; only the long explanation needs a long toast.
+                val succeeded = message == R.string.emulation_quick_save_state_success ||
+                    message == R.string.emulation_quick_load_state_success
+                val length = if (message == R.string.emulation_quick_load_state_incompatible) {
+                    Toast.LENGTH_LONG
+                } else {
+                    Toast.LENGTH_SHORT
+                }
+                showQuickStateToast(
+                    Toast.makeText(appContext, message, length),
+                    if (succeeded) QUICK_STATE_SUCCESS_SHOWN_MS else 0
+                )
             }
         }.start()
     }
 
+    /** Puts [toast] (null: none) in place of the Quick Save/Load message, for [shownMs] if set. */
+    private fun showQuickStateToast(toast: Toast?, shownMs: Long) {
+        quickStateToastHandler.removeCallbacksAndMessages(null)
+        quickStateToast?.cancel()
+        quickStateToast = toast
+        toast?.show()
+        if (toast != null && shownMs > 0) {
+            quickStateToastHandler.postDelayed({ toast.cancel() }, shownMs)
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        quickStateToastHandler.removeCallbacksAndMessages(null)
         _binding = null
     }
 
@@ -1180,5 +1232,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     companion object {
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
         private val thermalStatsUpdateHandler = Handler(Looper.myLooper()!!)
+
+        // Just under a long toast's 3.5 s, so the next one follows without a gap.
+        private const val QUICK_STATE_WORKING_SHOWN_MS = 3400L
+        private const val QUICK_STATE_SUCCESS_SHOWN_MS = 1000L
     }
 }

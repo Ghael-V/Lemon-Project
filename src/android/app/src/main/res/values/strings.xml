@@ -499,6 +499,8 @@
     <string name="emulation_quick_load_state_not_this_session">No save from this session</string>
     <string name="emulation_quick_save_state_working">Saving…</string>
     <string name="emulation_quick_load_state_working">Loading…</string>
+    <string name="emulation_quick_save_state_still_working">Save is still processing…</string>
+    <string name="emulation_quick_load_state_still_working">Load is still processing…</string>
     <string name="lemon_cheater">Lemon Cheater</string>
     <string name="lemon_cheater_value_hint">Value</string>
     <string name="lemon_cheater_new_search">New search</string>
