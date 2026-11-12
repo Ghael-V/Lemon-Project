@@ -40,7 +40,6 @@ void EmuWindow_Android::OnTouchReleased(int id) {
 }
 
 void EmuWindow_Android::OnFrameDisplayed() {
-    EmulationSession::GetInstance().NotePresentedFrame();
     if (!m_first_frame) {
         Common::Android::RunJNIOnFiber<void>(
             [&](JNIEnv* env) { EmulationSession::GetInstance().OnEmulationStarted(); });

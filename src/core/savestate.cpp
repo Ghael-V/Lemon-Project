@@ -157,7 +157,10 @@ bool Capture(Core::System& system, const std::string& path) {
     return true;
 }
 
-bool Restore(Core::System& system, const std::string& path) {
+bool Restore(Core::System& system, const std::string& path, RestoreFailure* failure) {
+    if (failure != nullptr) {
+        *failure = RestoreFailure::Other;
+    }
     auto* process = system.ApplicationProcess();
     if (process == nullptr) {
         LOG_ERROR(Core, "SaveState::Restore: no application process");
@@ -225,6 +228,7 @@ bool Restore(Core::System& system, const std::string& path) {
     // Header-only pass: seeks over each region's data rather than reading it.
     const s64 regions_start = file.Tell();
     const u64 file_size = file.GetSize();
+    std::vector<std::pair<u64, u64>> region_ranges;
     for (u32 i = 0; i < region_count; i++) {
         u64 address = 0;
         u64 size = 0;
@@ -233,6 +237,7 @@ bool Restore(Core::System& system, const std::string& path) {
             LOG_ERROR(Core, "SaveState::Restore: truncated region table in '{}'", path);
             return false;
         }
+        region_ranges.emplace_back(address, size);
         const u64 chunks = Common::DivCeil(size, static_cast<u64>(ChunkSize));
         const s64 position = file.Tell();
         // Every chunk costs one flag byte, plus its data unless it was all zeros.
@@ -293,6 +298,41 @@ bool Restore(Core::System& system, const std::string& path) {
     };
 
     auto& memory = system.ApplicationMemory();
+
+    // Refuse, before writing anything, a savestate whose memory the guest has since freed.
+    // Every Quick Load that froze Super Mario 3D World had this (the same three regions: 4 KiB and
+    // two of 32 KiB, unmapped each time the game died and respawned), and every one that worked had
+    // none. Skipping the missing regions and carrying on, as this used to do, rewound the rest of
+    // memory and the thread contexts onto a guest whose own bookkeeping no longer matched: it
+    // resumed into a world that is gone and never presented another frame. Refusing leaves the
+    // game running exactly as it was.
+    {
+        u32 lost_regions = 0;
+        for (const auto& [address, size] : region_ranges) {
+            if (is_excluded_stack(address, size)) {
+                continue;
+            }
+            if (!memory.IsValidVirtualAddressRange(address, size)) {
+                if (lost_regions < 4) {
+                    LOG_WARNING(Core,
+                                "SaveState::Restore: {} byte(s) at {:#x} are no longer mapped",
+                                size, address);
+                }
+                lost_regions++;
+            }
+        }
+        if (lost_regions > 0) {
+            LOG_WARNING(Core,
+                        "SaveState::Restore: refusing '{}': {} region(s) it holds are no longer "
+                        "mapped, so the guest changed its memory layout since the save",
+                        path, lost_regions);
+            if (failure != nullptr) {
+                *failure = RestoreFailure::MemoryLayoutChanged;
+            }
+            return false;
+        }
+    }
+
     std::vector<u8> buffer;
     // Read back with a single ReadSpan() per region - same reasoning as Capture()'s encoded
     // buffer, avoids one small fread() per 4K chunk.
