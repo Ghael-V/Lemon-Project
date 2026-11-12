@@ -47,8 +47,9 @@ if (NOT WIN32 AND (NOT ANDROID OR YUZU_ANDROID_FFMPEG_FROM_SOURCE))
             CACHE PATH "Paths to FFmpeg libraries" FORCE)
     endforeach()
 
-    find_package(PkgConfig REQUIRED)
     if (NOT ANDROID)
+        # Only used to find desktop hardware decoding libraries.
+        find_package(PkgConfig REQUIRED)
         pkg_check_modules(LIBVA libva)
         pkg_check_modules(CUDA cuda)
         pkg_check_modules(FFNVCODEC ffnvcodec)
