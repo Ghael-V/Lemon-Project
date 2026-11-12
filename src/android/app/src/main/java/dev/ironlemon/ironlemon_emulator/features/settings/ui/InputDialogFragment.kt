@@ -1,24 +1,33 @@
 // SPDX-FileCopyrightText: 2024 yuzu Emulator Project
+// SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
-import android.app.Dialog
 import android.graphics.drawable.Animatable2
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
-import androidx.fragment.app.DialogFragment
+import android.widget.ImageView
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.activityViewModels
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.ironlemon.ironlemon_emulator.R
-import dev.ironlemon.ironlemon_emulator.databinding.DialogMappingBinding
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeAnalog
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeButton
@@ -26,124 +35,134 @@ import dev.ironlemon.ironlemon_emulator.features.settings.model.view.AnalogInput
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.ButtonInputSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.InputSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.view.ModifierInputSetting
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeDialogFragment
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 import dev.ironlemon.ironlemon_emulator.utils.InputHandler
 import dev.ironlemon.ironlemon_emulator.utils.ParamPackage
 
-class InputDialogFragment : DialogFragment() {
+class InputDialogFragment : IronLemonComposeDialogFragment() {
     private var inputAccepted = false
 
     private var position: Int = 0
 
     private lateinit var inputSetting: InputSetting
 
-    private lateinit var binding: DialogMappingBinding
-
     private val settingsViewModel: SettingsViewModel by activityViewModels()
+
+    // The animated hints: a stick moving one or both ways, then a button press, in turn.
+    private var stickImage: ImageView? = null
+    private var buttonImage: ImageView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (settingsViewModel.clickedItem == null) dismiss()
+        if (settingsViewModel.clickedItem == null) {
+            dismiss()
+            return
+        }
+        inputSetting = settingsViewModel.clickedItem as InputSetting
 
         position = requireArguments().getInt(POSITION)
 
         InputHandler.updateControllerData()
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        inputSetting = settingsViewModel.clickedItem as InputSetting
-        binding = DialogMappingBinding.inflate(layoutInflater)
-
-        val builder = MaterialAlertDialogBuilder(requireContext())
-            .setPositiveButton(android.R.string.cancel) { _, _ ->
-                NativeInput.stopMapping()
-                dismiss()
+    private fun titleAndMessage(): Pair<String, Int> = when (val setting = inputSetting) {
+        is AnalogInputSetting -> {
+            val stick = when (setting.nativeAnalog) {
+                NativeAnalog.LStick -> getString(R.string.left_stick)
+                NativeAnalog.RStick -> getString(R.string.right_stick)
             }
-            .setView(binding.root)
-
-        val playButtonMapAnimation = { twoDirections: Boolean ->
-            val stickAnimation: AnimatedVectorDrawable
-            val buttonAnimation: AnimatedVectorDrawable
-            binding.imageStickAnimation.apply {
-                val anim = if (twoDirections) {
-                    R.drawable.stick_two_direction_anim
-                } else {
-                    R.drawable.stick_one_direction_anim
-                }
-                setBackgroundResource(anim)
-                stickAnimation = background as AnimatedVectorDrawable
-            }
-            binding.imageButtonAnimation.apply {
-                setBackgroundResource(R.drawable.button_anim)
-                buttonAnimation = background as AnimatedVectorDrawable
-            }
-            stickAnimation.registerAnimationCallback(object : Animatable2.AnimationCallback() {
-                override fun onAnimationEnd(drawable: Drawable?) {
-                    buttonAnimation.start()
-                }
-            })
-            buttonAnimation.registerAnimationCallback(object : Animatable2.AnimationCallback() {
-                override fun onAnimationEnd(drawable: Drawable?) {
-                    stickAnimation.start()
-                }
-            })
-            stickAnimation.start()
+            getString(R.string.map_control, stick) to R.string.stick_map_description
         }
 
-        when (val setting = inputSetting) {
-            is AnalogInputSetting -> {
-                when (setting.nativeAnalog) {
-                    NativeAnalog.LStick -> builder.setTitle(
-                        getString(R.string.map_control, getString(R.string.left_stick))
-                    )
+        is ModifierInputSetting ->
+            getString(R.string.map_control, setting.title) to R.string.button_map_description
 
-                    NativeAnalog.RStick -> builder.setTitle(
-                        getString(R.string.map_control, getString(R.string.right_stick))
-                    )
-                }
-
-                builder.setMessage(R.string.stick_map_description)
-
-                playButtonMapAnimation.invoke(true)
-            }
-
-            is ModifierInputSetting -> {
-                builder.setTitle(getString(R.string.map_control, setting.title))
-                    .setMessage(R.string.button_map_description)
-                playButtonMapAnimation.invoke(false)
-            }
-
-            is ButtonInputSetting -> {
-                if (setting.nativeButton == NativeButton.DUp ||
-                    setting.nativeButton == NativeButton.DDown ||
-                    setting.nativeButton == NativeButton.DLeft ||
-                    setting.nativeButton == NativeButton.DRight
-                ) {
-                    builder.setTitle(getString(R.string.map_dpad_direction, setting.title))
-                } else {
-                    builder.setTitle(getString(R.string.map_control, setting.title))
-                }
-                builder.setMessage(R.string.button_map_description)
-                playButtonMapAnimation.invoke(false)
-            }
+        is ButtonInputSetting -> {
+            val dpad = setting.nativeButton == NativeButton.DUp ||
+                setting.nativeButton == NativeButton.DDown ||
+                setting.nativeButton == NativeButton.DLeft ||
+                setting.nativeButton == NativeButton.DRight
+            getString(if (dpad) R.string.map_dpad_direction else R.string.map_control, setting.title) to
+                R.string.button_map_description
         }
 
-        return builder.create()
+        else -> "" to R.string.button_map_description
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        return binding.root
+    @Composable
+    override fun DialogContent() {
+        if (!this::inputSetting.isInitialized) return
+        val (title, message) = titleAndMessage()
+        IronLemonDialogCard(
+            title = title,
+            buttons = {
+                IronLemonButton(
+                    text = stringResource(android.R.string.cancel),
+                    height = 44.dp,
+                    onClick = {
+                        NativeInput.stopMapping()
+                        dismiss()
+                    }
+                )
+            }
+        ) {
+            IronLemonDialogText(stringResource(message))
+            Spacer(Modifier.height(20.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AndroidView(
+                    factory = { ImageView(it).also { view -> stickImage = view } },
+                    modifier = Modifier.size(96.dp)
+                )
+                Spacer(Modifier.width(32.dp))
+                AndroidView(
+                    factory = { ImageView(it).also { view -> buttonImage = view } },
+                    modifier = Modifier.size(96.dp)
+                )
+            }
+        }
+    }
+
+    private fun playButtonMapAnimation(twoDirections: Boolean) {
+        val stick = stickImage ?: return
+        val button = buttonImage ?: return
+        stick.setBackgroundResource(
+            if (twoDirections) R.drawable.stick_two_direction_anim else R.drawable.stick_one_direction_anim
+        )
+        button.setBackgroundResource(R.drawable.button_anim)
+        val stickAnimation = stick.background as AnimatedVectorDrawable
+        val buttonAnimation = button.background as AnimatedVectorDrawable
+        stickAnimation.registerAnimationCallback(object : Animatable2.AnimationCallback() {
+            override fun onAnimationEnd(drawable: Drawable?) {
+                buttonAnimation.start()
+            }
+        })
+        buttonAnimation.registerAnimationCallback(object : Animatable2.AnimationCallback() {
+            override fun onAnimationEnd(drawable: Drawable?) {
+                stickAnimation.start()
+            }
+        })
+        stickAnimation.start()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (!this::inputSetting.isInitialized) return
+        // Every key and axis of the controller goes to the mapping, not to the dialog's buttons.
+        view.isFocusable = true
+        view.isFocusableInTouchMode = true
         view.requestFocus()
         view.setOnFocusChangeListener { v, hasFocus -> if (!hasFocus) v.requestFocus() }
         dialog?.setOnKeyListener { _, _, keyEvent -> onKeyEvent(keyEvent) }
-        binding.root.setOnGenericMotionListener { _, motionEvent -> onMotionEvent(motionEvent) }
+        view.setOnGenericMotionListener { _, motionEvent -> onMotionEvent(motionEvent) }
+        // The hint images exist once the content is laid out.
+        view.post { playButtonMapAnimation(inputSetting is AnalogInputSetting) }
         NativeInput.beginMapping(inputSetting.inputType.int)
     }
 
