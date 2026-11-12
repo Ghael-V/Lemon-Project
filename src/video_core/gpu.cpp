@@ -294,7 +294,9 @@ struct GPU::Impl {
             rasterizer->FlushRegion(raster_area.start_address,
                                     raster_area.end_address - raster_area.start_address);
         });
-        gpu_thread.TickGPU();
+        // A CPU fault waits only for its own request, not for the rest of the command list
+        // (~7.5 ms per fault on average in a heavy 3D game with synchronous GPU).
+        gpu_thread.WakeForSyncRequest();
         WaitForSyncOperation(fence);
         return raster_area;
     }

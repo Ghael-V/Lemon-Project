@@ -97,6 +97,15 @@ void ThreadManager::TickGPU() {
     PushCommand(GPUTickCommand());
 }
 
+void ThreadManager::WakeForSyncRequest() {
+    // Never blocks, even with synchronous GPU: there a blocking push would wait until the thread
+    // got to this command, after the rest of the command list it is running, although the sync
+    // request itself already runs after the list's next draw. The caller waits for the request.
+    std::unique_lock lk(state.write_lock);
+    const u64 fence{++state.last_fence};
+    state.queue.EmplaceWait(GPUTickCommand(), fence, false);
+}
+
 void ThreadManager::InvalidateRegion(DAddr addr, u64 size) {
     rasterizer->OnCacheInvalidation(addr, size);
 }

@@ -121,6 +121,10 @@ public:
 
     void TickGPU();
 
+    /// Wakes the GPU thread for a sync request without waiting for it to reach this command.
+    /// The caller waits for the request itself (GPU::WaitForSyncOperation).
+    void WakeForSyncRequest();
+
 private:
     /// Pushes a command to be executed by the GPU thread
     u64 PushCommand(CommandData&& command_data, bool block = false);
