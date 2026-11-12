@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 #include "common/alignment.h"
 #include "common/assert.h"
@@ -345,10 +346,43 @@ NvResult nvhost_as_gpu::MapBufferEx(IoctlMapBufferEx& params) {
             u64 gpu_address{static_cast<u64>(params.offset + params.buffer_offset)};
             VAddr device_address{mapping->ptr + params.buffer_offset};
 
+            // Quick Load support (see Core::SaveState::UndoJournal): a remap points part of the
+            // mapping at the same memory it already maps (mapping->ptr + buffer_offset), so all it
+            // changes is the kind of those pages. Remember the kinds it replaces, run by run, and
+            // map the range again with them on a load.
+            auto& journal = Core::SaveState::UndoJournal::Gpu();
+            std::vector<std::pair<u64, Tegra::PTEKind>> old_kinds; // start of each run, its kind
+            if (journal.CanUndo()) {
+                const u64 end = gpu_address + params.mapping_size;
+                for (u64 page = gpu_address; page < end; page += VM::YUZU_PAGESIZE) {
+                    const Tegra::PTEKind kind = gmmu->GetPageKind(page);
+                    if (old_kinds.empty() || old_kinds.back().second != kind) {
+                        old_kinds.emplace_back(page, kind);
+                    }
+                }
+            }
+
             gmmu->Map(gpu_address, device_address, params.mapping_size,
                       static_cast<Tegra::PTEKind>(params.kind), mapping->big_page);
 
-            Core::SaveState::UndoJournal::Gpu().Invalidate(); // not undoable by a Quick Load
+            journal.Record("gpu remap", [this, offset = params.offset,
+                                         end = gpu_address + params.mapping_size,
+                                         old_kinds = std::move(old_kinds)] {
+                std::scoped_lock undo_lock(mutex);
+                // Later steps, undone first, may have unmapped and mapped the buffer again, at
+                // another device address: use the mapping as it is now.
+                const auto current = mapping_map.find(offset);
+                if (current == mapping_map.end() || offset + current->second->size < end) {
+                    return false;
+                }
+                for (size_t i = 0; i < old_kinds.size(); i++) {
+                    const u64 start = old_kinds[i].first;
+                    const u64 run_end = i + 1 < old_kinds.size() ? old_kinds[i + 1].first : end;
+                    gmmu->Map(start, current->second->ptr + (start - offset), run_end - start,
+                              old_kinds[i].second, current->second->big_page);
+                }
+                return true;
+            });
             return NvResult::Success;
         } catch (const std::out_of_range&) {
             LOG_WARNING(Service_NVDRV, "Cannot remap an unmapped GPU address space region: 0x{:X}",
