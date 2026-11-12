@@ -1136,6 +1136,8 @@ add_library(core STATIC
     precompiled_headers.h
     reporter.cpp
     reporter.h
+    savestate.cpp
+    savestate.h
     telemetry_session.cpp
     telemetry_session.h
     tools/freezer.cpp

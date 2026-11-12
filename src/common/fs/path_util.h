@@ -22,6 +22,7 @@ enum class YuzuPath {
     LogDir,         // Where log files are stored.
     NANDDir,        // Where the emulated NAND is stored.
     PlayTimeDir,    // Where play time data is stored.
+    SaveStateDir,   // Where savestates are stored.
     ScreenshotsDir, // Where yuzu screenshots are stored.
     SDMCDir,        // Where the emulated SDMC is stored.
     ShaderDir,      // Where shaders are stored.

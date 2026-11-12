@@ -39,6 +39,8 @@ public:
     bool IsPaused() const;
     void PauseEmulation();
     void UnPauseEmulation();
+    bool QuickSaveState();
+    bool QuickLoadState();
     void HaltEmulation();
     void RunEmulation();
     void ShutdownEmulation();
