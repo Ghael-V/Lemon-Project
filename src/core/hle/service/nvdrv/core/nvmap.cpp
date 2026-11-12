@@ -353,6 +353,37 @@ std::shared_ptr<NvMap::Handle> NvMap::RecreateHandleForRestore(Handle::Id id, u6
     return handle_description;
 }
 
+bool NvMap::MapHandleForRestore(Handle::Id handle, s64 pins, u32 pin_virt_address,
+                                DAddr d_address) {
+    if (pins <= 0 && pin_virt_address == 0) {
+        return true;
+    }
+    // Maps it in the SMMU as its first pin did. A pinned handle's address may be in use.
+    const DAddr mapped = PinHandle(handle, false);
+    if (mapped == 0 || (pins > 0 && mapped != d_address)) {
+        return false;
+    }
+    auto handle_description{GetHandle(handle)};
+    std::scoped_lock lock(handle_description->mutex);
+    if (pin_virt_address != 0) {
+        const auto aligned_size = handle_description->aligned_size;
+        if (host1x.gmmu_manager.GpuToCpuAddress(GPUVAddr(pin_virt_address))) {
+            return false;
+        }
+        host1x.Allocator().AllocateFixed(pin_virt_address, u32(aligned_size));
+        host1x.gmmu_manager.Map(GPUVAddr(pin_virt_address), mapped, aligned_size);
+        handle_description->pin_virt_address = pin_virt_address;
+    }
+    handle_description->pins = pins;
+    if (pins <= 0) {
+        // Unpinned but still mapped, as UnpinHandle leaves it: the next pin gets the same address.
+        std::scoped_lock queueLock(unmap_queue_lock);
+        unmap_queue.push_back(handle_description);
+        handle_description->unmap_queue_entry = std::prev(unmap_queue.end());
+    }
+    return true;
+}
+
 void NvMap::UnmapAllHandles(NvCore::SessionId session_id) {
     auto handles_copy = [&] {
         std::scoped_lock lk{handles_lock};

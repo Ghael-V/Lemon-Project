@@ -160,6 +160,11 @@ public:
     // Quick Load support: creates an unallocated handle under a given id.
     std::shared_ptr<Handle> RecreateHandleForRestore(Handle::Id id, u64 size);
 
+    // Quick Load support: maps a handle brought back after the game freed it again as it was
+    // mapped then, at the addresses the game was given: a video buffer the game pins and unpins
+    // for each frame keeps its Host1x address in between. False if it can no longer have them.
+    bool MapHandleForRestore(Handle::Id handle, s64 pins, u32 pin_virt_address, DAddr d_address);
+
     // Quick Load support: the id the next created handle gets.
     void SetNextHandleIdForRestore(Handle::Id id) {
         next_handle_id.store(id);

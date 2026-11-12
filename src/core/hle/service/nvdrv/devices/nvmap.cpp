@@ -284,12 +284,25 @@ NvResult nvmap::IocFree(IocFreeParams& params, DeviceFD fd) {
         NvCore::SessionId session_id;
         s32 dupes;
         bool allocated;
+        s64 pins;
+        u32 pin_virt_address;
+        DAddr d_address;
     };
     std::optional<Snapshot> snapshot;
     if (auto h = file.GetHandle(params.handle)) {
         std::scoped_lock lock(h->mutex);
-        snapshot = Snapshot{h->size,  h->orig_size, static_cast<u32>(h->align), h->flags,
-                            h->kind,  h->address,   h->session_id, h->dupes, h->allocated};
+        snapshot = Snapshot{h->size,
+                            h->orig_size,
+                            static_cast<u32>(h->align),
+                            h->flags,
+                            h->kind,
+                            h->address,
+                            h->session_id,
+                            h->dupes,
+                            h->allocated,
+                            h->pins,
+                            h->pin_virt_address,
+                            h->d_address};
     }
 
     if (auto freeInfo{file.FreeHandle(params.handle, false)}) {
@@ -314,10 +327,14 @@ NvResult nvmap::IocFree(IocFreeParams& params, DeviceFD fd) {
                     return false;
                 }
                 bool is_out_io{};
-                return process->GetPageTable()
-                    .LockForMapDeviceAddressSpace(&is_out_io, handle->address, handle->size,
-                                                  Kernel::KMemoryPermission::None, true, false)
-                    .IsSuccess();
+                if (process->GetPageTable()
+                        .LockForMapDeviceAddressSpace(&is_out_io, handle->address, handle->size,
+                                                      Kernel::KMemoryPermission::None, true, false)
+                        .IsFailure()) {
+                    return false;
+                }
+                // Freed while mapped, such as a video buffer: the game still uses its addresses.
+                return file.MapHandleForRestore(id, s.pins, s.pin_virt_address, s.d_address);
             });
         } else if (snapshot && !removed && snapshot->dupes > 1) {
             journal.Record("nvmap free (duplicate)", [this, id = params.handle] {
