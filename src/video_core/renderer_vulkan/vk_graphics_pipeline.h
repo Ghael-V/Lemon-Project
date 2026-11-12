@@ -95,6 +95,16 @@ public:
         return uses_attribute_handle;
     }
 
+    /// True when the geometry shader claims its primitive (Shader::Info::uses_gs_scratch): each
+    /// draw, and each instance, needs a generation of its own.
+    [[nodiscard]] bool UsesGsScratch() const noexcept {
+        return uses_gs_scratch;
+    }
+
+    [[nodiscard]] VkPipelineLayout Layout() const noexcept {
+        return *pipeline_layout;
+    }
+
     /// Handle bound to those textures by the next Configure.
     void SetAttributeHandle(u32 handle) noexcept {
         attribute_handle = handle;
@@ -157,6 +167,7 @@ private:
     u32 num_textures{};
     u32 attribute_handle{};
     bool uses_attribute_handle{};
+    bool uses_gs_scratch{};
 
     vk::DescriptorSetLayout descriptor_set_layout;
     DescriptorAllocator descriptor_allocator;

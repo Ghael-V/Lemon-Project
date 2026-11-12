@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <unordered_map>
 
 #include <sirit/sirit.h>
 
@@ -298,6 +299,16 @@ public:
     u32 image_rescaling_index{};
 
     Id render_area_push_constant{};
+
+    // Geometry shaders whose memory side effects run once per primitive (Info::uses_gs_scratch):
+    // the copies of a primitive claim it in a scratch buffer and only the winner does them.
+    bool gs_dedup{};
+    u32 gs_scratch_ssbo{};
+    Id gs_generation_block{};
+    u32 gs_generation_member{};
+    Id gs_is_first{};
+    /// Blocks whose side effects are guarded end in this label instead of their own.
+    std::unordered_map<const IR::Block*, Id> gs_exit_labels;
     u32 render_are_member_index{};
 
     Id local_memory{};
@@ -378,6 +389,7 @@ private:
     void DefineRescalingInputPushConstant();
     void DefineRescalingInputUniformConstant();
     void DefineRenderArea(const Info& info);
+    void DefineGsGeneration();
 
     void DefineInputs(const IR::Program& program);
     void DefineOutputs(const IR::Program& program);

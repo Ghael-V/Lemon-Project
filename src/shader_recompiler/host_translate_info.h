@@ -23,6 +23,7 @@ struct HostTranslateInfo {
                                         ///< control flow
     bool support_attribute_texture_handle{}; ///< True when the host binds texture handles that
                                              ///< arrive as vertex attributes
+    bool gs_replicates_side_effects{}; ///< True when geometry shaders run once per output vertex
 };
 
 } // namespace Shader

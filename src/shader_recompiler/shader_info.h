@@ -39,6 +39,12 @@ constexpr u32 NUM_TEXTURE_TYPES = 9;
 /// instead of reading it from a constant buffer. The host supplies the handle of each draw run.
 constexpr u32 ATTRIBUTE_HANDLE_CBUF_INDEX = 0xFFFF;
 
+/// Constant buffer index marking the storage buffer the host binds for geometry shaders whose
+/// memory side effects have to run once per primitive (Profile::gs_replicates_side_effects).
+constexpr u32 GS_SCRATCH_CBUF_INDEX = 0xFFFE;
+/// Words in that buffer: one claim per primitive id, modulo this.
+constexpr u32 GS_SCRATCH_NUM_SLOTS = 1U << 22;
+
 enum class TexturePixelFormat {
     A8B8G8R8_UNORM,
     A8B8G8R8_SNORM,
@@ -315,6 +321,10 @@ struct Info {
     bool uses_rescaling_uniform{};
     bool uses_cbuf_indirect{};
     bool uses_render_area{};
+    /// Geometry shader with memory side effects that claims its primitive in a scratch buffer
+    /// (storage buffer descriptor gs_scratch_ssbo) so they run once per primitive.
+    bool uses_gs_scratch{};
+    u32 gs_scratch_ssbo{};
 
     IR::Type used_constant_buffer_types{};
     IR::Type used_storage_buffer_types{};

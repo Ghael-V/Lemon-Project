@@ -399,6 +399,12 @@ PipelineCache::PipelineCache(Tegra::MaxwellDeviceMemoryManager& device_memory_,
         .support_attribute_texture_handle = true,
     };
 
+    // Adreno runs geometry shaders once per output vertex, so their memory side effects repeat.
+    const bool gs_replicates_side_effects = driver_id == VK_DRIVER_ID_QUALCOMM_PROPRIETARY ||
+                                            driver_id == VK_DRIVER_ID_MESA_TURNIP;
+    profile.gs_replicates_side_effects = gs_replicates_side_effects;
+    host_info.gs_replicates_side_effects = gs_replicates_side_effects;
+
     if (device.GetMaxVertexInputAttributes() < Maxwell::NumVertexAttributes) {
         LOG_WARNING(Render_Vulkan, "maxVertexInputAttributes is too low: {} < {}",
                     device.GetMaxVertexInputAttributes(), Maxwell::NumVertexAttributes);

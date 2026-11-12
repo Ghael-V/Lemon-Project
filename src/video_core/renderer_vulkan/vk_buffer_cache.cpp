@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "video_core/renderer_vulkan/vk_buffer_cache.h"
+#include "shader_recompiler/shader_info.h"
 
 #include "video_core/renderer_vulkan/maxwell_to_vk.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
@@ -646,6 +647,43 @@ void BufferCacheRuntime::ReserveNullBuffer() {
     if (!null_buffer) {
         null_buffer = CreateNullBuffer();
     }
+}
+
+void BufferCacheRuntime::BindGsScratchStorageBuffer() {
+    constexpr VkDeviceSize size = VkDeviceSize{Shader::GS_SCRATCH_NUM_SLOTS} * sizeof(u32);
+    if (!gs_scratch_buffer) {
+        VkBufferCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = size,
+            .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+        };
+        if (device.IsBufferDeviceAddressSupported()) {
+            create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        }
+        gs_scratch_buffer = memory_allocator.CreateBuffer(create_info, MemoryUsage::DeviceLocal);
+        if (device.IsBufferDeviceAddressSupported()) {
+            gs_scratch_address = device.GetLogical().GetBufferDeviceAddress(*gs_scratch_buffer);
+        }
+        // Generation 0 is never used by a draw: zeroed slots are unclaimed.
+        scheduler.RequestOutsideRenderPassOperationContext();
+        scheduler.Record([buffer = *gs_scratch_buffer](vk::CommandBuffer cmdbuf) {
+            cmdbuf.FillBuffer(buffer, 0, VK_WHOLE_SIZE, 0);
+            static constexpr VkMemoryBarrier BARRIER{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+            };
+            cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, BARRIER);
+        });
+    }
+    guest_descriptor_queue.AddBuffer(*gs_scratch_buffer, gs_scratch_address, 0, size);
 }
 
 vk::Buffer BufferCacheRuntime::CreateNullBuffer() {

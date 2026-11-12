@@ -95,6 +95,114 @@ constexpr u8 NUM_ARGS[]{
 /// Get the name of an opcode
 [[nodiscard]] std::string_view NameOf(Opcode op);
 
+/// Memory writes and atomics, which happen once per invocation (geometry shaders on Adreno run
+/// once per output vertex, see Profile::gs_replicates_side_effects).
+[[nodiscard]] inline bool IsGeometrySideEffect(Opcode op) noexcept {
+    switch (op) {
+    case Opcode::WriteGlobalU8:
+    case Opcode::WriteGlobalS8:
+    case Opcode::WriteGlobalU16:
+    case Opcode::WriteGlobalS16:
+    case Opcode::WriteGlobal32:
+    case Opcode::WriteGlobal64:
+    case Opcode::WriteGlobal128:
+    case Opcode::WriteStorageU8:
+    case Opcode::WriteStorageS8:
+    case Opcode::WriteStorageU16:
+    case Opcode::WriteStorageS16:
+    case Opcode::WriteStorage32:
+    case Opcode::WriteStorage64:
+    case Opcode::WriteStorage128:
+    case Opcode::GlobalAtomicIAdd32:
+    case Opcode::GlobalAtomicSMin32:
+    case Opcode::GlobalAtomicUMin32:
+    case Opcode::GlobalAtomicSMax32:
+    case Opcode::GlobalAtomicUMax32:
+    case Opcode::GlobalAtomicInc32:
+    case Opcode::GlobalAtomicDec32:
+    case Opcode::GlobalAtomicAnd32:
+    case Opcode::GlobalAtomicOr32:
+    case Opcode::GlobalAtomicXor32:
+    case Opcode::GlobalAtomicExchange32:
+    case Opcode::GlobalAtomicIAdd64:
+    case Opcode::GlobalAtomicSMin64:
+    case Opcode::GlobalAtomicUMin64:
+    case Opcode::GlobalAtomicSMax64:
+    case Opcode::GlobalAtomicUMax64:
+    case Opcode::GlobalAtomicAnd64:
+    case Opcode::GlobalAtomicOr64:
+    case Opcode::GlobalAtomicXor64:
+    case Opcode::GlobalAtomicExchange64:
+    case Opcode::GlobalAtomicIAdd32x2:
+    case Opcode::GlobalAtomicSMin32x2:
+    case Opcode::GlobalAtomicUMin32x2:
+    case Opcode::GlobalAtomicSMax32x2:
+    case Opcode::GlobalAtomicUMax32x2:
+    case Opcode::GlobalAtomicAnd32x2:
+    case Opcode::GlobalAtomicOr32x2:
+    case Opcode::GlobalAtomicXor32x2:
+    case Opcode::GlobalAtomicExchange32x2:
+    case Opcode::GlobalAtomicAddF32:
+    case Opcode::GlobalAtomicAddF16x2:
+    case Opcode::GlobalAtomicAddF32x2:
+    case Opcode::GlobalAtomicMinF16x2:
+    case Opcode::GlobalAtomicMinF32x2:
+    case Opcode::GlobalAtomicMaxF16x2:
+    case Opcode::GlobalAtomicMaxF32x2:
+    case Opcode::StorageAtomicIAdd32:
+    case Opcode::StorageAtomicSMin32:
+    case Opcode::StorageAtomicUMin32:
+    case Opcode::StorageAtomicSMax32:
+    case Opcode::StorageAtomicUMax32:
+    case Opcode::StorageAtomicInc32:
+    case Opcode::StorageAtomicDec32:
+    case Opcode::StorageAtomicAnd32:
+    case Opcode::StorageAtomicOr32:
+    case Opcode::StorageAtomicXor32:
+    case Opcode::StorageAtomicExchange32:
+    case Opcode::StorageAtomicIAdd64:
+    case Opcode::StorageAtomicSMin64:
+    case Opcode::StorageAtomicUMin64:
+    case Opcode::StorageAtomicSMax64:
+    case Opcode::StorageAtomicUMax64:
+    case Opcode::StorageAtomicAnd64:
+    case Opcode::StorageAtomicOr64:
+    case Opcode::StorageAtomicXor64:
+    case Opcode::StorageAtomicExchange64:
+    case Opcode::StorageAtomicIAdd32x2:
+    case Opcode::StorageAtomicSMin32x2:
+    case Opcode::StorageAtomicUMin32x2:
+    case Opcode::StorageAtomicSMax32x2:
+    case Opcode::StorageAtomicUMax32x2:
+    case Opcode::StorageAtomicAnd32x2:
+    case Opcode::StorageAtomicOr32x2:
+    case Opcode::StorageAtomicXor32x2:
+    case Opcode::StorageAtomicExchange32x2:
+    case Opcode::StorageAtomicAddF32:
+    case Opcode::StorageAtomicAddF16x2:
+    case Opcode::StorageAtomicAddF32x2:
+    case Opcode::StorageAtomicMinF16x2:
+    case Opcode::StorageAtomicMinF32x2:
+    case Opcode::StorageAtomicMaxF16x2:
+    case Opcode::StorageAtomicMaxF32x2:
+    case Opcode::ImageWrite:
+    case Opcode::ImageAtomicIAdd32:
+    case Opcode::ImageAtomicSMin32:
+    case Opcode::ImageAtomicUMin32:
+    case Opcode::ImageAtomicSMax32:
+    case Opcode::ImageAtomicUMax32:
+    case Opcode::ImageAtomicInc32:
+    case Opcode::ImageAtomicDec32:
+    case Opcode::ImageAtomicAnd32:
+    case Opcode::ImageAtomicOr32:
+    case Opcode::ImageAtomicXor32:
+    case Opcode::ImageAtomicExchange32:
+        return true;
+    default:
+        return false;
+    }
+}
+
 } // namespace Shader::IR
 
 template <>

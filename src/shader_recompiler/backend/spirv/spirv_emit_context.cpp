@@ -466,6 +466,8 @@ EmitContext::EmitContext(const Profile& profile_, const RuntimeInfo& runtime_inf
     u32& texture_binding{is_unified ? bindings.unified : bindings.texture};
     u32& image_binding{is_unified ? bindings.unified : bindings.image};
     AddCapability(spv::Capability::Shader);
+    gs_dedup = stage == Stage::Geometry && program.info.uses_gs_scratch;
+    gs_scratch_ssbo = program.info.gs_scratch_ssbo;
     DefineCommonTypes(program.info);
     DefineCommonConstants();
     DefineInterfaces(program);
@@ -483,6 +485,7 @@ EmitContext::EmitContext(const Profile& profile_, const RuntimeInfo& runtime_inf
     DefineGlobalMemoryFunctions(program.info);
     DefineRescalingInput(program.info);
     DefineRenderArea(program.info);
+    DefineGsGeneration();
 }
 
 EmitContext::~EmitContext() = default;
@@ -888,7 +891,7 @@ void EmitContext::DefineGlobalMemoryFunctions(const Info& info) {
         AddLabel();
         const size_t num_buffers{info.storage_buffers_descriptors.size()};
         for (size_t index = 0; index < num_buffers; ++index) {
-            if (!info.nvn_buffer_used[index]) {
+            if (index >= info.nvn_buffer_used.size() || !info.nvn_buffer_used[index]) {
                 continue;
             }
             const auto& ssbo{info.storage_buffers_descriptors[index]};
@@ -987,9 +990,18 @@ void EmitContext::DefineRescalingInputPushConstant() {
         members.push_back(F32[1]);
         rescaling_downfactor_member_index = member_index++;
     }
+    if (gs_dedup) {
+        members.push_back(U32[1]);
+        gs_generation_member = member_index++;
+    }
     const Id push_constant_struct{TypeStruct(std::span(members.data(), members.size()))};
     Decorate(push_constant_struct, spv::Decoration::Block);
     Name(push_constant_struct, "ResolutionInfo");
+    if (gs_dedup) {
+        MemberDecorate(push_constant_struct, gs_generation_member, spv::Decoration::Offset,
+                       GS_GENERATION_LAYOUT_OFFSET);
+        MemberName(push_constant_struct, gs_generation_member, "gs_generation");
+    }
 
     MemberDecorate(push_constant_struct, rescaling_textures_member_index, spv::Decoration::Offset,
                    static_cast<u32>(offsetof(RescalingLayout, rescaling_textures)));
@@ -1008,6 +1020,9 @@ void EmitContext::DefineRescalingInputPushConstant() {
     const Id pointer_type{TypePointer(spv::StorageClass::PushConstant, push_constant_struct)};
     rescaling_push_constants = AddGlobalVariable(pointer_type, spv::StorageClass::PushConstant);
     Name(rescaling_push_constants, "rescaling_push_constants");
+    if (gs_dedup) {
+        gs_generation_block = rescaling_push_constants;
+    }
 
     if (profile.supported_spirv >= 0x00010400) {
         interfaces.push_back(rescaling_push_constants);
@@ -1036,6 +1051,11 @@ void EmitContext::DefineRenderArea(const Info& info) {
 
         members.push_back(F32[4]);
         render_are_member_index = member_index++;
+        const bool add_gs_generation{gs_dedup && !Sirit::ValidId(gs_generation_block)};
+        if (add_gs_generation) {
+            members.push_back(U32[1]);
+            gs_generation_member = member_index++;
+        }
 
         const Id push_constant_struct{TypeStruct(std::span(members.data(), members.size()))};
         Decorate(push_constant_struct, spv::Decoration::Block);
@@ -1043,15 +1063,42 @@ void EmitContext::DefineRenderArea(const Info& info) {
 
         MemberDecorate(push_constant_struct, render_are_member_index, spv::Decoration::Offset, 0);
         MemberName(push_constant_struct, render_are_member_index, "render_area");
+        if (add_gs_generation) {
+            MemberDecorate(push_constant_struct, gs_generation_member, spv::Decoration::Offset,
+                           GS_GENERATION_LAYOUT_OFFSET);
+            MemberName(push_constant_struct, gs_generation_member, "gs_generation");
+        }
 
         const Id pointer_type{TypePointer(spv::StorageClass::PushConstant, push_constant_struct)};
         render_area_push_constant =
             AddGlobalVariable(pointer_type, spv::StorageClass::PushConstant);
         Name(render_area_push_constant, "render_area_push_constants");
+        if (add_gs_generation) {
+            gs_generation_block = render_area_push_constant;
+        }
 
         if (profile.supported_spirv >= 0x00010400) {
             interfaces.push_back(render_area_push_constant);
         }
+    }
+}
+
+void EmitContext::DefineGsGeneration() {
+    if (!gs_dedup || Sirit::ValidId(gs_generation_block)) {
+        return;
+    }
+    const Id member{U32[1]};
+    const Id push_constant_struct{TypeStruct(std::span(&member, 1))};
+    Decorate(push_constant_struct, spv::Decoration::Block);
+    Name(push_constant_struct, "GsGenerationInfo");
+    MemberDecorate(push_constant_struct, 0, spv::Decoration::Offset, GS_GENERATION_LAYOUT_OFFSET);
+    MemberName(push_constant_struct, 0, "gs_generation");
+    const Id pointer_type{TypePointer(spv::StorageClass::PushConstant, push_constant_struct)};
+    gs_generation_block = AddGlobalVariable(pointer_type, spv::StorageClass::PushConstant);
+    gs_generation_member = 0;
+    Name(gs_generation_block, "gs_generation_push_constants");
+    if (profile.supported_spirv >= 0x00010400) {
+        interfaces.push_back(gs_generation_block);
     }
 }
 

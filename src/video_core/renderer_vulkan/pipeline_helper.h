@@ -67,6 +67,7 @@ public:
     }
 
     vk::PipelineLayout CreatePipelineLayout(VkDescriptorSetLayout descriptor_set_layout) const {
+        using Shader::Backend::SPIRV::GS_GENERATION_LAYOUT_OFFSET;
         using Shader::Backend::SPIRV::RenderAreaLayout;
         using Shader::Backend::SPIRV::RescalingLayout;
         const u32 size_offset = is_compute ? sizeof(RescalingLayout::down_factor) : 0u;
@@ -74,8 +75,9 @@ public:
             .stageFlags = static_cast<VkShaderStageFlags>(
                 is_compute ? VK_SHADER_STAGE_COMPUTE_BIT : VK_SHADER_STAGE_ALL_GRAPHICS),
             .offset = 0,
-            .size = static_cast<u32>(sizeof(RescalingLayout)) - size_offset +
-                    static_cast<u32>(sizeof(RenderAreaLayout)),
+            .size = is_compute ? static_cast<u32>(sizeof(RescalingLayout)) - size_offset +
+                                     static_cast<u32>(sizeof(RenderAreaLayout))
+                               : GS_GENERATION_LAYOUT_OFFSET + static_cast<u32>(sizeof(u32)),
         };
         return device->GetLogical().CreatePipelineLayout({
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,

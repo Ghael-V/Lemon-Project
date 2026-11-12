@@ -140,6 +140,10 @@ public:
         BindBuffer(buffer, offset, size);
     }
 
+    /// Binds the table where geometry shader invocations claim their primitive
+    /// (Shader::Info::uses_gs_scratch), creating it the first time.
+    void BindGsScratchStorageBuffer();
+
     void BindTextureBuffer(Buffer& buffer, u32 offset, u32 size,
                            VideoCore::Surface::PixelFormat format) {
         guest_descriptor_queue.AddTexelBuffer(buffer.View(offset, size, format));
@@ -163,6 +167,8 @@ private:
     std::shared_ptr<QuadStripIndexBuffer> quad_strip_index_buffer;
 
     vk::Buffer null_buffer;
+    vk::Buffer gs_scratch_buffer;
+    VkDeviceAddress gs_scratch_address{};
 
     std::unique_ptr<Uint8Pass> uint8_pass;
     QuadIndexedPass quad_index_pass;

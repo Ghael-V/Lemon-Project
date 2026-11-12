@@ -84,6 +84,39 @@ void CollectInterpolationInfo(Environment& env, IR::Program& program) {
     }
 }
 
+// Adreno runs a geometry shader once per output vertex, so its memory writes and atomics
+// happen once per vertex instead of once per primitive. Shaders that have any get a scratch
+// buffer where the copies of each primitive claim it; only the winner does them.
+void AddGeometryScratchBuffer(IR::Program& program, const HostTranslateInfo& host_info) {
+    if (program.stage != Stage::Geometry || !host_info.gs_replicates_side_effects) {
+        return;
+    }
+    const auto has_side_effects = [&] {
+        for (IR::Block* const block : program.blocks) {
+            for (const IR::Inst& inst : block->Instructions()) {
+                if (IR::IsGeometrySideEffect(inst.GetOpcode())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    auto& descs{program.info.storage_buffers_descriptors};
+    if (!has_side_effects() || descs.size() >= descs.capacity()) {
+        return;
+    }
+    program.info.gs_scratch_ssbo = static_cast<u32>(descs.size());
+    descs.push_back({
+        .cbuf_index = GS_SCRATCH_CBUF_INDEX,
+        .cbuf_offset = 0,
+        .count = 1,
+        .is_written = true,
+    });
+    program.info.uses_gs_scratch = true;
+    program.info.used_storage_buffer_types |= IR::Type::U32;
+    program.info.loads.Set(IR::Attribute::PrimitiveId);
+}
+
 void AddNVNStorageBuffers(IR::Program& program) {
     if (!program.info.uses_global_memory) {
         return;
@@ -314,6 +347,7 @@ IR::Program TranslateProgram(ObjectPool<IR::Inst>& inst_pool, ObjectPool<IR::Blo
 
     CollectInterpolationInfo(env, program);
     AddNVNStorageBuffers(program);
+    AddGeometryScratchBuffer(program, normalized_host_info);
     return program;
 }
 

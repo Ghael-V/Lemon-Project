@@ -260,6 +260,7 @@ GraphicsPipeline::GraphicsPipeline(
         for (const auto& desc : info->texture_descriptors) {
             uses_attribute_handle |= desc.cbuf_index == Shader::ATTRIBUTE_HANDLE_CBUF_INDEX;
         }
+        uses_gs_scratch |= info->uses_gs_scratch;
     }
     auto func{[this, shader_notify, &render_pass_cache, &descriptor_pool, pipeline_statistics] {
         DescriptorLayoutBuilder builder{MakeBuilder(device, stage_infos)};

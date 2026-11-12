@@ -22,6 +22,7 @@
 #include "video_core/renderer_vulkan/blit_image.h"
 #include "video_core/renderer_vulkan/fixed_pipeline_state.h"
 #include "video_core/renderer_vulkan/maxwell_to_vk.h"
+#include "shader_recompiler/backend/spirv/emit_spirv.h"
 #include "video_core/renderer_vulkan/vk_buffer_cache.h"
 #include "video_core/renderer_vulkan/vk_compute_pipeline.h"
 #include "video_core/renderer_vulkan/vk_descriptor_pool.h"
@@ -303,6 +304,24 @@ void RasterizerVulkan::CollectAttributeHandleRuns(bool is_indexed) {
     }
 }
 
+namespace {
+// Generations of draws whose geometry shader claims its primitive (Shader::Info::uses_gs_scratch).
+// 0 is never handed out: it marks a slot nobody has claimed.
+u32 NextGsGeneration() {
+    static u32 generation = 0;
+    if (++generation == 0) {
+        ++generation;
+    }
+    return generation;
+}
+
+void PushGsGeneration(vk::CommandBuffer cmdbuf, VkPipelineLayout layout, u32 generation) {
+    cmdbuf.PushConstants(layout, VK_SHADER_STAGE_ALL_GRAPHICS,
+                         Shader::Backend::SPIRV::GS_GENERATION_LAYOUT_OFFSET, sizeof(generation),
+                         &generation);
+}
+} // Anonymous namespace
+
 void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
     const auto& state = maxwell3d->draw_manager->GetDrawState();
     pipeline_cache.SetDrawVertexCount(is_indexed ? state.index_buffer.count
@@ -315,7 +334,28 @@ void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
         const auto& draw_state = maxwell3d->draw_manager->GetDrawState();
         const u32 num_instances{instance_count};
         const DrawParams draw_params{MakeDrawParams(draw_state, num_instances, is_indexed)};
-        const auto record_draw = [this](const DrawParams& params) {
+        GraphicsPipeline* const pipeline{pipeline_cache.CurrentGraphicsPipeline()};
+        const VkPipelineLayout gs_layout{pipeline && pipeline->UsesGsScratch() ? pipeline->Layout()
+                                                                               : VK_NULL_HANDLE};
+        const auto record_draw = [this, gs_layout](const DrawParams& params) {
+            if (gs_layout != VK_NULL_HANDLE) {
+                // Primitive ids start over with every instance: one draw and generation each.
+                for (u32 instance = 0; instance < params.num_instances; ++instance) {
+                    scheduler.Record([params, instance, gs_layout,
+                                      generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
+                        PushGsGeneration(cmdbuf, gs_layout, generation);
+                        if (params.is_indexed) {
+                            cmdbuf.DrawIndexed(params.num_vertices, 1, params.first_index,
+                                               params.base_vertex,
+                                               params.base_instance + instance);
+                        } else {
+                            cmdbuf.Draw(params.num_vertices, 1, params.base_vertex,
+                                        params.base_instance + instance);
+                        }
+                    });
+                }
+                return;
+            }
             scheduler.Record([params](vk::CommandBuffer cmdbuf) {
                 if (params.is_indexed) {
                     cmdbuf.DrawIndexed(params.num_vertices, params.num_instances,
@@ -360,6 +400,40 @@ void RasterizerVulkan::DrawIndirect() {
         const auto indirect_buffer = buffer_cache.GetDrawIndirectBuffer();
         const auto& buffer = indirect_buffer.first;
         const auto& offset = indirect_buffer.second;
+        GraphicsPipeline* const pipeline{pipeline_cache.CurrentGraphicsPipeline()};
+        if (pipeline && pipeline->UsesGsScratch()) {
+            const VkPipelineLayout layout{pipeline->Layout()};
+            if (params.include_count || params.is_byte_count) {
+                // The number of draws is in GPU memory: they share one generation, so the
+                // primitives of later ones lose their side effects.
+                static bool warned = false;
+                if (!std::exchange(warned, true)) {
+                    LOG_WARNING(Render_Vulkan, "Indirect count draw with a geometry shader that "
+                                               "claims its primitives shares one generation");
+                }
+                scheduler.Record([layout, generation = NextGsGeneration()](
+                                     vk::CommandBuffer cmdbuf) {
+                    PushGsGeneration(cmdbuf, layout, generation);
+                });
+            } else {
+                // One draw and generation each: primitive ids start over with every draw.
+                for (u32 draw = 0; draw < static_cast<u32>(params.max_draw_counts); ++draw) {
+                    scheduler.Record([buffer_obj = buffer->Handle(),
+                                      draw_offset = offset + draw * params.stride, params, layout,
+                                      generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
+                        PushGsGeneration(cmdbuf, layout, generation);
+                        if (params.is_indexed) {
+                            cmdbuf.DrawIndexedIndirect(buffer_obj, draw_offset, 1,
+                                                       static_cast<u32>(params.stride));
+                        } else {
+                            cmdbuf.DrawIndirect(buffer_obj, draw_offset, 1,
+                                                static_cast<u32>(params.stride));
+                        }
+                    });
+                }
+                return;
+            }
+        }
         if (params.is_byte_count) {
             scheduler.Record([buffer_obj = buffer->Handle(), offset,
                               stride = params.stride](vk::CommandBuffer cmdbuf) {

@@ -8,6 +8,7 @@
 #include <numeric>
 
 #include "common/range_sets.inc"
+#include "shader_recompiler/shader_info.h"
 #include "video_core/buffer_cache/buffer_cache_base.h"
 #include "video_core/guest_memory.h"
 #include "video_core/host1x/gpu_device_memory_manager.h"
@@ -410,6 +411,7 @@ template <class P>
 void BufferCache<P>::UnbindGraphicsStorageBuffers(size_t stage) {
     channel_state->enabled_storage_buffers[stage] = 0;
     channel_state->written_storage_buffers[stage] = 0;
+    channel_state->scratch_storage_buffers[stage] = 0;
 }
 
 template <class P>
@@ -418,6 +420,11 @@ void BufferCache<P>::BindGraphicsStorageBuffer(size_t stage, size_t ssbo_index, 
     channel_state->enabled_storage_buffers[stage] |= 1U << ssbo_index;
     channel_state->written_storage_buffers[stage] |= (is_written ? 1U : 0U) << ssbo_index;
 
+    if (cbuf_index == Shader::GS_SCRATCH_CBUF_INDEX) {
+        // Not guest memory: BindHostGraphicsStorageBuffers binds the host's scratch buffer.
+        channel_state->scratch_storage_buffers[stage] |= 1U << ssbo_index;
+        return true;
+    }
     const auto& cbufs = maxwell3d->state.shader_stages[stage];
     const GPUVAddr ssbo_addr = cbufs.const_buffers[cbuf_index].address + cbuf_offset;
     channel_state->storage_buffers[stage][ssbo_index] =
@@ -870,6 +877,15 @@ template <class P>
 void BufferCache<P>::BindHostGraphicsStorageBuffers(size_t stage) {
     u32 binding_index = 0;
     ForEachEnabledBit(channel_state->enabled_storage_buffers[stage], [&](u32 index) {
+        if (((channel_state->scratch_storage_buffers[stage] >> index) & 1) != 0) {
+            if constexpr (requires { runtime.BindGsScratchStorageBuffer(); }) {
+                runtime.BindGsScratchStorageBuffer();
+            }
+            if constexpr (NEEDS_BIND_STORAGE_INDEX) {
+                ++binding_index;
+            }
+            return;
+        }
         const Binding& binding = channel_state->storage_buffers[stage][index];
         Buffer& buffer = slot_buffers[binding.buffer_id];
         TouchBuffer(buffer, binding.buffer_id);
@@ -1192,6 +1208,9 @@ void BufferCache<P>::UpdateUniformBuffers(size_t stage) {
 template <class P>
 void BufferCache<P>::UpdateStorageBuffers(size_t stage) {
     ForEachEnabledBit(channel_state->enabled_storage_buffers[stage], [&](u32 index) {
+        if (((channel_state->scratch_storage_buffers[stage] >> index) & 1) != 0) {
+            return;
+        }
         // Resolve buffer
         Binding& binding = channel_state->storage_buffers[stage][index];
         const BufferId buffer_id = FindBuffer(binding.device_addr, binding.size);

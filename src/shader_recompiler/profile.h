@@ -63,6 +63,9 @@ struct Profile {
     bool has_broken_spirv_clamp{};
     /// The Position builtin needs to be wrapped in a struct when used as an input
     bool has_broken_spirv_position_input{};
+    /// Geometry shaders run once per output vertex (Adreno), repeating their memory writes and
+    /// atomics; they are made to claim each primitive so those happen once
+    bool gs_replicates_side_effects{};
     /// Offset image operands with an unsigned type do not work
     bool has_broken_unsigned_image_offsets{};
     /// Signed instructions with unsigned data types are misinterpreted
