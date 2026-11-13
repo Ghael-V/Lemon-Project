@@ -33,6 +33,7 @@ import dev.ironlemon.ironlemon_emulator.utils.BundledDriver
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
 import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
 import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
+import dev.ironlemon.ironlemon_emulator.updater.WhatsNew
 import dev.ironlemon.ironlemon_emulator.databinding.ActivityMainBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
 import dev.ironlemon.ironlemon_emulator.fragments.AddGameFolderDialogFragment
@@ -163,6 +164,9 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ) {
             UpdateFlow.checkAtStart(this)
             setUpBundledDriver()
+            if (savedInstanceState == null) {
+                WhatsNew.showIfUpdated(this, firstInstall = false)
+            }
             if (savedInstanceState == null) {
                 bootIntoQLaunchIfWanted(navHostFragment.navController)
             }
