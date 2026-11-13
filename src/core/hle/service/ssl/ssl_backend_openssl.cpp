@@ -154,6 +154,11 @@ public:
         const int ret = SSL_read_ex(ssl, data.data(), data.size(), out_size);
         const Result res = HandleReturn("SSL_read_ex", out_size, ret);
         if (res == ResultSuccess) {
+            if (!nextendo_host.empty() && bytes_read == 0 && *out_size > 0) {
+                // The status line of an HTTP answer says why a server turned the game away.
+                LOG_INFO(Service_SSL, "Nextendo: {} answered '{}'", nextendo_host,
+                         FirstLine(data.first(*out_size)));
+            }
             bytes_read += *out_size;
         }
         return res;
@@ -163,6 +168,13 @@ public:
         const int ret = SSL_write_ex(ssl, data.data(), data.size(), out_size);
         const Result res = HandleReturn("SSL_write_ex", out_size, ret);
         if (res == ResultSuccess) {
+            if (!nextendo_host.empty() && bytes_written == 0 && *out_size > 0) {
+                // Method and path only: headers and the query string can carry tokens.
+                const std::string line = FirstLine(data.first(*out_size));
+                const std::string request =
+                    line.substr(0, line.find_first_of("? ", line.find(' ') + 1));
+                LOG_INFO(Service_SSL, "Nextendo: {} asked '{}'", nextendo_host, request);
+            }
             bytes_written += *out_size;
         }
         return res;
@@ -224,6 +236,18 @@ public:
         }
         // this is null-tolerant:
         SSL_free(ssl);
+    }
+
+    // First line of what went over the wire, printable ASCII only, at most 96 characters.
+    static std::string FirstLine(std::span<const u8> bytes) {
+        std::string line;
+        for (const u8 c : bytes) {
+            if (c == '\r' || c == '\n' || line.size() == 96) {
+                break;
+            }
+            line.push_back(c >= 0x20 && c < 0x7f ? static_cast<char>(c) : '.');
+        }
+        return line;
     }
 
     void LogNextendoHandshake(int ret) {
