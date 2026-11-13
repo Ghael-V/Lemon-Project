@@ -94,6 +94,8 @@ add_library(common STATIC
     microprofileui.h
     multi_level_page_table.cpp
     multi_level_page_table.h
+    nextendo_session.cpp
+    nextendo_session.h
     nvidia_flags.cpp
     nvidia_flags.h
     overflow.h

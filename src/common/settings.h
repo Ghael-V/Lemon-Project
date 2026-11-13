@@ -607,6 +607,12 @@ struct Values {
     // Network
     Setting<std::string> network_interface{linkage, std::string(), "network_interface",
                                            Category::Network};
+    // Nextendo Network: send the games' Nintendo traffic to the community servers instead.
+    Setting<bool> enable_nextendo{linkage, false, "enable_nextendo", Category::Network};
+    Setting<std::string> nextendo_server_ip{linkage, "51.178.29.194", "nextendo_server_ip",
+                                            Category::Network};
+    Setting<std::string> nextendo_nat_ip{linkage, "164.132.111.120", "nextendo_nat_ip",
+                                         Category::Network};
 
     // WebService
     Setting<bool> enable_telemetry{linkage, true, "enable_telemetry", Category::WebService};

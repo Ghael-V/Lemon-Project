@@ -395,6 +395,8 @@ add_library(core STATIC
     hle/service/acc/async_context.cpp
     hle/service/acc/async_context.h
     hle/service/acc/errors.h
+    hle/service/acc/nextendo_id_token.cpp
+    hle/service/acc/nextendo_id_token.h
     hle/service/acc/profile_manager.cpp
     hle/service/acc/profile_manager.h
     hle/service/am/am.cpp
@@ -1068,6 +1070,8 @@ add_library(core STATIC
     hle/service/ssl/ssl.cpp
     hle/service/ssl/ssl.h
     hle/service/ssl/ssl_backend.h
+    hle/service/ssl/ssl_pending_registry.cpp
+    hle/service/ssl/ssl_pending_registry.h
     hle/service/ssl/ssl_types.h
     hle/service/usb/usb.cpp
     hle/service/usb/usb.h

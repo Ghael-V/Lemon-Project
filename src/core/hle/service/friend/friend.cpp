@@ -40,7 +40,7 @@ public:
             {10610, &IFriendService::UpdateUserPresence, "UpdateUserPresence"},
             {10700, &IFriendService::GetPlayHistoryRegistrationKey, "GetPlayHistoryRegistrationKey"},
             {10701, nullptr, "GetPlayHistoryRegistrationKeyWithNetworkServiceAccountId"},
-            {10702, nullptr, "AddPlayHistory"},
+            {10702, &IFriendService::AddPlayHistory, "AddPlayHistory"},
             {11000, nullptr, "GetProfileImageUrl"},
             {20100, &IFriendService::GetFriendCount, "GetFriendCount"},
             {20101, &IFriendService::GetNewlyFriendCount, "GetNewlyFriendCount"},
@@ -201,6 +201,13 @@ private:
     void DeclareCloseOnlinePlaySession(HLERequestContext& ctx) {
         // Stub used by Splatoon 2
         LOG_WARNING(Service_Friend, "(STUBBED) called");
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(ResultSuccess);
+    }
+
+    void AddPlayHistory(HLERequestContext& ctx) {
+        // Mario Kart 8 Deluxe records the players it met after an online race.
+        LOG_DEBUG(Service_Friend, "(STUBBED) called");
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(ResultSuccess);
     }

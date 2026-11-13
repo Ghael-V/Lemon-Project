@@ -868,4 +868,14 @@
     <string name="statistics_total_playtime">Tiempo total de juego</string>
     <string name="statistics_games_played">Juegos jugados</string>
     <string name="statistics_empty">Todavía no has jugado a nada. El tiempo se cuenta mientras el juego está en pantalla.</string>
+    <string name="nextendo_network">Nextendo Network</string>
+    <string name="nextendo_network_description">Juego en línea en servidores de la comunidad</string>
+    <string name="nextendo_enable">Juego en línea con Nextendo Network</string>
+    <string name="nextendo_enable_description">Envía el tráfico en línea de los juegos a los servidores de Nextendo Network en lugar de a los de Nintendo. Necesita una cuenta de Nextendo.</string>
+    <string name="nextendo_sign_in">Iniciar sesión</string>
+    <string name="nextendo_sign_in_description">Abre nextendo.network en el navegador. Iron Lemon nunca ve tu contraseña.</string>
+    <string name="nextendo_sign_in_failed">No se pudo iniciar sesión en Nextendo Network (%1$s)</string>
+    <string name="nextendo_sign_out">Cerrar sesión</string>
+    <string name="nextendo_signed_in_as">Sesión iniciada como %1$s</string>
+    <string name="nextendo_unavailable">Esta versión de Iron Lemon aún no está registrada en Nextendo Network.</string>
 </resources>

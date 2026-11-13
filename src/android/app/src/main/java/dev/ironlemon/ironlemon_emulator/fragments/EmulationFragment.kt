@@ -59,6 +59,7 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonType
 import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 import java.text.NumberFormat
 import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayControlData
+import dev.ironlemon.ironlemon_emulator.nextendo.NextendoAccount
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPopupMenu
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.ComposeView
@@ -1671,6 +1672,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             emulationThread.join()
             emulationThread = Thread({
                 Log.debug("[EmulationFragment] Starting emulation thread.")
+                NextendoAccount.prepareForBoot()
                 NativeLibrary.run(gamePath, programIndex, false)
             }, "NativeEmulation")
             emulationThread.start()
@@ -1725,6 +1727,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 State.STOPPED -> {
                     emulationThread = Thread({
                         Log.debug("[EmulationFragment] Starting emulation thread.")
+                        NextendoAccount.prepareForBoot()
                         NativeLibrary.run(gamePath, programIndex, true)
                     }, "NativeEmulation")
                     emulationThread.start()

@@ -37,6 +37,7 @@
 #include "common/logging/backend.h"
 #include "common/logging/log.h"
 #include "common/microprofile.h"
+#include "common/nextendo_session.h"
 #include "common/scm_rev.h"
 #include "common/scope_exit.h"
 #include "common/settings.h"
@@ -1947,6 +1948,21 @@ jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_areKeysPresent(JNI
     auto& system = EmulationSession::GetInstance().System();
     system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
     return ContentManager::AreKeysPresent();
+}
+
+void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setNextendoSession(JNIEnv* env, jobject obj,
+                                                                           jlong pid, jstring username,
+                                                                           jstring nex_token) {
+    Common::Nextendo::SetSession({
+        .pid = static_cast<u64>(pid),
+        .username = Common::Android::GetJString(env, username),
+        .nex_token = Common::Android::GetJString(env, nex_token),
+    });
+}
+
+void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_clearNextendoSession(JNIEnv* env,
+                                                                             jobject obj) {
+    Common::Nextendo::ClearSession();
 }
 
 } // extern "C"

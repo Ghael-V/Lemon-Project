@@ -174,6 +174,13 @@ abstract class SettingsItem(
             }
             put(
                 SwitchSetting(
+                    BooleanSetting.ENABLE_NEXTENDO,
+                    titleId = R.string.nextendo_enable,
+                    descriptionId = R.string.nextendo_enable_description
+                )
+            )
+            put(
+                SwitchSetting(
                     dockedModeSetting,
                     titleId = R.string.use_docked_mode,
                     descriptionId = R.string.use_docked_mode_description

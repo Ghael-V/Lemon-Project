@@ -26,6 +26,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     SHOW_PERFORMANCE_OVERLAY("show_performance_overlay"),
     SHOW_INPUT_OVERLAY("show_input_overlay"),
     TOUCHSCREEN("touchscreen"),
+    ENABLE_NEXTENDO("enable_nextendo"),
     SHOW_THERMAL_OVERLAY("show_thermal_overlay");
 
     override fun getBoolean(needsGlobal: Boolean): Boolean =

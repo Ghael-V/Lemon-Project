@@ -63,6 +63,14 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // The Nextendo sign-in finishes in the browser; show the new state on the way back.
+        if (args.menuTag == Settings.MenuTag.SECTION_NEXTENDO) {
+            presenter.loadSettingsList(true)
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

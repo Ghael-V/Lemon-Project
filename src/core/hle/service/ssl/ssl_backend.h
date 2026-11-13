@@ -38,6 +38,17 @@ public:
     virtual Result Read(size_t* out_size, std::span<u8> data) = 0;
     virtual Result Write(size_t* out_size, std::span<const u8> data) = 0;
     virtual Result GetServerCerts(std::vector<std::vector<u8>>* out_certs) = 0;
+    /// nn::ssl verify option; 0 means the game does not want the peer certificate checked.
+    virtual void SetVerifyOption(u32 option) {}
+    /// ALPN protocols the game asked for, in wire format ([length][name]...).
+    virtual void SetAlpnProtocols(std::span<const u8> wire) {}
+    /// Decrypted bytes buffered inside the backend beyond what the last Read returned.
+    virtual s32 Pending() {
+        return 0;
+    }
+    virtual Result Peek(size_t* out_size, std::span<u8> data) {
+        return ResultWouldBlock;
+    }
 };
 
 Result CreateSSLConnectionBackend(std::unique_ptr<SSLConnectionBackend>* out_backend);
