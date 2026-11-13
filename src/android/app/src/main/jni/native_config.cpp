@@ -36,6 +36,11 @@ extern "C" {
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_initializeGlobalConfig(JNIEnv* env, jobject obj) {
     global_config = std::make_unique<AndroidConfig>();
+    // Configs saved by earlier builds hold yuzu's default device name: give them ours.
+    if (Settings::values.device_name.GetValue() == "yuzu") {
+        Settings::values.device_name.SetValue("Iron Lemon");
+        global_config->AndroidConfig::SaveAllValues();
+    }
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_unloadGlobalConfig(JNIEnv* env, jobject obj) {
@@ -43,10 +48,19 @@ void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_unloadGlobalConfi
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_reloadGlobalConfig(JNIEnv* env, jobject obj) {
+    // The config objects are null outside initialize*Config/unload*Config: fail safe.
+    if (!global_config) {
+        LOG_ERROR(Frontend, "[Android Native] {}: global config not loaded", __func__);
+        return;
+    }
     global_config->AndroidConfig::ReloadAllValues();
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_saveGlobalConfig(JNIEnv* env, jobject obj) {
+    if (!global_config) {
+        LOG_ERROR(Frontend, "[Android Native] {}: global config not loaded", __func__);
+        return;
+    }
     global_config->AndroidConfig::SaveAllValues();
 }
 
@@ -66,6 +80,10 @@ jboolean Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_isPerGameConf
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_savePerGameConfig(JNIEnv* env, jobject obj) {
+    if (!per_game_config) {
+        LOG_ERROR(Frontend, "[Android Native] {}: per-game config not loaded", __func__);
+        return;
+    }
     per_game_config->AndroidConfig::SaveAllValues();
 }
 
@@ -531,6 +549,10 @@ void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_setInputSettings(
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_saveControlPlayerValues(JNIEnv* env, jobject obj) {
+    if (!per_game_config) {
+        LOG_ERROR(Frontend, "[Android Native] {}: per-game config not loaded", __func__);
+        return;
+    }
     Settings::values.players.SetGlobal(false);
 
     // Clear all controls from the config in case the user reverted back to globals

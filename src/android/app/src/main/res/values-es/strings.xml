@@ -169,7 +169,7 @@
     <string name="contributors">Contribuidores</string>
     <string name="contributors_description">Basado en yuzu, hecho con \u2764 por el equipo de yuzu y el equipo de Lemon</string>
     <string name="contributors_link">https://github.com/yuzu-emu/yuzu/graphs/contributors</string>
-    <string name="licenses_description">Proyectos que hacen que yuzu para Android sea una realidad</string>
+    <string name="licenses_description">Proyectos que hacen posible Iron Lemon</string>
     <string name="build">Versión</string>
     <string name="user_data">Datos de usuario</string>
     <string name="user_data_description">Importa/exporta todos los datos de usuario.\n\nCuando se importen los datos de usuario, ¡los demás datos de usuario existentes serán borrados!</string>
@@ -865,6 +865,11 @@
     <string name="preset_use_global">Usar los ajustes globales</string>
     <string name="preset_custom">Personalizado</string>
     <string name="preset_custom_values">Los ajustes gráficos no coinciden ahora con ningún perfil.</string>
+    <string name="adaptive_performance">Rendimiento adaptativo</string>
+    <string name="adaptive_performance_description">Si un juego sobrecalienta el dispositivo o va muy por debajo de su velocidad, usará el perfil Batería a partir del próximo arranque. Desactívalo si prefieres elegir tú los ajustes.</string>
+    <string name="adaptive_performance_thermal">El dispositivo está demasiado caliente: %1$s usará el perfil Batería a partir del próximo arranque.</string>
+    <string name="adaptive_performance_speed">%1$s va muy por debajo de su velocidad: usará el perfil Batería a partir del próximo arranque.</string>
+    <string name="adaptive_performance_notification_title">Rendimiento adaptativo</string>
     <string name="statistics_total_playtime">Tiempo total de juego</string>
     <string name="statistics_games_played">Juegos jugados</string>
     <string name="statistics_empty">Todavía no has jugado a nada. El tiempo se cuenta mientras el juego está en pantalla.</string>

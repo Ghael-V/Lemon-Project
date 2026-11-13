@@ -67,7 +67,15 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import dev.ironlemon.ironlemon_emulator.ui.modern.InGameMenuPanel
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.Manifest
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
 import android.content.DialogInterface
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -148,6 +156,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private val quickStateToastHandler = Handler(Looper.getMainLooper())
 
     private lateinit var powerManager: PowerManager
+    private var adaptiveMonitor: AdaptivePerformance.Monitor? = null
+    private var lastOverlaySpeed = 1.0
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -193,6 +203,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             requireActivity().finish()
             return
         }
+
+        // A past session asked for the Battery preset (adaptive performance): write it before
+        // the config is loaded for this boot.
+        AdaptivePerformance.applyPending(requireContext(), game)
 
         // Always load custom settings when launching a game from an intent
         if (args.custom || intentGame != null) {
@@ -522,6 +536,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 // Setup overlays
                 updateShowFpsOverlay()
                 updateThermalOverlay()
+                startAdaptivePerformance()
             }
         }
         emulationViewModel.isEmulationStopping.collect(viewLifecycleOwner) {
@@ -690,6 +705,72 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         firstFrameWatcher = watcher
         firstFrameHandler.post(watcher)
+    }
+
+    private fun startAdaptivePerformance() {
+        if (adaptiveMonitor != null) {
+            return
+        }
+        adaptiveMonitor = AdaptivePerformance.Monitor(
+            context = requireContext().applicationContext,
+            isActive = {
+                _binding != null && emulationViewModel.emulationStarted.value &&
+                    !emulationViewModel.isEmulationStopping.value && emulationState.isRunning &&
+                    firstFrameWatcher == null
+            },
+            // The stats reset on every read: while the overlay shows them, share its reading.
+            readSpeed = {
+                if (BooleanSetting.SHOW_PERFORMANCE_OVERLAY.getBoolean()) {
+                    lastOverlaySpeed
+                } else {
+                    NativeLibrary.getPerfStats().getOrElse(3) { 1.0 }
+                }
+            },
+            onTrigger = ::onAdaptivePerformanceTriggered
+        ).also { it.start() }
+    }
+
+    private fun onAdaptivePerformanceTriggered(reason: AdaptivePerformance.Reason) {
+        val context = context ?: return
+        if (!::game.isInitialized) {
+            return
+        }
+        AdaptivePerformance.markPending(context, game)
+        val text = getString(
+            when (reason) {
+                AdaptivePerformance.Reason.THERMAL -> R.string.adaptive_performance_thermal
+                AdaptivePerformance.Reason.SPEED -> R.string.adaptive_performance_speed
+            },
+            game.title
+        )
+        Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+        postAdaptivePerformanceNotification(context, text)
+    }
+
+    private fun postAdaptivePerformanceNotification(context: Context, text: String) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val open = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(
+            context,
+            getString(R.string.notice_notification_channel_id)
+        )
+            .setSmallIcon(R.drawable.ic_stat_notification_logo)
+            .setContentTitle(getString(R.string.adaptive_performance_notification_title))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(ADAPTIVE_PERFORMANCE_NOTIFICATION_ID, notification)
     }
 
     private fun stopFirstFrameWatcher() {
@@ -1123,6 +1204,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     override fun onDestroyView() {
         super.onDestroyView()
         stopFirstFrameWatcher()
+        adaptiveMonitor?.stop()
+        adaptiveMonitor = null
         quickStateToastHandler.removeCallbacksAndMessages(null)
         _binding = null
     }
@@ -1153,6 +1236,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     !emulationViewModel.isEmulationStopping.value
                 ) {
                     val perfStats = NativeLibrary.getPerfStats()
+                    lastOverlaySpeed = perfStats.getOrElse(SPEED) { 1.0 }
                     val cpuBackend = NativeLibrary.getCpuBackend()
                     val gpuDriver = NativeLibrary.getGpuDriver()
                     if (_binding != null) {
@@ -1760,6 +1844,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         private const val FIRST_FRAME_POLL_MS = 200L
         private const val FIRST_FRAME_TIMEOUT_MS = 60_000L
         private const val FIRST_FRAMES_SHOWN = 10L
+
+        private const val ADAPTIVE_PERFORMANCE_NOTIFICATION_ID = 4242
 
         // The width of a quicksave slot's picture, in pixels.
         private const val QUICK_SAVE_THUMBNAIL_WIDTH = 320
