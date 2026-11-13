@@ -394,14 +394,14 @@ class HomeSettingsFragment : Fragment() {
             mainActivity,
             DocumentsContract.buildDocumentUri(
                 DocumentProvider.AUTHORITY,
-                "${DocumentProvider.ROOT_ID}/log/yuzu_log.txt"
+                "${DocumentProvider.ROOT_ID}/log/ironlemon_log.txt"
             )
         )!!
         val oldLog = DocumentFile.fromSingleUri(
             mainActivity,
             DocumentsContract.buildDocumentUri(
                 DocumentProvider.AUTHORITY,
-                "${DocumentProvider.ROOT_ID}/log/yuzu_log.txt.old.txt"
+                "${DocumentProvider.ROOT_ID}/log/ironlemon_log.txt.old.txt"
             )
         )!!
 

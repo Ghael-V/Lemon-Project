@@ -396,10 +396,10 @@ void IGeneralService::GetCurrentNetworkProfile(HLERequestContext& ctx) {
                 .mtu{1500},
             },
             .uuid{0xdeadbeef, 0xdeadbeef},
-            .network_name{"yuzu Network"},
+            .network_name{"Iron Lemon Network"},
             .wireless_setting_data{
                 .ssid_length{12},
-                .ssid{"yuzu Network"},
+                .ssid{"Iron Lemon Network"},
                 .passphrase{"yuzupassword"},
             },
         };

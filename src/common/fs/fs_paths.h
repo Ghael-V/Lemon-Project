@@ -29,4 +29,4 @@
 
 // yuzu-specific files
 
-#define LOG_FILE "yuzu_log.txt"
+#define LOG_FILE "ironlemon_log.txt"

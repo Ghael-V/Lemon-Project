@@ -968,7 +968,7 @@ void Module::Interface::InitializeApplicationInfoV2(HLERequestContext& ctx) {
 
 void Module::Interface::BeginUserRegistration(HLERequestContext& ctx) {
     const auto user_id = Common::UUID::MakeRandom();
-    profile_manager->CreateNewUser(user_id, "yuzu");
+    profile_manager->CreateNewUser(user_id, "Iron Lemon");
 
     LOG_INFO(Service_ACC, "called, uuid={}", user_id.FormattedString());
 
