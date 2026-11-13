@@ -546,7 +546,7 @@ BcnAstcEncodePass::BcnAstcEncodePass(const Device& device_, Scheduler& scheduler
                                      StagingBufferPool& staging_buffer_pool_,
                                      ComputePassDescriptorQueue& compute_pass_descriptor_queue_,
                                      MemoryAllocator& memory_allocator_)
-    : ComputePass(device_, scheduler_, descriptor_pool_, QUERIES_SCAN_DESCRIPTOR_SET_BINDINGS,
+    : ComputePass(device_, descriptor_pool_, QUERIES_SCAN_DESCRIPTOR_SET_BINDINGS,
                   QUERIES_SCAN_DESCRIPTOR_UPDATE_TEMPLATE, QUERIES_SCAN_BANK_INFO,
                   COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 5>, VULKAN_BCN_ASTC_ENCODE_COMP_SPV),
       scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
@@ -600,7 +600,7 @@ std::pair<VkBuffer, VkDeviceSize> BcnAstcEncodePass::Encode(
     const auto output =
         staging_buffer_pool.Request(u64{total_blocks} * 16, MemoryUsage::DeviceLocal);
 
-    compute_pass_descriptor_queue.Acquire(scheduler, 3);
+    compute_pass_descriptor_queue.Acquire();
     compute_pass_descriptor_queue.AddBuffer(src_buffer, src_offset, input_end);
     compute_pass_descriptor_queue.AddBuffer(output.buffer, output.offset, u64{total_blocks} * 16);
     compute_pass_descriptor_queue.AddBuffer(*tables, 0, tables_size);
