@@ -28,6 +28,8 @@ import java.io.FilenameFilter
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.utils.Log
+import dev.ironlemon.ironlemon_emulator.utils.BundledDriver
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
 import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
 import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
@@ -52,6 +54,9 @@ import java.util.zip.ZipInputStream
 
 /** Set once the app has booted into QLaunch in this process. */
 private var bootedIntoQLaunch = false
+
+/** The bundled driver is set up once per process. */
+private var bundledDriverChecked = false
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -157,10 +162,37 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
         ) {
             UpdateFlow.checkAtStart(this)
+            setUpBundledDriver()
             if (savedInstanceState == null) {
                 bootIntoQLaunchIfWanted(navHostFragment.navController)
             }
         }
+    }
+
+    // Off the main thread: copies the bundled Lemon-Ade zip and, the first time, asks the system
+    // driver which GPU this is.
+    private fun setUpBundledDriver() {
+        if (bundledDriverChecked) {
+            return
+        }
+        bundledDriverChecked = true
+        Thread {
+            val revertedToSystemDriver = try {
+                BundledDriver.onAppStart(applicationContext)
+            } catch (e: Exception) {
+                Log.error("[BundledDriver] Setup failed: ${e.message}")
+                false
+            }
+            if (revertedToSystemDriver) {
+                runOnUiThread {
+                    MessageDialogFragment.newInstance(
+                        this,
+                        titleId = R.string.bundled_driver_reverted_title,
+                        descriptionId = R.string.bundled_driver_reverted_description
+                    ).show(supportFragmentManager, MessageDialogFragment.TAG)
+                }
+            }
+        }.start()
     }
 
     // "Start in QLaunch": opening the app from the launcher boots the console's home menu right

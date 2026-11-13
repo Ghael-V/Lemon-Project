@@ -941,4 +941,6 @@
     <string name="boot_into_qlaunch">Arrancar en QLaunch</string>
     <string name="boot_into_qlaunch_description">Al abrir la app se inicia el menú de inicio de la consola. Necesita el firmware.</string>
     <string name="qlaunch_not_found">El firmware instalado no tiene QLaunch</string>
+    <string name="bundled_driver_reverted_title">Se ha vuelto al controlador de GPU del sistema</string>
+    <string name="bundled_driver_reverted_description">El controlador Lemon-Ade integrado cerró la app antes de que el juego mostrara nada, así que Lemon ha vuelto al controlador del sistema de tu dispositivo. Puedes elegir otro controlador en Ajustes &gt; Gestor de controladores de GPU.</string>
 </resources>

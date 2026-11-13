@@ -502,6 +502,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         emulationViewModel.isEmulationStopping.collect(viewLifecycleOwner) {
             if (it) {
+                // Stopped by the user before the first frame: not the driver's fault.
+                BundledDriver.onEmulationStopped()
                 binding.loadingText.setText(R.string.shutting_down)
                 ViewUtils.showView(binding.loadingIndicator)
                 ViewUtils.hideView(binding.inputContainer)
@@ -657,6 +659,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 if (frames >= FIRST_FRAMES_SHOWN ||
                     SystemClock.elapsedRealtime() - started > FIRST_FRAME_TIMEOUT_MS
                 ) {
+                    if (frames > 0) {
+                        BundledDriver.onFirstFrame()
+                    }
                     firstFrameWatcher = null
                     ViewUtils.hideView(b.loadingIndicator)
                     return
@@ -1859,6 +1864,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     emulationThread = Thread({
                         Log.debug("[EmulationFragment] Starting emulation thread.")
                         NextendoAccount.prepareForBoot()
+                        BundledDriver.onEmulationStarting()
                         NativeLibrary.run(gamePath, programIndex, true)
                     }, "NativeEmulation")
                     emulationThread.start()
