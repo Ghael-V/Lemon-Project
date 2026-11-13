@@ -30,6 +30,7 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonComposeFragment
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonPage
 import dev.ironlemon.ironlemon_emulator.utils.DirectoryInitialization
 import dev.ironlemon.ironlemon_emulator.utils.FileUtil
+import dev.ironlemon.ironlemon_emulator.utils.Log
 import dev.ironlemon.ironlemon_emulator.utils.collect
 import java.io.BufferedOutputStream
 import java.io.File
