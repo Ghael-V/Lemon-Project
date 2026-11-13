@@ -17,6 +17,7 @@
 #include <boost/icl/interval_set.hpp>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <linux/falloc.h>
 #include <sys/random.h>
 #include <unistd.h>
 #include "common/scope_exit.h"
@@ -549,6 +550,32 @@ public:
         ASSERT_MSG(ret == 0, "mprotect failed: {}", strerror(errno));
     }
 
+#if defined(__linux__)
+    bool Discard(size_t offset, size_t length) {
+        return fd >= 0 && fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                                    static_cast<off_t>(offset), static_cast<off_t>(length)) == 0;
+    }
+
+    std::optional<std::pair<bool, size_t>> FindRun(size_t offset) {
+        if (fd < 0) {
+            return std::nullopt;
+        }
+        const off_t data = lseek(fd, static_cast<off_t>(offset), SEEK_DATA);
+        if (data < 0) {
+            // No data at or after the offset: a hole up to the end.
+            return errno == ENXIO ? std::optional{std::pair{true, backing_size}} : std::nullopt;
+        }
+        if (static_cast<size_t>(data) > offset) {
+            return std::pair{true, static_cast<size_t>(data)};
+        }
+        const off_t hole = lseek(fd, static_cast<off_t>(offset), SEEK_HOLE);
+        if (hole < 0) {
+            return std::nullopt;
+        }
+        return std::pair{false, static_cast<size_t>(hole)};
+    }
+#endif
+
     bool ClearBackingRegion(size_t physical_offset, size_t length) {
 #ifdef __linux__
         // Set MADV_REMOVE on backing map to destroy it instantly.
@@ -728,6 +755,24 @@ void HostMemory::ClearBackingRegion(size_t physical_offset, size_t length, u32 f
     if (!impl || fill_value != 0 || !impl->ClearBackingRegion(physical_offset, length)) {
         std::memset(backing_base + physical_offset, fill_value, length);
     }
+}
+
+bool HostMemory::DiscardBackingRegion(size_t physical_offset, size_t length) {
+#if defined(__linux__)
+    if (impl) {
+        return impl->Discard(physical_offset, length);
+    }
+#endif
+    return false;
+}
+
+std::optional<std::pair<bool, size_t>> HostMemory::FindBackingRun(size_t physical_offset) {
+#if defined(__linux__)
+    if (impl) {
+        return impl->FindRun(physical_offset);
+    }
+#endif
+    return std::nullopt;
 }
 
 void HostMemory::EnableDirectMappedAddress() {
