@@ -1725,19 +1725,26 @@ template <class P>
 Binding BufferCache<P>::StorageBufferBinding(GPUVAddr ssbo_addr, u32 cbuf_index,
                                              bool is_written) const {
     const GPUVAddr gpu_addr = gpu_memory->Read<u64>(ssbo_addr);
+    if (gpu_addr == 0) {
+        // Not set by the game (yet): nothing to bind, and nothing worth a warning per draw.
+        return NULL_BINDING;
+    }
     const auto size = [&]() {
+        const u32 memory_layout_size = static_cast<u32>(gpu_memory->GetMemoryLayoutSize(gpu_addr));
+        // A storage buffer descriptor is the address followed by a 32-bit size and 32 bits of
+        // padding (as Ryujinx reads it), in the NVN driver buffer (index 0) and in the cbufs
+        // games define themselves alike. Mapping the whole memory after the address instead
+        // gave shaders that size their loops by the buffer far more than the game put there:
+        // Jamboree drew a character's model as spikes the first time it was shown.
+        const u32 ssbo_size = gpu_memory->Read<u32>(ssbo_addr + 8);
+        const u32 padding = gpu_memory->Read<u32>(ssbo_addr + 12);
         const bool is_nvn_cbuf = cbuf_index == 0;
-        // The NVN driver buffer (index 0) is known to pack the SSBO address followed by its size.
-        if (is_nvn_cbuf) {
-            const u32 ssbo_size = gpu_memory->Read<u32>(ssbo_addr + 8);
-            if (ssbo_size != 0) {
-                return ssbo_size;
-            }
+        if (ssbo_size != 0 && ssbo_size <= memory_layout_size && (is_nvn_cbuf || padding == 0)) {
+            return ssbo_size;
         }
         // Other titles (notably Doom Eternal) may use STG/LDG on buffer addresses in custom defined
         // cbufs, which do not store the sizes adjacent to the addresses, so use the fully
         // mapped buffer size for now.
-        const u32 memory_layout_size = static_cast<u32>(gpu_memory->GetMemoryLayoutSize(gpu_addr));
         return std::min(memory_layout_size, static_cast<u32>(8_MiB));
     }();
     // Alignment only applies to the offset of the buffer
