@@ -8,6 +8,7 @@
 #include "common/thread.h"
 #include "core/core.h"
 #include "core/frontend/graphics_context.h"
+#include "core/memory.h"
 #include "video_core/control/scheduler.h"
 #include "video_core/dma_pusher.h"
 #include "video_core/gpu.h"
@@ -41,6 +42,8 @@ static void RunThread(std::stop_token stop_token, Core::System& system,
             break;
         }
         if (auto* submit_list = std::get_if<SubmitListCommand>(&next.data)) {
+            // The CPU writes some cached pages without faulting (see InvalidateNCE).
+            system.ApplicationMemory().ReportVolatilePages();
             scheduler.Push(submit_list->channel, std::move(submit_list->entries));
         } else if (std::holds_alternative<GPUTickCommand>(next.data)) {
             system.GPU().TickWork();

@@ -17,6 +17,7 @@
 #include "core/frontend/emu_window.h"
 #include "core/frontend/graphics_context.h"
 #include "core/hle/service/nvdrv/nvdata.h"
+#include "core/memory.h"
 #include "core/perf_stats.h"
 #include "video_core/cdma_pusher.h"
 #include "video_core/control/channel_state.h"
@@ -450,6 +451,8 @@ struct GPU::Impl {
             RequestSyncOperation([this, current_request_counter, &layers, &fences, num_fences] {
                 auto& syncpoint_manager = host1x.GetSyncpointManager();
                 if (num_fences == 0) {
+                    // A layer the CPU drew can sit on pages it writes without faulting.
+                    system.ApplicationMemory().ReportVolatilePages();
                     renderer->Composite(layers);
                 }
                 const auto executer = [this, current_request_counter, layers_copy = layers]() {
@@ -460,6 +463,7 @@ struct GPU::Impl {
                         }
                         free_swap_counters.push_back(current_request_counter);
                     }
+                    system.ApplicationMemory().ReportVolatilePages();
                     renderer->Composite(layers_copy);
                 };
                 for (size_t i = 0; i < num_fences; i++) {
