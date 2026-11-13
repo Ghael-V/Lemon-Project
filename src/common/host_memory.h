@@ -48,7 +48,13 @@ public:
 
     void Protect(size_t virtual_offset, size_t length, MemoryPermission perms);
 
+    /// Guest addresses become host addresses (NCE runs the game's code natively).
     void EnableDirectMappedAddress();
+
+    /// Back to addresses relative to the virtual base, for a game that doesn't use NCE. The
+    /// memory outlives a game: one loaded after an NCE game found it still direct mapped, and
+    /// every mapping it asked for fell outside the address space.
+    void DisableDirectMappedAddress();
 
     void ClearBackingRegion(size_t physical_offset, size_t length, u32 fill_value);
 
@@ -88,6 +94,7 @@ public:
     }
 
 private:
+    bool direct_mapped = false;
     size_t backing_size{};
     size_t virtual_size{};
 

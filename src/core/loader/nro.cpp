@@ -234,6 +234,8 @@ static bool LoadNroImpl(Core::System& system, Kernel::KProcess& process,
             buffer.EnableDirectMappedAddress();
             return reinterpret_cast<u64>(buffer.VirtualBasePointer());
         }
+        // An NCE game loaded earlier in this session left it direct mapped.
+        system.DeviceMemory().buffer.DisableDirectMappedAddress();
         return 0;
     }();
 

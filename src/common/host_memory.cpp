@@ -200,6 +200,8 @@ public:
         UNREACHABLE();
     }
 
+    void DisableDirectMappedAddress() {}
+
     const size_t backing_size; ///< Size of the backing memory in bytes
     const size_t virtual_size; ///< Size of the virtual address placeholder in bytes
 
@@ -597,6 +599,10 @@ public:
         virtual_base = nullptr;
     }
 
+    void DisableDirectMappedAddress() {
+        virtual_base = virtual_map_base;
+    }
+
     const size_t backing_size; ///< Size of the backing memory in bytes
     const size_t virtual_size; ///< Size of the virtual address placeholder in bytes
 
@@ -669,6 +675,8 @@ public:
     }
 
     void EnableDirectMappedAddress() {}
+
+    void DisableDirectMappedAddress() {}
 
     u8* backing_base{nullptr};
     u8* virtual_base{nullptr};
@@ -780,9 +788,18 @@ std::optional<std::pair<bool, size_t>> HostMemory::FindBackingRun(size_t physica
 }
 
 void HostMemory::EnableDirectMappedAddress() {
-    if (impl) {
+    if (impl && !direct_mapped) {
         impl->EnableDirectMappedAddress();
         virtual_size += reinterpret_cast<uintptr_t>(virtual_base);
+        direct_mapped = true;
+    }
+}
+
+void HostMemory::DisableDirectMappedAddress() {
+    if (impl && direct_mapped) {
+        impl->DisableDirectMappedAddress();
+        virtual_size -= reinterpret_cast<uintptr_t>(virtual_base);
+        direct_mapped = false;
     }
 }
 

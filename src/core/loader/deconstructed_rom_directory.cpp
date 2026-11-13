@@ -217,6 +217,10 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
             buffer.EnableDirectMappedAddress();
             return reinterpret_cast<u64>(buffer.VirtualBasePointer());
         }
+        if (is_application) {
+            // An NCE game loaded earlier in this session left it direct mapped.
+            system.DeviceMemory().buffer.DisableDirectMappedAddress();
+        }
         return 0;
     }();
 
