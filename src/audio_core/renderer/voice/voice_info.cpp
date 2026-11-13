@@ -1,12 +1,48 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+
 #include "audio_core/renderer/memory/pool_mapper.h"
 #include "audio_core/renderer/voice/voice_context.h"
 #include "audio_core/renderer/voice/voice_info.h"
 #include "audio_core/renderer/voice/voice_state.h"
 
 namespace AudioCore::Renderer {
+
+VoiceInfo::InParameter VoiceInfo::ReadFloatBiquadParameter(const u8* data) {
+    constexpr size_t biquads_offset = offsetof(InParameter, biquads);
+    constexpr size_t float_biquads_size = sizeof(BiquadFilterParameterFloat) * MaxBiquadFilters;
+    constexpr size_t rest_offset = biquads_offset + sizeof(InParameter::biquads);
+    static_assert(InParameterFloatBiquadSize ==
+                  sizeof(InParameter) - sizeof(InParameter::biquads) + float_biquads_size);
+
+    InParameter out{};
+    std::memcpy(&out, data, biquads_offset);
+    std::memcpy(reinterpret_cast<u8*>(&out) + rest_offset,
+                data + biquads_offset + float_biquads_size, sizeof(InParameter) - rest_offset);
+
+    // Q14: the fixed point the biquad commands take (1.0 == 0x4000).
+    const auto to_q14 = [](f32 value) {
+        return static_cast<s16>(std::clamp(std::lround(value * 16384.0f), -32768L, 32767L));
+    };
+    for (u32 i = 0; i < MaxBiquadFilters; i++) {
+        BiquadFilterParameterFloat in{};
+        std::memcpy(&in, data + biquads_offset + i * sizeof(BiquadFilterParameterFloat),
+                    sizeof(in));
+        out.biquads[i].enabled = in.enabled;
+        for (u32 j = 0; j < 3; j++) {
+            out.biquads[i].b[j] = to_q14(in.b[j]);
+        }
+        for (u32 j = 0; j < 2; j++) {
+            out.biquads[i].a[j] = to_q14(in.a[j]);
+        }
+    }
+    return out;
+}
 
 VoiceInfo::VoiceInfo() {
     Initialize();

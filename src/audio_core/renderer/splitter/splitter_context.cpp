@@ -54,6 +54,13 @@ void SplitterContext::ClearAllNewConnectionFlag() {
 bool SplitterContext::Initialize(const BehaviorInfo& behavior,
                                  const AudioRendererParameterInternal& params,
                                  WorkbufferAllocator& allocator) {
+    destination_param_size = behavior.IsBiquadFilterParameterFloatSupported()
+                                 ? SplitterDestinationData::InParameterFloatBiquadSize
+                             : behavior.IsBiquadFilterParameterForSplitterEnabled()
+                                 ? SplitterDestinationData::InParameterBiquadSize
+                                 : SplitterDestinationData::InParameterSize;
+    prev_volume_reset_supported = behavior.IsSplitterPrevVolumeResetSupported();
+
     if (behavior.IsSplitterSupported() && params.splitter_infos > 0 &&
         params.splitter_destinations > 0) {
         splitter_infos = allocator.Allocate<SplitterInfo>(params.splitter_infos, 0x10);
@@ -137,16 +144,30 @@ u32 SplitterContext::UpdateData(const u8* input, u32 offset, const u32 count) {
         auto data_header{
             reinterpret_cast<const SplitterDestinationData::InParameter*>(input + offset)};
 
+        const u32 entry_offset{offset};
+        // Every entry is consumed, valid or not, so the next one is read from the right place.
+        offset += destination_param_size;
+
         if (data_header->magic != GetSplitterSendDataMagic()) {
             continue;
         }
 
-        if (data_header->id < 0 || data_header->id > destinations_count) {
+        if (data_header->id < 0 || data_header->id >= destinations_count) {
             continue;
         }
 
-        splitter_destinations[data_header->id].Update(*data_header);
-        offset += sizeof(SplitterDestinationData::InParameter);
+        // in_use and reset_prev_volume come right after the biquad filters of this revision.
+        const u8* flags{input + entry_offset + destination_param_size - 0xC};
+        const bool in_use{flags[0] != 0};
+        const bool reset_prev_volume{flags[1] != 0};
+        if (destination_param_size == SplitterDestinationData::InParameterSize) {
+            splitter_destinations[data_header->id].Update(
+                *data_header, data_header->in_use, input[entry_offset + 0x6D] != 0,
+                prev_volume_reset_supported);
+        } else {
+            splitter_destinations[data_header->id].Update(*data_header, in_use, reset_prev_volume,
+                                                          prev_volume_reset_supported);
+        }
     }
 
     return offset;

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <vector>
+
 #include "audio_core/common/feature_support.h"
 #include "audio_core/renderer/behavior/behavior_info.h"
 #include "audio_core/renderer/behavior/info_updater.h"
@@ -61,8 +63,22 @@ Result InfoUpdater::UpdateVoices(VoiceContext& voice_context,
     const PoolMapper pool_mapper(process_handle, memory_pools, memory_pool_count,
                                  behaviour.IsMemoryForceMappingEnabled());
     const auto voice_count{voice_context.GetCount()};
+    // REV15 sends a larger voice parameter (float biquad coefficients): read it into the usual one.
+    const bool float_biquads{behaviour.IsBiquadFilterParameterFloatSupported()};
+    const size_t in_param_size{float_biquads ? VoiceInfo::InParameterFloatBiquadSize
+                                             : sizeof(VoiceInfo::InParameter)};
+    std::vector<VoiceInfo::InParameter> converted_params;
+    if (float_biquads) {
+        converted_params.reserve(voice_count);
+        for (u32 i = 0; i < voice_count; i++) {
+            converted_params.push_back(
+                VoiceInfo::ReadFloatBiquadParameter(input + i * in_param_size));
+        }
+    }
     std::span<const VoiceInfo::InParameter> in_params{
-        reinterpret_cast<const VoiceInfo::InParameter*>(input), voice_count};
+        float_biquads ? converted_params.data()
+                      : reinterpret_cast<const VoiceInfo::InParameter*>(input),
+        voice_count};
     std::span<VoiceInfo::OutStatus> out_params{reinterpret_cast<VoiceInfo::OutStatus*>(output),
                                                voice_count};
 
@@ -118,7 +134,7 @@ Result InfoUpdater::UpdateVoices(VoiceContext& voice_context,
         new_voice_count += in_param.channel_count;
     }
 
-    auto consumed_input_size{voice_count * static_cast<u32>(sizeof(VoiceInfo::InParameter))};
+    auto consumed_input_size{voice_count * static_cast<u32>(in_param_size)};
     auto consumed_output_size{voice_count * static_cast<u32>(sizeof(VoiceInfo::OutStatus))};
     if (consumed_input_size != in_header->voices_size) {
         LOG_ERROR(Service_Audio, "Consumed an incorrect voices size, header size={}, consumed={}",

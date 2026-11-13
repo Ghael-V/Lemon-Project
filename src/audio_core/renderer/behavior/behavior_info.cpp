@@ -190,4 +190,20 @@ bool BehaviorInfo::IsI3dl2ReverbChannelMappingChanged() const {
     return CheckFeatureSupported(SupportTags::I3dl2ReverbChannelMappingChange, user_revision);
 }
 
+bool BehaviorInfo::IsBiquadFilterParameterForSplitterEnabled() const {
+    return CheckFeatureSupported(SupportTags::BiquadFilterParameterForSplitter, user_revision);
+}
+
+bool BehaviorInfo::IsSplitterPrevVolumeResetSupported() const {
+    return CheckFeatureSupported(SupportTags::SplitterPrevVolumeReset, user_revision);
+}
+
+bool BehaviorInfo::IsSplitterDepopBugFixEnabled() const {
+    return CheckFeatureSupported(SupportTags::SplitterDepopBugFix, user_revision);
+}
+
+bool BehaviorInfo::IsBiquadFilterParameterFloatSupported() const {
+    return CheckFeatureSupported(SupportTags::BiquadFilterParameterFloat, user_revision);
+}
+
 } // namespace AudioCore::Renderer

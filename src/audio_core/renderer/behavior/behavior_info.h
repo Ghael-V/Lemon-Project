@@ -361,6 +361,18 @@ public:
      */
     bool IsI3dl2ReverbChannelMappingChanged() const;
 
+    /// REV12: splitter destinations carry biquad filters (larger destination parameters).
+    bool IsBiquadFilterParameterForSplitterEnabled() const;
+
+    /// REV13: the game says when a splitter destination's previous volume is reset.
+    bool IsSplitterPrevVolumeResetSupported() const;
+
+    /// REV14: splitter depop fix.
+    bool IsSplitterDepopBugFixEnabled() const;
+
+    /// REV15: biquad filter coefficients are floats (larger voice and splitter parameters).
+    bool IsBiquadFilterParameterFloatSupported() const;
+
     /// Host version
     u32 process_revision;
     /// User version

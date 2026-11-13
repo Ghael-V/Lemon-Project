@@ -65,6 +65,24 @@ void SplitterDestinationData::Update(const InParameter& params) {
     in_use = params.in_use;
 }
 
+void SplitterDestinationData::Update(const InParameter& params, bool params_in_use,
+                                     bool reset_prev_volume, bool prev_volume_reset_supported) {
+    if (params.id != id || params.magic != GetSplitterSendDataMagic()) {
+        return;
+    }
+
+    destination_id = params.mix_id;
+    mix_volumes = params.mix_volumes;
+
+    const bool reset = prev_volume_reset_supported ? reset_prev_volume : !in_use && params_in_use;
+    if (reset) {
+        prev_mix_volumes = mix_volumes;
+        need_update = false;
+    }
+
+    in_use = params_in_use;
+}
+
 void SplitterDestinationData::MarkAsNeedToUpdateInternalState() {
     need_update = true;
 }

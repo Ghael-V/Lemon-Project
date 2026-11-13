@@ -26,6 +26,13 @@ public:
     static_assert(sizeof(InParameter) == 0x70,
                   "SplitterDestinationData::InParameter has the wrong size!");
 
+    // Sizes of the destination parameter by revision: the base one, with two Q14 biquad filters
+    // (REV12, 0x18 bytes) and with two float ones (REV15, 0x30 bytes) after mix_id. The filters
+    // are read past; in_use and reset_prev_volume follow them.
+    static constexpr u32 InParameterSize = 0x70;
+    static constexpr u32 InParameterBiquadSize = 0x90;
+    static constexpr u32 InParameterFloatBiquadSize = 0xA8;
+
     SplitterDestinationData(s32 id);
 
     /**
@@ -90,6 +97,14 @@ public:
      * @param params - Input parameters to update the destination.
      */
     void Update(const InParameter& params);
+
+    /**
+     * Update from a parameter of any revision: [in_use] and [reset_prev_volume] were read from
+     * wherever that revision keeps them. With [prev_volume_reset_supported] (REV13) the game says
+     * when to reset the previous volume.
+     */
+    void Update(const InParameter& params, bool in_use, bool reset_prev_volume,
+                bool prev_volume_reset_supported);
 
     /**
      * Mark this destination as needing its volumes updated.

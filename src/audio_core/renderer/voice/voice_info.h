@@ -168,6 +168,26 @@ public:
     };
     static_assert(sizeof(InParameter) == 0x170, "VoiceInfo::InParameter has the wrong size!");
 
+    /// REV15 biquad filter: float coefficients.
+    struct BiquadFilterParameterFloat {
+        /* 0x00 */ bool enabled;
+        /* 0x01 */ char unk01[0x3];
+        /* 0x04 */ std::array<f32, 3> b;
+        /* 0x10 */ std::array<f32, 2> a;
+    };
+    static_assert(sizeof(BiquadFilterParameterFloat) == 0x18,
+                  "VoiceInfo::BiquadFilterParameterFloat has the wrong size!");
+
+    /// REV15 voice parameters: InParameter with float biquad filters, so everything after them
+    /// is 0x18 bytes further on.
+    static constexpr size_t InParameterFloatBiquadSize = 0x188;
+
+    /**
+     * Reads a REV15 voice parameter (InParameterFloatBiquadSize bytes) into the layout used here,
+     * converting the biquad coefficients to Q14 fixed point.
+     */
+    static InParameter ReadFloatBiquadParameter(const u8* data);
+
     struct OutStatus {
         /* 0x00 */ u64 played_sample_count;
         /* 0x08 */ u32 wave_buffers_consumed;

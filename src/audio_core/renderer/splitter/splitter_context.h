@@ -183,6 +183,10 @@ private:
     s32 destinations_count{};
     /// Is the splitter bug fixed?
     bool splitter_bug_fixed{};
+    /// Size of one destination parameter in the update data (grows with REV12 and REV15).
+    u32 destination_param_size{SplitterDestinationData::InParameterSize};
+    /// REV13: the game says when to reset a destination's previous volume.
+    bool prev_volume_reset_supported{};
 };
 
 } // namespace Renderer
