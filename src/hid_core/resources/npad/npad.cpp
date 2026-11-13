@@ -126,6 +126,11 @@ void NPad::ControllerUpdate(Core::HID::ControllerTriggerType type, std::size_t c
         ControllerUpdate(Core::HID::ControllerTriggerType::Battery, controller_idx);
         return;
     }
+    // Input (a motion sensor event, say) can arrive while the game boots, before HID has its
+    // applet resource: there is nothing to update yet, and reading it crashed.
+    if (applet_resource_holder.applet_resource == nullptr) {
+        return;
+    }
 
     for (std::size_t aruid_index = 0; aruid_index < AruidIndexMax; aruid_index++) {
         if (controller_idx >= controller_data[aruid_index].size()) {
