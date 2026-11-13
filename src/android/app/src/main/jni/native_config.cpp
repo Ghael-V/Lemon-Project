@@ -387,7 +387,8 @@ jobjectArray Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_getOverla
             env->NewObject(Common::Android::GetOverlayControlDataClass(),
                            Common::Android::GetOverlayControlDataConstructor(),
                            Common::Android::ToJString(env, control_data.id), control_data.enabled,
-                           jlandscapePosition, jportraitPosition, jfoldablePosition);
+                           jlandscapePosition, jportraitPosition, jfoldablePosition,
+                           static_cast<jint>(control_data.press_mode));
         env->SetObjectArrayElement(joverlayControlDataArray, i, jcontrolData);
     }
     return joverlayControlDataArray;
@@ -436,9 +437,12 @@ void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_setOverlayControl
                 env,
                 env->GetObjectField(jfoldablePosition, Common::Android::GetPairSecondField())));
 
+        const s32 press_mode = static_cast<s32>(env->GetIntField(
+            joverlayControlData, Common::Android::GetOverlayControlDataPressModeField()));
+
         AndroidSettings::values.overlay_control_data.push_back(AndroidSettings::OverlayControlData{
             Common::Android::GetJString(env, jidString), enabled, landscape_position,
-            portrait_position, foldable_position});
+            portrait_position, foldable_position, press_mode});
     }
 }
 

@@ -103,6 +103,8 @@ void AndroidConfig::ReadOverlayValues() {
             ReadDoubleSetting(std::string("foldable\\x_position"));
         control_data.foldable_position.second =
             ReadDoubleSetting(std::string("foldable\\y_position"));
+        control_data.press_mode =
+            static_cast<s32>(ReadIntegerSetting(std::string("press_mode"), 0));
         AndroidSettings::values.overlay_control_data.push_back(control_data);
     }
     EndArray();
@@ -255,6 +257,7 @@ void AndroidConfig::SaveOverlayValues() {
                            control_data.foldable_position.first);
         WriteDoubleSetting(std::string("foldable\\y_position"),
                            control_data.foldable_position.second);
+        WriteIntegerSetting(std::string("press_mode"), control_data.press_mode);
     }
     EndArray();
 

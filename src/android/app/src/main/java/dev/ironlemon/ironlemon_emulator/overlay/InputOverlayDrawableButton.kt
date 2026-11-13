@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput.ButtonState
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeButton
 import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayControlData
+import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayPressMode
 
 /**
  * Custom [BitmapDrawable] that is capable
@@ -76,7 +77,8 @@ class InputOverlayDrawableButton(
             if (!bounds.contains(xPosition, yPosition)) {
                 return false
             }
-            pressedState = true
+            // A toggle flips on each tap; the others are pressed while the finger is down.
+            pressedState = !isToggle || !pressedState
             trackId = pointerId
             return true
         }
@@ -85,22 +87,38 @@ class InputOverlayDrawableButton(
             if (trackId != pointerId) {
                 return false
             }
-            pressedState = false
             trackId = -1
+            if (isToggle) {
+                return false
+            }
+            pressedState = false
             return true
         }
 
         return false
     }
 
-    /**
-     * Lets go of the finger on this button, for when its touch ends without an up event.
-     *
-     * @return true if value was changed
-     */
-    /** A finger sliding across the controls can leave or enter this button. */
+    private val isToggle: Boolean
+        get() = overlayControlData.pressMode == OverlayPressMode.TOGGLE
+
+    /** Held down by an earlier tap, with or without a finger on it now. */
+    val isLatched: Boolean
+        get() = isToggle && pressedState
+
+    /** A turbo button with a finger on it: pressed and released over and over. */
+    val isRepeating: Boolean
+        get() = overlayControlData.pressMode == OverlayPressMode.TURBO && pressedState
+
+    /** Puts back the held state of the button this one replaces when the controls are rebuilt. */
+    fun restoreLatch() {
+        if (isToggle) {
+            pressedState = true
+        }
+    }
+
+    /** A finger sliding across the controls can leave or enter this button (not a toggle). */
     val canSlide: Boolean
-        get() = true
+        get() = !isToggle
 
     /** A finger sliding across the controls arrived at this button. */
     fun pressWith(pointerId: Int) {
@@ -108,12 +126,21 @@ class InputOverlayDrawableButton(
         trackId = pointerId
     }
 
+    /**
+     * Lets go of the finger on this button, for when its touch ends without an up event. A
+     * toggle stays as it is.
+     *
+     * @return true if value was changed
+     */
     fun cancelTouch(): Boolean {
         if (trackId == -1) {
             return false
         }
-        pressedState = false
         trackId = -1
+        if (isToggle) {
+            return false
+        }
+        pressedState = false
         return true
     }
 

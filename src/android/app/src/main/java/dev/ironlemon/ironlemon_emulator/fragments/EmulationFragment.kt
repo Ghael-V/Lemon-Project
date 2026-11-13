@@ -1598,6 +1598,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         binding.doneControlConfig.setVisible(true)
+        Toast.makeText(requireContext(), R.string.overlay_press_mode_hint, Toast.LENGTH_LONG).show()
         binding.surfaceInputOverlay.setIsInEditMode(true)
     }
 

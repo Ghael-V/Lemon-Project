@@ -1484,4 +1484,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="frame_generation">Frame generation (Lemon FG)</string>
     <string name="frame_generation_description">Shows a generated frame between every two the game draws when it runs at 30 fps or so, for smoother motion. Costs some GPU time and a little latency; best with V-Sync on.</string>
     <string name="emulation_button_slide">Button slide</string>
+    <string name="overlay_press_mode">Button mode</string>
+    <string name="overlay_press_mode_description">How this button behaves when you press it.</string>
+    <string name="overlay_press_mode_normal">Normal</string>
+    <string name="overlay_press_mode_toggle">Toggle: a tap holds it, the next lets go</string>
+    <string name="overlay_press_mode_turbo">Turbo: pressed over and over while held</string>
+    <string name="overlay_press_mode_hint">Tap a button without moving it to choose how it behaves.</string>
 </resources>

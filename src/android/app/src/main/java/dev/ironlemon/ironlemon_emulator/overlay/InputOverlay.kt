@@ -15,6 +15,18 @@ import android.graphics.drawable.VectorDrawable
 import android.os.Build
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
+import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonChoiceList
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayPressMode
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import android.view.ViewConfiguration
 import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
@@ -136,6 +148,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         ) {
             shouldUpdateView = true
         }
+        startTurboPulse()
 
         for (dpad in overlayDpads) {
             if (!dpad.updateStatus(event, BooleanSetting.DPAD_SLIDE.getBoolean())) {
@@ -339,6 +352,10 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         return false
     }
 
+    // Where the finger went down on the button being moved: lifted there, it was a tap.
+    private var configureDownX = 0
+    private var configureDownY = 0
+
     private fun onTouchWhileEditing(event: MotionEvent): Boolean {
         val pointerIndex = event.actionIndex
         val fingerPositionX = event.getX(pointerIndex).toInt()
@@ -354,6 +371,8 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                         button.bounds.contains(fingerPositionX, fingerPositionY)
                     ) {
                         buttonBeingConfigured = button
+                        configureDownX = fingerPositionX
+                        configureDownY = fingerPositionY
                         buttonBeingConfigured!!.onConfigureTouch(event)
                     }
 
@@ -372,7 +391,13 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                         buttonBeingConfigured!!.bounds.centerY(),
                         layout
                     )
+                    val slop = ViewConfiguration.get(context).scaledTouchSlop
+                    val tapped = kotlin.math.abs(fingerPositionX - configureDownX) < slop &&
+                        kotlin.math.abs(fingerPositionY - configureDownY) < slop
                     buttonBeingConfigured = null
+                    if (tapped) {
+                        showPressModeDialog(button)
+                    }
                 }
             }
         }
@@ -696,6 +721,8 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     }
 
     fun refreshControls() {
+        val latchedButtons = overlayButtons.filter { it.isLatched }.map { it.button }
+
         // The new controls will not know about a finger on the old ones.
         releaseHeldControls()
 
@@ -708,7 +735,89 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         if (OnScreenControls.shouldShow()) {
             addOverlayControls(layout)
         }
+
+        // A button held by a tap stays held, unless it is gone or stopped being a toggle.
+        for (latched in latchedButtons) {
+            val button = overlayButtons.firstOrNull { it.button == latched } ?: continue
+            button.restoreLatch()
+            if (button.isLatched) {
+                sendButtonEvent(overlayPlayerIndex(), latched, NativeInput.ButtonState.PRESSED)
+            }
+        }
         invalidate()
+    }
+
+    private var turboPulseRunning = false
+    private var turboPulsePressed = true
+
+    /** Alternates every turbo button with a finger on it between pressed and released. */
+    private val turboPulse = object : Runnable {
+        override fun run() {
+            val repeating = overlayButtons.filter { it.isRepeating }
+            if (repeating.isEmpty()) {
+                turboPulseRunning = false
+                return
+            }
+            turboPulsePressed = !turboPulsePressed
+            val action = if (turboPulsePressed) {
+                NativeInput.ButtonState.PRESSED
+            } else {
+                NativeInput.ButtonState.RELEASED
+            }
+            val playerIndex = overlayPlayerIndex()
+            repeating.forEach { sendButtonEvent(playerIndex, it.button, action) }
+            postDelayed(this, TURBO_PULSE_MS)
+        }
+    }
+
+    private fun startTurboPulse() {
+        if (!turboPulseRunning && overlayButtons.any { it.isRepeating }) {
+            turboPulseRunning = true
+            turboPulsePressed = true
+            postDelayed(turboPulse, TURBO_PULSE_MS)
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        removeCallbacks(turboPulse)
+        turboPulseRunning = false
+    }
+
+    private fun savePressMode(id: String, pressMode: Int) {
+        val overlayControlData = NativeConfig.getOverlayControlData()
+        overlayControlData.firstOrNull { it.id == id }?.pressMode = pressMode
+        NativeConfig.setOverlayControlData(overlayControlData)
+    }
+
+    /** How the button behaves: normal, toggle or turbo (tapped without moving it in the editor). */
+    private fun showPressModeDialog(button: InputOverlayDrawableButton) {
+        val modes = listOf(
+            OverlayPressMode.NORMAL to R.string.overlay_press_mode_normal,
+            OverlayPressMode.TOGGLE to R.string.overlay_press_mode_toggle,
+            OverlayPressMode.TURBO to R.string.overlay_press_mode_turbo
+        )
+        val current = modes.indexOfFirst { it.first == button.overlayControlData.pressMode }
+        showIronLemonDialog(context) { dismiss ->
+            IronLemonDialogCard(
+                title = stringResource(R.string.overlay_press_mode),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(android.R.string.cancel),
+                        height = 44.dp,
+                        onClick = dismiss
+                    )
+                }
+            ) {
+                IronLemonDialogText(stringResource(R.string.overlay_press_mode_description))
+                Spacer(Modifier.height(12.dp))
+                IronLemonChoiceList(modes.map { stringResource(it.second) }, current) { index ->
+                    savePressMode(button.overlayControlData.id, modes[index].first)
+                    refreshControls()
+                    dismiss()
+                }
+            }
+        }
     }
 
     private fun saveControlPosition(id: String, x: Int, y: Int, layout: OverlayLayout) {
@@ -793,6 +902,9 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     }
 
     companion object {
+        // Ten presses a second: long enough for a game running at 30 FPS to see each change.
+        private const val TURBO_PULSE_MS = 50L
+
         // Increase this number every time there is a breaking change to every overlay layout
         const val OVERLAY_VERSION = 1
 

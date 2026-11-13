@@ -951,4 +951,10 @@
     <string name="frame_generation">Generación de fotogramas (Lemon FG)</string>
     <string name="frame_generation_description">Muestra un fotograma generado entre cada dos que dibuja el juego cuando va a unos 30 FPS, para un movimiento más fluido. Gasta algo de GPU y añade un poco de latencia; mejor con la sincronización vertical activada.</string>
     <string name="emulation_button_slide">Deslizamiento entre botones</string>
+    <string name="overlay_press_mode">Modo del botón</string>
+    <string name="overlay_press_mode_description">Cómo se comporta este botón al pulsarlo.</string>
+    <string name="overlay_press_mode_normal">Normal</string>
+    <string name="overlay_press_mode_toggle">Alternar: un toque lo mantiene pulsado, el siguiente lo suelta</string>
+    <string name="overlay_press_mode_turbo">Turbo: se pulsa una y otra vez mientras lo mantienes</string>
+    <string name="overlay_press_mode_hint">Toca un botón sin moverlo para elegir cómo se comporta.</string>
 </resources>

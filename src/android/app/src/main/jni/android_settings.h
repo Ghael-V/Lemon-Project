@@ -20,6 +20,8 @@ struct OverlayControlData {
     std::pair<double, double> landscape_position;
     std::pair<double, double> portrait_position;
     std::pair<double, double> foldable_position;
+    // 0 normal, 1 toggle (a tap holds it, the next lets go), 2 turbo (repeats while held).
+    s32 press_mode{0};
 };
 
 struct Values {
