@@ -71,6 +71,12 @@ public:
         switch (query_result) {
         case VK_SUCCESS:
             return;
+        case VK_NOT_READY:
+            // A query that was never written (its command buffer was not submitted, as when a
+            // game is closed) has no result even with WAIT_BIT. Mali returns this instead of
+            // waiting forever; the previous results are kept, which is all a sample count can be.
+            LOG_WARNING(Render_Vulkan, "Occlusion query results not available, keeping old values");
+            return;
         case VK_ERROR_DEVICE_LOST:
             device.ReportLoss();
             [[fallthrough]];
