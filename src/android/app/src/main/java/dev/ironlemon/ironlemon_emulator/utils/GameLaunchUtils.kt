@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.widget.GameLauncherWidgetProvider
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.model.GamesViewModel
@@ -33,6 +34,8 @@ object GameLaunchUtils {
         }
 
         GameStatsUtils.recordLaunch(context, game)
+        // The home-screen widget launches the last game played.
+        GameLauncherWidgetProvider.setLastPlayedGame(context, game.path, game.title)
 
         activity.lifecycleScope.launch {
             withContext(Dispatchers.IO) {

@@ -932,4 +932,7 @@
     <string name="gamepad_hotkey_capture">Mantén pulsados a la vez los botones del mando para este atajo y suéltalos. Elige botones que el juego no use juntos.</string>
     <string name="emulation_quick_save_state_still_working">El guardado sigue en curso…</string>
     <string name="emulation_quick_load_state_still_working">La carga sigue en curso…</string>
+    <string name="widget_description">Abre el último juego al que has jugado</string>
+    <string name="widget_no_recent_game">Abrir Lemon</string>
+    <string name="widget_game_icon_desc">Icono del juego</string>
 </resources>

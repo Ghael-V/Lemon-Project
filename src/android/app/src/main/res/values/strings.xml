@@ -1465,4 +1465,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="hotkey_needs_another_button">Hold another button together with %1$s</string>
     <string name="hotkey_press_one_button">Press one button</string>
     <string name="gamepad_hotkey_capture">Hold the controller buttons for this hotkey together, then let go. Pick buttons the game does not need together.</string>
+    <string name="widget_description">Launch your most recently played game</string>
+    <string name="widget_no_recent_game">Open Lemon</string>
+    <string name="widget_game_icon_desc">Game icon</string>
 </resources>
