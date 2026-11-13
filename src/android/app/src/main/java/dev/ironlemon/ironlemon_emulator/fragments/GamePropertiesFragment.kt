@@ -160,11 +160,6 @@ class GamePropertiesFragment : Fragment() {
         ) { if (it) reloadList() }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        gamesViewModel.reloadGames(true)
-    }
-
     private fun reloadList() {
         view ?: return
 

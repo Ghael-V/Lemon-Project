@@ -26,6 +26,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.navArgs
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.model.AddonViewModel
+import dev.ironlemon.ironlemon_emulator.model.GamesViewModel
 import dev.ironlemon.ironlemon_emulator.model.Patch
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonActionCard
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
@@ -41,6 +42,7 @@ import java.io.File
 
 class AddonsFragment : IronLemonComposeFragment() {
     private val addonViewModel: AddonViewModel by activityViewModels()
+    private val gamesViewModel: GamesViewModel by activityViewModels()
 
     private val args by navArgs<AddonsFragmentArgs>()
 
@@ -145,8 +147,11 @@ class AddonsFragment : IronLemonComposeFragment() {
     }
 
     override fun onDestroy() {
+        // Rescan only when an add-on was turned on/off or removed: the list shows the version.
+        if (activity?.isChangingConfigurations != true && addonViewModel.onCloseAddons()) {
+            gamesViewModel.reloadGames(true)
+        }
         super.onDestroy()
-        addonViewModel.onCloseAddons()
     }
 
     val installAddon =

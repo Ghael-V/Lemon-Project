@@ -31,6 +31,9 @@ class AddonViewModel : ViewModel() {
 
     private val isRefreshing = AtomicBoolean(false)
 
+    // An update or DLC was removed while the screen was open: the game list shows stale versions.
+    private var removedContent = false
+
     fun onOpenAddons(game: Game) {
         this.game = game
         refreshAddons()
@@ -64,27 +67,32 @@ class AddonViewModel : ViewModel() {
             PatchType.DLC -> NativeLibrary.removeDLC(patch.programId)
             PatchType.Mod -> NativeLibrary.removeMod(patch.programId, patch.name)
         }
+        removedContent = true
         refreshAddons()
     }
 
-    fun onCloseAddons() {
-        if (_patchList.value.isEmpty()) {
-            return
+    /** Saves the enabled add-ons. True if the game list needs a reload to show the change. */
+    fun onCloseAddons(): Boolean {
+        val listChanged = removedContent
+        removedContent = false
+        val currentGame = game
+        if (_patchList.value.isEmpty() || currentGame == null) {
+            return listChanged
         }
 
-        NativeConfig.setDisabledAddons(
-            game!!.programId,
-            _patchList.value.mapNotNull {
-                if (it.enabled) {
-                    null
-                } else {
-                    it.name
-                }
-            }.toTypedArray()
-        )
+        val previouslyDisabled = NativeConfig.getDisabledAddons(currentGame.programId).toSet()
+        val disabled = _patchList.value.mapNotNull {
+            if (it.enabled) {
+                null
+            } else {
+                it.name
+            }
+        }
+        NativeConfig.setDisabledAddons(currentGame.programId, disabled.toTypedArray())
         NativeConfig.saveGlobalConfig()
         _patchList.value.clear()
         game = null
+        return listChanged || disabled.toSet() != previouslyDisabled
     }
 
     fun showModInstallPicker(install: Boolean) {
