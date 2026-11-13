@@ -130,6 +130,13 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             shouldUpdateView = true
         }
 
+        if (event.actionMasked == MotionEvent.ACTION_MOVE &&
+            BooleanSetting.BUTTON_SLIDE.getBoolean() &&
+            slideFingersBetweenButtons(event, playerIndex)
+        ) {
+            shouldUpdateView = true
+        }
+
         for (dpad in overlayDpads) {
             if (!dpad.updateStatus(event, BooleanSetting.DPAD_SLIDE.getBoolean())) {
                 continue
@@ -255,6 +262,39 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     /** Forwards to [NativeInput.onOverlayButtonEvent], also feeding [MacroRecorder] when a
      *  macro is being recorded - the single chokepoint every button/dpad/stick-click event in
      *  this class goes through. */
+    /**
+     * A finger that started on a button moves to another one when it reaches it. Until then its
+     * button stays pressed, so a thumb drifting off a button does not let go of it.
+     *
+     * @return true if any button changed
+     */
+    private fun slideFingersBetweenButtons(event: MotionEvent, playerIndex: Int): Boolean {
+        var changed = false
+        for (i in 0 until event.pointerCount) {
+            val fingerId = event.getPointerId(i)
+            val from = overlayButtons.firstOrNull { it.trackId == fingerId && it.canSlide }
+                ?: continue
+            val x = event.getX(i).toInt()
+            val y = event.getY(i).toInt()
+            if (from.bounds.contains(x, y)) {
+                continue
+            }
+            val to = overlayButtons.firstOrNull {
+                it.trackId == -1 && it.canSlide && it.bounds.contains(x, y)
+            } ?: continue
+
+            from.cancelTouch()
+            sendButtonEvent(playerIndex, from.button, from.status)
+            to.pressWith(fingerId)
+            sendButtonEvent(playerIndex, to.button, to.status)
+            if (BooleanSetting.HAPTIC_FEEDBACK.getBoolean()) {
+                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            }
+            changed = true
+        }
+        return changed
+    }
+
     private fun sendButtonEvent(port: Int, button: NativeButton, action: Int) {
         MacroRecorder.recordButtonEvent(port, button, action)
         NativeInput.onOverlayButtonEvent(port, button, action)

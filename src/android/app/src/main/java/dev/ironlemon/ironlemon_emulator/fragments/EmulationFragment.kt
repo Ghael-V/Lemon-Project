@@ -1483,6 +1483,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             findItem(R.id.menu_rel_stick_center).isChecked =
                 BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()
             findItem(R.id.menu_dpad_slide).isChecked = BooleanSetting.DPAD_SLIDE.getBoolean()
+            findItem(R.id.menu_button_slide).isChecked = BooleanSetting.BUTTON_SLIDE.getBoolean()
             findItem(R.id.menu_show_overlay).isChecked = OnScreenControls.shouldShow()
             findItem(R.id.menu_haptics).isChecked = BooleanSetting.HAPTIC_FEEDBACK.getBoolean()
             findItem(R.id.menu_touchscreen).isChecked = BooleanSetting.TOUCHSCREEN.getBoolean()
@@ -1549,6 +1550,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 R.id.menu_dpad_slide -> {
                     it.isChecked = !it.isChecked
                     BooleanSetting.DPAD_SLIDE.setBoolean(it.isChecked)
+                    true
+                }
+
+                R.id.menu_button_slide -> {
+                    it.isChecked = !it.isChecked
+                    BooleanSetting.BUTTON_SLIDE.setBoolean(it.isChecked)
                     true
                 }
 

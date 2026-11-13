@@ -63,6 +63,9 @@ struct Values {
     Settings::Setting<bool> joystick_rel_center{linkage, true, "joystick_rel_center",
                                                 Settings::Category::Overlay};
     Settings::Setting<bool> dpad_slide{linkage, true, "dpad_slide", Settings::Category::Overlay};
+    // A finger that started on a button moves to another button it reaches.
+    Settings::Setting<bool> button_slide{linkage, false, "button_slide",
+                                         Settings::Category::Overlay};
     Settings::Setting<bool> haptic_feedback{linkage, true, "haptic_feedback",
                                             Settings::Category::Overlay};
     Settings::Setting<bool> show_performance_overlay{linkage, true, "show_performance_overlay",

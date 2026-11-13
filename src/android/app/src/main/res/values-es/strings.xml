@@ -950,4 +950,5 @@
     <string name="input_overlay_mode_never">Nunca</string>
     <string name="frame_generation">Generación de fotogramas (Lemon FG)</string>
     <string name="frame_generation_description">Muestra un fotograma generado entre cada dos que dibuja el juego cuando va a unos 30 FPS, para un movimiento más fluido. Gasta algo de GPU y añade un poco de latencia; mejor con la sincronización vertical activada.</string>
+    <string name="emulation_button_slide">Deslizamiento entre botones</string>
 </resources>

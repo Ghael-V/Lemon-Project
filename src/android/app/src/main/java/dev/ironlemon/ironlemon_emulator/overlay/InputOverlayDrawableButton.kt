@@ -98,6 +98,16 @@ class InputOverlayDrawableButton(
      *
      * @return true if value was changed
      */
+    /** A finger sliding across the controls can leave or enter this button. */
+    val canSlide: Boolean
+        get() = true
+
+    /** A finger sliding across the controls arrived at this button. */
+    fun pressWith(pointerId: Int) {
+        pressedState = true
+        trackId = pointerId
+    }
+
     fun cancelTouch(): Boolean {
         if (trackId == -1) {
             return false
