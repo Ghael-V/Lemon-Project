@@ -39,9 +39,10 @@ public:
      */
     static FileType IdentifyType(const FileSys::VirtualFile& nsp_file);
 
-    FileType GetFileType() const override {
-        return IdentifyType(file);
-    }
+    /// The type of an already parsed container.
+    static FileType IdentifyParsed(const FileSys::NSP& nsp);
+
+    FileType GetFileType() const override;
 
     LoadResult Load(Kernel::KProcess& process, Core::System& system) override;
 

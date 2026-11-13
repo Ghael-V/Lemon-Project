@@ -42,8 +42,15 @@ AppLoader_XCI::AppLoader_XCI(FileSys::VirtualFile file_,
 AppLoader_XCI::~AppLoader_XCI() = default;
 
 FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& xci_file) {
-    const FileSys::XCI xci(xci_file);
+    return IdentifyParsed(FileSys::XCI(xci_file));
+}
 
+FileType AppLoader_XCI::GetFileType() const {
+    // The card image this loader already parsed (see AppLoader_NSP::GetFileType).
+    return xci ? IdentifyParsed(*xci) : IdentifyType(file);
+}
+
+FileType AppLoader_XCI::IdentifyParsed(const FileSys::XCI& xci) {
     if (xci.GetStatus() == ResultStatus::Success &&
         xci.GetNCAByType(FileSys::NCAContentType::Program) != nullptr &&
         AppLoader_NCA::IdentifyType(xci.GetNCAFileByType(FileSys::NCAContentType::Program)) ==

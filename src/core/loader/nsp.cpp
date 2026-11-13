@@ -53,8 +53,16 @@ AppLoader_NSP::AppLoader_NSP(FileSys::VirtualFile file_,
 AppLoader_NSP::~AppLoader_NSP() = default;
 
 FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& nsp_file) {
-    const FileSys::NSP nsp(nsp_file);
+    return IdentifyParsed(FileSys::NSP(nsp_file));
+}
 
+FileType AppLoader_NSP::GetFileType() const {
+    // The container this loader already parsed: building another reads every NCA again, and the
+    // game list asks this several times per file.
+    return nsp ? IdentifyParsed(*nsp) : IdentifyType(file);
+}
+
+FileType AppLoader_NSP::IdentifyParsed(const FileSys::NSP& nsp) {
     if (nsp.GetStatus() == ResultStatus::Success) {
         // Extracted Type case
         if (nsp.IsExtractedType() && nsp.GetExeFS() != nullptr &&
