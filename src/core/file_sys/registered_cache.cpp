@@ -11,6 +11,7 @@
 #include "common/logging/log.h"
 #include "common/scope_exit.h"
 #include "core/crypto/key_manager.h"
+#include "core/crypto/ncz_decompressor.h"
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/common_funcs.h"
 #include "core/file_sys/content_archive.h"
@@ -551,7 +552,14 @@ std::vector<ContentProviderEntry> RegisteredCache::ListEntriesFilter(
 }
 
 static std::shared_ptr<NCA> GetNCAFromNSPForID(const NSP& nsp, const NcaID& id) {
-    auto file = nsp.GetFile(fmt::format("{}.nca", Common::HexToString(id, false)));
+    const auto id_string = Common::HexToString(id, false);
+    auto file = nsp.GetFile(fmt::format("{}.nca", id_string));
+    if (file == nullptr) {
+        // NSZ/XCZ store content NCAs compressed as "<id>.ncz".
+        if (auto ncz_file = nsp.GetFile(fmt::format("{}.ncz", id_string))) {
+            file = Core::Crypto::DecompressNCZ(ncz_file, fmt::format("{}.nca", id_string));
+        }
+    }
     if (file == nullptr) {
         return nullptr;
     }

@@ -160,7 +160,8 @@ inline InstallResult InstallNSP(Core::System& system, FileSys::VfsFilesystem& vf
 
     std::shared_ptr<FileSys::NSP> nsp;
     FileSys::VirtualFile file = vfs.OpenFile(filename, FileSys::OpenMode::Read);
-    if (boost::to_lower_copy(file->GetName()).ends_with(std::string("nsp"))) {
+    const auto lower_name = boost::to_lower_copy(file->GetName());
+    if (lower_name.ends_with(std::string("nsp")) || lower_name.ends_with(std::string("nsz"))) {
         nsp = std::make_shared<FileSys::NSP>(file);
         if (nsp->IsExtractedType()) {
             return InstallResult::Failure;

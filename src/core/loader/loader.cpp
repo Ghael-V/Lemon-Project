@@ -72,9 +72,10 @@ FileType GuessFromFilename(const std::string& name) {
         return FileType::NSO;
     if (extension == "nca")
         return FileType::NCA;
-    if (extension == "xci")
+    // NSZ and XCZ are NSP and XCI with their NCAs compressed (see Core::Crypto::DecompressNCZ).
+    if (extension == "xci" || extension == "xcz")
         return FileType::XCI;
-    if (extension == "nsp")
+    if (extension == "nsp" || extension == "nsz")
         return FileType::NSP;
     if (extension == "kip")
         return FileType::KIP;
