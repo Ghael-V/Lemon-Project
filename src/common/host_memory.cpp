@@ -511,7 +511,11 @@ public:
 
         void* ret = mmap(virtual_base + virtual_offset, length, flags, MAP_SHARED | MAP_FIXED, fd,
                          host_offset);
-        ASSERT_MSG(ret != MAP_FAILED, "mmap failed: {}", strerror(errno));
+        ASSERT_MSG(ret != MAP_FAILED,
+                   "mmap failed: {} (virtual {:#x} host {:#x} length {:#x} prot {:#x}, "
+                   "backing {:#x}, virtual size {:#x})",
+                   strerror(errno), virtual_offset, host_offset, length, flags, backing_size,
+                   virtual_size);
     }
 
     void Unmap(size_t virtual_offset, size_t length) {
