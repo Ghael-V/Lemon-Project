@@ -321,6 +321,8 @@ struct System::Impl {
 
         if (load_result != Loader::ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM (Error {})!", load_result);
+            // The process goes before the kernel it ends against (it went after, on return).
+            process.reset();
             ShutdownMainProcess();
 
             return static_cast<SystemResultStatus>(
@@ -351,6 +353,8 @@ struct System::Impl {
         if (init_result != SystemResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to initialize system (Error {})!",
                          static_cast<int>(init_result));
+            // The process goes before the kernel it ends against (it went after, on return).
+            process.reset();
             ShutdownMainProcess();
             return init_result;
         }
