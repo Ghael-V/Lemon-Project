@@ -923,7 +923,8 @@ void BufferQueueProducer::Transact(u32 code, std::span<const u8> parcel_data,
         break;
     }
     case TransactionId::GetBufferHistory:
-        LOG_WARNING(Service_Nvnflinger, "(STUBBED) called, transaction=GetBufferHistory");
+        // Asked every frame by many games: logging it at warning level filled the log.
+        LOG_DEBUG(Service_Nvnflinger, "(STUBBED) called, transaction=GetBufferHistory");
         break;
     default:
         ASSERT_MSG(false, "Unimplemented TransactionId {}", code);
