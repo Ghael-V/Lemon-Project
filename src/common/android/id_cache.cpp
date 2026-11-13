@@ -40,6 +40,7 @@ static jclass s_overlay_control_data_class;
 static jmethodID s_overlay_control_data_constructor;
 static jfieldID s_overlay_control_data_id_field;
 static jfieldID s_overlay_control_data_enabled_field;
+static jfieldID s_overlay_control_data_press_mode_field;
 static jfieldID s_overlay_control_data_landscape_position_field;
 static jfieldID s_overlay_control_data_portrait_position_field;
 static jfieldID s_overlay_control_data_foldable_position_field;
