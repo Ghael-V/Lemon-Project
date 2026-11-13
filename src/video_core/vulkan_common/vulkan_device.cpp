@@ -856,6 +856,16 @@ bool Device::IsFormatSupported(VkFormat wanted_format, VkFormatFeatureFlags want
     return (supported_usage & wanted_usage) == wanted_usage;
 }
 
+std::string Device::GetDriverIdentity() const {
+    std::string uuid;
+    for (const u8 byte : properties.properties.pipelineCacheUUID) {
+        uuid += fmt::format("{:02x}", byte);
+    }
+    return fmt::format("{} {} | {} | {:08x} | {} | {}", static_cast<u32>(properties.driver.driverID),
+                       properties.driver.driverName, properties.driver.driverInfo,
+                       properties.properties.driverVersion, properties.properties.deviceName, uuid);
+}
+
 std::string Device::GetDriverName() const {
     switch (properties.driver.driverID) {
     case VK_DRIVER_ID_AMD_PROPRIETARY:

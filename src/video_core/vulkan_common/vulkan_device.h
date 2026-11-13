@@ -217,6 +217,9 @@ public:
     /// Returns the name of the VkDriverId reported from Vulkan.
     std::string GetDriverName() const;
 
+    /// Identifies the driver build: a pipeline cache made by any other one is not reused.
+    std::string GetDriverIdentity() const;
+
     /// Returns the dispatch loader with direct function pointers of the device.
     const vk::DeviceDispatch& GetDispatchLoader() const {
         return dld;

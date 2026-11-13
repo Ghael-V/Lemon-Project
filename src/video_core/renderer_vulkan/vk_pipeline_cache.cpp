@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <fstream>
 #include <memory>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -489,6 +490,24 @@ void PipelineCache::LoadDiskResources(u64 title_id, std::stop_token stop_loading
 
     if (use_vulkan_pipeline_cache) {
         vulkan_pipeline_cache_filename = base_dir / "vulkan_pipelines.bin";
+        // The driver's own cache is only for the driver build that made it: after a driver
+        // change (in the driver manager, per game or by an update) another one could take it and
+        // crash or build wrong pipelines. Its driver is noted next to it; on a mismatch it goes.
+        const auto driver_filename = base_dir / "vulkan_pipelines.driver";
+        const std::string identity = device.GetDriverIdentity();
+        std::string cached_identity;
+        if (std::ifstream driver_file{driver_filename}; driver_file) {
+            std::getline(driver_file, cached_identity);
+        }
+        if (cached_identity != identity) {
+            if (Common::FS::Exists(vulkan_pipeline_cache_filename)) {
+                LOG_INFO(Render_Vulkan, "Driver changed, discarding the Vulkan driver pipeline cache");
+                void(Common::FS::RemoveFile(vulkan_pipeline_cache_filename));
+            }
+            if (std::ofstream driver_file{driver_filename, std::ios::trunc}; driver_file) {
+                driver_file << identity << '\n';
+            }
+        }
         vulkan_pipeline_cache =
             LoadVulkanPipelineCache(vulkan_pipeline_cache_filename, CACHE_VERSION);
     }
