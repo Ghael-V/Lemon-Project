@@ -854,4 +854,15 @@
     <string name="emulation_quick_save_state_no_space">No hay espacio suficiente para un guardado rápido</string>
     <string name="quick_save_slots">Guardados rápidos que conservar</string>
     <string name="quick_save_slots_description">Cuántos guardados rápidos conservar. Cada uno ocupa de 1 a 2 GB de almacenamiento.</string>
+    <string name="performance_preset_description">Gráficos en Batería, Equilibrado o Calidad con un toque</string>
+    <string name="performance_preset_for">Perfil de rendimiento · %1$s</string>
+    <string name="preset_battery">Batería</string>
+    <string name="preset_battery_description">media resolución, menos trabajo de GPU</string>
+    <string name="preset_balanced">Equilibrado</string>
+    <string name="preset_balanced_description">resolución nativa</string>
+    <string name="preset_quality">Calidad</string>
+    <string name="preset_quality_description">doble resolución, filtro bicúbico y FXAA</string>
+    <string name="preset_use_global">Usar los ajustes globales</string>
+    <string name="preset_custom">Personalizado</string>
+    <string name="preset_custom_values">Los ajustes gráficos no coinciden ahora con ningún perfil.</string>
 </resources>

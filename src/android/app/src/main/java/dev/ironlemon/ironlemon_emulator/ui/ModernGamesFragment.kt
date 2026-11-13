@@ -3,6 +3,8 @@
 
 package dev.ironlemon.ironlemon_emulator.ui
 
+import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
+import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -118,7 +120,14 @@ class ModernGamesFragment : Fragment() {
         onManageFolders = { findNavController().navigate(R.id.gameFoldersFragment) },
         onInstallContent = { findNavController().navigate(R.id.installableFragment) },
         onLaunchQLaunch = {},
-        onPerformance = null,
+        onPerformance = { game ->
+            showPerformancePresetDialog(
+                requireContext(),
+                title = getString(R.string.performance_preset_for, game.title),
+                current = PerformancePresets.currentFor(game),
+                globalOption = true
+            ) { preset -> PerformancePresets.applyFor(game, preset) }
+        },
         onDriverSettings = {},
         onAddShortcut = ::requestPinShortcut,
         hasDriverOption = false,

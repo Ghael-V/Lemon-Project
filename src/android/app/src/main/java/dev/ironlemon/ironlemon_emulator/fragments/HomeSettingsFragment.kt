@@ -3,6 +3,9 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
+import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -110,7 +113,29 @@ class HomeSettingsFragment : Fragment() {
         homeViewModel.setStatusBarShadeVisibility(visible = false)
         mainActivity = requireActivity() as MainActivity
 
+        val presetName = MutableStateFlow(presetLabel())
         val optionsList: MutableList<HomeSetting> = mutableListOf<HomeSetting>().apply {
+            add(
+                HomeSetting(
+                    R.string.performance_preset,
+                    R.string.performance_preset_description,
+                    R.drawable.ic_speed,
+                    {
+                        showPerformancePresetDialog(
+                            requireContext(),
+                            title = getString(R.string.performance_preset),
+                            current = PerformancePresets.current(),
+                            globalOption = false
+                        ) { preset ->
+                            if (preset != null) {
+                                PerformancePresets.applyGlobal(preset)
+                                presetName.value = presetLabel()
+                            }
+                        }
+                    },
+                    details = presetName
+                )
+            )
             add(
                 HomeSetting(
                     R.string.advanced_settings,
@@ -397,5 +422,10 @@ class HomeSettingsFragment : Fragment() {
             ).show()
         }
     }
+
+
+    /** The global preset's name, or "Custom" when the graphics settings match none. */
+    private fun presetLabel(): String =
+        PerformancePresets.current()?.let { getString(it.titleRes) } ?: getString(R.string.preset_custom)
 
 }
