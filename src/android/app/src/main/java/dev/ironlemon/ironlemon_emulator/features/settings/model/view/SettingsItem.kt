@@ -196,6 +196,15 @@ abstract class SettingsItem(
 
             put(
                 SingleChoiceSetting(
+                    IntSetting.INPUT_OVERLAY_MODE,
+                    titleId = R.string.input_overlay_mode,
+                    descriptionId = R.string.input_overlay_mode_description,
+                    choicesId = R.array.inputOverlayModeNames,
+                    valuesId = R.array.inputOverlayModeValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
                     IntSetting.REGION_INDEX,
                     titleId = R.string.emulated_region,
                     choicesId = R.array.regionNames,

@@ -20,6 +20,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.hardware.input.InputManager
 import android.os.SystemClock
 import android.util.Rational
 import android.view.InputDevice
@@ -59,7 +60,7 @@ import dev.ironlemon.ironlemon_emulator.utils.ThemeHelper
 import java.text.NumberFormat
 import kotlin.math.roundToInt
 
-class EmulationActivity : AppCompatActivity(), SensorEventListener {
+class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager.InputDeviceListener {
     private lateinit var binding: ActivityEmulationBinding
 
     var isActivityRecreated = false
@@ -179,6 +180,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
         startMotionSensorListener()
         InputHandler.updateControllerData()
         hotkeys.reload()
+        getSystemService(InputManager::class.java).registerInputDeviceListener(this, null)
 
         buildPictureInPictureParams()
     }
@@ -187,6 +189,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
         super.onPause()
         nfcReader.stopScanning()
         stopMotionSensorListener()
+        getSystemService(InputManager::class.java).unregisterInputDeviceListener(this)
     }
 
     override fun onUserLeaveHint() {
@@ -253,6 +256,16 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private var exitHotkeyPressedAt = 0L
+
+    // Automatic on-screen controller: it follows controllers being connected and disconnected.
+    override fun onInputDeviceAdded(deviceId: Int) = onControllersChanged()
+    override fun onInputDeviceRemoved(deviceId: Int) = onControllersChanged()
+    override fun onInputDeviceChanged(deviceId: Int) = onControllersChanged()
+
+    private fun onControllersChanged() {
+        InputHandler.updateControllerData()
+        findEmulationFragment()?.refreshInputOverlayVisibility()
+    }
 
     private fun findEmulationFragment(): EmulationFragment? {
         val navHostFragment =

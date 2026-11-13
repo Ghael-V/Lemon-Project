@@ -943,4 +943,9 @@
     <string name="qlaunch_not_found">El firmware instalado no tiene QLaunch</string>
     <string name="bundled_driver_reverted_title">Se ha vuelto al controlador de GPU del sistema</string>
     <string name="bundled_driver_reverted_description">El controlador Lemon-Ade integrado cerró la app antes de que el juego mostrara nada, así que Lemon ha vuelto al controlador del sistema de tu dispositivo. Puedes elegir otro controlador en Ajustes &gt; Gestor de controladores de GPU.</string>
+    <string name="input_overlay_mode">Mando en pantalla</string>
+    <string name="input_overlay_mode_description">Automático lo muestra solo si no hay un mando físico conectado o integrado.</string>
+    <string name="input_overlay_mode_automatic">Automático</string>
+    <string name="input_overlay_mode_always">Siempre</string>
+    <string name="input_overlay_mode_never">Nunca</string>
 </resources>

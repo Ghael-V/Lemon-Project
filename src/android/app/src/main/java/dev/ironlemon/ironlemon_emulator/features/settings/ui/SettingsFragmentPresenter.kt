@@ -267,6 +267,7 @@ class SettingsFragmentPresenter(
 
         val inputSettings = NativeConfig.getInputSettings(true)
         sl.apply {
+            add(IntSetting.INPUT_OVERLAY_MODE.key)
             add(
                 SubmenuSetting(
                     titleString = Settings.getPlayerString(1),

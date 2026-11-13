@@ -315,4 +315,14 @@
         <item>3</item>
         <item>4</item>
     </integer-array>
+    <string-array name="inputOverlayModeNames">
+        <item>@string/input_overlay_mode_automatic</item>
+        <item>@string/input_overlay_mode_always</item>
+        <item>@string/input_overlay_mode_never</item>
+    </string-array>
+    <integer-array name="inputOverlayModeValues">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </integer-array>
 </resources>

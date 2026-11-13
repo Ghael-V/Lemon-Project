@@ -665,7 +665,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         overlayJoysticks.clear()
 
         // Add all the enabled overlay items back to the HashSet.
-        if (BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()) {
+        if (OnScreenControls.shouldShow()) {
             addOverlayControls(layout)
         }
         invalidate()

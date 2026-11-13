@@ -78,6 +78,10 @@ struct Values {
     Settings::Setting<s32> quick_save_slots{linkage, 2, "quick_save_slots",
                                             Settings::Category::Android};
 
+    // When the on-screen controller shows: 0 automatic (no physical controller), 1 always, 2 never.
+    Settings::Setting<s32> input_overlay_mode{linkage, 0, "input_overlay_mode",
+                                              Settings::Category::Overlay};
+
     // Opening the app from the launcher boots QLaunch (the console's home menu).
     Settings::Setting<bool> boot_into_qlaunch{linkage, false, "boot_into_qlaunch",
                                               Settings::Category::Android};

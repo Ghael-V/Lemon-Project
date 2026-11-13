@@ -110,6 +110,7 @@ import androidx.window.layout.WindowLayoutInfo
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.overlay.OnScreenControls
 import dev.ironlemon.ironlemon_emulator.activities.EmulationActivity
 import dev.ironlemon.ironlemon_emulator.databinding.FragmentEmulationBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
@@ -305,7 +306,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
         // The macro panel's "Show on-screen controller": as the overlay options' Show overlay does.
         binding.macroOverlay.onShowOverlayRequested = {
-            BooleanSetting.SHOW_INPUT_OVERLAY.setBoolean(true)
+            OnScreenControls.mode = OnScreenControls.ALWAYS
             binding.surfaceInputOverlay.refreshControls()
             binding.surfaceInputOverlay.setVisible(emulationViewModel.emulationStarted.value)
         }
@@ -563,7 +564,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
 
         updateScreenLayout()
-        val showInputOverlay = BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
+        val showInputOverlay = OnScreenControls.shouldShow()
         if (emulationActivity?.isInPictureInPictureMode == true) {
             if (binding.drawerLayout.isOpen) {
                 binding.drawerLayout.close()
@@ -1093,6 +1094,18 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
     }
 
+    /** Shows or hides the on-screen controller as its mode says (a controller came or went). */
+    fun refreshInputOverlayVisibility() {
+        if (_binding == null) {
+            return
+        }
+        binding.surfaceInputOverlay.refreshControls()
+        binding.surfaceInputOverlay.setVisible(
+            OnScreenControls.shouldShow() && emulationViewModel.emulationStarted.value &&
+                emulationActivity?.isInPictureInPictureMode != true
+        )
+    }
+
     // Run from the in-game menu or a gamepad hotkey (EmulationActivity).
 
     fun togglePauseEmulation() {
@@ -1470,8 +1483,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             findItem(R.id.menu_rel_stick_center).isChecked =
                 BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()
             findItem(R.id.menu_dpad_slide).isChecked = BooleanSetting.DPAD_SLIDE.getBoolean()
-            findItem(R.id.menu_show_overlay).isChecked =
-                BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
+            findItem(R.id.menu_show_overlay).isChecked = OnScreenControls.shouldShow()
             findItem(R.id.menu_haptics).isChecked = BooleanSetting.HAPTIC_FEEDBACK.getBoolean()
             findItem(R.id.menu_touchscreen).isChecked = BooleanSetting.TOUCHSCREEN.getBoolean()
         }
@@ -1519,9 +1531,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_show_overlay -> {
+                    // Shown or hidden by hand: Always or Never from now on (Automatic is in
+                    // Settings > Controls).
                     it.isChecked = !it.isChecked
-                    BooleanSetting.SHOW_INPUT_OVERLAY.setBoolean(it.isChecked)
-                    binding.surfaceInputOverlay.refreshControls()
+                    OnScreenControls.mode =
+                        if (it.isChecked) OnScreenControls.ALWAYS else OnScreenControls.NEVER
+                    refreshInputOverlayVisibility()
                     true
                 }
 

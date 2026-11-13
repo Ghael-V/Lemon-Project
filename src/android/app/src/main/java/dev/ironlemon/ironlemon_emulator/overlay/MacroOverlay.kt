@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.overlay.OnScreenControls
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeButton
 import dev.ironlemon.ironlemon_emulator.features.input.model.NativeAnalog
@@ -226,7 +227,7 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
      *  controller is hidden, touches never fire onOverlayButtonEvent/onOverlayJoystickEvent at
      *  all, so a recording started now would silently capture nothing. Playback isn't affected
      *  by this - it calls NativeInput directly, bypassing the overlay view entirely. */
-    private fun isOnScreenControllerVisible(): Boolean = BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean()
+    private fun isOnScreenControllerVisible(): Boolean = OnScreenControls.shouldShow()
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
