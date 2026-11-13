@@ -4,6 +4,7 @@
 #include "common/arm64/native_clock.h"
 #include "common/bit_cast.h"
 #include "common/literals.h"
+#include "common/logging/log.h"
 #include "core/arm/nce/arm_nce.h"
 #include "core/arm/nce/guest_context.h"
 #include "core/arm/nce/instructions.h"
@@ -113,6 +114,9 @@ bool Patcher::PatchText(const Kernel::PhysicalMemory& program_image,
         }
     }
 
+    LOG_INFO(Core_ARM, "NCE: module image {:#x} bytes, text {:#x} bytes at {:#x}", image_size,
+             code.size, code.offset);
+
     // Determine patching mode for the final relocation step
     total_program_size += image_size;
     this->mode = image_size > MaxRelativeBranch ? PatchMode::PreText : PatchMode::PostData;
@@ -191,6 +195,10 @@ bool Patcher::RelocateAndCopy(Common::ProcessAddress load_base,
         text_words[i] = exclusive.AsOrdered();
     }
 
+    // PreText patches exactly one module: its image is this patcher's whole program. (Checked
+    // before the subtraction below, which always leaves it at 0.)
+    ASSERT(this->mode != PatchMode::PreText || image_size == total_program_size + patch_size);
+
     // Remove the patched module size from the total. This is done so total_program_size
     // always represents the distance from the currently patched module to the patch section.
     total_program_size -= image_size;
@@ -198,7 +206,6 @@ bool Patcher::RelocateAndCopy(Common::ProcessAddress load_base,
     // Only copy to the program image of the last module
     if (m_relocate_module_index == modules.size()) {
         if (this->mode == PatchMode::PreText) {
-            ASSERT(image_size == total_program_size);
             std::memcpy(program_image.data(), m_patch_instructions.data(),
                         m_patch_instructions.size() * sizeof(u32));
         } else {
