@@ -71,13 +71,13 @@ CMAKE_DEPENDENT_OPTION(YUZU_USE_FASTER_LD "Check if a faster linker is available
 CMAKE_DEPENDENT_OPTION(USE_SYSTEM_MOLTENVK "Use the system MoltenVK lib (instead of the bundled one)" OFF "APPLE" OFF)
 
 set(DEFAULT_ENABLE_OPENSSL ON)
-if (ANDROID OR WIN32 OR APPLE)
+if (WIN32 OR APPLE)
     # - Windows defaults to the Schannel backend.
     # - macOS defaults to the SecureTransport backend.
-    # - Android currently has no SSL backend as the NDK doesn't include any SSL
-    #   library; a proper 'native' backend would have to go through Java.
     # But you can force builds for those platforms to use OpenSSL if you have
     # your own copy of it.
+    # Android uses the OpenSSL that vcpkg builds (the "android" manifest feature): online play
+    # on Nextendo Network needs a working ISslConnection.
     set(DEFAULT_ENABLE_OPENSSL OFF)
 endif()
 option(ENABLE_OPENSSL "Enable OpenSSL backend for ISslConnection" ${DEFAULT_ENABLE_OPENSSL})

@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <filesystem>
 #include <mutex>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/pem.h>
 #include <openssl/x509.h>
 
 #include "common/fs/file.h"
@@ -444,6 +446,33 @@ Result CheckOpenSSLErrors() {
     return ResultInternalError;
 }
 
+#ifdef __ANDROID__
+void LoadAndroidSystemCertificates() {
+    X509_STORE* store = SSL_CTX_get_cert_store(ssl_ctx);
+    size_t loaded = 0;
+    std::error_code ec;
+    for (const auto& entry :
+         std::filesystem::directory_iterator("/system/etc/security/cacerts", ec)) {
+        if (!entry.is_regular_file(ec)) {
+            continue;
+        }
+        BIO* file = BIO_new_file(entry.path().c_str(), "r");
+        if (file == nullptr) {
+            continue;
+        }
+        while (X509* cert = PEM_read_bio_X509(file, nullptr, nullptr, nullptr)) {
+            if (X509_STORE_add_cert(store, cert) == 1) {
+                ++loaded;
+            }
+            X509_free(cert);
+        }
+        ERR_clear_error(); // the read loop ends on an expected "no start line"
+        BIO_free(file);
+    }
+    LOG_INFO(Service_SSL, "Loaded {} system CA certificates", loaded);
+}
+#endif
+
 void OneTimeInit() {
     ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (!ssl_ctx) {
@@ -459,6 +488,12 @@ void OneTimeInit() {
         CheckOpenSSLErrors();
         return;
     }
+
+#ifdef __ANDROID__
+    // The NDK has no default CA store: load the system's. Android names these files by the old
+    // subject hash, which OpenSSL's CApath lookup does not use, so add each one to the store.
+    LoadAndroidSystemCertificates();
+#endif
 
     OneTimeInitLogFile();
 

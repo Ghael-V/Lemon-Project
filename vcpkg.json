@@ -48,6 +48,10 @@
                 {
                     "name": "oboe",
                     "platform": "android"
+                },
+                {
+                    "name": "openssl",
+                    "platform": "android"
                 }
             ]
         }

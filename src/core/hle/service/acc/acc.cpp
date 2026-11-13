@@ -596,7 +596,7 @@ public:
 
         completion_event =
             service_context.CreateEvent("IAsyncNetworkServiceLicenseKindContext:Completion");
-        completion_event->Signal(system.Kernel());
+        completion_event->Signal();
     }
 
     ~IAsyncNetworkServiceLicenseKindContext() override {
@@ -607,7 +607,7 @@ private:
     void GetSystemEvent(HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(ResultSuccess);
-        rb.PushCopyObjects(ctx, completion_event->GetReadableEvent());
+        rb.PushCopyObjects(completion_event->GetReadableEvent());
     }
 
     void Cancel(HLERequestContext& ctx) {
