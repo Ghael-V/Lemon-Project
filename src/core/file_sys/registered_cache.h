@@ -5,6 +5,7 @@
 
 #include <array>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -259,6 +260,9 @@ public:
         std::optional<u64> title_id) const override;
 
 private:
+    // The Android game-list scan clears and refills this while other threads (icon/metadata
+    // loads, a second scan, a running game's PatchManager) query it.
+    mutable std::shared_mutex mutex;
     std::map<std::tuple<TitleType, ContentRecordType, u64>, VirtualFile> entries;
 };
 

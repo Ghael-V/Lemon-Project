@@ -997,10 +997,12 @@ ManualContentProvider::~ManualContentProvider() = default;
 
 void ManualContentProvider::AddEntry(TitleType title_type, ContentRecordType content_type,
                                      u64 title_id, VirtualFile file) {
+    std::unique_lock lock{mutex};
     entries.insert_or_assign({title_type, content_type, title_id}, file);
 }
 
 void ManualContentProvider::ClearAllEntries() {
+    std::unique_lock lock{mutex};
     entries.clear();
 }
 
@@ -1019,6 +1021,7 @@ VirtualFile ManualContentProvider::GetEntryUnparsed(u64 title_id, ContentRecordT
 }
 
 VirtualFile ManualContentProvider::GetEntryRaw(u64 title_id, ContentRecordType type) const {
+    std::shared_lock lock{mutex};
     const auto iter =
         std::find_if(entries.begin(), entries.end(), [title_id, type](const auto& entry) {
             const auto content_type = std::get<1>(entry.first);
@@ -1042,12 +1045,15 @@ std::vector<ContentProviderEntry> ManualContentProvider::ListEntriesFilter(
     std::optional<u64> title_id) const {
     std::vector<ContentProviderEntry> out;
 
-    for (const auto& entry : entries) {
-        const auto [e_title_type, e_content_type, e_title_id] = entry.first;
-        if ((title_type == std::nullopt || e_title_type == *title_type) &&
-            (record_type == std::nullopt || e_content_type == *record_type) &&
-            (title_id == std::nullopt || e_title_id == *title_id)) {
-            out.emplace_back(ContentProviderEntry{e_title_id, e_content_type});
+    {
+        std::shared_lock lock{mutex};
+        for (const auto& entry : entries) {
+            const auto [e_title_type, e_content_type, e_title_id] = entry.first;
+            if ((title_type == std::nullopt || e_title_type == *title_type) &&
+                (record_type == std::nullopt || e_content_type == *record_type) &&
+                (title_id == std::nullopt || e_title_id == *title_id)) {
+                out.emplace_back(ContentProviderEntry{e_title_id, e_content_type});
+            }
         }
     }
 
