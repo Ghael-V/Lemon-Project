@@ -70,6 +70,10 @@ bool ShaderCache::RefreshStages(std::array<u64, 6>& unique_hashes) {
             const u32 start_address{shader_config.offset};
             GraphicsEnvironment env{*maxwell3d, *gpu_memory, program, base_addr, start_address};
             shader_info = MakeShaderInfo(env, *cpu_shader_addr);
+            if (!shader_info) {
+                last_shaders_valid = false;
+                return false;
+            }
         }
         shader_infos[index] = shader_info;
         unique_hashes[index] = shader_info->unique_hash;
@@ -231,16 +235,24 @@ ShaderCache::Entry* ShaderCache::NewEntry(VAddr addr, VAddr addr_end, ShaderInfo
 
 const ShaderInfo* ShaderCache::MakeShaderInfo(GenericEnvironment& env, VAddr cpu_addr) {
     auto info = std::make_unique<ShaderInfo>();
-    if (const std::optional<u64> cached_hash{env.Analyze()}) {
-        info->unique_hash = *cached_hash;
-        info->size_bytes = env.CachedSizeBytes();
-    } else {
-        // Slow path, not really hit on commercial games
-        // Build a control flow graph to get the real shader size
-        Shader::ObjectPool<Shader::Maxwell::Flow::Block> flow_block;
-        Shader::Maxwell::Flow::CFG cfg{env, flow_block, env.StartAddress()};
-        info->unique_hash = env.CalculateHash();
-        info->size_bytes = env.ReadSizeBytes();
+    try {
+        if (const std::optional<u64> cached_hash{env.Analyze()}) {
+            info->unique_hash = *cached_hash;
+            info->size_bytes = env.CachedSizeBytes();
+        } else {
+            // Slow path, not really hit on commercial games
+            // Build a control flow graph to get the real shader size
+            Shader::ObjectPool<Shader::Maxwell::Flow::Block> flow_block;
+            Shader::Maxwell::Flow::CFG cfg{env, flow_block, env.StartAddress()};
+            info->unique_hash = env.CalculateHash();
+            info->size_bytes = env.ReadSizeBytes();
+        }
+    } catch (const std::exception& e) {
+        // A program the control flow analysis can't follow (garbage or an unsupported
+        // instruction) used to take the whole app down from the GPU thread. Skip the draw or
+        // dispatch that uses it instead; it is tried again the next time it is used.
+        LOG_ERROR(HW_GPU, "Can't analyze the shader at 0x{:016x}: {}", cpu_addr, e.what());
+        return nullptr;
     }
     const size_t size_bytes{info->size_bytes};
     const ShaderInfo* const result{info.get()};
