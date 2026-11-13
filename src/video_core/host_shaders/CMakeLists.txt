@@ -53,6 +53,7 @@ set(SHADER_FILES
     smaa_neighborhood_blending.vert
     smaa_neighborhood_blending.frag
     vulkan_bcn_astc_encode.comp
+    vulkan_bcn_eac_encode.comp
     vulkan_blit_depth_stencil.frag
     vulkan_color_clear.frag
     vulkan_color_clear.vert

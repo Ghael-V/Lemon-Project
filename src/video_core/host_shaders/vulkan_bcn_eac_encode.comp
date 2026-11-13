@@ -1,0 +1,179 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Encodes BC4 / BC5 textures, decoded on the CPU to R8 / RG8, into EAC R11 / RG11 blocks for GPUs
+// that can't sample BCn but read EAC natively (Mali). Half the memory of R8 / RG8, and EAC keeps
+// 11 bits per channel, more than the 8 the decoded texels carry. One invocation encodes one
+// channel of one 4x4 block.
+//
+// EAC block (64 bits, big endian): base codeword (8), multiplier (4), table index (4), then a
+// 3-bit index per texel, texel (x, y) at bit ((3 - y) + (3 - x) * 4) * 3 of the low 48 bits.
+// Unsigned: clamp(base * 8 + 4 + modifier * multiplier * 8, 0, 2047)
+// Signed:   clamp(base * 8 + modifier * multiplier * 8, -1023, 1023), base is two's complement
+// A zero multiplier adds the bare modifier instead. Same as Mesa's texcompress_etc.c.
+
+#version 460 core
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer InputTexels {
+    uint texels[];
+};
+
+layout(std430, set = 0, binding = 1) writeonly buffer OutputBlocks {
+    uvec2 blocks[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint width;
+    uint height;
+    uint slices;
+    uint input_offset;  // in bytes
+    uint output_offset; // in 4x4 blocks
+    uint channels;      // 1 (BC4 -> R11) or 2 (BC5 -> RG11)
+    uint is_signed;
+};
+
+const int MODIFIERS[16][8] = {
+    {-3, -6, -9, -15, 2, 5, 8, 14},  {-3, -7, -10, -13, 2, 6, 9, 12},
+    {-2, -5, -8, -13, 1, 4, 7, 12},  {-2, -4, -6, -13, 1, 3, 5, 12},
+    {-3, -6, -8, -12, 2, 5, 7, 11},  {-3, -7, -9, -11, 2, 6, 8, 10},
+    {-4, -7, -8, -11, 3, 6, 7, 10},  {-3, -5, -8, -11, 2, 4, 7, 10},
+    {-2, -6, -8, -10, 1, 5, 7, 9},   {-2, -5, -8, -10, 1, 4, 7, 9},
+    {-2, -4, -8, -10, 1, 3, 7, 9},   {-2, -5, -7, -10, 1, 4, 6, 9},
+    {-3, -4, -7, -10, 2, 3, 6, 9},   {-1, -2, -3, -10, 0, 1, 2, 9},
+    {-4, -6, -8, -9, 3, 5, 7, 8},    {-3, -5, -7, -9, 2, 4, 6, 8},
+};
+
+int target[16]; // texels in the 11-bit range of the format
+
+uint ReadByte(uint offset) {
+    return (texels[offset >> 2] >> ((offset & 3u) * 8u)) & 0xFFu;
+}
+
+int Decode(int base, int multiplier, int modifier) {
+    const int scaled = multiplier != 0 ? modifier * multiplier * 8 : modifier;
+    if (is_signed != 0) {
+        return clamp(base * 8 + scaled, -1023, 1023);
+    }
+    return clamp(base * 8 + 4 + scaled, 0, 2047);
+}
+
+// Squared error of the best index for every texel, stopping once it can't beat `limit`.
+int BlockError(int base, int multiplier, int table, int limit) {
+    int total = 0;
+    for (int i = 0; i < 16 && total < limit; ++i) {
+        int best = 0x7FFFFFFF;
+        for (int m = 0; m < 8; ++m) {
+            const int diff = Decode(base, multiplier, MODIFIERS[table][m]) - target[i];
+            best = min(best, diff * diff);
+        }
+        total += best;
+    }
+    return total;
+}
+
+void main() {
+    const uint blocks_x = (width + 3) / 4;
+    const uint blocks_y = (height + 3) / 4;
+    const uint block_count = blocks_x * blocks_y * slices;
+    const uint invocation = gl_GlobalInvocationID.x;
+    if (invocation >= block_count * channels) {
+        return;
+    }
+    const uint block_index = invocation / channels;
+    const uint channel = invocation % channels;
+    const uint slice = block_index / (blocks_x * blocks_y);
+    const uint in_slice = block_index % (blocks_x * blocks_y);
+    const uint bx = in_slice % blocks_x;
+    const uint by = in_slice / blocks_x;
+
+    int lo = 0x7FFFFFFF;
+    int hi = -0x7FFFFFFF;
+    for (uint y = 0; y < 4; ++y) {
+        const uint sy = min(by * 4 + y, height - 1);
+        for (uint x = 0; x < 4; ++x) {
+            const uint sx = min(bx * 4 + x, width - 1);
+            const uint texel = (slice * height + sy) * width + sx;
+            const uint value = ReadByte(input_offset + texel * channels + channel);
+            int t;
+            if (is_signed != 0) {
+                // R8_SNORM: -128 and -127 both mean -1.
+                const int s = max(int(value << 24) >> 24, -127);
+                t = (s * 1023 + (s < 0 ? -63 : 63)) / 127;
+            } else {
+                t = (int(value) * 2047 + 127) / 255;
+            }
+            target[x * 4 + y] = t;
+            lo = min(lo, t);
+            hi = max(hi, t);
+        }
+    }
+
+    // For each table, the multiplier that spreads its modifiers over the block's range and the
+    // base that centres them on it; one step either side of each, since rounding and clamping
+    // can make a neighbour better.
+    int best_error = 0x7FFFFFFF;
+    int best_base = 0;
+    int best_multiplier = 0;
+    int best_table = 13;
+    const int base_min = is_signed != 0 ? -127 : 0;
+    const int base_max = is_signed != 0 ? 127 : 255;
+    for (int table = 0; table < 16 && best_error > 0; ++table) {
+        const int span = MODIFIERS[table][7] - MODIFIERS[table][3];
+        const int ideal = ((hi - lo) + span * 4) / (span * 8);
+        for (int step = -1; step <= 1; ++step) {
+            const int multiplier = clamp(ideal + step, 0, 15);
+            if (step != -1 && multiplier == clamp(ideal + step - 1, 0, 15)) {
+                continue;
+            }
+            const int scale = multiplier != 0 ? multiplier * 8 : 1;
+            const int centre =
+                (lo + hi - (MODIFIERS[table][3] + MODIFIERS[table][7]) * scale) / 2;
+            const int base_guess =
+                (is_signed != 0 ? centre : centre - 4) / 8;
+            for (int db = -1; db <= 1; ++db) {
+                const int base = clamp(base_guess + db, base_min, base_max);
+                const int error = BlockError(base, multiplier, table, best_error);
+                if (error < best_error) {
+                    best_error = error;
+                    best_base = base;
+                    best_multiplier = multiplier;
+                    best_table = table;
+                }
+            }
+        }
+    }
+
+    // Indices: texels with x < 2 land in the high 24 bits, the others in the low 24.
+    uint index_hi = 0;
+    uint index_lo = 0;
+    for (uint x = 0; x < 4; ++x) {
+        for (uint y = 0; y < 4; ++y) {
+            const int t = target[x * 4 + y];
+            int best = 0x7FFFFFFF;
+            uint index = 0;
+            for (int m = 0; m < 8; ++m) {
+                const int diff = Decode(best_base, best_multiplier, MODIFIERS[best_table][m]) - t;
+                if (diff * diff < best) {
+                    best = diff * diff;
+                    index = uint(m);
+                }
+            }
+            const uint bit = ((3u - y) + (3u - x) * 4u) * 3u;
+            if (bit >= 24u) {
+                index_hi |= index << (bit - 24u);
+            } else {
+                index_lo |= index << bit;
+            }
+        }
+    }
+
+    const uint b0 = uint(best_base) & 0xFFu;
+    const uint b1 = (uint(best_multiplier) << 4) | uint(best_table);
+    const uint word0 = b0 | (b1 << 8) | (((index_hi >> 16) & 0xFFu) << 16) |
+                       (((index_hi >> 8) & 0xFFu) << 24);
+    const uint word1 = (index_hi & 0xFFu) | (((index_lo >> 16) & 0xFFu) << 8) |
+                       (((index_lo >> 8) & 0xFFu) << 16) | ((index_lo & 0xFFu) << 24);
+    blocks[(output_offset + block_index) * channels + channel] = uvec2(word0, word1);
+}

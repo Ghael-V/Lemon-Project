@@ -155,6 +155,28 @@ private:
     VkDeviceSize tables_size;
 };
 
+/// Encodes BC4 / BC5 textures decoded on the CPU (R8 / RG8) into EAC R11 / RG11 blocks, for GPUs
+/// that can't sample BCn but read EAC. See host_shaders/vulkan_bcn_eac_encode.comp.
+class BcnEacEncodePass final : public ComputePass {
+public:
+    explicit BcnEacEncodePass(const Device& device_, Scheduler& scheduler_,
+                              DescriptorPool& descriptor_pool_,
+                              StagingBufferPool& staging_buffer_pool_,
+                              ComputePassDescriptorQueue& compute_pass_descriptor_queue_);
+    ~BcnEacEncodePass();
+
+    /// Encodes the tightly packed R8 (channels = 1) or RG8 (channels = 2) levels described by
+    /// `copies` and rewrites the copies to describe the EAC blocks in the returned buffer.
+    std::pair<VkBuffer, VkDeviceSize> Encode(VkBuffer src_buffer, VkDeviceSize src_offset,
+                                             std::span<VideoCommon::BufferImageCopy> copies,
+                                             u32 channels, bool is_signed);
+
+private:
+    Scheduler& scheduler;
+    StagingBufferPool& staging_buffer_pool;
+    ComputePassDescriptorQueue& compute_pass_descriptor_queue;
+};
+
 class MSAACopyPass final : public ComputePass {
 public:
     explicit MSAACopyPass(const Device& device_, Scheduler& scheduler_,

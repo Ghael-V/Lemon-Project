@@ -856,6 +856,16 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
     LOG_INFO(Render_Vulkan, "BCn to ASTC recompression: {} (native BCn: {}, ASTC: {}, setting: {})",
              bcn_astc_pass ? "on" : "off", device.IsOptimalBcnSupported(),
              device.IsOptimalAstcSupported(), Settings::values.bcn_astc_recompression.GetValue());
+    // BC4 / BC5 (masks, normal maps) go to EAC instead: same channels, half the memory of R8 / RG8.
+    VideoCore::Surface::SetBcnEacRecompression(
+        !device.IsOptimalBcnSupported() && device.IsOptimalEtc2Supported() &&
+        Settings::values.bcn_astc_recompression.GetValue());
+    if (VideoCore::Surface::IsBcnRecompressedToEac(PixelFormat::BC4_UNORM)) {
+        bcn_eac_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
+                             compute_pass_descriptor_queue);
+    }
+    LOG_INFO(Render_Vulkan, "BC4/BC5 to EAC recompression: {} (EAC: {})",
+             bcn_eac_pass ? "on" : "off", device.IsOptimalEtc2Supported());
     if (Settings::values.accelerate_astc.GetValue() == Settings::AstcDecodeMode::Gpu) {
         astc_decoder_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                                   compute_pass_descriptor_queue, memory_allocator);
@@ -881,6 +891,13 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
                 if (VideoCore::Surface::IsBcnRecompressedToAstc(image_format) &&
                     view_info.format != VK_FORMAT_ASTC_4x4_UNORM_BLOCK &&
                     view_info.format != VK_FORMAT_ASTC_4x4_SRGB_BLOCK) {
+                    continue;
+                }
+                // Likewise, a BC4 / BC5 image stored as EAC only has its own EAC format.
+                if (VideoCore::Surface::IsBcnRecompressedToEac(image_format) &&
+                    view_info.format !=
+                        MaxwellToVK::SurfaceFormat(device, FormatType::Optimal, true, image_format)
+                            .format) {
                     continue;
                 }
                 view_formats[index_a].push_back(view_info.format);
@@ -1444,6 +1461,22 @@ void Image::UploadMemory(VkBuffer buffer, VkDeviceSize offset,
         }
         astc_copies.assign(copies.begin(), copies.end());
         std::tie(buffer, offset) = runtime->bcn_astc_pass->Encode(buffer, offset, astc_copies);
+        copies = astc_copies;
+    } else if (runtime != nullptr && runtime->bcn_eac_pass &&
+               VideoCore::Surface::IsBcnRecompressedToEac(info.format)) {
+        // BC4 / BC5 stored as EAC: the staging buffer holds them decoded to R8 / RG8.
+        static std::atomic_bool logged_first{false};
+        if (!logged_first.exchange(true)) {
+            LOG_INFO(Render_Vulkan, "BC4/BC5 to EAC: first texture recompressed ({}x{})",
+                     info.size.width, info.size.height);
+        }
+        const bool is_bc5 = info.format == PixelFormat::BC5_UNORM ||
+                            info.format == PixelFormat::BC5_SNORM;
+        const bool is_signed = info.format == PixelFormat::BC4_SNORM ||
+                               info.format == PixelFormat::BC5_SNORM;
+        astc_copies.assign(copies.begin(), copies.end());
+        std::tie(buffer, offset) = runtime->bcn_eac_pass->Encode(
+            buffer, offset, astc_copies, is_bc5 ? 2U : 1U, is_signed);
         copies = astc_copies;
     }
     // TODO: Move this to another API

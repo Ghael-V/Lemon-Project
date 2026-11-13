@@ -513,6 +513,12 @@ void SetBcnAstcRecompression(bool enabled);
 /// True for the BCn formats stored as ASTC 4x4 (BC1, BC2, BC3, BC7) when recompression is on.
 bool IsBcnRecompressedToAstc(PixelFormat format);
 
+/// Set once by the renderer: BC4 / BC5 textures it can't sample are recompressed to EAC.
+void SetBcnEacRecompression(bool enabled);
+
+/// True for the BCn formats stored as EAC (BC4 as R11, BC5 as RG11) when recompression is on.
+bool IsBcnRecompressedToEac(PixelFormat format);
+
 bool IsPixelFormatSRGB(PixelFormat format);
 
 bool IsPixelFormatInteger(PixelFormat format);

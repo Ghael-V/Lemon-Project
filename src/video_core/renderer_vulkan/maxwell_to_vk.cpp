@@ -265,6 +265,21 @@ FormatInfo SurfaceFormat(const Device& device, FormatType format_type, bool with
         const bool is_srgb = with_srgb && VideoCore::Surface::IsPixelFormatSRGB(pixel_format);
         if (VideoCore::Surface::IsBcnRecompressedToAstc(pixel_format)) {
             tuple.format = is_srgb ? VK_FORMAT_ASTC_4x4_SRGB_BLOCK : VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+        } else if (VideoCore::Surface::IsBcnRecompressedToEac(pixel_format)) {
+            switch (pixel_format) {
+            case PixelFormat::BC4_SNORM:
+                tuple.format = VK_FORMAT_EAC_R11_SNORM_BLOCK;
+                break;
+            case PixelFormat::BC4_UNORM:
+                tuple.format = VK_FORMAT_EAC_R11_UNORM_BLOCK;
+                break;
+            case PixelFormat::BC5_SNORM:
+                tuple.format = VK_FORMAT_EAC_R11G11_SNORM_BLOCK;
+                break;
+            default:
+                tuple.format = VK_FORMAT_EAC_R11G11_UNORM_BLOCK;
+                break;
+            }
         } else if (pixel_format == PixelFormat::BC4_SNORM) {
             tuple.format = VK_FORMAT_R8_SNORM;
         } else if (pixel_format == PixelFormat::BC4_UNORM) {

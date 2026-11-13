@@ -1516,6 +1516,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="nand_location_no_space">There isn\'t enough free space there.</string>
     <string name="nand_location_cancelled">Cancelled: the NAND stays where it was.</string>
     <string name="nand_location_failed">The copy failed: the NAND stays where it was.</string>
-    <string name="bcn_astc_recompression">Recompress BCn textures to ASTC</string>
-    <string name="bcn_astc_recompression_description">On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC instead of uncompressed. Uses 4 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn.</string>
+    <string name="bcn_astc_recompression">Recompress BCn textures</string>
+    <string name="bcn_astc_recompression_description">On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC, and BC4 and BC5 as EAC, instead of uncompressed. Uses 2 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn.</string>
 </resources>

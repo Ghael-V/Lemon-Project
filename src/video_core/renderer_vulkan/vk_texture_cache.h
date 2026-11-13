@@ -120,6 +120,7 @@ public:
     RenderPassCache& render_pass_cache;
     std::optional<ASTCDecoderPass> astc_decoder_pass;
     std::optional<BcnAstcEncodePass> bcn_astc_pass;
+    std::optional<BcnEacEncodePass> bcn_eac_pass;
     std::unique_ptr<MSAACopyPass> msaa_copy_pass;
     const Settings::ResolutionScalingInfo& resolution;
     std::array<std::vector<VkFormat>, VideoCore::Surface::MaxPixelFormat> view_formats;

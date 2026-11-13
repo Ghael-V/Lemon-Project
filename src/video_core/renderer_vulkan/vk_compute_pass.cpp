@@ -24,6 +24,7 @@
 #include "video_core/host_shaders/resolve_conditional_render_comp_spv.h"
 #include "video_core/host_shaders/vulkan_quad_indexed_comp_spv.h"
 #include "video_core/host_shaders/vulkan_bcn_astc_encode_comp_spv.h"
+#include "video_core/host_shaders/vulkan_bcn_eac_encode_comp_spv.h"
 #include "video_core/host_shaders/vulkan_uint8_comp_spv.h"
 #include "video_core/renderer_vulkan/vk_compute_pass.h"
 #include "video_core/renderer_vulkan/vk_descriptor_pool.h"
@@ -621,6 +622,76 @@ std::pair<VkBuffer, VkDeviceSize> BcnAstcEncodePass::Encode(
         for (const Dispatch& dispatch : dispatches) {
             cmdbuf.PushConstants(*layout, VK_SHADER_STAGE_COMPUTE_BIT, dispatch.push_constants);
             cmdbuf.Dispatch(Common::DivCeil(dispatch.num_blocks, 64U), 1, 1);
+        }
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT, 0, WRITE_BARRIER);
+    });
+    return {output.buffer, output.offset};
+}
+
+BcnEacEncodePass::BcnEacEncodePass(const Device& device_, Scheduler& scheduler_,
+                                   DescriptorPool& descriptor_pool_,
+                                   StagingBufferPool& staging_buffer_pool_,
+                                   ComputePassDescriptorQueue& compute_pass_descriptor_queue_)
+    : ComputePass(device_, descriptor_pool_, INPUT_OUTPUT_DESCRIPTOR_SET_BINDINGS,
+                  INPUT_OUTPUT_DESCRIPTOR_UPDATE_TEMPLATE, INPUT_OUTPUT_BANK_INFO,
+                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, VULKAN_BCN_EAC_ENCODE_COMP_SPV),
+      scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
+      compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {}
+
+BcnEacEncodePass::~BcnEacEncodePass() = default;
+
+std::pair<VkBuffer, VkDeviceSize> BcnEacEncodePass::Encode(
+    VkBuffer src_buffer, VkDeviceSize src_offset, std::span<VideoCommon::BufferImageCopy> copies,
+    u32 channels, bool is_signed) {
+    struct Dispatch {
+        std::array<u32, 7> push_constants;
+        u32 num_invocations;
+    };
+    boost::container::small_vector<Dispatch, 16> dispatches;
+    const u64 block_bytes = u64{8} * channels;
+    u64 input_end = 0;
+    u32 total_blocks = 0;
+    for (VideoCommon::BufferImageCopy& copy : copies) {
+        const u32 width = copy.image_extent.width;
+        const u32 height = copy.image_extent.height;
+        const u32 slices = copy.image_subresource.num_layers * copy.image_extent.depth;
+        const u32 num_blocks = Common::DivCeil(width, 4U) * Common::DivCeil(height, 4U) * slices;
+        dispatches.push_back({{width, height, slices, static_cast<u32>(copy.buffer_offset),
+                               total_blocks, channels, is_signed ? 1U : 0U},
+                              num_blocks * channels});
+        input_end =
+            (std::max)(input_end, copy.buffer_offset + u64{width} * height * slices * channels);
+        copy.buffer_offset = u64{total_blocks} * block_bytes;
+        copy.buffer_size = u64{num_blocks} * block_bytes;
+        copy.buffer_row_length = Common::AlignUp(width, 4U);
+        copy.buffer_image_height = Common::AlignUp(height, 4U);
+        total_blocks += num_blocks;
+    }
+    const u64 output_size = u64{total_blocks} * block_bytes;
+    const auto output = staging_buffer_pool.Request(output_size, MemoryUsage::DeviceLocal);
+
+    compute_pass_descriptor_queue.Acquire();
+    // The shader reads whole words: cover the last partial one.
+    compute_pass_descriptor_queue.AddBuffer(src_buffer, src_offset, Common::AlignUp(input_end, 4));
+    compute_pass_descriptor_queue.AddBuffer(output.buffer, output.offset, output_size);
+    const void* const descriptor_data{compute_pass_descriptor_queue.UpdateData()};
+
+    scheduler.RequestOutsideRenderPassOperationContext();
+    scheduler.Record([this, descriptor_data, dispatches](vk::CommandBuffer cmdbuf) {
+        static constexpr VkMemoryBarrier WRITE_BARRIER{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .pNext = nullptr,
+            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+        };
+        const VkDescriptorSet set = descriptor_allocator.Commit();
+        device.GetLogical().UpdateDescriptorSet(set, *descriptor_template, descriptor_data);
+        cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+        cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_COMPUTE, *layout, 0, set, {});
+        for (const Dispatch& dispatch : dispatches) {
+            cmdbuf.PushConstants(*layout, VK_SHADER_STAGE_COMPUTE_BIT, dispatch.push_constants);
+            cmdbuf.Dispatch(Common::DivCeil(dispatch.num_invocations, 64U), 1, 1);
         }
         cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                VK_PIPELINE_STAGE_TRANSFER_BIT, 0, WRITE_BARRIER);

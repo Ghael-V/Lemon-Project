@@ -299,6 +299,7 @@ bool IsPixelFormatBCn(PixelFormat format) {
 
 namespace {
 std::atomic_bool bcn_astc_recompression{false};
+std::atomic_bool bcn_eac_recompression{false};
 } // Anonymous namespace
 
 void SetBcnAstcRecompression(bool enabled) {
@@ -318,6 +319,25 @@ bool IsBcnRecompressedToAstc(PixelFormat format) {
     case PixelFormat::BC3_SRGB:
     case PixelFormat::BC7_UNORM:
     case PixelFormat::BC7_SRGB:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void SetBcnEacRecompression(bool enabled) {
+    bcn_eac_recompression.store(enabled, std::memory_order_relaxed);
+}
+
+bool IsBcnRecompressedToEac(PixelFormat format) {
+    if (!bcn_eac_recompression.load(std::memory_order_relaxed)) {
+        return false;
+    }
+    switch (format) {
+    case PixelFormat::BC4_UNORM:
+    case PixelFormat::BC4_SNORM:
+    case PixelFormat::BC5_UNORM:
+    case PixelFormat::BC5_SNORM:
         return true;
     default:
         return false;
