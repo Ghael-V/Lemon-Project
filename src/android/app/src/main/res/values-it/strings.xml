@@ -217,8 +217,6 @@
     <string name="renderer_force_max_clock_description">Forza la GPU a girare col massimo clock possibile (i vincoli alla temperatura saranno comunque applicati)</string>
     <string name="renderer_asynchronous_shaders">Usa shaders asincrone</string>
     <string name="renderer_asynchronous_shaders_description">Compila le shader in modo asincrone, riducendo lo stutter. Può causare glitch grafici.</string>
-    <string name="renderer_reactive_flushing">Abilita il Reactive Flushing</string>
-    <string name="renderer_reactive_flushing_description">Migliora l\'accuratezza della grafica in alcuni giochi, al costo delle performance.</string>
     <string name="use_disk_shader_cache">Usa la cache delle shader</string>
     <string name="use_disk_shader_cache_description">Riduce lo stuttering caricando le shader già compilate all\'avvio.</string>
     <string name="anisotropic_filtering">Filtro Anisotropico</string>

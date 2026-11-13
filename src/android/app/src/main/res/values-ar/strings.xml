@@ -195,8 +195,6 @@
     <string name="renderer_anti_aliasing">طريقة مكافحة التعرج</string>
     <string name="renderer_asynchronous_shaders">استخدم تظليل غير متزامن</string>
     <string name="renderer_asynchronous_shaders_description">يجمع التظليل بشكل غير متزامن، مما يقلل من التأتأة ولكنه قد يؤدي إلى حدوث بعض الأخطاء.</string>
-    <string name="renderer_reactive_flushing">استخدم التنظيف التفاعلي</string>
-    <string name="renderer_reactive_flushing_description">تحسين دقة العرض في بعض الألعاب على حساب الأداء</string>
     <string name="use_disk_shader_cache_description">يقلل من التأتأة عن طريق تخزين وتحميل التظليلات التي تم إنشاؤها محليًا.</string>
     <!-- Debug settings strings -->
     <string name="cpu">وحدة المعالج المركزية</string>

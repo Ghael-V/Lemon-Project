@@ -115,6 +115,11 @@ public:
 
     void UpdatePagesCachedCount(DAddr addr, size_t size, s32 delta);
 
+    /// Makes the cached CPU pages backing this range unreadable while they stay cached, because
+    /// the GPU drew into them (see Memory::RasterizerProtectGpuWritten). Uncached pages are left
+    /// alone: nothing would make them readable again.
+    void ProtectGpuWritten(DAddr addr, size_t size);
+
     static constexpr size_t AS_BITS = Traits::device_virtual_bits;
 
 private:

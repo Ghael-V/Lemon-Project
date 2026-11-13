@@ -494,6 +494,15 @@ public:
     void RasterizerMarkRegionCached(Common::ProcessAddress vaddr, u64 size, bool cached);
 
     /**
+     * Makes cached pages the GPU drew images into unreadable, until they stop being cached, so a
+     * CPU read faults and gets what the GPU drew first (see Memory::InvalidateNCE).
+     *
+     * @param vaddr Page-aligned start of the range; every page in it must be cached.
+     * @param size  Size of the range in bytes, a multiple of the page size.
+     */
+    void RasterizerProtectGpuWritten(Common::ProcessAddress vaddr, u64 size);
+
+    /**
      * Marks each page within the specified address range as debug or non-debug.
      * Debug addresses are not accessible from fastmem pointers.
      *

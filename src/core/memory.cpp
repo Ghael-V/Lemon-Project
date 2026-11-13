@@ -6,6 +6,7 @@
 #include <cstring>
 #include <mutex>
 #include <span>
+#include <unordered_set>
 
 #include "common/assert.h"
 #include "common/atomic_ops.h"
@@ -550,14 +551,28 @@ struct Memory::Impl {
         }
 
         if (current_page_table->fastmem_arena) {
-            Common::MemoryPermission perm{};
-            if (!Settings::values.use_reactive_flushing.GetValue() || !cached) {
-                perm |= Common::MemoryPermission::Read;
-            }
+            // Cached pages stay readable but not writable: a CPU write faults and invalidates the
+            // GPU caches over the page. Pages holding images the GPU drew into are the exception,
+            // they are unreadable too while cached (RasterizerProtectGpuWritten).
+            Common::MemoryPermission perm = Common::MemoryPermission::Read;
             if (!cached) {
                 perm |= Common::MemoryPermission::Write;
             }
             buffer->Protect(vaddr, size, perm);
+
+            std::scoped_lock lock{gpu_written_mutex};
+            if (!gpu_written_pages.empty()) {
+                const u64 first = vaddr >> YUZU_PAGEBITS;
+                const u64 last = (vaddr + size - 1) >> YUZU_PAGEBITS;
+                for (u64 page = first; page <= last; ++page) {
+                    if (!cached) {
+                        gpu_written_pages.erase(page);
+                    } else if (gpu_written_pages.contains(page)) {
+                        buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
+                                        Common::MemoryPermission{});
+                    }
+                }
+            }
         }
 
         // Iterate over a contiguous CPU address space, which corresponds to the specified GPU
@@ -906,6 +921,21 @@ struct Memory::Impl {
         PAddr last_address;
     };
 
+    void RasterizerProtectGpuWritten(u64 vaddr, u64 size) {
+        if (vaddr == 0 || size == 0 || !current_page_table->fastmem_arena ||
+            !AddressSpaceContains(*current_page_table, vaddr, size)) {
+            return;
+        }
+        const u64 first = vaddr >> YUZU_PAGEBITS;
+        const u64 last = (vaddr + size - 1) >> YUZU_PAGEBITS;
+        std::scoped_lock lock{gpu_written_mutex};
+        for (u64 page = first; page <= last; ++page) {
+            gpu_written_pages.insert(page);
+        }
+        buffer->Protect(first << YUZU_PAGEBITS, (last - first + 1) << YUZU_PAGEBITS,
+                             Common::MemoryPermission{});
+    }
+
     void InvalidateGPUMemory(u8* p, size_t size) {
         constexpr size_t sys_core = Core::Hardware::NUM_CPU_CORES - 1;
         const size_t core = std::min(system.GetCurrentHostThreadID(),
@@ -936,6 +966,12 @@ struct Memory::Impl {
     std::array<Common::ScratchBuffer<u32>, Core::Hardware::NUM_CPU_CORES> scratch_buffers{};
     std::span<Core::GPUDirtyMemoryManager> gpu_dirty_managers;
     std::mutex sys_core_guard;
+
+    // Cached pages the GPU drew images into, kept unreadable (RasterizerProtectGpuWritten). Without
+    // this, the CPU read stale guest memory there: TOTK reads data the GPU produced to decide which
+    // grass to draw, and stopped drawing it 20-30 s into play.
+    std::mutex gpu_written_mutex;
+    std::unordered_set<u64> gpu_written_pages;
 
     std::optional<Common::HeapTracker> heap_tracker;
 #ifdef __linux__
@@ -1132,6 +1168,10 @@ Result Memory::FlushDataCache(Common::ProcessAddress dest_addr, const std::size_
 
 void Memory::RasterizerMarkRegionCached(Common::ProcessAddress vaddr, u64 size, bool cached) {
     impl->RasterizerMarkRegionCached(GetInteger(vaddr), size, cached);
+}
+
+void Memory::RasterizerProtectGpuWritten(Common::ProcessAddress vaddr, u64 size) {
+    impl->RasterizerProtectGpuWritten(GetInteger(vaddr), size);
 }
 
 void Memory::MarkRegionDebug(Common::ProcessAddress vaddr, u64 size, bool debug) {

@@ -214,8 +214,6 @@
     <string name="renderer_force_max_clock_description">מכריח לדחוף את מהירויות המעבד הגרפי למקסימום (הגבלות חום ימשיכו לתפקד).</string>
     <string name="renderer_asynchronous_shaders">השתמש בשיידרים אסינכרונים</string>
     <string name="renderer_asynchronous_shaders_description">מקמפל שיידרים בצורה אסנכרונית, מפחית תקיעות אך עלול לגרום לבעיות גרפיות.</string>
-    <string name="renderer_reactive_flushing">השתמש בהבהוב תגובתי</string>
-    <string name="renderer_reactive_flushing_description">משפר את הדיוק של האמולציה במשחקים מסויימים במחיר של ביצועים.</string>
     <string name="use_disk_shader_cache">מטמון השיידר של הדיסק</string>
     <string name="use_disk_shader_cache_description">מפחית בתקיעות על ידי אחסון מקומי וטעינה של שיידרים הנוצרים. </string>
     <!-- Debug settings strings -->

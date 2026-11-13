@@ -225,8 +225,6 @@
     <string name="renderer_force_max_clock_description">GPU가 가능한 최대 클럭으로 실행되도록 강제합니다 (열 제약 조건은 여전히 적용됩니다).</string>
     <string name="renderer_asynchronous_shaders">비동기 셰이더 사용</string>
     <string name="renderer_asynchronous_shaders_description">셰이더를 비동기식으로 컴파일하여 끊김 현상을 줄이지만 글리치가 발생할 수 있습니다.</string>
-    <string name="renderer_reactive_flushing">반응형 플러싱 사용</string>
-    <string name="renderer_reactive_flushing_description">일부 게임에서 성능 저하를 감수하고 렌더링 정확도를 향상합니다.</string>
     <string name="use_disk_shader_cache">디스크 셰이더 캐시</string>
     <string name="use_disk_shader_cache_description">생성된 셰이더를 로컬에 저장하고 로드하여 끊김 현상을 줄입니다.</string>
     <string name="anisotropic_filtering">비등방성 필터링</string>

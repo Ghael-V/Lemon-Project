@@ -231,8 +231,6 @@
     <string name="renderer_force_max_clock_description">پردازنده گرافیکی را مجبور می‌کند تا با بیشترین فرکانس کار کند (محدودیت‌های حرارتی همچنان اعمال خواهند شد).</string>
     <string name="renderer_asynchronous_shaders">استفاده از سایه‌زن‌های ناهمزمان</string>
     <string name="renderer_asynchronous_shaders_description">سایه‌زن‌ها را به صورت ناهمزمان کامپایل می کند، لکنت را کاهش می‌دهد اما ممکن است اشکالاتی ایجاد کند.</string>
-    <string name="renderer_reactive_flushing">استفاده از فلاش کردن واکنشی</string>
-    <string name="renderer_reactive_flushing_description">دقت تفسیر تصاویر را در برخی از بازی‌ها به قیمت عملکرد بهبود می‌بخشد.</string>
     <string name="use_disk_shader_cache">ذخیره سایه‌زنی‌ها در حافظه</string>
     <string name="use_disk_shader_cache_description">لکنت را با ذخیره و بارگذاری سایه‌زن‌های تولید شده کاهش می‌دهد.</string>
     <string name="anisotropic_filtering">فیلتر ناهمسانگرد</string>

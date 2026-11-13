@@ -229,8 +229,6 @@
     <string name="renderer_force_max_clock_description">强制 GPU 以最大时钟运行 (仍被温控限制)。</string>
     <string name="renderer_asynchronous_shaders">使用异步着色器</string>
     <string name="renderer_asynchronous_shaders_description">异步编译着色器，减少卡顿，但可能引入故障。</string>
-    <string name="renderer_reactive_flushing">启用反应性刷新</string>
-    <string name="renderer_reactive_flushing_description">牺牲性能，提高某些游戏的渲染精度。</string>
     <string name="use_disk_shader_cache">磁盘着色器缓存</string>
     <string name="use_disk_shader_cache_description">将生成的着色器缓存于磁盘中并进行读取，以减少卡顿。</string>
     <string name="anisotropic_filtering">各向异性过滤</string>

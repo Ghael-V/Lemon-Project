@@ -179,8 +179,6 @@
     <string name="renderer_force_max_clock_description">GPUを最大限可能な周波数で動作させます (過熱制限は引き続き適用されます)。</string>
     <string name="renderer_asynchronous_shaders">非同期シェーダー</string>
     <string name="renderer_asynchronous_shaders_description">シェーダーを非同期でコンパイルします。コマ落ちが軽減されますが、不具合が発生する可能性があります。</string>
-    <string name="renderer_reactive_flushing">即時書き込み</string>
-    <string name="renderer_reactive_flushing_description">一部のゲームにおいて、パフォーマンスを犠牲にしながらも、レンダリング精度を向上させます。</string>
     <string name="use_disk_shader_cache">ディスクシェーダーキャッシュ</string>
     <string name="use_disk_shader_cache_description">生成したシェーダーを端末に保存して読み込み、コマ落ちを軽減します。</string>
     <string name="anisotropic_filtering">異方性フィルタリング</string>

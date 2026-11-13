@@ -236,8 +236,6 @@
     <string name="renderer_force_max_clock_description">Заставляет ГП работать на максимально возможных тактовых частотах (тепловые ограничения все равно будут применяться).</string>
     <string name="renderer_asynchronous_shaders">Использовать асинхронные шейдеры</string>
     <string name="renderer_asynchronous_shaders_description">Компиляция шейдеров происходит асинхронно, что уменьшает зависания, но может привести к появлению багов.</string>
-    <string name="renderer_reactive_flushing">Реактивная очистка</string>
-    <string name="renderer_reactive_flushing_description">Повышение точности рендеринга в некоторых играх за счет снижения производительности.</string>
     <string name="use_disk_shader_cache">Кэш шейдеров на диске</string>
     <string name="use_disk_shader_cache_description">Уменьшение зависаний за счет хранения и загрузки сгенерированных шейдеров.</string>
     <string name="anisotropic_filtering">Анизотропная фильтрация</string>

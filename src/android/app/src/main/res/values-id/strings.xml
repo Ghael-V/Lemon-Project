@@ -227,8 +227,6 @@
     <string name="renderer_force_max_clock_description">Memaksa GPU untuk berjalan pada kecepatan maksimum yang mungkin (batasan termal masih akan diterapkan).</string>
     <string name="renderer_asynchronous_shaders">Gunakan shader asinkron</string>
     <string name="renderer_asynchronous_shaders_description">Mengompilasi shader secara asinkron mengurangi Tutup Paksa tetapi dapat menimbulkan gangguan.</string>
-    <string name="renderer_reactive_flushing">Gunakan reactive flushing</string>
-    <string name="renderer_reactive_flushing_description">Meningkatkan akurasi rendering dalam beberapa permainan dengan mengorbankan performa.</string>
     <string name="use_disk_shader_cache">Cache shader disk</string>
     <string name="use_disk_shader_cache_description">Mengurangi Tutup Paksa dengan menyimpan dan memuat yang dihasilkan secara lokal</string>
     <string name="anisotropic_filtering">Penyaringan Anisotropik</string>

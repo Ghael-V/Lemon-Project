@@ -15,7 +15,6 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     RENDERER_USE_DISK_SHADER_CACHE("use_disk_shader_cache"),
     RENDERER_FORCE_MAX_CLOCK("force_max_clock"),
     RENDERER_ASYNCHRONOUS_SHADERS("use_asynchronous_shaders"),
-    RENDERER_REACTIVE_FLUSHING("use_reactive_flushing"),
     RENDERER_DEBUG("debug"),
     PICTURE_IN_PICTURE("picture_in_picture"),
     USE_CUSTOM_RTC("custom_rtc_enabled"),

@@ -151,8 +151,6 @@
     <string name="renderer_force_max_clock_description">GPU ناچار دەکات بە زۆرترین کاتژمێر کاربکات (هێشتا سنووردارکردنی گەرمی جێبەجێ دەکرێت).</string>
     <string name="renderer_asynchronous_shaders">بەکارهێنانی سێبەری ناهاوسەنگ</string>
     <string name="renderer_asynchronous_shaders_description">سێبەرەکان بە شێوەیەکی ناهاوسەنگ کۆدەکاتەوە، پچڕپچڕی کەمدەکاتەوە بەڵام لەوانەیە گلێچ دروستکا.</string>
-    <string name="renderer_reactive_flushing">بەکارهێنانی بەرپێچدەرەوە</string>
-    <string name="renderer_reactive_flushing_description">وردی ڕێندەرکردن لە هەندێک یاریدا باشتر دەکات لەسەر تێچووی کارایی.</string>
     <string name="use_disk_shader_cache">بیرگەخێرای سێبەری دیسک</string>
     <string name="use_disk_shader_cache_description">پچڕپچڕی کەمدەکاتەوە بە هەڵگرتن و بارکردنی سێبەری دروستکراو لە ناوخۆدا.</string>
     <!-- Debug settings strings -->

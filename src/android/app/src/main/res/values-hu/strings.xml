@@ -227,8 +227,6 @@
     <string name="renderer_force_max_clock_description">Kényszeríti a GPU-t a lehető legnagyobb órajelen működésre (a hőmérséklet korlátozások továbbra is érvényben maradnak).</string>
     <string name="renderer_asynchronous_shaders">Aszinkron árnyékolók használata</string>
     <string name="renderer_asynchronous_shaders_description">Aszinkron módon fordítja az árnyékolókat, ami csökkenti az akadozást, de hibákat okozhat.</string>
-    <string name="renderer_reactive_flushing">Reaktív ürítés használata</string>
-    <string name="renderer_reactive_flushing_description">Javítja a renderelési pontosságot néhány játékban a teljesítmény rovására.</string>
     <string name="use_disk_shader_cache">Lemez árnyékoló gyorsítótár</string>
     <string name="use_disk_shader_cache_description">Csökkenti az akadásokat azáltal, hogy helyileg tárolja és tölti be a generált árnyékolókat.</string>
     <string name="anisotropic_filtering">Anizotropikus szűrés</string>

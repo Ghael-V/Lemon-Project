@@ -586,4 +586,43 @@ void DeviceMemoryManager<Traits>::UpdatePagesCachedCount(DAddr addr, size_t size
     release_pending();
 }
 
+template <typename Traits>
+void DeviceMemoryManager<Traits>::ProtectGpuWritten(DAddr addr, size_t size) {
+    Common::ScopedRangeLock lk(counter_guard, addr, size);
+    const size_t page_end = Common::DivCeil(addr + size, Memory::YUZU_PAGESIZE);
+    std::remove_reference_t<decltype(registered_processes[0])> memory_device_inter = nullptr;
+    u64 run_begin = 0;
+    u64 run_bytes = 0;
+    u64 previous_vpage = 0;
+    size_t previous_asid = 0;
+    const auto release_run = [&] {
+        if (run_bytes > 0 && memory_device_inter != nullptr) {
+            DeviceMethods::ProtectGpuWritten(memory_device_inter, run_begin << Memory::YUZU_PAGEBITS,
+                                             run_bytes);
+        }
+        run_bytes = 0;
+    };
+    for (size_t page = addr >> Memory::YUZU_PAGEBITS; page != page_end; ++page) {
+        auto [asid, vaddr] = ExtractCPUBacking(page);
+        const u64 vpage = vaddr >> Memory::YUZU_PAGEBITS;
+        const bool cached =
+            cached_pages->at(page >> subentries_shift).Count(page).load(std::memory_order_relaxed) != 0;
+        if (vpage == 0 || !cached) {
+            release_run();
+            continue;
+        }
+        if (run_bytes > 0 && (asid.id != previous_asid || vpage != previous_vpage + 1)) {
+            release_run();
+        }
+        if (run_bytes == 0) {
+            run_begin = vpage;
+            memory_device_inter = registered_processes[asid.id];
+        }
+        run_bytes += Memory::YUZU_PAGESIZE;
+        previous_vpage = vpage;
+        previous_asid = asid.id;
+    }
+    release_run();
+}
+
 } // namespace Core
