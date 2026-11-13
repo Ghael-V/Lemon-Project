@@ -81,6 +81,8 @@ object EmulatorMigration {
             .mapNotNull { it.providerInfo }
             .filter { info ->
                 info.packageName != context.packageName &&
+                    // yuzu took its user-folder provider from Dolphin, which still has it.
+                    !info.packageName.startsWith("org.dolphinemu") &&
                     info.name.endsWith(".features.DocumentProvider") &&
                     info.authority == "${info.packageName}.user"
             }
@@ -189,13 +191,17 @@ object EmulatorMigration {
         var keysImported = false
         if (plan.importKeys) {
             val keysUri = DocumentsContract.buildDocumentUriUsingTree(plan.treeUri, KEYS_DOCUMENT_ID)
-            keysImported = NativeLibrary.installKeys(keysUri.toString(), "keys") == 0
+            keysImported = FileUtil.copyUriToInternalStorage(
+                keysUri,
+                DirectoryInitialization.userDirectory + "/keys/",
+                "prod.keys"
+            ) != null && NativeLibrary.reloadKeys()
         }
 
         var firmwareImported = false
         if (plan.importFirmware) {
             progress(done++, total)
-            val firmwareDir = File(NativeConfig.getNandDir() + "/system/Contents/registered/")
+            val firmwareDir = File(nandDir() + "/system/Contents/registered/")
             try {
                 firmwareDir.deleteRecursively()
                 firmwareDir.mkdirs()
@@ -212,13 +218,16 @@ object EmulatorMigration {
         return Result(imported, skipped, failed, keysImported, firmwareImported, backupDir)
     }
 
-    /** Where Lemon keeps this save: the current user's for account saves, else the device's. */
+    // Saves live under the NAND: getSavePath() is relative to it, starting at /user/save.
+    private fun nandDir(): String = DirectoryInitialization.userDirectory + "/nand"
+
+    /** Where Iron Lemon keeps this save: the current user's for account saves, else the device's. */
     private fun lemonSaveDir(save: SaveEntry): File? {
         if (save.isDeviceSave) {
-            return File(NativeConfig.getSaveDir() + DEVICE_SAVE_DIR + save.titleId)
+            return File(nandDir() + DEVICE_SAVE_DIR + save.titleId)
         }
         val relative = NativeLibrary.getSavePath(BigInteger(save.titleId, 16).toString())
-        return if (relative.isEmpty()) null else File(NativeConfig.getSaveDir() + relative)
+        return if (relative.isEmpty()) null else File(nandDir() + relative)
     }
 
     private fun children(context: Context, treeUri: Uri, documentId: String): List<Child> {

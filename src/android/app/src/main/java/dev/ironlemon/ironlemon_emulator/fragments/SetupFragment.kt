@@ -54,6 +54,7 @@ import dev.ironlemon.ironlemon_emulator.model.SetupPage
 import dev.ironlemon.ironlemon_emulator.model.StepState
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
 import dev.ironlemon.ironlemon_emulator.utils.DirectoryInitialization
+import dev.ironlemon.ironlemon_emulator.utils.EmulatorMigration
 import dev.ironlemon.ironlemon_emulator.utils.NativeConfig
 import dev.ironlemon.ironlemon_emulator.utils.collect
 
@@ -129,6 +130,29 @@ class SetupFragment : Fragment() {
                 )
             )
 
+            // Coming from Eden, Citron, yuzu or Lemon: one step brings saves, keys and firmware
+            // over, so it is offered first. Only shown when such an emulator is installed.
+            if (EmulatorMigration.findSources(requireContext()).isNotEmpty()) {
+                add(
+                    SetupPage(
+                        R.drawable.ic_import,
+                        R.string.migrate_from_emulator,
+                        R.string.migrate_from_emulator_setup_description,
+                        R.drawable.ic_import,
+                        true,
+                        R.string.migrate_from_emulator,
+                        {
+                            migrationCallback = it
+                            emulatorMigration.start()
+                        },
+                        false,
+                        stepCompleted = {
+                            if (migrationDone) StepState.COMPLETE else StepState.UNDEFINED
+                        }
+                    )
+                )
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(
                     SetupPage(
@@ -187,6 +211,31 @@ class SetupFragment : Fragment() {
             )
             add(
                 SetupPage(
+                    R.drawable.ic_firmware,
+                    R.string.firmware,
+                    R.string.firmware_setup_description,
+                    R.drawable.ic_add,
+                    true,
+                    R.string.install_firmware,
+                    {
+                        firmwareCallback = it
+                        mainActivity.getFirmware.launch(arrayOf("application/zip"))
+                    },
+                    true,
+                    R.string.firmware_setup_warning,
+                    R.string.firmware_setup_warning_description,
+                    R.string.install_prod_keys_warning_help,
+                    {
+                        if (NativeLibrary.isFirmwareAvailable()) {
+                            StepState.COMPLETE
+                        } else {
+                            StepState.INCOMPLETE
+                        }
+                    }
+                )
+            )
+            add(
+                SetupPage(
                     R.drawable.ic_controller,
                     R.string.games,
                     R.string.games_description,
@@ -228,6 +277,12 @@ class SetupFragment : Fragment() {
             viewLifecycleOwner,
             resetState = { homeViewModel.setShouldPageForward(false) }
         ) { if (it) pageForward() }
+        // MainActivity raises this after installing firmware.
+        homeViewModel.checkKeys.collect(viewLifecycleOwner) {
+            if (it && ::firmwareCallback.isInitialized && NativeLibrary.isFirmwareAvailable()) {
+                firmwareCallback.onStepCompleted()
+            }
+        }
         homeViewModel.gamesDirSelected.collect(
             viewLifecycleOwner,
             resetState = { homeViewModel.setGamesDirSelected(false) }
@@ -244,6 +299,8 @@ class SetupFragment : Fragment() {
 
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
+                // Pages are built ahead of time: show what the earlier steps (or a migration) left.
+                binding.viewPager2.adapter?.notifyItemChanged(position)
 
                 if (position == 1 && previousPosition == 0) {
                     nextVisible = true
@@ -333,6 +390,17 @@ class SetupFragment : Fragment() {
         _binding = null
     }
 
+    private var migrationDone = false
+
+    private lateinit var migrationCallback: SetupCallback
+
+    private val emulatorMigration = EmulatorMigrationFlow(this) {
+        migrationDone = true
+        if (::migrationCallback.isInitialized) {
+            migrationCallback.onStepCompleted()
+        }
+    }
+
     private lateinit var notificationCallback: SetupCallback
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -365,6 +433,8 @@ class SetupFragment : Fragment() {
         }
 
     private lateinit var gamesDirCallback: SetupCallback
+
+    private lateinit var firmwareCallback: SetupCallback
 
     val getGamesDirectory =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { result ->

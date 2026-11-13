@@ -1418,8 +1418,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="nextendo_unavailable">This build of Iron Lemon is not registered with Nextendo Network yet.</string>
     <string name="nextendo_no_game_token">Could not connect to Nextendo Network. Online play won\'t work this session; check your connection and restart the game.</string>
     <string name="migrate_from_emulator">Migrate from another emulator</string>
-    <string name="migrate_from_emulator_description">Bring your saves over from Eden, Citron or yuzu without opening them (plus keys and firmware if Iron Lemon has none yet)</string>
-    <string name="migrate_no_sources">No compatible emulator found. Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
+    <string name="migrate_from_emulator_description">Bring your saves over from Lemon, Eden, Citron or yuzu without opening them (plus keys and firmware if Iron Lemon has none yet)</string>
+    <string name="migrate_no_sources">No compatible emulator found. Lemon, Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
     <string name="migrate_choose_source">Migrate from</string>
     <string name="migrate_wrong_folder">Pick the main %1$s folder, the one the picker opens on, without going into any subfolder.</string>
     <string name="migrate_nothing">There is nothing to import from %1$s.</string>
@@ -1435,4 +1435,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="migrate_done_keys">Keys imported.</string>
     <string name="migrate_done_firmware">Firmware imported.</string>
     <string name="migrate_done_backup">The Iron Lemon saves that were replaced are backed up in %1$s</string>
+    <string name="migrate_from_emulator_setup_description">Coming from another emulator? Import your saves, keys and firmware in one step</string>
+    <string name="firmware">Firmware</string>
+    <string name="firmware_setup_description">Some games need the Switch firmware to boot. Select the firmware ZIP dumped from your console.</string>
+    <string name="firmware_setup_warning">Skip adding firmware?</string>
+    <string name="firmware_setup_warning_description">Some games, and the system applets, will not start without firmware. You can install it later from Settings.</string>
+    <string name="migrating">Migrating</string>
 </resources>

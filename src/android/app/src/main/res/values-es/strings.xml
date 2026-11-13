@@ -885,8 +885,8 @@
     <string name="nextendo_unavailable">Esta versión de Iron Lemon aún no está registrada en Nextendo Network.</string>
     <string name="nextendo_no_game_token">No se pudo conectar con Nextendo Network. El juego en línea no funcionará en esta sesión; revisa tu conexión y vuelve a abrir el juego.</string>
     <string name="migrate_from_emulator">Migrar desde otro emulador</string>
-    <string name="migrate_from_emulator_description">Trae tus partidas guardadas desde Eden, Citron o yuzu sin tener que abrirlos (y las claves y el firmware si Iron Lemon aún no los tiene)</string>
-    <string name="migrate_no_sources">No se ha encontrado ningún emulador compatible. Son compatibles Eden, Citron, yuzu y otros emuladores basados en yuzu.</string>
+    <string name="migrate_from_emulator_description">Trae tus partidas guardadas desde Lemon, Eden, Citron o yuzu sin tener que abrirlos (y las claves y el firmware si Iron Lemon aún no los tiene)</string>
+    <string name="migrate_no_sources">No se ha encontrado ningún emulador compatible. Son compatibles Lemon, Eden, Citron, yuzu y otros emuladores basados en yuzu.</string>
     <string name="migrate_choose_source">Migrar desde</string>
     <string name="migrate_wrong_folder">Elige la carpeta principal de %1$s, la que se abre al principio, sin entrar en ninguna subcarpeta.</string>
     <string name="migrate_nothing">No hay nada que importar desde %1$s.</string>
@@ -902,4 +902,10 @@
     <string name="migrate_done_keys">Claves importadas.</string>
     <string name="migrate_done_firmware">Firmware importado.</string>
     <string name="migrate_done_backup">Las partidas de Iron Lemon reemplazadas se han guardado en %1$s</string>
+    <string name="migrate_from_emulator_setup_description">¿Vienes de otro emulador? Importa tus partidas, claves y firmware en un solo paso</string>
+    <string name="firmware">Firmware</string>
+    <string name="firmware_setup_description">Algunos juegos necesitan el firmware de Switch para arrancar. Selecciona el ZIP del firmware extraído de tu consola.</string>
+    <string name="firmware_setup_warning">¿Omitir el firmware?</string>
+    <string name="firmware_setup_warning_description">Algunos juegos, y los applets del sistema, no arrancarán sin firmware. Puedes instalarlo más tarde desde Ajustes.</string>
+    <string name="migrating">Migrando</string>
 </resources>

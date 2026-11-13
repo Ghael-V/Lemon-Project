@@ -50,6 +50,7 @@ import dev.ironlemon.ironlemon_emulator.model.DriverViewModel
 import dev.ironlemon.ironlemon_emulator.model.HomeSetting
 import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
+import dev.ironlemon.ironlemon_emulator.utils.EmulatorMigration
 import dev.ironlemon.ironlemon_emulator.utils.FileUtil
 import dev.ironlemon.ironlemon_emulator.utils.GpuDriverHelper
 import dev.ironlemon.ironlemon_emulator.utils.Log
@@ -61,6 +62,8 @@ class HomeSettingsFragment : Fragment() {
 
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val driverViewModel: DriverViewModel by activityViewModels()
+
+    private val emulatorMigration = EmulatorMigrationFlow(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -164,6 +167,22 @@ class HomeSettingsFragment : Fragment() {
                     }
                 )
             )
+            // Only while an emulator to migrate from is installed, and first: it's what someone
+            // coming from Eden/Citron/yuzu needs before anything else.
+            val migrationSources = EmulatorMigration.findSources(requireContext())
+            if (migrationSources.isNotEmpty()) {
+                add(
+                    HomeSetting(
+                        R.string.migrate_from_emulator,
+                        R.string.migrate_from_emulator_description,
+                        R.drawable.ic_import,
+                        { emulatorMigration.start() },
+                        details = MutableStateFlow(
+                            migrationSources.joinToString(", ") { it.label }
+                        )
+                    )
+                )
+            }
             add(
                 HomeSetting(
                     R.string.gpu_driver_manager,

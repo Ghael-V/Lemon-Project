@@ -135,6 +135,8 @@ class GamesViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 NativeConfig.addGameDir(gameDir)
+                // Saved now, not when the screen goes away: the app can be killed before that.
+                NativeConfig.saveGlobalConfig()
                 getGameDirs(true)
             }
         }
@@ -147,6 +149,7 @@ class GamesViewModel : ViewModel() {
                 if (removedDirIndex != -1) {
                     gameDirs.removeAt(removedDirIndex)
                     NativeConfig.setGameDirs(gameDirs.toTypedArray())
+                    NativeConfig.saveGlobalConfig()
                     getGameDirs()
                 }
             }
@@ -156,6 +159,7 @@ class GamesViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 NativeConfig.setGameDirs(_folders.value.toTypedArray())
+                NativeConfig.saveGlobalConfig()
                 getGameDirs()
             }
         }

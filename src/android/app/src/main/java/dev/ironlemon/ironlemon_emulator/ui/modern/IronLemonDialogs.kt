@@ -43,6 +43,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -162,10 +163,19 @@ fun IronLemonDialogText(text: CharSequence) {
     )
 }
 
-/** Options to pick one of, each a row with a selection ring, the picked one marked. */
+/**
+ * Options to pick one of, each a row with a selection ring, the picked one marked. Scrolls when
+ * there are more than fit, so the dialog's buttons stay on screen.
+ */
 @Composable
 fun IronLemonChoiceList(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp
+    Column(
+        Modifier
+            .heightIn(max = maxHeight)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         options.forEachIndexed { index, option ->
             val isSelected = index == selected
             val shape = RoundedCornerShape(18.dp)
