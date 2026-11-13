@@ -78,6 +78,10 @@ struct Values {
     Settings::Setting<s32> quick_save_slots{linkage, 2, "quick_save_slots",
                                             Settings::Category::Android};
 
+    // Opening the app from the launcher boots QLaunch (the console's home menu).
+    Settings::Setting<bool> boot_into_qlaunch{linkage, false, "boot_into_qlaunch",
+                                              Settings::Category::Android};
+
     // Gamepad hotkeys: the Android key codes of the buttons held together, comma separated
     // (empty: none).
     Settings::Setting<std::string> hotkey_quick_save{linkage, "", "hotkey_quick_save",

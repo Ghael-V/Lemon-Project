@@ -28,6 +28,8 @@ import java.io.FilenameFilter
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
+import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
 import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
 import dev.ironlemon.ironlemon_emulator.databinding.ActivityMainBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
@@ -47,6 +49,9 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+
+/** Set once the app has booted into QLaunch in this process. */
+private var bootedIntoQLaunch = false
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -152,7 +157,27 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
         ) {
             UpdateFlow.checkAtStart(this)
+            if (savedInstanceState == null) {
+                bootIntoQLaunchIfWanted(navHostFragment.navController)
+            }
         }
+    }
+
+    // "Start in QLaunch": opening the app from the launcher boots the console's home menu right
+    // away. Once per process, so leaving QLaunch lands in the library instead of starting it again,
+    // and not for an app opened any other way (a game shortcut, a file to install).
+    private fun bootIntoQLaunchIfWanted(navController: NavController) {
+        val fromLauncher = intent?.action == Intent.ACTION_MAIN &&
+            intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true
+        if (bootedIntoQLaunch || !fromLauncher || !BooleanSetting.BOOT_INTO_QLAUNCH.getBoolean()) {
+            return
+        }
+        bootedIntoQLaunch = true
+        if (!NativeLibrary.isFirmwareAvailable() || !NativeLibrary.areKeysPresent()) {
+            return
+        }
+        val qlaunchGame = GameLaunchUtils.qlaunchGame() ?: return
+        navController.navigate(HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame))
     }
 
     private fun checkKeys() {

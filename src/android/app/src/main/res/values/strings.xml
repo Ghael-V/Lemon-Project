@@ -1471,4 +1471,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="scan_listing">Looking for games…</string>
     <string name="scan_loading">Loading your games… %1$d of %2$d</string>
     <string name="scan_decoding">Preparing a compressed game for the first time: %1$s of %2$s (only once)</string>
+    <string name="boot_into_qlaunch">Start in QLaunch</string>
+    <string name="boot_into_qlaunch_description">Opening the app boots the console\'s home menu. Needs the firmware.</string>
+    <string name="qlaunch_not_found">The installed firmware has no QLaunch</string>
 </resources>

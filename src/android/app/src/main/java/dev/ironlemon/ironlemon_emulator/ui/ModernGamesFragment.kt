@@ -7,6 +7,8 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
 import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
+import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import android.view.LayoutInflater
@@ -84,7 +86,7 @@ class ModernGamesFragment : Fragment() {
                         loading = reloading,
                         preferences = preferences,
                         initialSelectedPath = lastPlayedPath,
-                        showQLaunch = false,
+                        showQLaunch = NativeLibrary.isFirmwareAvailable(),
                         actions = actions
                     )
                 }
@@ -135,7 +137,17 @@ class ModernGamesFragment : Fragment() {
         },
         onManageFolders = { findNavController().navigate(R.id.gameFoldersFragment) },
         onInstallContent = { findNavController().navigate(R.id.installableFragment) },
-        onLaunchQLaunch = {},
+        onLaunchQLaunch = {
+            val qlaunchGame = GameLaunchUtils.qlaunchGame()
+            if (qlaunchGame == null) {
+                Toast.makeText(requireContext(), R.string.qlaunch_not_found, Toast.LENGTH_SHORT)
+                    .show()
+            } else {
+                findNavController().navigate(
+                    HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame)
+                )
+            }
+        },
         onPerformance = { game ->
             showPerformancePresetDialog(
                 requireContext(),

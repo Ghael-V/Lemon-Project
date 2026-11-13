@@ -195,6 +195,10 @@ class SettingsFragmentPresenter(
             add(IntSetting.LANGUAGE_INDEX.key)
             add(BooleanSetting.USE_CUSTOM_RTC.key)
             add(LongSetting.CUSTOM_RTC.key)
+            // Only with firmware, which has QLaunch.
+            if (NativeLibrary.isFirmwareAvailable()) {
+                add(BooleanSetting.BOOT_INTO_QLAUNCH.key)
+            }
         }
     }
 

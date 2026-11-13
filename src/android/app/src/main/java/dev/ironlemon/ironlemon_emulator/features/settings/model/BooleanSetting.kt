@@ -28,6 +28,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     TOUCHSCREEN("touchscreen"),
     ENABLE_NEXTENDO("enable_nextendo"),
     HOTKEY_CONFIRM_EXIT("hotkey_confirm_exit"),
+    BOOT_INTO_QLAUNCH("boot_into_qlaunch"),
     SHOW_THERMAL_OVERLAY("show_thermal_overlay");
 
     override fun getBoolean(needsGlobal: Boolean): Boolean =

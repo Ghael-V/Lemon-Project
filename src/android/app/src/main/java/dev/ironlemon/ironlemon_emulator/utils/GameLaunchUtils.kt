@@ -14,6 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.NativeLibrary
+import dev.ironlemon.ironlemon_emulator.model.AppletInfo
 import dev.ironlemon.ironlemon_emulator.widget.GameLauncherWidgetProvider
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.model.Game
@@ -24,6 +26,22 @@ import kotlinx.coroutines.withContext
 
 /** Starting a game from the library, as yuzu's game list does it. */
 object GameLaunchUtils {
+    /**
+     * QLaunch, the console's home menu, as something EmulationActivity can boot: null when the
+     * installed firmware does not have it. Marks it as the applet being run.
+     */
+    fun qlaunchGame(): Game? {
+        val appletPath = NativeLibrary.getAppletLaunchPath(AppletInfo.QLaunch.entryId)
+        if (appletPath.isEmpty()) {
+            return null
+        }
+        NativeLibrary.setCurrentAppletId(AppletInfo.QLaunch.appletId)
+        return Game(
+            title = YuzuApplication.appContext.getString(R.string.qlaunch_applet),
+            path = appletPath
+        )
+    }
+
     fun launchGame(activity: AppCompatActivity, game: Game, navController: NavController) {
         val context = YuzuApplication.appContext
         val gameExists = DocumentFile.fromSingleUri(context, Uri.parse(game.path))?.exists() == true

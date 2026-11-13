@@ -938,4 +938,7 @@
     <string name="scan_listing">Buscando juegos…</string>
     <string name="scan_loading">Cargando tus juegos… %1$d de %2$d</string>
     <string name="scan_decoding">Preparando un juego comprimido por primera vez: %1$s de %2$s (solo esta vez)</string>
+    <string name="boot_into_qlaunch">Arrancar en QLaunch</string>
+    <string name="boot_into_qlaunch_description">Al abrir la app se inicia el menú de inicio de la consola. Necesita el firmware.</string>
+    <string name="qlaunch_not_found">El firmware instalado no tiene QLaunch</string>
 </resources>
