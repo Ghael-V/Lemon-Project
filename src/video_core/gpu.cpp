@@ -331,7 +331,7 @@ struct GPU::Impl {
             // doesn't hold what the GPU drew. Copy that back first, on the GPU thread, so the
             // re-upload carries the GPU's contents plus the CPU's write (TOTK's grass vanished).
             const u64 fence = RequestSyncOperation([this, addr, size] {
-                rasterizer->DownloadGpuWrittenImages(addr, size);
+                rasterizer->DownloadGpuWrittenImages(addr, size, true);
                 rasterizer->OnCacheInvalidation(addr, size);
             });
             gpu_thread.WakeForSyncRequest();
@@ -357,7 +357,7 @@ struct GPU::Impl {
             return false;
         }
         const u64 fence = RequestSyncOperation(
-            [this, addr, size] { rasterizer->DownloadGpuWrittenImages(addr, size); });
+            [this, addr, size] { rasterizer->DownloadGpuWrittenImages(addr, size, false); });
         gpu_thread.WakeForSyncRequest();
         WaitForSyncOperation(fence);
         return true;

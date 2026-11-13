@@ -120,7 +120,12 @@ public:
     /// alone: nothing would make them readable again.
     void ProtectGpuWritten(DAddr addr, size_t size);
 
+    /// Makes those pages readable again (still unwritable while cached), when nothing the GPU drew
+    /// there needs the CPU's reads to fault any more.
+    void UnprotectGpuWritten(DAddr addr, size_t size);
+
     static constexpr size_t AS_BITS = Traits::device_virtual_bits;
+    void SetGpuWrittenProtection(DAddr addr, size_t size, bool protect);
 
 private:
     static constexpr size_t device_virtual_bits = Traits::device_virtual_bits;
