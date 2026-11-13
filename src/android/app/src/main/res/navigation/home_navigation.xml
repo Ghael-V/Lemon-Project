@@ -131,6 +131,10 @@
         android:name="dev.ironlemon.ironlemon_emulator.fragments.CabinetLauncherDialogFragment"
         android:label="CabinetLauncherDialogFragment" />
     <fragment
+        android:id="@+id/statisticsFragment"
+        android:name="dev.ironlemon.ironlemon_emulator.fragments.StatisticsFragment"
+        android:label="StatisticsFragment" />
+    <fragment
         android:id="@+id/gameFoldersFragment"
         android:name="dev.ironlemon.ironlemon_emulator.fragments.GameFoldersFragment"
         android:label="GameFoldersFragment" />

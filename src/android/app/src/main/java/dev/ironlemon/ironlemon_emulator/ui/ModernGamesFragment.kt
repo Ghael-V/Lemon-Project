@@ -112,7 +112,7 @@ class ModernGamesFragment : Fragment() {
             }
         },
         onSettings = { findNavController().navigate(R.id.homeSettingsFragment) },
-        onStatistics = null,
+        onStatistics = { findNavController().navigate(R.id.statisticsFragment) },
         onAddGames = {
             (requireActivity() as MainActivity).getGamesDirectory
                 .launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data)

@@ -865,4 +865,7 @@
     <string name="preset_use_global">Usar los ajustes globales</string>
     <string name="preset_custom">Personalizado</string>
     <string name="preset_custom_values">Los ajustes gráficos no coinciden ahora con ningún perfil.</string>
+    <string name="statistics_total_playtime">Tiempo total de juego</string>
+    <string name="statistics_games_played">Juegos jugados</string>
+    <string name="statistics_empty">Todavía no has jugado a nada. El tiempo se cuenta mientras el juego está en pantalla.</string>
 </resources>
