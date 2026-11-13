@@ -317,6 +317,11 @@ public:
         return features.features.textureCompressionASTC_LDR;
     }
 
+    /// Returns true if ETC2/EAC textures can be sampled natively.
+    bool IsOptimalEtc2Supported() const {
+        return features.features.textureCompressionETC2;
+    }
+
     /// Returns true if BCn is natively supported.
     bool IsOptimalBcnSupported() const {
         return features.features.textureCompressionBC;

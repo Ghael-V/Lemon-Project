@@ -2571,8 +2571,8 @@ void TextureCache<P>::PrepareRawBcnBlocks(Image& image) {
         Tegra::Memory::GpuGuestMemory<u8, Tegra::Memory::GuestMemoryFlags::UnsafeRead>
             swizzle_data(*gpu_memory, image.gpu_addr, image.guest_size_bytes,
                          &swizzle_data_buffer);
-        const auto copies = FixSmallVectorADL(UnswizzleImage(
-            *gpu_memory, image.gpu_addr, image.info, swizzle_data, staging.mapped_span));
+        const auto copies = UnswizzleImage(*gpu_memory, image.gpu_addr, image.info, swizzle_data,
+                                           staging.mapped_span);
         image.UploadRawBcnBlocks(staging, copies);
     }
 }
