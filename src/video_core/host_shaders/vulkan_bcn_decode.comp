@@ -96,8 +96,9 @@ const uint WEIGHTS_2[4] = uint[](0, 21, 43, 64);
 const uint WEIGHTS_3[8] = uint[](0, 9, 18, 27, 37, 46, 55, 64);
 const uint WEIGHTS_4[16] = uint[](0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64);
 
-uint px[16]; // the decoded block, RGBA8 with red in the low byte
-uvec4 blk;   // the raw block
+// The raw block. Texels are worked out one at a time straight from it: no per-invocation arrays,
+// which some drivers keep in memory that isn't private to the invocation.
+uvec4 blk;
 
 uint Pack(uvec4 c) {
     return (c.r & 0xFFu) | ((c.g & 0xFFu) << 8) | ((c.b & 0xFFu) << 16) | ((c.a & 0xFFu) << 24);
@@ -111,42 +112,29 @@ uvec4 Expand565(uint c) {
 }
 
 // BC1 colour block; BC2 and BC3 always use the four-colour mode.
-void DecodeColor(uint endpoints, uint indices, bool always_four_colors) {
+uvec4 ColorTexel(uint endpoints, uint indices, bool always_four_colors, uint texel) {
     const uint c0 = endpoints & 0xFFFFu;
     const uint c1 = endpoints >> 16;
     const uvec4 e0 = Expand565(c0);
     const uvec4 e1 = Expand565(c1);
-    uvec4 c2;
-    uvec4 c3;
+    const uint index = (indices >> (texel * 2u)) & 3u;
+    if (index == 0u) {
+        return e0;
+    }
+    if (index == 1u) {
+        return e1;
+    }
     if (always_four_colors || c0 > c1) {
-        c2 = uvec4((e0.rgb * 2u + e1.rgb) / 3u, 255u);
-        c3 = uvec4((e1.rgb * 2u + e0.rgb) / 3u, 255u);
-    } else {
-        c2 = uvec4((e0.rgb + e1.rgb) >> 1, 255u);
-        c3 = uvec4(0u); // transparent black
+        return index == 2u ? uvec4((e0.rgb * 2u + e1.rgb) / 3u, 255u)
+                           : uvec4((e1.rgb * 2u + e0.rgb) / 3u, 255u);
     }
-    for (uint i = 0; i < 16; ++i) {
-        const uint index = (indices >> (i * 2u)) & 3u;
-        px[i] = Pack(index == 0u ? e0 : index == 1u ? e1 : index == 2u ? c2 : c3);
-    }
+    return index == 2u ? uvec4((e0.rgb + e1.rgb) >> 1, 255u) : uvec4(0u); // transparent black
 }
 
 // BC2 alpha: 4 bits per texel.
-void DecodeExplicitAlpha(uint lo, uint hi) {
-    for (uint i = 0; i < 16; ++i) {
-        const uint a = ((i < 8u ? lo : hi) >> ((i & 7u) * 4u)) & 0xFu;
-        px[i] = bitfieldInsert(px[i], a | (a << 4), 24, 8);
-    }
-}
-
-uint ChannelIndex(uint lo, uint hi, uint offset) {
-    if (offset + 3u <= 32u) {
-        return (lo >> offset) & 7u;
-    }
-    if (offset >= 32u) {
-        return (hi >> (offset - 32u)) & 7u;
-    }
-    return ((lo >> offset) | (hi << (32u - offset))) & 7u;
+uint ExplicitAlpha(uint lo, uint hi, uint texel) {
+    const uint a = ((texel < 8u ? lo : hi) >> ((texel & 7u) * 4u)) & 0xFu;
+    return a | (a << 4);
 }
 
 // C division, rounding towards zero.
@@ -154,8 +142,8 @@ int Divide(int n, int d) {
     return n < 0 ? -((-n) / d) : n / d;
 }
 
-// BC3 alpha, BC4 and each half of BC5.
-void DecodeChannel(uint lo, uint hi, uint channel, bool is_snorm) {
+// BC3 alpha, BC4 and each half of BC5, as a byte (SNORM bytes for signed formats).
+uint ChannelTexel(uint lo, uint hi, bool is_snorm, uint texel) {
     int c0;
     int c1;
     if (is_snorm) {
@@ -165,24 +153,35 @@ void DecodeChannel(uint lo, uint hi, uint channel, bool is_snorm) {
         c0 = int(lo & 0xFFu);
         c1 = int((lo >> 8) & 0xFFu);
     }
-    for (uint i = 0; i < 16; ++i) {
-        const int index = int(ChannelIndex(lo, hi, 16u + i * 3u));
-        int value;
-        if (index == 0) {
-            value = c0;
-        } else if (index == 1) {
-            value = c1;
-        } else if (c0 > c1) {
-            value = Divide((8 - index) * c0 + (index - 1) * c1, 7);
-        } else if (index < 6) {
-            value = Divide((6 - index) * c0 + (index - 1) * c1, 5);
-        } else if (index == 6) {
-            value = is_snorm ? -128 : 0;
-        } else {
-            value = is_snorm ? 127 : 255;
-        }
-        px[i] = bitfieldInsert(px[i], uint(value) & 0xFFu, int(channel * 8u), 8);
+    const uint offset = 16u + texel * 3u;
+    uint bits;
+    if (offset + 3u <= 32u) {
+        bits = lo >> offset;
+    } else if (offset >= 32u) {
+        bits = hi >> (offset - 32u);
+    } else {
+        bits = (lo >> offset) | (hi << (32u - offset));
     }
+    const int index = int(bits & 7u);
+    int value;
+    if (index == 0) {
+        value = c0;
+    } else if (index == 1) {
+        value = c1;
+    } else if (c0 > c1) {
+        value = Divide((8 - index) * c0 + (index - 1) * c1, 7);
+    } else if (index < 6) {
+        value = Divide((6 - index) * c0 + (index - 1) * c1, 5);
+    } else if (index == 6) {
+        value = is_snorm ? -128 : 0;
+    } else {
+        value = is_snorm ? 127 : 255;
+    }
+    return uint(value) & 0xFFu;
+}
+
+uint BlockWord(uint word) {
+    return word == 0u ? blk.x : word == 1u ? blk.y : word == 2u ? blk.z : blk.w;
 }
 
 uint Bits(uint offset, uint count) {
@@ -191,9 +190,9 @@ uint Bits(uint offset, uint count) {
     }
     const uint word = offset >> 5;
     const uint shift = offset & 31u;
-    uint value = blk[word] >> shift;
+    uint value = BlockWord(word) >> shift;
     if (shift + count > 32u) {
-        value |= blk[min(word + 1u, 3u)] << (32u - shift);
+        value |= BlockWord(min(word + 1u, 3u)) << (32u - shift);
     }
     return value & ((1u << count) - 1u);
 }
@@ -208,29 +207,49 @@ uint Subset(uint subsets, uint partition_index, uint texel) {
     return 0u;
 }
 
-uint Anchor(uint subsets, uint partition_index, uint subset) {
-    if (subset == 0u) {
-        return 0u;
-    }
-    if (subset == 1u) {
-        return subsets == 2u ? ANCHORS[partition_index] & 0xFu : (ANCHORS[partition_index] >> 4) & 0xFu;
-    }
-    return (ANCHORS[partition_index] >> 8) & 0xFu;
+uint Weight(uint index, uint bits) {
+    return bits == 2u ? WEIGHTS_2[index] : bits == 3u ? WEIGHTS_3[index] : WEIGHTS_4[index];
 }
 
-uint Interpolate(uint e0, uint e1, uint index, uint bits) {
-    const uint weight = bits == 2u ? WEIGHTS_2[index] : bits == 3u ? WEIGHTS_3[index] : WEIGHTS_4[index];
+uint Interpolate(uint e0, uint e1, uint weight) {
     return ((64u - weight) * e0 + weight * e1 + 32u) >> 6;
 }
 
-void DecodeBc7() {
+uint Expand(uint value, uint bits) {
+    value <<= 8u - bits;
+    return value | (value >> bits);
+}
+
+// Decoded endpoint `e` of a BC7 block whose endpoints start at `pos`.
+uvec4 Bc7Endpoint(uint mode, uint pos, uint e) {
+    const uint endpoints = NS[mode] * 2u;
+    const uint color_bits = CB[mode];
+    const uint alpha_bits = AB[mode];
+    uvec4 c = uvec4(Bits(pos + e * color_bits, color_bits),
+                    Bits(pos + (endpoints + e) * color_bits, color_bits),
+                    Bits(pos + (endpoints * 2u + e) * color_bits, color_bits),
+                    Bits(pos + endpoints * 3u * color_bits + e * alpha_bits, alpha_bits));
+    const uint p_bits = pos + endpoints * (3u * color_bits + alpha_bits);
+    uint rgb_bits = color_bits;
+    uint a_bits = alpha_bits;
+    if (EPB[mode] != 0u) {
+        const uint p = Bits(p_bits + e, 1u);
+        c = (c << 1) | p;
+        rgb_bits += 1u;
+        a_bits += 1u;
+    } else if (SPB[mode] != 0u) {
+        const uint p = Bits(p_bits + e / 2u, 1u);
+        c.rgb = (c.rgb << 1) | p;
+        rgb_bits += 1u;
+    }
+    return uvec4(Expand(c.r, rgb_bits), Expand(c.g, rgb_bits), Expand(c.b, rgb_bits),
+                 alpha_bits != 0u ? Expand(c.a, a_bits) : 255u);
+}
+
+uvec4 Bc7Texel(uint texel) {
     const uint mode_bits = blk.x & 0xFFu;
     if (mode_bits == 0u) {
-        // Reserved mode: transparent black.
-        for (uint i = 0; i < 16; ++i) {
-            px[i] = 0u;
-        }
-        return;
+        return uvec4(0u); // reserved mode: transparent black
     }
     const uint mode = uint(findLSB(mode_bits));
     uint pos = mode + 1u;
@@ -243,87 +262,75 @@ void DecodeBc7() {
 
     const uint subsets = NS[mode];
     const uint endpoints = subsets * 2u;
-    const uint color_bits = CB[mode];
-    const uint alpha_bits = AB[mode];
-    uvec4 ep[6];
-    for (uint e = 0; e < 6u; ++e) {
-        ep[e] = uvec4(0u, 0u, 0u, 255u);
-    }
-    for (uint channel = 0; channel < 3u; ++channel) {
-        for (uint e = 0; e < endpoints; ++e) {
-            ep[e][channel] = Bits(pos, color_bits);
-            pos += color_bits;
-        }
-    }
-    if (alpha_bits != 0u) {
-        for (uint e = 0; e < endpoints; ++e) {
-            ep[e].a = Bits(pos, alpha_bits);
-            pos += alpha_bits;
-        }
-    }
-    if (EPB[mode] != 0u) {
-        for (uint e = 0; e < endpoints; ++e) {
-            const uint p = Bits(pos, 1u);
-            pos += 1u;
-            ep[e].rgb = (ep[e].rgb << 1) | p;
-            if (alpha_bits != 0u) {
-                ep[e].a = (ep[e].a << 1) | p;
-            }
-        }
-    }
-    if (SPB[mode] != 0u) {
-        for (uint s = 0; s < subsets; ++s) {
-            const uint p = Bits(pos, 1u);
-            pos += 1u;
-            ep[s * 2u].rgb = (ep[s * 2u].rgb << 1) | p;
-            ep[s * 2u + 1u].rgb = (ep[s * 2u + 1u].rgb << 1) | p;
-        }
-    }
-    const uint rgb_bits = color_bits + EPB[mode] + SPB[mode];
-    const uint a_bits = alpha_bits + EPB[mode];
-    for (uint e = 0; e < endpoints; ++e) {
-        ep[e].rgb = ep[e].rgb << (8u - rgb_bits);
-        ep[e].rgb = ep[e].rgb | (ep[e].rgb >> rgb_bits);
-        if (alpha_bits != 0u) {
-            ep[e].a = ep[e].a << (8u - a_bits);
-            ep[e].a = ep[e].a | (ep[e].a >> a_bits);
-        }
-    }
+    const uint s = Subset(subsets, partition_index, texel);
+    const uvec4 e0 = Bc7Endpoint(mode, pos, s * 2u);
+    const uvec4 e1 = Bc7Endpoint(mode, pos, s * 2u + 1u);
 
+    // Index bits: the anchor texel of each subset (texel 0, then the tables) has one bit fewer.
+    const uint anchor_1 = subsets == 2u ? ANCHORS[partition_index] & 0xFu
+                                        : (ANCHORS[partition_index] >> 4) & 0xFu;
+    const uint anchor_2 = (ANCHORS[partition_index] >> 8) & 0xFu;
+    const bool is_anchor = texel == 0u || (subsets >= 2u && texel == anchor_1) ||
+                           (subsets == 3u && texel == anchor_2);
+    uint anchors_before = texel > 0u ? 1u : 0u;
+    if (subsets >= 2u && anchor_1 < texel) {
+        anchors_before += 1u;
+    }
+    if (subsets == 3u && anchor_2 < texel) {
+        anchors_before += 1u;
+    }
     const uint index_bits = IB[mode];
     const uint index_bits_2 = IB2[mode];
-    uint primary = pos;
-    uint secondary = pos + 16u * index_bits - subsets;
-    for (uint t = 0; t < 16u; ++t) {
-        const uint s = Subset(subsets, partition_index, t);
-        const bool is_anchor = t == Anchor(subsets, partition_index, s);
-        const uint primary_bits = index_bits - (is_anchor ? 1u : 0u);
-        const uint primary_index = Bits(primary, primary_bits);
-        primary += primary_bits;
-        uint secondary_index = 0u;
-        if (index_bits_2 != 0u) {
-            const uint secondary_bits = index_bits_2 - (t == 0u ? 1u : 0u);
-            secondary_index = Bits(secondary, secondary_bits);
-            secondary += secondary_bits;
-        }
-        const bool color_secondary = selection == 1u;
-        const bool alpha_secondary = index_bits_2 != 0u && selection == 0u;
-        const uint ci = color_secondary ? secondary_index : primary_index;
-        const uint cn = color_secondary ? index_bits_2 : index_bits;
-        const uint ai = alpha_secondary ? secondary_index : primary_index;
-        const uint an = alpha_secondary ? index_bits_2 : index_bits;
-        const uvec4 e0 = ep[s * 2u];
-        const uvec4 e1 = ep[s * 2u + 1u];
-        uvec4 c = uvec4(Interpolate(e0.r, e1.r, ci, cn), Interpolate(e0.g, e1.g, ci, cn),
-                        Interpolate(e0.b, e1.b, ci, cn), Interpolate(e0.a, e1.a, ai, an));
-        if (rotation == 1u) {
-            c = c.agbr;
-        } else if (rotation == 2u) {
-            c = c.rabg;
-        } else if (rotation == 3u) {
-            c = c.rgab;
-        }
-        px[t] = Pack(c);
+    uint p_bits = 0u;
+    if (EPB[mode] != 0u) {
+        p_bits = endpoints;
+    } else if (SPB[mode] != 0u) {
+        p_bits = subsets;
+    }
+    const uint primary_start = pos + endpoints * (3u * CB[mode] + AB[mode]) + p_bits;
+    const uint primary = Bits(primary_start + texel * index_bits - anchors_before,
+                              index_bits - (is_anchor ? 1u : 0u));
+    uint secondary = 0u;
+    if (index_bits_2 != 0u) {
+        const uint secondary_start = primary_start + 16u * index_bits - subsets;
+        secondary = Bits(secondary_start + texel * index_bits_2 - (texel > 0u ? 1u : 0u),
+                         index_bits_2 - (texel == 0u ? 1u : 0u));
+    }
+    const bool color_secondary = selection == 1u;
+    const bool alpha_secondary = index_bits_2 != 0u && selection == 0u;
+    const uint cw = color_secondary ? Weight(secondary, index_bits_2) : Weight(primary, index_bits);
+    const uint aw = alpha_secondary ? Weight(secondary, index_bits_2) : Weight(primary, index_bits);
+    uvec4 c = uvec4(Interpolate(e0.r, e1.r, cw), Interpolate(e0.g, e1.g, cw),
+                    Interpolate(e0.b, e1.b, cw), Interpolate(e0.a, e1.a, aw));
+    if (rotation == 1u) {
+        c = c.agbr;
+    } else if (rotation == 2u) {
+        c = c.rabg;
+    } else if (rotation == 3u) {
+        c = c.rgab;
+    }
+    return c;
+}
+
+// The texel as RGBA8 (BC1/2/3/7), R8 (BC4) or RG8 (BC5) in the low bytes.
+uint DecodeTexel(uint texel) {
+    const bool is_snorm = is_signed != 0u;
+    switch (format) {
+    case FORMAT_BC1:
+        return Pack(ColorTexel(blk.x, blk.y, false, texel));
+    case FORMAT_BC2:
+        return Pack(uvec4(ColorTexel(blk.z, blk.w, true, texel).rgb,
+                          ExplicitAlpha(blk.x, blk.y, texel)));
+    case FORMAT_BC3:
+        return Pack(uvec4(ColorTexel(blk.z, blk.w, true, texel).rgb,
+                          ChannelTexel(blk.x, blk.y, false, texel)));
+    case FORMAT_BC4:
+        return ChannelTexel(blk.x, blk.y, is_snorm, texel);
+    case FORMAT_BC5:
+        return ChannelTexel(blk.x, blk.y, is_snorm, texel) |
+               (ChannelTexel(blk.z, blk.w, is_snorm, texel) << 8);
+    default:
+        return Pack(Bc7Texel(texel));
     }
 }
 
@@ -342,51 +349,26 @@ void main() {
     const uint base = input_offset + block_index * (is_16_bytes ? 4u : 2u);
     blk = uvec4(blocks[base], blocks[base + 1u], is_16_bytes ? blocks[base + 2u] : 0u,
                 is_16_bytes ? blocks[base + 3u] : 0u);
-    for (uint i = 0; i < 16; ++i) {
-        px[i] = 0u;
-    }
-    const bool is_snorm = is_signed != 0u;
-    switch (format) {
-    case FORMAT_BC1:
-        DecodeColor(blk.x, blk.y, false);
-        break;
-    case FORMAT_BC2:
-        DecodeColor(blk.z, blk.w, true);
-        DecodeExplicitAlpha(blk.x, blk.y);
-        break;
-    case FORMAT_BC3:
-        DecodeColor(blk.z, blk.w, true);
-        DecodeChannel(blk.x, blk.y, 3u, false);
-        break;
-    case FORMAT_BC4:
-        DecodeChannel(blk.x, blk.y, 0u, is_snorm);
-        break;
-    case FORMAT_BC5:
-        DecodeChannel(blk.x, blk.y, 0u, is_snorm);
-        DecodeChannel(blk.z, blk.w, 1u, is_snorm);
-        break;
-    default:
-        DecodeBc7();
-        break;
-    }
 
     const uint bytes_per_texel = format == FORMAT_BC4 ? 1u : format == FORMAT_BC5 ? 2u : 4u;
     const uint row_words = blocks_x * bytes_per_texel;
     for (uint y = 0; y < 4u; ++y) {
         const uint row = (slice * blocks_y + by) * 4u + y;
         const uint out_base = output_offset + row * row_words + bx * bytes_per_texel;
-        const uint i = y * 4u;
+        const uint t0 = DecodeTexel(y * 4u);
+        const uint t1 = DecodeTexel(y * 4u + 1u);
+        const uint t2 = DecodeTexel(y * 4u + 2u);
+        const uint t3 = DecodeTexel(y * 4u + 3u);
         if (bytes_per_texel == 4u) {
-            texels[out_base] = px[i];
-            texels[out_base + 1u] = px[i + 1u];
-            texels[out_base + 2u] = px[i + 2u];
-            texels[out_base + 3u] = px[i + 3u];
+            texels[out_base] = t0;
+            texels[out_base + 1u] = t1;
+            texels[out_base + 2u] = t2;
+            texels[out_base + 3u] = t3;
         } else if (bytes_per_texel == 2u) {
-            texels[out_base] = (px[i] & 0xFFFFu) | (px[i + 1u] << 16);
-            texels[out_base + 1u] = (px[i + 2u] & 0xFFFFu) | (px[i + 3u] << 16);
+            texels[out_base] = t0 | (t1 << 16);
+            texels[out_base + 1u] = t2 | (t3 << 16);
         } else {
-            texels[out_base] = (px[i] & 0xFFu) | ((px[i + 1u] & 0xFFu) << 8) |
-                               ((px[i + 2u] & 0xFFu) << 16) | (px[i + 3u] << 24);
+            texels[out_base] = t0 | (t1 << 8) | (t2 << 16) | (t3 << 24);
         }
     }
 }
