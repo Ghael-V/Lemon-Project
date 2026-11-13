@@ -50,6 +50,7 @@ import dev.ironlemon.ironlemon_emulator.utils.FileUtil
 import dev.ironlemon.ironlemon_emulator.utils.GameIconUtils
 import dev.ironlemon.ironlemon_emulator.utils.GpuDriverHelper
 import dev.ironlemon.ironlemon_emulator.utils.MemoryUtil
+import dev.ironlemon.ironlemon_emulator.utils.Log
 import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.marquee
 import dev.ironlemon.ironlemon_emulator.utils.ViewUtils.updateMargins
 import dev.ironlemon.ironlemon_emulator.utils.collect
@@ -385,11 +386,16 @@ class GamePropertiesFragment : Fragment() {
 
                     cacheSaveDir.deleteRecursively()
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        YuzuApplication.appContext,
-                        getString(R.string.fatal_error),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Log.error("[SaveImport] Import failed: ${e.message}")
+                    cacheSaveDir.deleteRecursively()
+                    // This runs on a worker thread: a Toast from here threw and crashed the app.
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            YuzuApplication.appContext,
+                            YuzuApplication.appContext.getString(R.string.fatal_error),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }.show(parentFragmentManager, ProgressDialogFragment.TAG)
         }

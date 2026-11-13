@@ -183,8 +183,11 @@ class InstallableFragment : IronLemonComposeFragment() {
                     if (files != null) {
                         for (file in files) {
                             if (file.isDirectory) {
+                                // Folders are named after the game's title id; anything else in
+                                // the zip is counted as a failed import instead of aborting all.
+                                val titleId = file.name.toBigIntegerOrNull(16)
                                 val baseSaveDir =
-                                    NativeLibrary.getSavePath(BigInteger(file.name, 16).toString())
+                                    titleId?.let { NativeLibrary.getSavePath(it.toString()) } ?: ""
                                 if (baseSaveDir.isEmpty()) {
                                     failedImports++
                                     continue
@@ -243,11 +246,16 @@ class InstallableFragment : IronLemonComposeFragment() {
 
                     cacheSaveDir.deleteRecursively()
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        YuzuApplication.appContext,
-                        getString(R.string.fatal_error),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Log.error("[SaveImport] Import failed: ${e.message}")
+                    cacheSaveDir.deleteRecursively()
+                    // This runs on a worker thread: a Toast from here threw and crashed the app.
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            YuzuApplication.appContext,
+                            YuzuApplication.appContext.getString(R.string.fatal_error),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }.show(parentFragmentManager, ProgressDialogFragment.TAG)
         }
