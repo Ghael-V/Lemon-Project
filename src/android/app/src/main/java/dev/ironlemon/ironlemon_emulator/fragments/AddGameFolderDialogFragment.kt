@@ -58,8 +58,11 @@ class AddGameFolderDialogFragment : IronLemonComposeDialogFragment() {
                     height = 44.dp,
                     onClick = {
                         // Setup checks the folder list when told, so tell it once the folder is in.
+                        // The view model is taken now: the folder is added after the dialog is
+                        // gone, and resolving it from a detached fragment threw.
+                        val home = homeViewModel
                         gamesViewModel.addFolder(GameDir(folderUriString, deepScan))
-                            .invokeOnCompletion { homeViewModel.setGamesDirSelected(true) }
+                            .invokeOnCompletion { home.setGamesDirSelected(true) }
                         dismiss()
                     }
                 )
