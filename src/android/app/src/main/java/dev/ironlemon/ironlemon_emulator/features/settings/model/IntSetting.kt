@@ -25,6 +25,7 @@ enum class IntSetting(override val key: String) : AbstractIntSetting {
     OVERLAY_SCALE("control_scale"),
     OVERLAY_OPACITY("control_opacity"),
     LOCK_DRAWER("lock_drawer"),
+    QUICK_SAVE_SLOTS("quick_save_slots"),
     VERTICAL_ALIGNMENT("vertical_alignment"),
     FSR_SHARPENING_SLIDER("fsr_sharpening_slider");
 

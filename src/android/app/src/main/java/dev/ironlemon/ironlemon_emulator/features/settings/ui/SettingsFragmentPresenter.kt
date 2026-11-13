@@ -204,6 +204,9 @@ class SettingsFragmentPresenter(
         sl.apply {
             add(IntSetting.AUDIO_OUTPUT_ENGINE.key)
             add(ByteSetting.AUDIO_VOLUME.key)
+
+            add(HeaderSetting(R.string.emulation_quick_save_state))
+            add(IntSetting.QUICK_SAVE_SLOTS.key)
         }
     }
 

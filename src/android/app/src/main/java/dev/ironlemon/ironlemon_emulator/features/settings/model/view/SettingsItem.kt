@@ -332,6 +332,15 @@ abstract class SettingsItem(
             )
             put(
                 SingleChoiceSetting(
+                    IntSetting.QUICK_SAVE_SLOTS,
+                    titleId = R.string.quick_save_slots,
+                    descriptionId = R.string.quick_save_slots_description,
+                    choicesId = R.array.quickSaveSlotsNames,
+                    valuesId = R.array.quickSaveSlotsValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
                     IntSetting.RENDERER_BACKEND,
                     titleId = R.string.renderer_api,
                     choicesId = R.array.rendererApiNames,

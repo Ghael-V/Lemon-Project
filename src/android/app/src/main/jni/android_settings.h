@@ -73,6 +73,10 @@ struct Values {
                                                Settings::Category::Overlay};
     Settings::Setting<bool> touchscreen{linkage, true, "touchscreen", Settings::Category::Overlay};
     Settings::Setting<s32> lock_drawer{linkage, false, "lock_drawer", Settings::Category::Overlay};
+
+    // How many Quick Saves are kept (1 to 4), each about the size of the game's memory.
+    Settings::Setting<s32> quick_save_slots{linkage, 2, "quick_save_slots",
+                                            Settings::Category::Android};
 };
 
 extern Values values;

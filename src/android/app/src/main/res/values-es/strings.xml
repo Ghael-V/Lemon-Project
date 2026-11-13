@@ -681,7 +681,7 @@
     <string name="emulation_quick_state_no_safe_moment">El juego está ocupado. Espera y vuelve a intentarlo.</string>
     <string name="emulation_quick_load_state_game_loading">El juego está cargando. Espera y vuelve a intentarlo.</string>
     <string name="emulation_quick_load_state_incompatible">No se puede cargar: desde que guardaste, el juego hizo algo que la carga rápida todavía no sabe deshacer. No se ha cambiado nada.</string>
-    <string name="emulation_quick_load_state_not_this_session">No hay ningún guardado de esta sesión</string>
+    <string name="emulation_quick_load_state_not_this_session">No hay guardados de esta sesión</string>
     <!-- Gestor de trucos (trucos de Atmosphère) -->
     <string name="cheats">Trucos</string>
     <string name="cheats_description">Códigos de trucos de Atmosphère: añádelos y activa o desactiva cada uno</string>
@@ -838,4 +838,20 @@
     <string name="lemon_macro_overlay_hidden_warning">El mando en pantalla está oculto: la grabación solo recoge lo que se pulsa en él, así que no se grabaría nada. Muéstralo primero.</string>
     <string name="lemon_macro_show_overlay">Mostrar el mando en pantalla</string>
     <string name="input_device_any">Cualquier dispositivo</string>
+    <string name="emulation_load_slot">Cargar guardado</string>
+    <string name="emulation_load_slot_title">Cargar un guardado</string>
+    <string name="emulation_load_slot_gone">No se puede cargar. El juego ya ha avanzado más allá de este guardado.</string>
+    <string name="emulation_load_slot_just_now">Ahora mismo</string>
+    <string name="emulation_load_slot_quick_load">Carga rápida · %1$s</string>
+    <string name="emulation_load_slot_yesterday_at">ayer, %1$s</string>
+    <string name="emulation_load_slot_confirm_title">¿Cargar el guardado de %1$s?</string>
+    <plurals name="emulation_load_slot_confirm_message">
+        <item quantity="one">Las cargas solo pueden retroceder, así que se borrará el guardado que hiciste después de este.</item>
+        <item quantity="many">Las cargas solo pueden retroceder, así que se borrarán los %d guardados que hiciste después de este.</item>
+        <item quantity="other">Las cargas solo pueden retroceder, así que se borrarán los %d guardados que hiciste después de este.</item>
+    </plurals>
+    <string name="emulation_load_slot_load">Cargar</string>
+    <string name="emulation_quick_save_state_no_space">No hay espacio suficiente para un guardado rápido</string>
+    <string name="quick_save_slots">Guardados rápidos que conservar</string>
+    <string name="quick_save_slots_description">Cuántos guardados rápidos conservar. Cada uno ocupa de 1 a 2 GB de almacenamiento.</string>
 </resources>

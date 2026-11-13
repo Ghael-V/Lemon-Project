@@ -3,6 +3,30 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.File
+import android.text.format.DateFormat
+import android.text.format.DateUtils
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.lemonInteractive
+import java.nio.ByteBuffer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -297,8 +321,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         R.string.emulation_quick_save_state_still_working
                     ) {
                         when (NativeLibrary.quickSaveState()) {
-                            NativeLibrary.QUICK_SAVE_SAVED -> R.string.emulation_quick_save_state_success
+                            NativeLibrary.QUICK_SAVE_SAVED -> {
+                                saveQuickSaveThumbnail()
+                                R.string.emulation_quick_save_state_success
+                            }
                             NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
+                            NativeLibrary.QUICK_SAVE_NO_SPACE -> R.string.emulation_quick_save_state_no_space
                             else -> R.string.emulation_quick_save_state_failure
                         }
                     }
@@ -312,17 +340,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         R.string.emulation_quick_load_state_working,
                         R.string.emulation_quick_load_state_still_working
                     ) {
-                        when (NativeLibrary.quickLoadState()) {
-                            NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
-                            NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
-                            NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
-                            NativeLibrary.QUICK_LOAD_GAME_LOADING -> R.string.emulation_quick_load_state_game_loading
-                            NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION -> R.string.emulation_quick_load_state_not_this_session
-                            NativeLibrary.QUICK_LOAD_MOVED_PAST -> R.string.emulation_quick_load_state_moved_past
-                            else -> R.string.emulation_quick_load_state_failure
-                        }
+                        quickLoadMessage(NativeLibrary.quickLoadState())
                     }
                     binding.inGameMenu.requestFocus()
+                    true
+                }
+
+                R.id.menu_load_slot -> {
+                    showLoadSlotDialog()
                     true
                 }
 
@@ -618,6 +643,269 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             emulationState.pause()
         }
         super.onPause()
+    }
+
+    private fun quickLoadMessage(result: Int): Int = when (result) {
+        NativeLibrary.QUICK_LOAD_LOADED -> R.string.emulation_quick_load_state_success
+        NativeLibrary.QUICK_LOAD_INCOMPATIBLE -> R.string.emulation_quick_load_state_incompatible
+        NativeLibrary.QUICK_LOAD_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
+        NativeLibrary.QUICK_LOAD_GAME_LOADING -> R.string.emulation_quick_load_state_game_loading
+        NativeLibrary.QUICK_LOAD_NOT_THIS_SESSION -> R.string.emulation_quick_load_state_not_this_session
+        NativeLibrary.QUICK_LOAD_MOVED_PAST -> R.string.emulation_quick_load_state_moved_past
+        else -> R.string.emulation_quick_load_state_failure
+    }
+
+    /**
+     * Writes the picture the load list shows for the slot just saved: the game's frame at the
+     * save, scaled down to a small JPEG next to the save. Runs on the Quick Save's own thread.
+     */
+    private fun saveQuickSaveThumbnail() {
+        val pixels = NativeLibrary.takeQuickSaveThumbnail()
+        val width = NativeLibrary.QUICK_SAVE_PICTURE_WIDTH
+        val height = NativeLibrary.QUICK_SAVE_PICTURE_HEIGHT
+        val slots = NativeLibrary.getQuickSaveSlots()
+        if (pixels.size < width * height * 4 || slots.size < 3) {
+            Log.warning("[QuickState] no picture for the new slot (${pixels.size} bytes)")
+            return
+        }
+        val id = slots[slots.size - 3]
+        val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        frame.copyPixelsFromBuffer(ByteBuffer.wrap(pixels, 0, width * height * 4))
+        val thumbnail = Bitmap.createScaledBitmap(
+            frame,
+            QUICK_SAVE_THUMBNAIL_WIDTH,
+            QUICK_SAVE_THUMBNAIL_WIDTH * height / width,
+            true
+        )
+        frame.recycle()
+        try {
+            File(NativeLibrary.quickSaveThumbnailPath(id)).outputStream().use {
+                thumbnail.compress(Bitmap.CompressFormat.JPEG, 80, it)
+            }
+        } catch (e: Exception) {
+            Log.warning("[QuickState] could not write the picture of slot $id: ${e.message}")
+        }
+        thumbnail.recycle()
+    }
+
+    /** One quicksave slot as getQuickSaveSlots gives it, with how many slots are newer. */
+    private class QuickSaveSlotRow(
+        val id: Long,
+        val savedAtMs: Long,
+        val loadable: Boolean,
+        val newer: Int,
+        val picture: ImageBitmap?
+    )
+
+    /** When a save was made, for a slot's title: "Just now", "12 minutes ago", "Yesterday". */
+    private fun savedWhen(savedAtMs: Long): String {
+        val now = System.currentTimeMillis()
+        return when {
+            !DateUtils.isToday(savedAtMs) ->
+                DateUtils.getRelativeTimeSpanString(savedAtMs, now, DateUtils.DAY_IN_MILLIS).toString()
+            now - savedAtMs < 10 * DateUtils.SECOND_IN_MILLIS ->
+                getString(R.string.emulation_load_slot_just_now)
+            else -> DateUtils.getRelativeTimeSpanString(savedAtMs, now, DateUtils.SECOND_IN_MILLIS)
+                .toString()
+        }
+    }
+
+    /** The clock time of a save, with seconds, as the language writes it. */
+    private fun savedTime(savedAtMs: Long): String = DateFormat.format(
+        DateFormat.getBestDateTimePattern(resources.configuration.locales[0], "jmmss"),
+        savedAtMs
+    ).toString()
+
+    /** The date of a save, with its weekday if [withWeekday]. */
+    private fun savedDate(savedAtMs: Long, withWeekday: Boolean): String = DateFormat.format(
+        DateFormat.getBestDateTimePattern(
+            resources.configuration.locales[0],
+            if (withWeekday) "EEEMMMd" else "MMMd"
+        ),
+        savedAtMs
+    ).toString()
+
+    /** When a save was made, for a slot's second line: its time, and its date if not today. */
+    private fun savedAt(savedAtMs: Long): String = if (DateUtils.isToday(savedAtMs)) {
+        savedTime(savedAtMs)
+    } else {
+        "${savedDate(savedAtMs, true)} · ${savedTime(savedAtMs)}"
+    }
+
+    /** For the confirmation: "12 minutes ago", "yesterday, 11:42:10 PM" or "Oct 30, 11:42:10 PM". */
+    private fun savedWhenLong(savedAtMs: Long): String = when {
+        DateUtils.isToday(savedAtMs) -> DateUtils.getRelativeTimeSpanString(
+            savedAtMs,
+            System.currentTimeMillis(),
+            DateUtils.SECOND_IN_MILLIS
+        ).toString()
+        DateUtils.isToday(savedAtMs + DateUtils.DAY_IN_MILLIS) ->
+            getString(R.string.emulation_load_slot_yesterday_at, savedTime(savedAtMs))
+        else -> "${savedDate(savedAtMs, false)}, ${savedTime(savedAtMs)}"
+    }
+
+    /**
+     * Lists the quicksave slots, newest first, with their pictures and when they were made, and
+     * loads the one picked. Loading an older one deletes the newer ones, so that asks first.
+     */
+    private fun showLoadSlotDialog() {
+        if (!isAdded) {
+            return
+        }
+        val flat = NativeLibrary.getQuickSaveSlots()
+        val count = flat.size / 3
+        if (count == 0) {
+            showQuickStateToast(
+                Toast.makeText(
+                    requireContext().applicationContext,
+                    R.string.emulation_quick_load_state_not_this_session,
+                    Toast.LENGTH_SHORT
+                ),
+                0
+            )
+            return
+        }
+        val rows = (count - 1 downTo 0).map {
+            val id = flat[it * 3]
+            QuickSaveSlotRow(
+                id = id,
+                savedAtMs = flat[it * 3 + 1],
+                loadable = flat[it * 3 + 2] != 0L,
+                newer = count - 1 - it,
+                picture = BitmapFactory.decodeFile(NativeLibrary.quickSaveThumbnailPath(id))
+                    ?.asImageBitmap()
+            )
+        }
+        showIronLemonDialog(requireContext()) { dismiss ->
+            var confirming by remember { mutableStateOf<QuickSaveSlotRow?>(null) }
+            val pending = confirming
+            if (pending == null) {
+                IronLemonDialogCard(
+                    title = stringResource(R.string.emulation_load_slot_title),
+                    buttons = {
+                        IronLemonButton(
+                            text = stringResource(android.R.string.cancel),
+                            height = 44.dp,
+                            onClick = dismiss
+                        )
+                    }
+                ) {
+                    Column(
+                        Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rows.forEach { row ->
+                            SlotRow(row) {
+                                if (row.newer == 0) {
+                                    dismiss()
+                                    loadSlot(row.id)
+                                } else {
+                                    confirming = row
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                IronLemonDialogCard(
+                    title = stringResource(
+                        R.string.emulation_load_slot_confirm_title,
+                        savedWhenLong(pending.savedAtMs)
+                    ),
+                    buttons = {
+                        IronLemonButton(
+                            text = stringResource(android.R.string.cancel),
+                            height = 44.dp,
+                            onClick = { confirming = null }
+                        )
+                        IronLemonButton(
+                            text = stringResource(R.string.emulation_load_slot_load),
+                            primary = true,
+                            height = 44.dp,
+                            onClick = {
+                                dismiss()
+                                loadSlot(pending.id)
+                            }
+                        )
+                    }
+                ) {
+                    SlotPicture(pending.picture)
+                    Spacer(Modifier.height(12.dp))
+                    IronLemonDialogText(
+                        pluralStringResource(
+                            R.plurals.emulation_load_slot_confirm_message,
+                            pending.newer,
+                            pending.newer
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun SlotRow(row: QuickSaveSlotRow, onPick: () -> Unit) {
+        val shape = RoundedCornerShape(18.dp)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (row.loadable) 1f else 0.38f)
+                .lemonInteractive(
+                    shape = shape,
+                    cornerRadius = 18.dp,
+                    focusScale = 1.02f,
+                    onClick = { if (row.loadable) onPick() }
+                )
+                .clip(shape)
+                .background(IronLemonColors.Surface)
+                .border(1.dp, IronLemonColors.Outline, shape)
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SlotPicture(row.picture)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                BasicText(savedWhen(row.savedAtMs), style = IronLemonType.Button)
+                BasicText(
+                    when {
+                        !row.loadable -> stringResource(R.string.emulation_load_slot_gone)
+                        row.newer == 0 -> stringResource(
+                            R.string.emulation_load_slot_quick_load,
+                            savedAt(row.savedAtMs)
+                        )
+                        else -> savedAt(row.savedAtMs)
+                    },
+                    style = IronLemonType.Body
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun SlotPicture(picture: ImageBitmap?) {
+        val shape = RoundedCornerShape(10.dp)
+        Box(
+            Modifier.size(width = 128.dp, height = 72.dp).clip(shape)
+                .background(IronLemonColors.SurfaceRaised)
+        ) {
+            if (picture != null) {
+                Image(
+                    bitmap = picture,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            }
+        }
+    }
+
+    private fun loadSlot(id: Long) {
+        runQuickState(
+            R.string.emulation_quick_load_state_working,
+            R.string.emulation_quick_load_state_still_working
+        ) {
+            quickLoadMessage(NativeLibrary.quickLoadSlot(id))
+        }
     }
 
     /**
@@ -1326,5 +1614,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // Just under a long toast's 3.5 s, so the next one follows without a gap.
         private const val QUICK_STATE_WORKING_SHOWN_MS = 3400L
         private const val QUICK_STATE_SUCCESS_SHOWN_MS = 1000L
+
+        // The width of a quicksave slot's picture, in pixels.
+        private const val QUICK_SAVE_THUMBNAIL_WIDTH = 320
     }
 }

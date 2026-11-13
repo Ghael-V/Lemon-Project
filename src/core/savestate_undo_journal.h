@@ -7,6 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <mutex>
 #include <utility>
 #include <vector>
@@ -24,6 +25,10 @@ namespace Core::SaveState {
  * but under new nvmap handle ids and at new GPU addresses (a load that only rewound memory drew a
  * black scene), and it unmaps the stacks of four worker threads and maps new ones elsewhere (the
  * next death after such a load aborted when the game unmapped a stack the kernel no longer had).
+ *
+ * Several saves can be followed at once (the Quick Save slots): each is a moment in the recording
+ * order (Mark), and a load undoes only what was recorded after its save's moment. What was recorded
+ * before the oldest save still to be loaded is let go at the next save.
  *
  * A change it cannot undo makes the journal unusable until the next save: a Quick Load then
  * refuses instead of loading onto state that does not match.
@@ -48,30 +53,56 @@ public:
         return journal;
     }
 
-    /// Called by a save: from now on, changes are recorded relative to this moment.
-    void Start() {
-        std::scoped_lock lock{mutex};
-        undo.clear();
-        restored_ranges.clear();
-        recording = true;
-        usable = true;
+    /// The current moment in the recording order: a save's, for a load to go back to.
+    static u64 Mark() {
+        return NextOrder();
+    }
+
+    /// Called by a save made at `mark`: from now on, changes are recorded for it too. What was
+    /// recorded before `keep_from`, the moment of the oldest save still to be loaded, is let go.
+    void Start(u64 mark, u64 keep_from) {
+        std::vector<Step> dropped;
+        {
+            std::scoped_lock lock{mutex};
+            if (!recording || !usable) {
+                // Nothing usable was followed until now: only this save and later ones can load.
+                first_mark = mark;
+                keep_from = mark;
+            }
+            DropBefore(keep_from, dropped);
+            last_mark = mark;
+            recording = true;
+            usable = true;
+        }
+        // Destroyed outside the lock: releasing a service object can run code that calls Record.
+        dropped.clear();
     }
 
     /// Records how to undo one change; the step returns false if it could not be undone. Nothing
     /// is built while no save is being followed, which is most of the time.
     template <typename F>
     void Record(const char* what, F&& step) {
-        std::scoped_lock lock{mutex};
-        if (!recording || !usable) {
-            return;
+        std::vector<Step> dropped;
+        {
+            std::scoped_lock lock{mutex};
+            if (!recording || !usable) {
+                return;
+            }
+            if (undo.size() >= MaxSteps) {
+                // Too much to follow: saves older than the last one are given up first.
+                if (last_mark <= first_mark) {
+                    usable = false;
+                    undo.clear();
+                    restored_ranges.clear();
+                    return;
+                }
+                DropBefore(last_mark, dropped);
+                first_mark = last_mark;
+            }
+            undo.push_back({what, std::function<bool()>(std::forward<F>(step)), NextOrder()});
         }
-        if (undo.size() >= MaxSteps) {
-            usable = false;
-            undo.clear();
-            restored_ranges.clear();
-            return;
-        }
-        undo.push_back({what, std::function<bool()>(std::forward<F>(step)), NextOrder()});
+        // Destroyed outside the lock: releasing a service object can run code that calls Record.
+        dropped.clear();
     }
 
     /// Notes a guest memory range that undoing will map again, so a load does not count it as
@@ -79,23 +110,23 @@ public:
     void NoteRestoredRange(u64 address, u64 size) {
         std::scoped_lock lock{mutex};
         if (recording && usable) {
-            restored_ranges.emplace_back(address, size);
+            restored_ranges.push_back({address, size, NextOrder()});
         }
     }
 
-    /// Whether undoing maps [address, address + size) again.
+    /// Whether undoing back to the save made at `mark` maps [address, address + size) again.
     /// Covered by one noted range or by several that together leave no gap: a saved region can
     /// span memory the game unmapped in separate calls (adjacent physical memory blocks merge
     /// into one region at the save).
-    bool WillRestore(u64 address, u64 size) {
+    bool WillRestore(u64 address, u64 size, u64 mark) {
         std::scoped_lock lock{mutex};
         const u64 end = address + size;
         u64 covered = address; // everything below this is known to be restored
         bool advanced = true;
         while (covered < end && advanced) {
             advanced = false;
-            for (const auto& [start, length] : restored_ranges) {
-                if (start <= covered && covered < start + length) {
+            for (const auto& [start, length, order] : restored_ranges) {
+                if (order > mark && start <= covered && covered < start + length) {
                     covered = start + length;
                     advanced = true;
                 }
@@ -125,6 +156,12 @@ public:
         Memory().Stop();
         Gpu().Stop();
         Services().Stop();
+        LastStop() = NextOrder();
+    }
+
+    /// Whether the save made at `mark` was made since the game started (since the last StopAll).
+    static bool InThisRun(u64 mark) {
+        return mark > LastStop().load();
     }
 
     /// A change happened that cannot be undone.
@@ -144,20 +181,29 @@ public:
         return recording;
     }
 
+    /// Whether a change made now could be undone by a load: a save is being followed.
     bool CanUndo() {
         std::scoped_lock lock{mutex};
         return recording && usable;
     }
 
-    size_t Size() {
+    /// Whether everything since the save made at `mark` can be undone.
+    bool CanUndoTo(u64 mark) {
         std::scoped_lock lock{mutex};
-        return undo.size();
+        return recording && usable && mark >= first_mark;
     }
 
-    /// Undoes everything recorded since the save, newest first. Afterwards the state is the one of
-    /// the save again, so recording carries on from an empty journal.
-    bool UndoAll() {
-        return UndoAllTogether({this}).front();
+    /// How many changes were recorded since the save made at `mark`.
+    size_t Size(u64 mark) {
+        std::scoped_lock lock{mutex};
+        return static_cast<size_t>(
+            std::ranges::count_if(undo, [mark](const Step& step) { return step.order > mark; }));
+    }
+
+    /// Undoes everything recorded since the save made at `mark`, newest first. Afterwards the
+    /// state is the one of that save again, so recording carries on from there.
+    bool UndoAll(u64 mark) {
+        return UndoAllTogether({this}, mark).front();
     }
 
     /// Undoes everything the journals recorded since the save, newest first across all of them,
@@ -165,7 +211,8 @@ public:
     /// matters when their changes depend on each other: memory the game maps and then locks for
     /// the GPU (memory journal, then GPU journal) can only be unmapped once the lock is undone,
     /// and memory it unlocks and then unmaps has to be mapped again before it can be locked.
-    static std::vector<bool> UndoAllTogether(std::initializer_list<UndoJournal*> journals) {
+    static std::vector<bool> UndoAllTogether(std::initializer_list<UndoJournal*> journals,
+                                             u64 mark) {
         struct Taken {
             Step step;
             size_t journal;
@@ -176,7 +223,7 @@ public:
         size_t index = 0;
         for (UndoJournal* journal : journals) {
             std::vector<Step> own;
-            if (journal->TakeSteps(own)) {
+            if (journal->TakeSteps(own, mark)) {
                 taken[index] = true;
                 ok[index] = true;
                 for (auto& step : own) {
@@ -216,23 +263,52 @@ private:
         u64 order; // when it was recorded, across all journals (see UndoAllTogether)
     };
 
-    // Recording order across all journals.
+    struct RestoredRange {
+        u64 address;
+        u64 size;
+        u64 order; // when it was noted (see NextOrder)
+    };
+
+    // Recording order across all journals. Starts above LastStop's first value (see InThisRun).
     static u64 NextOrder() {
-        static std::atomic<u64> next{0};
+        static std::atomic<u64> next{1};
         return next.fetch_add(1, std::memory_order_relaxed);
     }
 
-    // Starts an undo: hands over the recorded steps and stops recording, as the steps call back
-    // into code that must not record its own undoing. False, and nothing handed over, when the
-    // journal is not usable.
-    bool TakeSteps(std::vector<Step>& out) {
+    // Moves the steps recorded before `order` to `dropped`, and forgets the ranges noted before it.
+    void DropBefore(u64 order, std::vector<Step>& dropped) {
+        // Steps are kept in recording order.
+        const auto kept = std::ranges::partition_point(
+            undo, [order](const Step& step) { return step.order < order; });
+        dropped.assign(std::make_move_iterator(undo.begin()), std::make_move_iterator(kept));
+        undo.erase(undo.begin(), kept);
+        std::erase_if(restored_ranges,
+                      [order](const RestoredRange& range) { return range.order < order; });
+    }
+
+    // The moment of the last StopAll.
+    static std::atomic<u64>& LastStop() {
+        static std::atomic<u64> last_stop{0};
+        return last_stop;
+    }
+
+    // Starts an undo back to the save made at `mark`: hands over the steps recorded since and
+    // stops recording, as the steps call back into code that must not record its own undoing.
+    // False, and nothing handed over, when the journal cannot undo that far.
+    bool TakeSteps(std::vector<Step>& out, u64 mark) {
         std::scoped_lock lock{mutex};
-        if (!recording || !usable) {
+        if (!recording || !usable || mark < first_mark) {
             return false;
         }
-        out.swap(undo);
-        undo.clear();
-        restored_ranges.clear();
+        // Steps are kept in recording order.
+        const auto since = std::ranges::partition_point(
+            undo, [mark](const Step& step) { return step.order < mark; });
+        out.assign(std::make_move_iterator(since), std::make_move_iterator(undo.end()));
+        undo.erase(since, undo.end());
+        std::erase_if(restored_ranges,
+                      [mark](const RestoredRange& range) { return range.order > mark; });
+        // Saves made after it are gone with what is undone: it is the newest one left.
+        last_mark = std::min(last_mark, mark);
         recording = false;
         return true;
     }
@@ -247,7 +323,9 @@ private:
 
     std::mutex mutex;
     std::vector<Step> undo;
-    std::vector<std::pair<u64, u64>> restored_ranges;
+    std::vector<RestoredRange> restored_ranges;
+    u64 first_mark{0}; // the oldest save whose changes since are all recorded
+    u64 last_mark{0};  // the newest save
     bool recording{false};
     bool usable{false};
 };
