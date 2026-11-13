@@ -17,15 +17,11 @@
 
 #include <string.h>
 
+#include "chacha20_internal.h"
+
 #include "mbedtls/platform.h"
 
 #if !defined(MBEDTLS_CHACHAPOLY_ALT)
-
-/* Parameter validation macros */
-#define CHACHAPOLY_VALIDATE_RET(cond)                                       \
-    MBEDTLS_INTERNAL_VALIDATE_RET(cond, MBEDTLS_ERR_POLY1305_BAD_INPUT_DATA)
-#define CHACHAPOLY_VALIDATE(cond)                                           \
-    MBEDTLS_INTERNAL_VALIDATE(cond)
 
 #define CHACHAPOLY_STATE_INIT       (0)
 #define CHACHAPOLY_STATE_AAD        (1)
@@ -75,8 +71,6 @@ static int chachapoly_pad_ciphertext(mbedtls_chachapoly_context *ctx)
 
 void mbedtls_chachapoly_init(mbedtls_chachapoly_context *ctx)
 {
-    CHACHAPOLY_VALIDATE(ctx != NULL);
-
     mbedtls_chacha20_init(&ctx->chacha20_ctx);
     mbedtls_poly1305_init(&ctx->poly1305_ctx);
     ctx->aad_len        = 0U;
@@ -103,8 +97,6 @@ int mbedtls_chachapoly_setkey(mbedtls_chachapoly_context *ctx,
                               const unsigned char key[32])
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-    CHACHAPOLY_VALIDATE_RET(ctx != NULL);
-    CHACHAPOLY_VALIDATE_RET(key != NULL);
 
     ret = mbedtls_chacha20_setkey(&ctx->chacha20_ctx, key);
 
@@ -117,8 +109,6 @@ int mbedtls_chachapoly_starts(mbedtls_chachapoly_context *ctx,
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     unsigned char poly1305_key[64];
-    CHACHAPOLY_VALIDATE_RET(ctx != NULL);
-    CHACHAPOLY_VALIDATE_RET(nonce != NULL);
 
     /* Set counter = 0, will be update to 1 when generating Poly1305 key */
     ret = mbedtls_chacha20_starts(&ctx->chacha20_ctx, nonce, 0U);
@@ -156,9 +146,6 @@ int mbedtls_chachapoly_update_aad(mbedtls_chachapoly_context *ctx,
                                   const unsigned char *aad,
                                   size_t aad_len)
 {
-    CHACHAPOLY_VALIDATE_RET(ctx != NULL);
-    CHACHAPOLY_VALIDATE_RET(aad_len == 0 || aad != NULL);
-
     if (ctx->state != CHACHAPOLY_STATE_AAD) {
         return MBEDTLS_ERR_CHACHAPOLY_BAD_STATE;
     }
@@ -174,14 +161,18 @@ int mbedtls_chachapoly_update(mbedtls_chachapoly_context *ctx,
                               unsigned char *output)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-    CHACHAPOLY_VALIDATE_RET(ctx != NULL);
-    CHACHAPOLY_VALIDATE_RET(len == 0 || input != NULL);
-    CHACHAPOLY_VALIDATE_RET(len == 0 || output != NULL);
 
     if ((ctx->state != CHACHAPOLY_STATE_AAD) &&
         (ctx->state != CHACHAPOLY_STATE_CIPHERTEXT)) {
         return MBEDTLS_ERR_CHACHAPOLY_BAD_STATE;
     }
+
+#if !defined(MBEDTLS_CHACHA20_ALT)
+    ret = mbedtls_chacha20_check_counter_wrap(&ctx->chacha20_ctx, len);
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* !MBEDTLS_CHACHA20_ALT */
 
     if (ctx->state == CHACHAPOLY_STATE_AAD) {
         ctx->state = CHACHAPOLY_STATE_CIPHERTEXT;
@@ -224,8 +215,6 @@ int mbedtls_chachapoly_finish(mbedtls_chachapoly_context *ctx,
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     unsigned char len_block[16];
-    CHACHAPOLY_VALIDATE_RET(ctx != NULL);
-    CHACHAPOLY_VALIDATE_RET(mac != NULL);
 
     if (ctx->state == CHACHAPOLY_STATE_INIT) {
         return MBEDTLS_ERR_CHACHAPOLY_BAD_STATE;
@@ -303,13 +292,6 @@ int mbedtls_chachapoly_encrypt_and_tag(mbedtls_chachapoly_context *ctx,
                                        unsigned char *output,
                                        unsigned char tag[16])
 {
-    CHACHAPOLY_VALIDATE_RET(ctx   != NULL);
-    CHACHAPOLY_VALIDATE_RET(nonce != NULL);
-    CHACHAPOLY_VALIDATE_RET(tag   != NULL);
-    CHACHAPOLY_VALIDATE_RET(aad_len == 0 || aad    != NULL);
-    CHACHAPOLY_VALIDATE_RET(length  == 0 || input  != NULL);
-    CHACHAPOLY_VALIDATE_RET(length  == 0 || output != NULL);
-
     return chachapoly_crypt_and_tag(ctx, MBEDTLS_CHACHAPOLY_ENCRYPT,
                                     length, nonce, aad, aad_len,
                                     input, output, tag);
@@ -327,12 +309,6 @@ int mbedtls_chachapoly_auth_decrypt(mbedtls_chachapoly_context *ctx,
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     unsigned char check_tag[16];
     int diff;
-    CHACHAPOLY_VALIDATE_RET(ctx   != NULL);
-    CHACHAPOLY_VALIDATE_RET(nonce != NULL);
-    CHACHAPOLY_VALIDATE_RET(tag   != NULL);
-    CHACHAPOLY_VALIDATE_RET(aad_len == 0 || aad    != NULL);
-    CHACHAPOLY_VALIDATE_RET(length  == 0 || input  != NULL);
-    CHACHAPOLY_VALIDATE_RET(length  == 0 || output != NULL);
 
     if ((ret = chachapoly_crypt_and_tag(ctx,
                                         MBEDTLS_CHACHAPOLY_DECRYPT, length, nonce,

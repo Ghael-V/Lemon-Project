@@ -7,8 +7,8 @@ send an email to the security team at
 ## Security Incident Handling Process
 
 Our security process is detailed in our
-[security
-center](https://developer.trustedfirmware.org/w/mbed-tls/security-center/).
+[online
+documentation](https://mbed-tls.readthedocs.io/en/latest/project/vulnerabilities/).
 
 Its primary goal is to ensure fixes are ready to be deployed when the issue
 goes public.
@@ -104,6 +104,12 @@ model, they need to be mitigated by physical countermeasures.
 
 ### Caveats
 
+#### Compiler-induced side channels
+
+Mbed TLS is mostly written in C. We use standard C except with known compilers, so we do not expect compilers to introduce direct vulnerabilities. However, compilers can introduce [timing side channels](#timing-attacks) in code that was intended to be constant-time. Mbed TLS includes countermeasures to try to prevent this. But given the diversity of compilers, compiler options and target platforms, this prevention may not be complete.
+
+We recommend compiling Mbed TLS with commonly used levels of optimizations, such as `-O2` or `-Os`. We will generally treat exploitable timing side channels as a vulnerability if they appear with a common compiler at a common level of optimization. Higher levels of optimization such as `-O3` or `-Oz` are still likely to be safe but are less scrutinized. We do not recommend using individual options that might introduce data-dependent timing, and we will not try to work around such optimizations if they are not part of a commonly used level.
+
 #### Out-of-scope countermeasures
 
 Mbed TLS has evolved organically and a well defined threat model hasn't always
@@ -128,10 +134,42 @@ even a remote. The attacks can result in key recovery.
 
 - Turn on hardware acceleration for AES. This is supported only on selected
   architectures and currently only available for AES. See configuration options
-  `MBEDTLS_AESNI_C` and `MBEDTLS_PADLOCK_C` for details.
+  `MBEDTLS_AESCE_C`, `MBEDTLS_AESNI_C` and `MBEDTLS_PADLOCK_C` for details.
 - Add a secure alternative implementation (typically hardware acceleration) for
   the vulnerable cipher. See the [Alternative Implementations
 Guide](docs/architecture/alternative-implementations.md) for more information.
 - Use cryptographic mechanisms that are not based on block ciphers. In
   particular, for authenticated encryption, use ChaCha20/Poly1305 instead of
   block cipher modes. For random generation, use HMAC\_DRBG instead of CTR\_DRBG.
+
+#### Everest
+
+The HACL* implementation of X25519 taken from the Everest project only protects
+against remote timing attacks. (See their [Security
+Policy](https://github.com/hacl-star/hacl-star/blob/main/SECURITY.md).)
+
+The Everest variant is only used when `MBEDTLS_ECDH_VARIANT_EVEREST_ENABLED`
+configuration option is defined. This option is off by default.
+
+#### Formatting of X509 data
+
+This section discusses limitations in how X.509 objects are processed. This
+applies to certificates, certificate signing requests (CSRs) and certificate
+revocation lists (CRLs).
+
+Mbed TLS does not check that they are strictly compliant with X.509 and other
+relevant standards. In the case of signed certificates and signed CRLs, the
+signing party is assumed to have performed this validation (and the certificate
+or CRL is trusted to be correctly formatted as long as the signature is
+correct).  Similarly, CSRs are implicitly trusted by Mbed TLS to be
+standards-compliant.
+
+**Warning!** Mbed TLS must not be used to sign untrusted CSRs or CRLs unless
+extra validation is performed separately to ensure that they are compliant to
+the relevant specifications. This makes Mbed TLS on its own unsuitable for use
+in a Certificate Authority (CA).
+
+However, Mbed TLS aims to protect against memory corruption and other
+undefined behavior when parsing certificates, CSRs and CRLs. If a CSR or signed
+certificate causes undefined behavior when it is parsed by Mbed TLS, that
+is considered a security vulnerability.

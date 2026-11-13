@@ -19,12 +19,9 @@
 
 #ifndef MBEDTLS_CHACHAPOLY_H
 #define MBEDTLS_CHACHAPOLY_H
+#include "mbedtls/private_access.h"
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "mbedtls/build_info.h"
 
 /* for shared error codes */
 #include "mbedtls/poly1305.h"
@@ -49,12 +46,12 @@ mbedtls_chachapoly_mode_t;
 #include "mbedtls/chacha20.h"
 
 typedef struct mbedtls_chachapoly_context {
-    mbedtls_chacha20_context chacha20_ctx;  /**< The ChaCha20 context. */
-    mbedtls_poly1305_context poly1305_ctx;  /**< The Poly1305 context. */
-    uint64_t aad_len;                       /**< The length (bytes) of the Additional Authenticated Data. */
-    uint64_t ciphertext_len;                /**< The length (bytes) of the ciphertext. */
-    int state;                              /**< The current state of the context. */
-    mbedtls_chachapoly_mode_t mode;         /**< Cipher mode (encrypt or decrypt). */
+    mbedtls_chacha20_context MBEDTLS_PRIVATE(chacha20_ctx);  /**< The ChaCha20 context. */
+    mbedtls_poly1305_context MBEDTLS_PRIVATE(poly1305_ctx);  /**< The Poly1305 context. */
+    uint64_t MBEDTLS_PRIVATE(aad_len);                       /**< The length (bytes) of the Additional Authenticated Data. */
+    uint64_t MBEDTLS_PRIVATE(ciphertext_len);                /**< The length (bytes) of the ciphertext. */
+    int MBEDTLS_PRIVATE(state);                              /**< The current state of the context. */
+    mbedtls_chachapoly_mode_t MBEDTLS_PRIVATE(mode);         /**< Cipher mode (encrypt or decrypt). */
 }
 mbedtls_chachapoly_context;
 
@@ -230,6 +227,9 @@ int mbedtls_chachapoly_update_aad(mbedtls_chachapoly_context *ctx,
  * \return          #MBEDTLS_ERR_CHACHAPOLY_BAD_STATE
  *                  if the operation has not been started or has been
  *                  finished.
+ * \return          #MBEDTLS_ERR_CHACHA20_BAD_INPUT_DATA
+ *                  if processing \p len bytes would make the 32-bit block
+ *                  counter wrap.
  * \return          Another negative error code on other kinds of failure.
  */
 int mbedtls_chachapoly_update(mbedtls_chachapoly_context *ctx,
@@ -283,6 +283,9 @@ int mbedtls_chachapoly_finish(mbedtls_chachapoly_context *ctx,
  *                  is written. This must not be \c NULL.
  *
  * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_CHACHA20_BAD_INPUT_DATA
+ *                  if processing \p length bytes would make the 32-bit block
+ *                  counter wrap.
  * \return          A negative error code on failure.
  */
 int mbedtls_chachapoly_encrypt_and_tag(mbedtls_chachapoly_context *ctx,
@@ -317,6 +320,9 @@ int mbedtls_chachapoly_encrypt_and_tag(mbedtls_chachapoly_context *ctx,
  * \return          \c 0 on success.
  * \return          #MBEDTLS_ERR_CHACHAPOLY_AUTH_FAILED
  *                  if the data was not authentic.
+ * \return          #MBEDTLS_ERR_CHACHA20_BAD_INPUT_DATA
+ *                  if processing \p length bytes would make the 32-bit block
+ *                  counter wrap.
  * \return          Another negative error code on other kinds of failure.
  */
 int mbedtls_chachapoly_auth_decrypt(mbedtls_chachapoly_context *ctx,
