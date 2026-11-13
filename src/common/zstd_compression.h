@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <memory>
 #include <span>
 #include <vector>
 
+#include "common/common_funcs.h"
 #include "common/common_types.h"
 
 namespace Common::Compression {
@@ -41,5 +43,42 @@ namespace Common::Compression {
  * @return the decompressed data.
  */
 [[nodiscard]] std::vector<u8> DecompressDataZSTD(std::span<const u8> compressed);
+
+/**
+ * Incremental Zstandard decompressor for sources too large to hold fully in memory (e.g.
+ * multi-gigabyte NCZ payloads). The caller feeds compressed bytes via FeedInput() and pulls
+ * decompressed bytes via Decompress(); FeedInput() must only be called again once NeedsMoreInput()
+ * is true, i.e. once the previously fed chunk has been fully consumed.
+ */
+class ZSTDStreamDecompressor {
+public:
+    ZSTDStreamDecompressor();
+    ~ZSTDStreamDecompressor();
+
+    YUZU_NON_COPYABLE(ZSTDStreamDecompressor);
+    YUZU_NON_MOVEABLE(ZSTDStreamDecompressor);
+
+    /// Appends more compressed source bytes. Only valid to call when NeedsMoreInput() is true.
+    void FeedInput(std::span<const u8> compressed);
+
+    /// True once all bytes previously passed to FeedInput() have been consumed.
+    [[nodiscard]] bool NeedsMoreInput() const;
+
+    /**
+     * Writes decompressed bytes into `output`.
+     *
+     * @return the number of bytes actually written. This is less than output.size() only when
+     *         NeedsMoreInput() becomes true (more input is required) or the compressed stream
+     *         has ended; check NeedsMoreInput() / HasError() to tell those cases apart.
+     */
+    [[nodiscard]] std::size_t Decompress(std::span<u8> output);
+
+    /// True if the underlying zstd stream reported a decoding error.
+    [[nodiscard]] bool HasError() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+};
 
 } // namespace Common::Compression
