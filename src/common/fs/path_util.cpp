@@ -240,9 +240,16 @@ std::string GetYuzuPathString(YuzuPath yuzu_path) {
 }
 
 void SetYuzuPath(YuzuPath yuzu_path, const fs::path& new_path) {
+    // A saved folder that was never created (or was removed) is created again rather than refused:
+    // it is what the config asks for. One that can't be (a removed SD card) keeps the current one.
+    if (!FS::Exists(new_path)) {
+        static_cast<void>(FS::CreateDirs(new_path));
+    }
     if (!FS::IsDir(new_path)) {
-        LOG_ERROR(Common_Filesystem, "Filesystem object at new_path={} is not a directory",
-                  PathToUTF8String(new_path));
+        LOG_WARNING(Common_Filesystem,
+                    "new_path={} is not a usable folder (a file is in the way, or it could not be "
+                    "created); keeping the current one",
+                    PathToUTF8String(new_path));
         return;
     }
 

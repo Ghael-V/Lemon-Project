@@ -24,6 +24,9 @@ object DirectoryInitialization {
         if (!areDirectoriesReady) {
             initializeInternalStorage()
             NativeLibrary.initializeSystem(false)
+            userPath?.let {
+                LastExitReason.record(YuzuApplication.appContext, java.io.File(it, "log"))
+            }
             NativeConfig.initializeGlobalConfig()
             migrateSettings()
             areDirectoriesReady = true
