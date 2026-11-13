@@ -27,6 +27,9 @@ import androidx.compose.ui.res.pluralStringResource
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSaveSlotInfo
 import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSaveSlots
+import dev.ironlemon.ironlemon_emulator.ui.modern.LoadingSnapshot
+import dev.ironlemon.ironlemon_emulator.ui.modern.ModernLoadingScreen
+import androidx.core.view.isVisible
 import dev.ironlemon.ironlemon_emulator.ui.modern.lemonInteractive
 import java.nio.ByteBuffer
 import androidx.compose.foundation.layout.Arrangement
@@ -457,6 +460,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         showInGameMenuPanel()
+        showModernLoadingScreen()
 
         setInsets()
 
@@ -508,7 +512,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             if (it) {
                 binding.drawerLayout.setDrawerLockMode(IntSetting.LOCK_DRAWER.getInt())
                 ViewUtils.showView(binding.surfaceInputOverlay)
-                ViewUtils.hideView(binding.loadingIndicator)
+                // The core is up, but the game has not drawn anything yet: the loading screen stays
+                // until its first frame (a cold shader cache can take a while).
+                startFirstFrameWatcher()
 
                 emulationState.updateSurface()
 
@@ -606,6 +612,86 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
      * Iron Lemon's in-game panel (Compose), drawn over the classic drawer menu. It shows that same
      * menu, and a tap goes through the menu's own handler, so every option behaves as before.
      */
+    /**
+     * The full-screen loading screen, drawn over the classic loading card: it shows while the card
+     * is shown, and reads its message and progress from it, so the loading logic stays as it is.
+     */
+    private fun showModernLoadingScreen() {
+        val card = binding.loadingIndicator
+        val parent = card.parent as? ViewGroup ?: return
+        val screen = ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                ModernLoadingScreen(
+                    isActive = { _binding?.loadingIndicator?.isVisible == true },
+                    read = ::loadingSnapshot
+                )
+            }
+            isClickable = true // nothing behind it is usable while it shows
+        }
+        parent.addView(
+            screen,
+            parent.indexOfChild(card) + 1,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        // Follow the card, which the loading logic shows and hides (with a fade).
+        card.viewTreeObserver.addOnPreDrawListener {
+            val shown = card.isVisible && card.alpha > 0f
+            screen.visibility = if (shown) View.VISIBLE else View.GONE
+            screen.alpha = card.alpha
+            true
+        }
+    }
+
+    private fun loadingSnapshot(): LoadingSnapshot {
+        val b = _binding ?: return LoadingSnapshot(game, "", 0, 0, true)
+        val bar = b.loadingProgressIndicator
+        return LoadingSnapshot(
+            game = game,
+            message = b.loadingText.text?.toString().orEmpty(),
+            progress = bar.progress,
+            max = bar.max,
+            indeterminate = bar.isIndeterminate
+        )
+    }
+
+    // Polls for the game's first frame on a handler of its own, so nothing else that clears
+    // handler callbacks can cancel it and leave the loading screen up.
+    private val firstFrameHandler = Handler(Looper.getMainLooper())
+    private var firstFrameWatcher: Runnable? = null
+
+    /** Hides the loading screen once the game presents its first frame, or after a minute. */
+    private fun startFirstFrameWatcher() {
+        stopFirstFrameWatcher()
+        val started = SystemClock.elapsedRealtime()
+        val watcher = object : Runnable {
+            override fun run() {
+                val b = _binding
+                if (b == null || emulationViewModel.isEmulationStopping.value) {
+                    firstFrameWatcher = null
+                    return
+                }
+                val fps = NativeLibrary.getPerfStats().getOrElse(1) { 0.0 }
+                if (fps > 0.0 || SystemClock.elapsedRealtime() - started > FIRST_FRAME_TIMEOUT_MS) {
+                    firstFrameWatcher = null
+                    ViewUtils.hideView(b.loadingIndicator)
+                    return
+                }
+                firstFrameHandler.postDelayed(this, FIRST_FRAME_POLL_MS)
+            }
+        }
+        firstFrameWatcher = watcher
+        firstFrameHandler.post(watcher)
+    }
+
+    private fun stopFirstFrameWatcher() {
+        firstFrameWatcher?.let { firstFrameHandler.removeCallbacks(it) }
+        firstFrameWatcher = null
+    }
+
     private fun showInGameMenuPanel() {
         val menu = binding.inGameMenu.menu
         val panel = ComposeView(requireContext()).apply {
@@ -1031,6 +1117,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        stopFirstFrameWatcher()
         quickStateToastHandler.removeCallbacksAndMessages(null)
         _binding = null
     }
@@ -1661,6 +1748,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // Just under a long toast's 3.5 s, so the next one follows without a gap.
         private const val QUICK_STATE_WORKING_SHOWN_MS = 3400L
         private const val QUICK_STATE_SUCCESS_SHOWN_MS = 1000L
+
+        // The loading screen waits for the game's first frame, checked this often, at most this long.
+        private const val FIRST_FRAME_POLL_MS = 200L
+        private const val FIRST_FRAME_TIMEOUT_MS = 60_000L
 
         // The width of a quicksave slot's picture, in pixels.
         private const val QUICK_SAVE_THUMBNAIL_WIDTH = 320
