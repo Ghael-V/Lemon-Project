@@ -178,15 +178,17 @@ class InputDialogFragment : IronLemonComposeDialogFragment() {
             KeyEvent.ACTION_UP -> NativeInput.ButtonState.RELEASED
             else -> return false
         }
+        // Key events injected by the system or the on-screen keyboard have no input device.
+        val device = event.device ?: return false
         val controllerData =
-            InputHandler.androidControllers[event.device.controllerNumber] ?: return false
+            InputHandler.androidControllers[device.controllerNumber] ?: return false
         NativeInput.onGamePadButtonEvent(
             controllerData.getGUID(),
             controllerData.getPort(),
             event.keyCode,
             action
         )
-        onInputReceived(event.device)
+        onInputReceived(device)
         return true
     }
 
@@ -200,16 +202,17 @@ class InputDialogFragment : IronLemonComposeDialogFragment() {
         // Temp workaround for DPads that give both axis and button input. The input system can't
         // take in a specific axis direction for a binding so you lose half of the directions for a DPad.
 
+        val device = event.device ?: return false
         val controllerData =
-            InputHandler.androidControllers[event.device.controllerNumber] ?: return false
-        event.device.motionRanges.forEach {
+            InputHandler.androidControllers[device.controllerNumber] ?: return false
+        device.motionRanges.forEach {
             NativeInput.onGamePadAxisEvent(
                 controllerData.getGUID(),
                 controllerData.getPort(),
                 it.axis,
                 event.getAxisValue(it.axis)
             )
-            onInputReceived(event.device)
+            onInputReceived(device)
         }
         return true
     }
