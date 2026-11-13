@@ -9,21 +9,27 @@ interface AbstractSetting {
     val key: String
     val defaultValue: Any
 
+    // Headers, submenus, buttons and input items have no native key: answer for them here, with
+    // what the core answers for an unknown key, instead of asking (and logging an error) each time.
     val isRuntimeModifiable: Boolean
-        get() = NativeConfig.getIsRuntimeModifiable(key)
+        get() = key.isEmpty() || NativeConfig.getIsRuntimeModifiable(key)
 
     val pairedSettingKey: String
-        get() = NativeConfig.getPairedSettingKey(key)
+        get() = if (key.isEmpty()) "" else NativeConfig.getPairedSettingKey(key)
 
     val isSwitchable: Boolean
-        get() = NativeConfig.getIsSwitchable(key)
+        get() = key.isNotEmpty() && NativeConfig.getIsSwitchable(key)
 
     var global: Boolean
-        get() = NativeConfig.usingGlobal(key)
-        set(value) = NativeConfig.setGlobal(key, value)
+        get() = key.isEmpty() || NativeConfig.usingGlobal(key)
+        set(value) {
+            if (key.isNotEmpty()) {
+                NativeConfig.setGlobal(key, value)
+            }
+        }
 
     val isSaveable: Boolean
-        get() = NativeConfig.getIsSaveable(key)
+        get() = key.isNotEmpty() && NativeConfig.getIsSaveable(key)
 
     fun getValueAsString(needsGlobal: Boolean = false): String
 
