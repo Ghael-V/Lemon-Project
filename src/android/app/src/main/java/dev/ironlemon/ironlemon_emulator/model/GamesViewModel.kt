@@ -200,6 +200,11 @@ class GamesViewModel : ViewModel() {
         /** Whether the games were scanned since the app's process started. */
         @Volatile
         private var scannedThisSession = false
+
+        /** The library opens after a game: show the stored list, as if it had just been scanned. */
+        fun skipStartupScan() {
+            scannedThisSession = true
+        }
     }
 }
 
