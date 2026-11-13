@@ -644,4 +644,10 @@ object NativeLibrary {
      * Checks if all necessary keys are present for decryption
      */
     external fun areKeysPresent(): Boolean
+
+    /**
+     * "name<TAB>bytes done<TAB>bytes total" for the solid .nsz/.xcz content being decompressed right
+     * now, or null when nothing is.
+     */
+    external fun getNczDecodeInfo(): String?
 }

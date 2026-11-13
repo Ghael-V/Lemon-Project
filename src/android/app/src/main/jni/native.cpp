@@ -45,6 +45,7 @@
 #include "core/core.h"
 #include "core/cpu_manager.h"
 #include "core/crypto/key_manager.h"
+#include "core/crypto/ncz_decompressor.h"
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/fs_filesystem.h"
@@ -1951,6 +1952,17 @@ jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_areKeysPresent(JNI
     // UI asks this often (setup refreshes each step as it is shown).
     system.GetFileSystemController().CreateFactories(*system.GetFilesystem(), false);
     return ContentManager::AreKeysPresent();
+}
+
+// "name<TAB>bytes done<TAB>bytes total" for the solid .nsz/.xcz content being decompressed right
+// now, or null when none is. The game-list scan shows it so a long first-time wait is explained.
+jstring Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getNczDecodeInfo(JNIEnv* env, jobject jobj) {
+    const auto progress = Core::Crypto::GetNczDecodeProgress();
+    if (!progress) {
+        return nullptr;
+    }
+    return Common::Android::ToJString(env, progress->name + '\t' + std::to_string(progress->done) +
+                                               '\t' + std::to_string(progress->total));
 }
 
 void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_setNextendoSession(JNIEnv* env, jobject obj,

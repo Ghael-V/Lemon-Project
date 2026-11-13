@@ -7,6 +7,8 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
 import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
 import android.content.Intent
 import android.os.Bundle
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,6 +36,9 @@ import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
 import dev.ironlemon.ironlemon_emulator.ui.modern.LibraryActions
 import dev.ironlemon.ironlemon_emulator.ui.modern.ModernLibraryScreen
+import dev.ironlemon.ironlemon_emulator.ui.modern.PullToRefresh
+import dev.ironlemon.ironlemon_emulator.ui.modern.ScanProgressCard
+import dev.ironlemon.ironlemon_emulator.utils.GameHelper
 import dev.ironlemon.ironlemon_emulator.ui.modern.PullToRefresh
 import dev.ironlemon.ironlemon_emulator.utils.GameIconUtils
 import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
@@ -67,19 +72,30 @@ class ModernGamesFragment : Fragment() {
             }
             val actions = remember { buildActions() }
 
-            PullToRefresh(
-                refreshing = reloading,
-                onRefresh = { gamesViewModel.reloadGames(false) },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                ModernLibraryScreen(
-                    games = games,
-                    loading = reloading,
-                    preferences = preferences,
-                    initialSelectedPath = lastPlayedPath,
-                    showQLaunch = false,
-                    actions = actions
-                )
+            val scan by GameHelper.scanProgress.collectAsState()
+            Box(Modifier.fillMaxSize()) {
+                PullToRefresh(
+                    refreshing = reloading,
+                    onRefresh = { gamesViewModel.reloadGames(false) },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    ModernLibraryScreen(
+                        games = games,
+                        loading = reloading,
+                        preferences = preferences,
+                        initialSelectedPath = lastPlayedPath,
+                        showQLaunch = false,
+                        actions = actions
+                    )
+                }
+                // A library scan can take minutes with many games (or one big compressed one):
+                // say so, in the middle while there is nothing to show yet, at the bottom otherwise.
+                scan?.let {
+                    ScanProgressCard(
+                        it,
+                        Modifier.align(if (games.isEmpty()) Alignment.Center else Alignment.BottomCenter)
+                    )
+                }
             }
         }
     }

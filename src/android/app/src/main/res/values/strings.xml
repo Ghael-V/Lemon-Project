@@ -1241,8 +1241,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="library_view_list">List</string>
     <string name="minutes_abbr">m</string>
     <string name="performance_preset">Performance preset</string>
-    <string name="pull_release">Release to refresh</string>
-    <string name="pull_to_refresh">Pull down to refresh</string>
     <string name="qlaunch_applet">Qlaunch</string>
     <string name="remove_from_favorites">Remove from favorites</string>
     <string name="seconds_abbr">s</string>
@@ -1468,4 +1466,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="widget_description">Launch your most recently played game</string>
     <string name="widget_no_recent_game">Open Lemon</string>
     <string name="widget_game_icon_desc">Game icon</string>
+    <string name="pull_to_refresh">Pull down to refresh</string>
+    <string name="pull_release">Release to refresh</string>
+    <string name="scan_listing">Looking for games…</string>
+    <string name="scan_loading">Loading your games… %1$d of %2$d</string>
+    <string name="scan_decoding">Preparing a compressed game for the first time: %1$s of %2$s (only once)</string>
 </resources>

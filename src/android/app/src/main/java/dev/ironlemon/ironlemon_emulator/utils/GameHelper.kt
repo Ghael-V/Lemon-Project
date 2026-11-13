@@ -13,6 +13,14 @@ import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.model.GameDir
 import dev.ironlemon.ironlemon_emulator.model.MinimalDocumentFile
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * How far a library scan has got. [total] is 0 while the folders are still being listed.
+ * [current] is the file being read right now.
+ */
+data class ScanProgress(val done: Int, val total: Int, val current: String)
 
 object GameHelper {
     private const val KEY_OLD_GAME_PATH = "game_path"
@@ -20,10 +28,23 @@ object GameHelper {
 
     private lateinit var preferences: SharedPreferences
 
+    /** Non-null while a scan is running, so the library can show that work is going on. */
+    val scanProgress: StateFlow<ScanProgress?> get() = _scanProgress
+    private val _scanProgress = MutableStateFlow<ScanProgress?>(null)
+
     // A scan clears and refills the native content provider, so two running at once (a library
     // reload plus CustomSettingsHandler's lookup) would each wipe what the other registered.
     @Synchronized
     fun getGames(): List<Game> {
+        _scanProgress.value = ScanProgress(0, 0, "")
+        try {
+            return scanGames()
+        } finally {
+            _scanProgress.value = null
+        }
+    }
+
+    private fun scanGames(): List<Game> {
         val games = mutableListOf<Game>()
         val context = YuzuApplication.appContext
         preferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -46,18 +67,26 @@ object GameHelper {
         NativeLibrary.clearFilesystemProvider()
 
         val badDirs = mutableListOf<Int>()
+        // List every folder first (quick), so the scan below knows how many files it has to read
+        // and can report real progress. Files keep the order the old recursive walk visited them.
+        val pending = mutableListOf<MinimalDocumentFile>()
         gameDirs.forEachIndexed { index: Int, gameDir: GameDir ->
             val gameDirUri = Uri.parse(gameDir.uriString)
             val isValid = FileUtil.isTreeUriValid(gameDirUri)
             if (isValid) {
-                addGamesRecursive(
-                    games,
+                collectFiles(
                     FileUtil.listFiles(gameDirUri),
-                    if (gameDir.deepScan) 3 else 1
+                    if (gameDir.deepScan) 3 else 1,
+                    pending
                 )
             } else {
                 badDirs.add(index)
             }
+        }
+        val gameFiles = pending.filter { Game.extensions.contains(FileUtil.getExtension(it.uri)) }
+        gameFiles.forEachIndexed { done, file ->
+            _scanProgress.value = ScanProgress(done, gameFiles.size, file.filename)
+            getGame(file.uri, true)?.let { games.add(it) }
         }
 
         // Remove all game dirs with insufficient permissions from config
@@ -83,29 +112,20 @@ object GameHelper {
         return games.toList()
     }
 
-    private fun addGamesRecursive(
-        games: MutableList<Game>,
+    // Flattens the folders (depth first, in listing order) into one list of files.
+    private fun collectFiles(
         files: Array<MinimalDocumentFile>,
-        depth: Int
+        depth: Int,
+        out: MutableList<MinimalDocumentFile>
     ) {
         if (depth <= 0) {
             return
         }
-
         files.forEach {
             if (it.isDirectory) {
-                addGamesRecursive(
-                    games,
-                    FileUtil.listFiles(it.uri),
-                    depth - 1
-                )
+                collectFiles(FileUtil.listFiles(it.uri), depth - 1, out)
             } else {
-                if (Game.extensions.contains(FileUtil.getExtension(it.uri))) {
-                    val game = getGame(it.uri, true)
-                    if (game != null) {
-                        games.add(game)
-                    }
-                }
+                out.add(it)
             }
         }
     }

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -45,6 +46,13 @@ constexpr u32 MaxBlockSizeExponent = 28;      // 256 MiB; nsz defaults to 20 (1 
 // mostly saves re-decoding a block that one read ended in and the next one starts in.
 constexpr u64 BlockCacheBudget = 16ULL * 1024 * 1024;
 constexpr u64 ProgressLogInterval = 512ULL * 1024 * 1024;
+
+// Progress of the solid decode in flight, read through GetNczDecodeProgress(). A total of 0 means
+// nothing is being decoded.
+std::mutex progress_mutex;
+std::string progress_name;
+std::atomic<u64> progress_done{0};
+std::atomic<u64> progress_total{0};
 // Fully decoded solid NCAs are kept so later sessions boot without decompressing again, but they
 // live in persistent storage that the OS never trims - past this total the least recently used go.
 constexpr u64 MaxCompleteCacheSize = 24ULL * 1024 * 1024 * 1024;
@@ -533,6 +541,18 @@ private:
             return;
         }
         LOG_INFO(Crypto, "Decompressing NCZ {} ({} MiB)...", name, layout.nca_size >> 20);
+        {
+            std::scoped_lock progress_lock{progress_mutex};
+            progress_name = name;
+        }
+        progress_done.store(frontier, std::memory_order_relaxed);
+        progress_total.store(layout.nca_size, std::memory_order_release);
+        // Whichever way this ends (done, failed, short write), the decode is no longer in flight.
+        struct ClearProgress {
+            ~ClearProgress() {
+                progress_total.store(0, std::memory_order_release);
+            }
+        } clear_progress;
         u64 next_progress_log = ProgressLogInterval;
         std::optional<AESCipher<Key128>> cipher;
         std::vector<u8> scratch;
@@ -559,6 +579,7 @@ private:
                 cursor += chunk_size;
                 // Gaps between sections stay zero from the up-front Resize.
                 frontier = cursor;
+                progress_done.store(frontier, std::memory_order_relaxed);
                 if (frontier >= next_progress_log) {
                     LOG_INFO(Crypto, "Decompressing NCZ {}: {}/{} MiB", name, frontier >> 20,
                              layout.nca_size >> 20);
@@ -783,6 +804,15 @@ FileSys::VirtualFile DecompressNCZ(const FileSys::VirtualFile& ncz_file,
     }
     return std::make_shared<BlockNczFile>(std::move(name), std::move(header), std::move(*layout),
                                           std::move(body));
+}
+
+std::optional<NczDecodeProgress> GetNczDecodeProgress() {
+    const u64 total = progress_total.load(std::memory_order_acquire);
+    if (total == 0) {
+        return std::nullopt;
+    }
+    std::scoped_lock lock{progress_mutex};
+    return NczDecodeProgress{progress_name, progress_done.load(std::memory_order_relaxed), total};
 }
 
 } // namespace Core::Crypto

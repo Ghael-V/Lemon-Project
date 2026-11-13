@@ -613,8 +613,6 @@
     <string name="library_view_list">Lista</string>
     <string name="minutes_abbr">m</string>
     <string name="performance_preset">Perfil de rendimiento</string>
-    <string name="pull_release">Suelta para actualizar</string>
-    <string name="pull_to_refresh">Desliza hacia abajo para actualizar</string>
     <string name="qlaunch_applet">Qlaunch</string>
     <string name="remove_from_favorites">Quitar de favoritos</string>
     <string name="seconds_abbr">s</string>
@@ -935,4 +933,9 @@
     <string name="widget_description">Abre el último juego al que has jugado</string>
     <string name="widget_no_recent_game">Abrir Lemon</string>
     <string name="widget_game_icon_desc">Icono del juego</string>
+    <string name="pull_to_refresh">Desliza hacia abajo para actualizar</string>
+    <string name="pull_release">Suelta para actualizar</string>
+    <string name="scan_listing">Buscando juegos…</string>
+    <string name="scan_loading">Cargando tus juegos… %1$d de %2$d</string>
+    <string name="scan_decoding">Preparando un juego comprimido por primera vez: %1$s de %2$s (solo esta vez)</string>
 </resources>
