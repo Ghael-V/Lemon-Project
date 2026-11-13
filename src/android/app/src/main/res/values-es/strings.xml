@@ -985,4 +985,5 @@
     <string name="nand_location_failed">La copia ha fallado: la NAND sigue donde estaba.</string>
     <string name="bcn_astc_recompression">Recomprimir texturas BCn</string>
     <string name="bcn_astc_recompression_description">En GPUs sin soporte de BCn (Mali, Xclipse), guarda las texturas BC1, BC2, BC3 y BC7 como ASTC, y las BC4 y BC5 como EAC, en lugar de sin comprimir. Usa de 2 a 8 veces menos memoria en los juegos que las usan; los detalles finos pueden verse algo más suaves. No hace nada en GPUs que soportan BCn.</string>
+    <string name="driver_download_no_build">Todavía no hay un driver para esta GPU.</string>
 </resources>

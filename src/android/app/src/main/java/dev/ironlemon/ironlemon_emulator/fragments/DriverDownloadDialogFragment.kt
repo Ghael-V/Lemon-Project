@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import dev.ironlemon.ironlemon_emulator.R
+import androidx.compose.ui.unit.sp
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonColors
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonIconButton
@@ -203,8 +204,16 @@ private fun DriverSources(onInstalled: (String) -> Unit) {
     val sources = remember {
         DriverDownloader.sourcesFor(
             adreno = GpuDriverHelper.hasKgslDevice(),
-            gpuName = GpuDriverHelper.cachedSystemDriverInfo()?.getOrNull(1)
+            // The GPU model; unknown yet, every build for this kind of GPU is listed.
+            gpuName = GpuDriverHelper.cachedSystemDriverInfo()?.getOrNull(2)
         )
+    }
+    if (sources.isEmpty()) {
+        BasicText(
+            stringResource(R.string.driver_download_no_build),
+            style = IronLemonType.Body.copy(fontSize = 15.sp)
+        )
+        return
     }
     var source by remember { mutableStateOf(sources.first()) }
     var releases by remember { mutableStateOf<ReleasesState>(ReleasesState.Loading) }

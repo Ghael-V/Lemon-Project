@@ -1288,10 +1288,15 @@ jobjectArray Java_dev_ironlemon_ironlemon_1emulator_utils_GpuDriverHelper_getSys
                                           VK_API_VERSION_MINOR(driver_version),
                                           VK_API_VERSION_PATCH(driver_version));
 
+        // [version, driver name, GPU model]: the model ("Mali-G615 MC6") picks the PanVK builds,
+        // the driver name is just "Mali" there.
         jobjectArray j_driver_info = env->NewObjectArray(
-            2, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
+            3, Common::Android::GetStringClass(), Common::Android::ToJString(env, version_string));
         env->SetObjectArrayElement(j_driver_info, 1,
                                    Common::Android::ToJString(env, device.GetDriverName()));
+        env->SetObjectArrayElement(
+            j_driver_info, 2,
+            Common::Android::ToJString(env, std::string{device.GetModelName()}));
         return j_driver_info;
     } catch (const std::exception& e) {
         LOG_ERROR(Frontend, "Couldn't read the system GPU driver's info: {}", e.what());

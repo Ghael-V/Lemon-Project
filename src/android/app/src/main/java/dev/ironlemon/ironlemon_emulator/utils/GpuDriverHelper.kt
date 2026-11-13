@@ -23,8 +23,12 @@ object GpuDriverHelper {
     private const val PREF_SYSTEM_DRIVER_BUILD = "SystemDriverInfoBuild"
     private const val PREF_SYSTEM_DRIVER_VERSION = "SystemDriverInfoVersion"
     private const val PREF_SYSTEM_DRIVER_NAME = "SystemDriverInfoName"
+    private const val PREF_SYSTEM_GPU_MODEL = "SystemGpuModel"
 
-    /** The system driver's [version, name] if known already, without touching Vulkan. */
+    /**
+     * The system driver's [version, name, GPU model] if known already, without touching Vulkan.
+     * An answer saved before the model was kept counts as unknown, so it's asked again.
+     */
     fun cachedSystemDriverInfo(): Array<String>? {
         val prefs = PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext)
         if (prefs.getString(PREF_SYSTEM_DRIVER_BUILD, null) != Build.FINGERPRINT) {
@@ -32,18 +36,20 @@ object GpuDriverHelper {
         }
         val version = prefs.getString(PREF_SYSTEM_DRIVER_VERSION, null) ?: return null
         val name = prefs.getString(PREF_SYSTEM_DRIVER_NAME, null) ?: return null
-        return arrayOf(version, name)
+        val model = prefs.getString(PREF_SYSTEM_GPU_MODEL, null) ?: return null
+        return arrayOf(version, name, model)
     }
 
     /** Asks the system driver (slow: call it off the main thread) and remembers the answer. */
     fun querySystemDriverInfo(): Array<String>? {
         cachedSystemDriverInfo()?.let { return it }
         val info = getSystemDriverInfo() ?: return null
-        if (info.size >= 2) {
+        if (info.size >= 3) {
             PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext).edit()
                 .putString(PREF_SYSTEM_DRIVER_BUILD, Build.FINGERPRINT)
                 .putString(PREF_SYSTEM_DRIVER_VERSION, info[0])
                 .putString(PREF_SYSTEM_DRIVER_NAME, info[1])
+                .putString(PREF_SYSTEM_GPU_MODEL, info[2])
                 .apply()
         }
         return info
