@@ -1,0 +1,413 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// GPU version of the ASTC 4x4 encoder in video_core/textures/astc_encoder.cpp, which documents
+// the method; keep the two in step. One invocation encodes one block of RGBA8 texels.
+
+#version 460 core
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer InputTexels {
+    uint texels[];
+};
+
+layout(std430, set = 0, binding = 1) writeonly buffer OutputBlocks {
+    uvec4 blocks[];
+};
+
+// See MakeGpuTables(): endpoint tables for ranges 32/48/192/256, then trit block T values.
+layout(std430, set = 0, binding = 2) readonly buffer Tables {
+    uint tables[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint width;
+    uint height;
+    uint slices;
+    uint input_offset;  // in texels
+    uint output_offset; // in blocks
+};
+
+// Endpoint ranges, indexing the tables.
+const uint RANGE_32 = 0;
+const uint RANGE_48 = 1;
+const uint RANGE_192 = 2;
+const uint RANGE_256 = 3;
+
+const uint CEM_RGB_DIRECT = 8;
+const uint CEM_RGBA_DIRECT = 12;
+
+const uint TRIT_TABLE = 1024;
+
+vec4 px[16];
+uint words[4];
+
+uint RangeBits(uint range) {
+    return range == RANGE_32 ? 5 : range == RANGE_48 ? 4 : range == RANGE_192 ? 6 : 8;
+}
+
+bool RangeIsTrit(uint range) {
+    return range == RANGE_48 || range == RANGE_192;
+}
+
+uint UnquantizeWeight(uint value, uint bits) {
+    uint result = 0;
+    uint filled = 0;
+    for (; filled < 6; filled += bits) {
+        result = (result << bits) | value;
+    }
+    result >>= filled - 6;
+    return result > 32 ? result + 1 : result;
+}
+
+uint EndpointEntry(uint range, float target) {
+    return tables[range * 256 + uint(clamp(round(target), 0.0, 255.0))];
+}
+
+vec4 Quantize(vec4 c, uint range, vec4 mask) {
+    vec4 result;
+    for (int i = 0; i < 4; ++i) {
+        result[i] = float(EndpointEntry(range, c[i]) & 0xFF);
+    }
+    return result * mask;
+}
+
+void PrincipalAxis(vec4 data[16], vec4 mask, out vec4 mean, out vec4 axis) {
+    mean = vec4(0.0);
+    vec4 lo = vec4(255.0);
+    vec4 hi = vec4(0.0);
+    for (int i = 0; i < 16; ++i) {
+        mean += data[i];
+        lo = min(lo, data[i]);
+        hi = max(hi, data[i]);
+    }
+    mean /= 16.0;
+    mat4 covariance = mat4(0.0);
+    for (int i = 0; i < 16; ++i) {
+        const vec4 d = data[i] - mean;
+        covariance += outerProduct(d, d);
+    }
+    axis = (hi - lo + 1e-3) * mask;
+    for (int iteration = 0; iteration < 8; ++iteration) {
+        const vec4 next = (covariance * axis) * mask;
+        const float len = length(next);
+        if (len < 1e-6) {
+            break;
+        }
+        axis = next / len;
+    }
+    axis = normalize(axis);
+}
+
+float PickWeights(vec4 data[16], vec4 e0, vec4 e1, uint weight_bits, out uint weights[16]) {
+    const uint levels = 1u << weight_bits;
+    float error = 0.0;
+    for (int i = 0; i < 16; ++i) {
+        float best = 3.4e38;
+        uint best_q = 0;
+        for (uint q = 0; q < levels; ++q) {
+            const float t = float(UnquantizeWeight(q, weight_bits)) / 64.0;
+            const vec4 d = data[i] - mix(e0, e1, t);
+            const float dist = dot(d, d);
+            if (dist < best) {
+                best = dist;
+                best_q = q;
+            }
+        }
+        weights[i] = best_q;
+        error += best;
+    }
+    return error;
+}
+
+bool RefineEndpoints(vec4 data[16], uint weights[16], uint weight_bits, inout vec4 e0,
+                     inout vec4 e1) {
+    float aa = 0.0;
+    float ab = 0.0;
+    float bb = 0.0;
+    vec4 xa = vec4(0.0);
+    vec4 xb = vec4(0.0);
+    for (int i = 0; i < 16; ++i) {
+        const float t = float(UnquantizeWeight(weights[i], weight_bits)) / 64.0;
+        const float s = 1.0 - t;
+        aa += s * s;
+        ab += s * t;
+        bb += t * t;
+        xa += s * data[i];
+        xb += t * data[i];
+    }
+    const float determinant = aa * bb - ab * ab;
+    if (abs(determinant) < 1e-6) {
+        return false;
+    }
+    e0 = (bb * xa - ab * xb) / determinant;
+    e1 = (aa * xb - ab * xa) / determinant;
+    return true;
+}
+
+float FitLine(vec4 data[16], vec4 mean, vec4 axis, vec4 mask, uint weight_bits, uint range,
+              out vec4 e0, out vec4 e1, out uint weights[16]) {
+    float t_min = 0.0;
+    float t_max = 0.0;
+    for (int i = 0; i < 16; ++i) {
+        const float projection = dot(data[i] - mean, axis);
+        t_min = min(t_min, projection);
+        t_max = max(t_max, projection);
+    }
+    e0 = Quantize(mean + axis * t_min, range, mask);
+    e1 = Quantize(mean + axis * t_max, range, mask);
+    float error = PickWeights(data, e0, e1, weight_bits, weights);
+    vec4 r0 = e0;
+    vec4 r1 = e1;
+    if (RefineEndpoints(data, weights, weight_bits, r0, r1)) {
+        r0 = Quantize(r0, range, mask);
+        r1 = Quantize(r1, range, mask);
+        uint refined_weights[16];
+        const float refined_error = PickWeights(data, r0, r1, weight_bits, refined_weights);
+        if (refined_error < error) {
+            e0 = r0;
+            e1 = r1;
+            weights = refined_weights;
+            error = refined_error;
+        }
+    }
+    return error;
+}
+
+void Put(uint position, uint value, uint bits) {
+    for (uint i = 0; i < bits; ++i) {
+        if (((value >> i) & 1u) != 0) {
+            const uint bit = position + i;
+            words[bit / 32] |= 1u << (bit % 32);
+        }
+    }
+}
+
+void PutReversed(uint stream_position, uint value, uint bits) {
+    for (uint i = 0; i < bits; ++i) {
+        if (((value >> i) & 1u) != 0) {
+            const uint bit = 127 - (stream_position + i);
+            words[bit / 32] |= 1u << (bit % 32);
+        }
+    }
+}
+
+void WriteEndpointSequence(uint values[8], uint count, uint range) {
+    const uint bits = RangeBits(range);
+    uint position = 17;
+    if (!RangeIsTrit(range)) {
+        for (uint i = 0; i < count; ++i) {
+            Put(position, (EndpointEntry(range, float(values[i])) >> 8) & 0xFF, bits);
+            position += bits;
+        }
+        return;
+    }
+    const uint T_SHIFT[5] = uint[5](0, 2, 4, 5, 7);
+    const uint T_BITS[5] = uint[5](2, 2, 1, 2, 1);
+    for (uint first = 0; first < count; first += 5) {
+        const uint in_block = min(5u, count - first);
+        uint index = 0;
+        uint scale = 1;
+        for (uint i = 0; i < in_block; ++i) {
+            index += ((EndpointEntry(range, float(values[first + i])) >> 16) & 0xFF) * scale;
+            scale *= 3;
+        }
+        const uint t = tables[TRIT_TABLE + (in_block - 1) * 243 + index];
+        for (uint i = 0; i < in_block; ++i) {
+            Put(position, (EndpointEntry(range, float(values[first + i])) >> 8) & 0xFF, bits);
+            position += bits;
+            Put(position, (t >> T_SHIFT[i]) & ((1u << T_BITS[i]) - 1), T_BITS[i]);
+            position += T_BITS[i];
+        }
+    }
+}
+
+void Write(uint block_mode, uint weight_bits, bool dual_plane, uint range, uint cem, vec4 e0,
+           vec4 e1, uint weights[16], uint alpha_weights[16]) {
+    // The decoder swaps (and blue-contracts) endpoints whose second colour sums lower than the
+    // first, so store them the other way round and mirror the weights instead.
+    if (e1.r + e1.g + e1.b < e0.r + e0.g + e0.b) {
+        const vec4 tmp = e0;
+        e0 = e1;
+        e1 = tmp;
+        const uint top = (1u << weight_bits) - 1;
+        for (int i = 0; i < 16; ++i) {
+            weights[i] = top - weights[i];
+            alpha_weights[i] = top - alpha_weights[i];
+        }
+    }
+    const uint channels = cem == CEM_RGBA_DIRECT ? 4 : 3;
+    uint values[8];
+    for (uint c = 0; c < 4; ++c) {
+        values[c * 2] = uint(e0[c]);
+        values[c * 2 + 1] = uint(e1[c]);
+    }
+    words = uint[4](0, 0, 0, 0);
+    Put(0, block_mode, 11);
+    Put(13, cem, 4);
+    WriteEndpointSequence(values, channels * 2, range);
+    const uint planes = dual_plane ? 2 : 1;
+    const uint weight_stream_bits = 16 * planes * weight_bits;
+    if (dual_plane) {
+        Put(128 - weight_stream_bits - 2, 3, 2); // alpha on the second plane
+    }
+    uint position = 0;
+    for (int i = 0; i < 16; ++i) {
+        PutReversed(position, weights[i], weight_bits);
+        position += weight_bits;
+        if (dual_plane) {
+            PutReversed(position, alpha_weights[i], weight_bits);
+            position += weight_bits;
+        }
+    }
+}
+
+void EncodeOpaque() {
+    const vec4 mask = vec4(1.0, 1.0, 1.0, 0.0);
+    vec4 rgb[16];
+    for (int i = 0; i < 16; ++i) {
+        rgb[i] = px[i] * mask;
+    }
+    vec4 mean;
+    vec4 axis;
+    PrincipalAxis(rgb, mask, mean, axis);
+    const uint MODES[4] = uint[4](0x042, 0x053, 0x242, 0x253);
+    const uint BITS[4] = uint[4](2, 3, 4, 5);
+    const uint RANGES[4] = uint[4](RANGE_256, RANGE_256, RANGE_192, RANGE_32);
+    float best_error = 3.4e38;
+    uint best = 0;
+    vec4 best_e0;
+    vec4 best_e1;
+    uint best_weights[16];
+    for (uint layout_index = 0; layout_index < 4; ++layout_index) {
+        vec4 e0;
+        vec4 e1;
+        uint weights[16];
+        const float error = FitLine(rgb, mean, axis, mask, BITS[layout_index],
+                                    RANGES[layout_index], e0, e1, weights);
+        if (error < best_error) {
+            best_error = error;
+            best = layout_index;
+            best_e0 = e0;
+            best_e1 = e1;
+            best_weights = weights;
+        }
+    }
+    uint unused[16] = uint[16](0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    Write(MODES[best], BITS[best], false, RANGES[best], CEM_RGB_DIRECT, best_e0, best_e1,
+          best_weights, unused);
+}
+
+void EncodeTranslucent() {
+    float best_error = 3.4e38;
+    uint best_mode = 0;
+    uint best_bits = 0;
+    bool best_dual = false;
+    uint best_range = 0;
+    vec4 best_e0;
+    vec4 best_e1;
+    uint best_weights[16];
+    uint best_alpha_weights[16] = uint[16](0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    // Shared weights for colour and alpha.
+    const vec4 all = vec4(1.0);
+    vec4 mean;
+    vec4 axis;
+    PrincipalAxis(px, all, mean, axis);
+    const uint SHARED_MODES[2] = uint[2](0x042, 0x053);
+    const uint SHARED_BITS[2] = uint[2](2, 3);
+    const uint SHARED_RANGES[2] = uint[2](RANGE_256, RANGE_192);
+    for (uint i = 0; i < 2; ++i) {
+        vec4 e0;
+        vec4 e1;
+        uint weights[16];
+        const float error =
+            FitLine(px, mean, axis, all, SHARED_BITS[i], SHARED_RANGES[i], e0, e1, weights);
+        if (error < best_error) {
+            best_error = error;
+            best_mode = SHARED_MODES[i];
+            best_bits = SHARED_BITS[i];
+            best_dual = false;
+            best_range = SHARED_RANGES[i];
+            best_e0 = e0;
+            best_e1 = e1;
+            best_weights = weights;
+        }
+    }
+
+    // Alpha on its own plane.
+    const vec4 rgb_mask = vec4(1.0, 1.0, 1.0, 0.0);
+    const vec4 alpha_mask = vec4(1.0, 0.0, 0.0, 0.0);
+    vec4 rgb[16];
+    vec4 alpha[16];
+    for (int i = 0; i < 16; ++i) {
+        rgb[i] = px[i] * rgb_mask;
+        alpha[i] = vec4(px[i].a, 0.0, 0.0, 0.0);
+    }
+    vec4 rgb_mean;
+    vec4 rgb_axis;
+    vec4 alpha_mean;
+    vec4 alpha_axis;
+    PrincipalAxis(rgb, rgb_mask, rgb_mean, rgb_axis);
+    PrincipalAxis(alpha, alpha_mask, alpha_mean, alpha_axis);
+    const uint DUAL_MODES[2] = uint[2](0x441, 0x442);
+    const uint DUAL_BITS[2] = uint[2](1, 2);
+    const uint DUAL_RANGES[2] = uint[2](RANGE_256, RANGE_48);
+    for (uint i = 0; i < 2; ++i) {
+        vec4 c0;
+        vec4 c1;
+        vec4 a0;
+        vec4 a1;
+        uint color_weights[16];
+        uint alpha_weights[16];
+        const float error = FitLine(rgb, rgb_mean, rgb_axis, rgb_mask, DUAL_BITS[i],
+                                    DUAL_RANGES[i], c0, c1, color_weights) +
+                            FitLine(alpha, alpha_mean, alpha_axis, alpha_mask, DUAL_BITS[i],
+                                    DUAL_RANGES[i], a0, a1, alpha_weights);
+        if (error < best_error) {
+            best_error = error;
+            best_mode = DUAL_MODES[i];
+            best_bits = DUAL_BITS[i];
+            best_dual = true;
+            best_range = DUAL_RANGES[i];
+            best_e0 = vec4(c0.rgb, a0.r);
+            best_e1 = vec4(c1.rgb, a1.r);
+            best_weights = color_weights;
+            best_alpha_weights = alpha_weights;
+        }
+    }
+    Write(best_mode, best_bits, best_dual, best_range, CEM_RGBA_DIRECT, best_e0, best_e1,
+          best_weights, best_alpha_weights);
+}
+
+void main() {
+    const uint blocks_x = (width + 3) / 4;
+    const uint blocks_y = (height + 3) / 4;
+    const uint block_index = gl_GlobalInvocationID.x;
+    if (block_index >= blocks_x * blocks_y * slices) {
+        return;
+    }
+    const uint slice = block_index / (blocks_x * blocks_y);
+    const uint in_slice = block_index % (blocks_x * blocks_y);
+    const uint bx = in_slice % blocks_x;
+    const uint by = in_slice / blocks_x;
+    bool opaque = true;
+    for (uint y = 0; y < 4; ++y) {
+        const uint sy = min(by * 4 + y, height - 1);
+        for (uint x = 0; x < 4; ++x) {
+            const uint sx = min(bx * 4 + x, width - 1);
+            const uint texel = texels[input_offset + (slice * height + sy) * width + sx];
+            const vec4 color = vec4(texel & 0xFF, (texel >> 8) & 0xFF, (texel >> 16) & 0xFF,
+                                    texel >> 24);
+            px[y * 4 + x] = color;
+            opaque = opaque && color.a == 255.0;
+        }
+    }
+    if (opaque) {
+        EncodeOpaque();
+    } else {
+        EncodeTranslucent();
+    }
+    blocks[output_offset + block_index] = uvec4(words[0], words[1], words[2], words[3]);
+}
