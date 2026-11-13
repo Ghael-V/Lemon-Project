@@ -1946,7 +1946,10 @@ void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_clearFilesystemProvide
 
 jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_areKeysPresent(JNIEnv* env, jobject jobj) {
     auto& system = EmulationSession::GetInstance().System();
-    system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
+    // Only create the factories that are missing. Recreating them (the default) destroys the
+    // registered caches a library scan on another thread may be reading at that moment, and the
+    // UI asks this often (setup refreshes each step as it is shown).
+    system.GetFileSystemController().CreateFactories(*system.GetFilesystem(), false);
     return ContentManager::AreKeysPresent();
 }
 
