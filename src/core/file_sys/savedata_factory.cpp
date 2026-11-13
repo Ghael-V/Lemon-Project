@@ -159,7 +159,13 @@ SaveDataSize SaveDataFactory::ReadSaveDataSize(SaveDataType type, u64 title_id,
         GetFullPath(program_id, dir, SaveDataSpaceId::User, type, title_id, user_id, 0);
     const auto relative_dir = GetOrCreateDirectoryRelative(dir, path);
 
-    const auto size_file = relative_dir->GetFile(GetSaveDataSizeFileName());
+    auto size_file = relative_dir->GetFile(GetSaveDataSizeFileName());
+    if (size_file == nullptr) {
+        size_file = relative_dir->GetFile(GetLegacySaveDataSizeFileName());
+        if (size_file != nullptr && size_file->Rename(GetSaveDataSizeFileName())) {
+            size_file = relative_dir->GetFile(GetSaveDataSizeFileName());
+        }
+    }
     if (size_file == nullptr || size_file->GetSize() < sizeof(SaveDataSize)) {
         return {0, 0};
     }

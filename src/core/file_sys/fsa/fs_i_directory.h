@@ -74,7 +74,8 @@ private:
         for (const auto& new_entry : new_data) {
             auto name = new_entry->GetName();
 
-            if (type == DirectoryEntryType::File && name == GetSaveDataSizeFileName()) {
+            if (type == DirectoryEntryType::File && (name == GetSaveDataSizeFileName() ||
+                                                    name == GetLegacySaveDataSizeFileName())) {
                 continue;
             }
 

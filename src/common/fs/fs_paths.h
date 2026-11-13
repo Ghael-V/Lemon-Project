@@ -3,9 +3,9 @@
 
 #pragma once
 
-// yuzu data directories
+// Iron Lemon data directories (on Android the app's own folder is used instead of YUZU_DIR)
 
-#define YUZU_DIR "yuzu"
+#define YUZU_DIR "ironlemon"
 #define PORTABLE_DIR "user"
 
 // Sub-directories contained within a yuzu data directory
@@ -27,6 +27,6 @@
 #define TAS_DIR "tas"
 #define ICONS_DIR "icons"
 
-// yuzu-specific files
+// Iron Lemon-specific files
 
 #define LOG_FILE "ironlemon_log.txt"

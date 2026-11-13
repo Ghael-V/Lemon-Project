@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
 
-    <string name="app_disclaimer">Este software ejecuta juegos para la videoconsola Nintendo Switch. Los videojuegos o claves no vienen incluidos.&lt;br /&gt;&lt;br /&gt;Antes de empezar, por favor, localice el archivo <![CDATA[<b> prod.keys </b>]]>en el almacenamiento de su dispositivo..&lt;br /&gt;&lt;br /&gt;<![CDATA[<a href=\"https://yuzu-emu.org/help/quickstart\">Saber más</a>]]></string>
+    <string name="app_disclaimer">Este software ejecuta juegos para la videoconsola Nintendo Switch. Los videojuegos o claves no vienen incluidos.&lt;br /&gt;&lt;br /&gt;Antes de empezar, por favor, localice el archivo <![CDATA[<b> prod.keys </b>]]>en el almacenamiento de su dispositivo..&lt;br /&gt;&lt;br /&gt;<![CDATA[<a href=\"https://lemon-emu.org/faq.html#start\">Saber más</a>]]></string>
     <string name="notice_notification_channel_name">Avisos y errores</string>
     <string name="notice_notification_channel_description">Mostrar notificaciones cuándo algo vaya mal.</string>
     <string name="notification_permission_not_granted">¡Permisos de notificación no concedidos!</string>
@@ -35,7 +35,7 @@
     <string name="select_games_folder_description">Permite que Iron Lemon llene la lista de juegos</string>
     <string name="add_games_warning">¿Omitir la selección de la carpeta de juegos?</string>
     <string name="add_games_warning_description">No se mostrará ningún juego si no se ha seleccionado una carpeta de juegos.</string>
-    <string name="add_games_warning_help">https://yuzu-emu.org/help/quickstart/#dumping-games</string>
+    <string name="add_games_warning_help">https://lemon-emu.org/faq.html#start</string>
     <string name="home_search_games">Buscar juegos</string>
     <string name="continue_playing">Continuar jugando</string>
     <string name="search_settings">Buscar configuración</string>
@@ -44,7 +44,7 @@
     <string name="install_prod_keys_description">Requerido para descifrar juegos</string>
     <string name="install_prod_keys_warning">¿Omitir agregar claves?</string>
     <string name="install_prod_keys_warning_description">Se requieren claves válidas para emular juegos. Solo las aplicaciones homebrew funcionarán si continúas.</string>
-    <string name="install_prod_keys_warning_help">https://yuzu-emu.org/help/quickstart/#guide-introduction</string>
+    <string name="install_prod_keys_warning_help">https://lemon-emu.org/faq.html#start</string>
     <string name="notifications">Notificaciones</string>
     <string name="notifications_description">Otorga el permiso de notificación con el botón de abajo.</string>
     <string name="give_permission">Conceder permiso</string>
@@ -65,7 +65,7 @@
     <string name="install_prod_keys_failure_extension_description">Compruebe que el archivo de claves tenga una extensión .keys y pruebe otra vez.</string>
     <string name="install_amiibo_keys_failure_extension_description">Compruebe que el archivo de claves tenga una extensión .bin y pruebe otra vez.</string>
     <string name="invalid_keys_error">Claves de cifrado no válidas</string>
-    <string name="dumping_keys_quickstart_link">https://yuzu-emu.org/help/quickstart/#dumping-decryption-keys</string>
+    <string name="dumping_keys_quickstart_link">https://lemon-emu.org/faq.html#start</string>
     <string name="install_keys_failure_description">El archivo seleccionado es incorrecto o está corrupto. Vuelva a redumpear sus claves.</string>
     <string name="gpu_driver_manager">Explorador de drivers de GPU</string>
     <string name="install_gpu_driver">Instalar driver de GPU</string>
@@ -115,7 +115,7 @@
     <string name="install_game_content_success">Contenido(s) de juego instalado/s con éxito</string>
     <string name="install_game_content_success_install">%1$d instalado con éxito</string>
     <string name="install_game_content_success_overwrite">%1$d sobreescrito con éxito</string>
-    <string name="install_game_content_help_link">https://yuzu-emu.org/help/quickstart/#dumping-installed-updates</string>
+    <string name="install_game_content_help_link">https://lemon-emu.org/faq.html#start</string>
     <string name="custom_driver_not_supported">Drivers personalizados no soportados</string>
     <string name="custom_driver_not_supported_description">En estos momentos, la carga de drivers personalizados no está disponible para este dispositivo..\n¡Comprueba esta opción en el futuro para ver si ya está añadido el soporte a ese dispositivo!</string>
     <string name="manage_yuzu_data">Administrar datos de Iron Lemon</string>
@@ -142,14 +142,14 @@
     <string name="verify_installed_content_description">Comprueba todo el contenido instalado por si hubiese alguno corrupto</string>
     <string name="keys_missing">Faltan las claves de encriptación</string>
     <string name="keys_missing_description">El firmware y los juegos no se pueden desencriptar</string>
-    <string name="keys_missing_help">https://yuzu-emu.org/help/quickstart/#dumping-decryption-keys</string>
+    <string name="keys_missing_help">https://lemon-emu.org/faq.html#start</string>
 
     <!-- Applet launcher strings -->
     <string name="applets">Ejecutador de applet</string>
     <string name="applets_description">Ejecutar applets de sistema usando el firmware instalado</string>
     <string name="applets_error_firmware">Firmware no instalado</string>
     <string name="applets_error_applet">Applet no disponible</string>
-    <string name="applets_error_description"><![CDATA[Asegúrese de que el archivo<a href=\"https://yuzu-emu.org/help/quickstart/#dumping-prodkeys-and-titlekeys\">prod.keys</a> y el <a href=\"https://yuzu-emu.org/help/quickstart/#dumping-system-firmware\">firmware</a> estén instalados e inténtelo de nuevo.]]></string>
+    <string name="applets_error_description"><![CDATA[Asegúrese de que el archivo<a href=\"https://lemon-emu.org/faq.html#start\">prod.keys</a> y el <a href=\"https://lemon-emu.org/faq.html#start\">firmware</a> estén instalados e inténtelo de nuevo.]]></string>
     <string name="album_applet">Álbum</string>
     <string name="album_applet_description">Ver las imágenes que están en la carpeta \"screenshots\" del usuario con el visor de fotos del sistema</string>
     <string name="mii_edit_applet">Editor de Mii</string>
@@ -168,7 +168,7 @@
     <string name="about_app_description">Un emulador de Switch de código abierto</string>
     <string name="contributors">Contribuidores</string>
     <string name="contributors_description">Basado en yuzu, hecho con \u2764 por el equipo de yuzu y el equipo de Lemon</string>
-    <string name="contributors_link">https://github.com/yuzu-emu/yuzu/graphs/contributors</string>
+    <string name="contributors_link">https://git.lemon-emu.org/lemon/Lemon-Project</string>
     <string name="licenses_description">Proyectos que hacen posible Iron Lemon</string>
     <string name="build">Versión</string>
     <string name="user_data">Datos de usuario</string>
@@ -182,13 +182,13 @@
     <string name="user_data_export_cancelled">Exportación cancelada</string>
     <string name="user_data_import_failed_description">Asegúrese de que las carpetas de datos de usuario estén en la raíz de la carpeta del zip y contengan un archivo config en config/config.ini e inténtelo de nuevo.</string>
     <string name="support_link">https://discord.gg/u77vRWY</string>
-    <string name="website_link">https://yuzu-emu.org/</string>
-    <string name="github_link">https://github.com/yuzu-emu</string>
+    <string name="website_link">https://lemon-emu.org/</string>
+    <string name="github_link">https://git.lemon-emu.org/lemon/Lemon-Project</string>
 
     <!-- Early access upgrade strings -->
     <string name="early_access">Early Access</string>
     <string name="get_early_access">Conseguir Early Access</string>
-    <string name="play_store_link">https://play.google.com/store/apps/details?id=org.yuzu.yuzu_emu.ea</string>
+    <string name="play_store_link">https://git.lemon-emu.org/lemon/Lemon-Project/releases/latest</string>
     <string name="get_early_access_description">Funciones de vanguardia, acceso anticipado a actualizaciones y más</string>
     <string name="early_access_benefits">Beneficios Early Access</string>
     <string name="cutting_edge_features">Características de vanguardia</string>
@@ -411,8 +411,8 @@
 
     <!-- ROM loading errors -->
     <string name="loader_error_encrypted">Su ROM está encriptada</string>
-    <string name="loader_error_encrypted_roms_description"><![CDATA[Por favor, siga las guías para redumpear<a href=\"https://yuzu-emu.org/help/quickstart/#dumping-physical-titles-game-cards\">cartuchos de juegos</a> o <a href=\"https://yuzu-emu.org/help/quickstart/#dumping-digital-titles-eshop\">títulos instalados</a>.]]></string>
-    <string name="loader_error_encrypted_keys_description"><![CDATA[Por favor, compruebe que su archivo <a href=\"https://yuzu-emu.org/help/quickstart/#dumping-prodkeys-and-titlekeys\">prod.keys</a> está instalado, para que los juegos sean descifrados.]]></string>
+    <string name="loader_error_encrypted_roms_description"><![CDATA[Por favor, siga las guías para redumpear<a href=\"https://lemon-emu.org/faq.html#start\">cartuchos de juegos</a> o <a href=\"https://lemon-emu.org/faq.html#start\">títulos instalados</a>.]]></string>
+    <string name="loader_error_encrypted_keys_description"><![CDATA[Por favor, compruebe que su archivo <a href=\"https://lemon-emu.org/faq.html#start\">prod.keys</a> está instalado, para que los juegos sean descifrados.]]></string>
     <string name="loader_error_video_core">Ocurrió un error al inicializar el núcleo de video, posiblemente debido a una incompatibilidad con el driver seleccionado</string>
     <string name="loader_error_video_core_description">Esto suele deberse a un driver de GPU incompatible. La instalación de un controlador de GPU personalizado puede resolver este problema.</string>
     <string name="loader_error_invalid_format">No se pudo cargar la ROM</string>

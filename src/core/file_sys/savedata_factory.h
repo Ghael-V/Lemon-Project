@@ -18,6 +18,11 @@ class System;
 namespace FileSys {
 
 constexpr const char* GetSaveDataSizeFileName() {
+    return ".ironlemon_save_size";
+}
+
+/// The name builds before the rename gave it; renamed on first read.
+constexpr const char* GetLegacySaveDataSizeFileName() {
     return ".yuzu_save_size";
 }
 

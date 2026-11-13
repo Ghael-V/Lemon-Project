@@ -23,6 +23,10 @@
 
 namespace FileSys {
 
+// Metadata for content installed outside an NCA's own CNMT (updates and DLC from NSPs).
+constexpr std::string_view META_DIR = "ironlemon_meta";
+constexpr std::string_view LEGACY_META_DIR = "yuzu_meta";
+
 // The size of blocks to use when vfs raw copying into nand.
 constexpr size_t VFS_RC_LARGE_COPY_BLOCK = 0x400000;
 
@@ -439,9 +443,19 @@ void RegisteredCache::ProcessFiles(const std::vector<NcaID>& ids) {
 }
 
 void RegisteredCache::AccumulateYuzuMeta() {
-    const auto meta_dir = dir->GetSubdirectory("yuzu_meta");
+    auto meta_dir = dir->GetSubdirectory(META_DIR);
     if (meta_dir == nullptr) {
-        return;
+        // Installed by a build from before the rename: move it to the new name.
+        meta_dir = dir->GetSubdirectory(LEGACY_META_DIR);
+        if (meta_dir == nullptr) {
+            return;
+        }
+        if (meta_dir->Rename(META_DIR)) {
+            meta_dir = dir->GetSubdirectory(META_DIR);
+            if (meta_dir == nullptr) {
+                return;
+            }
+        }
     }
 
     for (const auto& file : meta_dir->GetFiles()) {
@@ -759,7 +773,7 @@ bool RegisteredCache::RemoveExistingEntry(u64 title_id) const {
 
     // If patch entries for any program exist in yuzu meta, remove them
     for (u8 i = 0; i < 0x10; i++) {
-        const auto meta_dir = dir->CreateDirectoryRelative("yuzu_meta");
+        const auto meta_dir = dir->CreateDirectoryRelative(META_DIR);
         const auto filename = GetCNMTName(TitleType::Update, title_id + i);
         if (meta_dir->GetFile(filename)) {
             removed_data |= meta_dir->DeleteFile(filename);
@@ -812,7 +826,7 @@ InstallResult RegisteredCache::RawInstallNCA(const NCA& nca, const VfsCopyFuncti
 
 bool RegisteredCache::RawInstallYuzuMeta(const CNMT& cnmt) {
     // Reasoning behind this method can be found in the comment for InstallEntry, NCA overload.
-    const auto meta_dir = dir->CreateDirectoryRelative("yuzu_meta");
+    const auto meta_dir = dir->CreateDirectoryRelative(META_DIR);
     const auto filename = GetCNMTName(cnmt.GetType(), cnmt.GetTitleID());
     if (meta_dir->GetFile(filename) == nullptr) {
         auto out = meta_dir->CreateFile(filename);
