@@ -1509,10 +1509,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="nand_location_option">%1$s (%2$s free)</string>
     <string name="nand_location_game_running">Close the game first</string>
     <string name="nand_location_no_other">No other storage found. Insert an SD card to move the NAND to it.</string>
-    <string name="nand_location_move_question">The NAND (%1$s) will be copied to %2$s and then deleted from where it is now. Keep the storage in the device while you play: without it, the firmware, updates and saves won\'t be found.</string>
+    <string name="nand_location_move_question">Destination: %2$s. The NAND (%1$s) will be copied there and then deleted from where it is now. Keep that storage in the device while you play: without it, the firmware, updates and saves won\'t be found.</string>
     <string name="nand_location_move">Move</string>
     <string name="nand_location_moving">Moving the NAND</string>
-    <string name="nand_location_moved">The NAND is now on %1$s</string>
+    <string name="nand_location_moved">NAND location: %1$s</string>
     <string name="nand_location_no_space">There isn\'t enough free space there.</string>
     <string name="nand_location_cancelled">Cancelled: the NAND stays where it was.</string>
     <string name="nand_location_failed">The copy failed: the NAND stays where it was.</string>
