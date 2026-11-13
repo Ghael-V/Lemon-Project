@@ -11,6 +11,7 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_vulkan/vk_descriptor_pool.h"
 #include "video_core/renderer_vulkan/vk_update_descriptor.h"
+#include "video_core/surface.h"
 #include "video_core/texture_cache/types.h"
 #include "video_core/vulkan_common/vulkan_memory_allocator.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
@@ -170,6 +171,33 @@ public:
     std::pair<VkBuffer, VkDeviceSize> Encode(VkBuffer src_buffer, VkDeviceSize src_offset,
                                              std::span<VideoCommon::BufferImageCopy> copies,
                                              u32 channels, bool is_signed);
+
+private:
+    Scheduler& scheduler;
+    StagingBufferPool& staging_buffer_pool;
+    ComputePassDescriptorQueue& compute_pass_descriptor_queue;
+};
+
+/// Decodes raw BC1/2/3/4/5/7 blocks into the texels the CPU decoder produces (RGBA8, R8 or RG8),
+/// for BCn images stored decoded or recompressed that receive raw blocks from the GPU.
+/// See host_shaders/vulkan_bcn_decode.comp.
+class BcnDecodePass final : public ComputePass {
+public:
+    explicit BcnDecodePass(const Device& device_, Scheduler& scheduler_,
+                           DescriptorPool& descriptor_pool_,
+                           StagingBufferPool& staging_buffer_pool_,
+                           ComputePassDescriptorQueue& compute_pass_descriptor_queue_);
+    ~BcnDecodePass();
+
+    [[nodiscard]] static bool IsSupported(VideoCore::Surface::PixelFormat format);
+
+    /// Decodes the raw blocks described by `copies` (tightly packed, as UnswizzleImage lays them
+    /// out, at src_offset + buffer_offset) and rewrites the copies to describe the decoded
+    /// texels in the returned buffer, whose rows are padded to whole blocks.
+    std::pair<VkBuffer, VkDeviceSize> Decode(VkBuffer src_buffer, VkDeviceSize src_offset,
+                                             VkDeviceSize src_size,
+                                             std::span<VideoCommon::BufferImageCopy> copies,
+                                             VideoCore::Surface::PixelFormat format);
 
 private:
     Scheduler& scheduler;

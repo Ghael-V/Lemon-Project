@@ -834,6 +834,46 @@ void BlitScale(Scheduler& scheduler, VkImage src_image, VkImage dst_image, const
                                0, nullptr, nullptr, write_barriers);
     });
 }
+// Orders the transfers and compute dispatches that read and write raw BCn blocks.
+void RawBcnBarrier(vk::CommandBuffer cmdbuf) {
+    static constexpr VkMemoryBarrier BARRIER{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT |
+                         VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+    };
+    cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                           VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                           0, BARRIER);
+}
+
+// Size of an image level in its own blocks: 4x4 texels for BCn, texels otherwise. A raw copy
+// between a BCn image and an uncompressed one maps one block to one texel.
+[[nodiscard]] VideoCommon::Extent2D RawBlockGrid(const VideoCommon::ImageInfo& info, s32 level) {
+    const VideoCommon::Extent3D size = VideoCommon::MipSize(info.size, static_cast<u32>(level));
+    if (VideoCore::Surface::IsPixelFormatBCn(info.format)) {
+        return {Common::DivCeil(size.width, 4U), Common::DivCeil(size.height, 4U)};
+    }
+    return {size.width, size.height};
+}
+
+// BCn formats whose blocks decode the same way.
+[[nodiscard]] PixelFormat RawBcnFamily(PixelFormat format) {
+    switch (format) {
+    case PixelFormat::BC1_RGBA_SRGB:
+        return PixelFormat::BC1_RGBA_UNORM;
+    case PixelFormat::BC2_SRGB:
+        return PixelFormat::BC2_UNORM;
+    case PixelFormat::BC3_SRGB:
+        return PixelFormat::BC3_UNORM;
+    case PixelFormat::BC7_SRGB:
+        return PixelFormat::BC7_UNORM;
+    default:
+        return format;
+    }
+}
+
 } // Anonymous namespace
 
 TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& scheduler_,
@@ -863,6 +903,10 @@ TextureCacheRuntime::TextureCacheRuntime(const Device& device_, Scheduler& sched
     if (VideoCore::Surface::IsBcnRecompressedToEac(PixelFormat::BC4_UNORM)) {
         bcn_eac_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
                              compute_pass_descriptor_queue);
+    }
+    if (!device.IsOptimalBcnSupported()) {
+        bcn_decode_pass.emplace(device, scheduler, descriptor_pool, staging_buffer_pool,
+                                compute_pass_descriptor_queue);
     }
     LOG_INFO(Render_Vulkan, "BC4/BC5 to EAC recompression: {} (EAC: {})",
              bcn_eac_pass ? "on" : "off", device.IsOptimalEtc2Supported());
@@ -1288,6 +1332,158 @@ void TextureCacheRuntime::ConvertImage(Framebuffer* dst, ImageView& dst_view, Im
     UNIMPLEMENTED_MSG("Unimplemented format copy from {} to {}", src_view.format, dst_view.format);
 }
 
+bool TextureCacheRuntime::IsBcnStoredConverted(const Image& image) const {
+    return bcn_decode_pass && image.info.type == ImageType::e2D && image.info.num_samples == 1 &&
+           BcnDecodePass::IsSupported(image.info.format);
+}
+
+bool TextureCacheRuntime::IsRawBcnCopy(const Image& dst, const Image& src) const {
+    const bool dst_converted = IsBcnStoredConverted(dst);
+    const bool src_converted = IsBcnStoredConverted(src);
+    if (!dst_converted && !src_converted) {
+        return false;
+    }
+    if (dst.info.type != src.info.type || dst.info.num_samples != src.info.num_samples ||
+        BytesPerBlock(dst.info.format) != BytesPerBlock(src.info.format)) {
+        return false;
+    }
+    // The other side has to hold plain blocks or texels (not BC6H, stored as RGBA16F).
+    if ((!dst_converted && VideoCore::Surface::IsPixelFormatBCn(dst.info.format)) ||
+        (!src_converted && VideoCore::Surface::IsPixelFormatBCn(src.info.format))) {
+        return false;
+    }
+    if (dst_converted && src_converted &&
+        RawBcnFamily(dst.info.format) == RawBcnFamily(src.info.format)) {
+        // Both hold the same decoded or recompressed format: a plain copy is right, but the
+        // destination's raw blocks have to follow the source's when it has them.
+        return src.HasRawBcnBlocks() || dst.HasRawBcnBlocks();
+    }
+    return true;
+}
+
+void TextureCacheRuntime::CopyRawBcn(Image& dst, Image& src,
+                                     std::span<const VideoCommon::ImageCopy> copies) {
+    const bool dst_converted = IsBcnStoredConverted(dst);
+    const bool src_converted = IsBcnStoredConverted(src);
+    ASSERT(!dst_converted || dst.HasRawBcnBlocks());
+    ASSERT(!src_converted || src.HasRawBcnBlocks());
+    const u64 block_bytes = BytesPerBlock(src.info.format);
+
+    struct RawLevel {
+        u64 offset;      // of the first layer, in bytes
+        u32 row;         // blocks per row
+        u32 rows;        // rows per layer
+        u64 layer_bytes;
+    };
+    const auto raw_level = [block_bytes](const Image& image, s32 level) {
+        const VideoCommon::BufferImageCopy& raw = image.RawBcnLevel(level);
+        const u32 row = Common::DivCeil(raw.buffer_row_length, 4U);
+        const u32 rows = Common::DivCeil(raw.buffer_image_height, 4U);
+        return RawLevel{raw.buffer_offset, row, rows, u64{row} * rows * block_bytes};
+    };
+    const auto block_offset = [](const Image& image, s32 offset) {
+        return VideoCore::Surface::IsPixelFormatBCn(image.info.format) ? offset / 4 : offset;
+    };
+
+    for (const VideoCommon::ImageCopy& copy : copies) {
+        const s32 src_level = copy.src_subresource.base_level;
+        const s32 dst_level = copy.dst_subresource.base_level;
+        const u32 layers = static_cast<u32>(copy.src_subresource.num_layers);
+        const s32 src_layer = copy.src_subresource.base_layer;
+        const s32 dst_layer = copy.dst_subresource.base_layer;
+        // Callers copy whole levels; their extents come in texels or in blocks depending on the
+        // caller, so the region is worked out in blocks here.
+        const u32 sx = static_cast<u32>(block_offset(src, copy.src_offset.x));
+        const u32 sy = static_cast<u32>(block_offset(src, copy.src_offset.y));
+        const u32 dx = static_cast<u32>(block_offset(dst, copy.dst_offset.x));
+        const u32 dy = static_cast<u32>(block_offset(dst, copy.dst_offset.y));
+        const VideoCommon::Extent2D src_grid = RawBlockGrid(src.info, src_level);
+        const VideoCommon::Extent2D dst_grid = RawBlockGrid(dst.info, dst_level);
+        if (sx >= src_grid.width || sy >= src_grid.height || dx >= dst_grid.width ||
+            dy >= dst_grid.height) {
+            continue;
+        }
+        const u32 width = (std::min)(src_grid.width - sx, dst_grid.width - dx);
+        const u32 height = (std::min)(src_grid.height - sy, dst_grid.height - dy);
+
+        if (src_converted && dst_converted) {
+            const RawLevel s = raw_level(src, src_level);
+            const RawLevel d = raw_level(dst, dst_level);
+            std::vector<VkBufferCopy> regions;
+            regions.reserve(size_t{layers} * height);
+            for (u32 layer = 0; layer < layers; ++layer) {
+                for (u32 y = 0; y < height; ++y) {
+                    regions.push_back(VkBufferCopy{
+                        .srcOffset = s.offset + (src_layer + layer) * s.layer_bytes +
+                                     (u64{sy + y} * s.row + sx) * block_bytes,
+                        .dstOffset = d.offset + (dst_layer + layer) * d.layer_bytes +
+                                     (u64{dy + y} * d.row + dx) * block_bytes,
+                        .size = u64{width} * block_bytes,
+                    });
+                }
+            }
+            scheduler.RequestOutsideRenderPassOperationContext();
+            scheduler.Record([src_buffer = src.RawBcnBuffer(), dst_buffer = dst.RawBcnBuffer(),
+                              regions = std::move(regions)](vk::CommandBuffer cmdbuf) {
+                RawBcnBarrier(cmdbuf);
+                cmdbuf.CopyBuffer(src_buffer, dst_buffer, regions);
+                RawBcnBarrier(cmdbuf);
+            });
+        } else if (dst_converted) {
+            // Raw blocks written through an uncompressed format, one texel per block.
+            const RawLevel d = raw_level(dst, dst_level);
+            const VideoCommon::BufferImageCopy download{
+                .buffer_offset = d.offset + dst_layer * d.layer_bytes +
+                                 (u64{dy} * d.row + dx) * block_bytes,
+                .buffer_size = d.layer_bytes * layers,
+                .buffer_row_length = d.row,
+                .buffer_image_height = d.rows,
+                .image_subresource = copy.src_subresource,
+                .image_offset = {static_cast<s32>(sx), static_cast<s32>(sy), 0},
+                .image_extent = {width, height, 1},
+            };
+            src.DownloadMemory(dst.RawBcnBuffer(), 0, std::span{&download, 1});
+            scheduler.RequestOutsideRenderPassOperationContext();
+            scheduler.Record([](vk::CommandBuffer cmdbuf) { RawBcnBarrier(cmdbuf); });
+        } else {
+            // Raw blocks read through an uncompressed format.
+            const RawLevel s = raw_level(src, src_level);
+            const VideoCommon::BufferImageCopy upload{
+                .buffer_offset = s.offset + src_layer * s.layer_bytes +
+                                 (u64{sy} * s.row + sx) * block_bytes,
+                .buffer_size = s.layer_bytes * layers,
+                .buffer_row_length = s.row,
+                .buffer_image_height = s.rows,
+                .image_subresource = copy.dst_subresource,
+                .image_offset = {static_cast<s32>(dx), static_cast<s32>(dy), 0},
+                .image_extent = {width, height, 1},
+            };
+            scheduler.RequestOutsideRenderPassOperationContext();
+            scheduler.Record([](vk::CommandBuffer cmdbuf) { RawBcnBarrier(cmdbuf); });
+            dst.UploadMemory(src.RawBcnBuffer(), 0, std::span{&upload, 1});
+            continue;
+        }
+
+        // Decode the destination level again, recompressing it if the image is stored that way.
+        const RawLevel d = raw_level(dst, dst_level);
+        const VideoCommon::Extent3D mip = VideoCommon::MipSize(dst.info.size,
+                                                               static_cast<u32>(dst_level));
+        VideoCommon::BufferImageCopy decode{
+            .buffer_offset = d.offset + dst_layer * d.layer_bytes,
+            .buffer_size = d.layer_bytes * layers,
+            .buffer_row_length = d.row * 4,
+            .buffer_image_height = d.rows * 4,
+            .image_subresource = copy.dst_subresource,
+            .image_offset = {0, 0, 0},
+            .image_extent = {mip.width, mip.height, 1},
+        };
+        const auto [decoded, decoded_offset] = bcn_decode_pass->Decode(
+            dst.RawBcnBuffer(), 0, dst.unswizzled_size_bytes, std::span{&decode, 1},
+            dst.info.format);
+        dst.UploadMemory(decoded, decoded_offset, std::span{&decode, 1});
+    }
+}
+
 void TextureCacheRuntime::CopyImage(Image& dst, Image& src,
                                     std::span<const VideoCommon::ImageCopy> copies) {
     boost::container::small_vector<VkImageCopy, 16> vk_copies(copies.size());
@@ -1503,6 +1699,85 @@ void Image::UploadMemory(const StagingBufferRef& map, std::span<const BufferImag
     UploadMemory(map.buffer, map.offset, copies);
 }
 
+void Image::UploadRawBcnBlocks(const StagingBufferRef& map,
+                               std::span<const BufferImageCopy> copies) {
+    if (!raw_bcn_blocks) {
+        raw_bcn_blocks = runtime->memory_allocator.CreateBuffer(
+            VkBufferCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .size = unswizzled_size_bytes,
+                .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 0,
+                .pQueueFamilyIndices = nullptr,
+            },
+            MemoryUsage::DeviceLocal);
+    }
+    raw_bcn_levels.assign(copies.begin(), copies.end());
+    has_raw_bcn_blocks = true;
+    const VkBufferCopy region{
+        .srcOffset = map.offset,
+        .dstOffset = 0,
+        .size = unswizzled_size_bytes,
+    };
+    scheduler->RequestOutsideRenderPassOperationContext();
+    scheduler->Record([src = map.buffer, dst = *raw_bcn_blocks, region](vk::CommandBuffer cmdbuf) {
+        RawBcnBarrier(cmdbuf);
+        cmdbuf.CopyBuffer(src, dst, region);
+        RawBcnBarrier(cmdbuf);
+    });
+}
+
+bool Image::DownloadRawBcnBlocks(std::span<VkBuffer> buffers, std::span<size_t> offsets,
+                                 std::span<const BufferImageCopy> copies) {
+    // Guest memory wants the raw blocks, not the texels the image holds; whole levels only.
+    if (!has_raw_bcn_blocks) {
+        return false;
+    }
+    std::vector<VkBufferCopy> regions;
+    regions.reserve(copies.size());
+    for (const BufferImageCopy& copy : copies) {
+        const s32 level = copy.image_subresource.base_level;
+        if (level >= static_cast<s32>(raw_bcn_levels.size()) ||
+            copy.image_offset != VideoCommon::Offset3D{} ||
+            copy.image_extent != VideoCommon::MipSize(info.size, static_cast<u32>(level)) ||
+            copy.image_subresource.base_layer != 0 ||
+            copy.image_subresource.num_layers != info.resources.layers) {
+            return false;
+        }
+        const BufferImageCopy& raw = raw_bcn_levels[level];
+        regions.push_back(VkBufferCopy{
+            .srcOffset = raw.buffer_offset,
+            .dstOffset = copy.buffer_offset,
+            .size = raw.buffer_size,
+        });
+    }
+    scheduler->RequestOutsideRenderPassOperationContext();
+    for (size_t index = 0; index < buffers.size(); ++index) {
+        std::vector<VkBufferCopy> buffer_regions = regions;
+        for (VkBufferCopy& region : buffer_regions) {
+            region.dstOffset += offsets[index];
+        }
+        scheduler->Record([src = *raw_bcn_blocks, dst = buffers[index],
+                           buffer_regions = std::move(buffer_regions)](vk::CommandBuffer cmdbuf) {
+            static constexpr VkMemoryBarrier READ_BARRIER{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+            };
+            RawBcnBarrier(cmdbuf);
+            cmdbuf.CopyBuffer(src, dst, buffer_regions);
+            cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, READ_BARRIER);
+        });
+    }
+    return true;
+}
+
 void Image::DownloadMemory(VkBuffer buffer, size_t offset,
                            std::span<const VideoCommon::BufferImageCopy> copies) {
     std::array buffer_handles{
@@ -1516,6 +1791,9 @@ void Image::DownloadMemory(VkBuffer buffer, size_t offset,
 
 void Image::DownloadMemory(std::span<VkBuffer> buffers_span, std::span<size_t> offsets_span,
                            std::span<const VideoCommon::BufferImageCopy> copies) {
+    if (DownloadRawBcnBlocks(buffers_span, offsets_span, copies)) {
+        return;
+    }
     const bool is_rescaled = True(flags & ImageFlagBits::Rescaled);
     if (is_rescaled) {
         ScaleDown();

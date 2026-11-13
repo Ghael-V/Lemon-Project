@@ -1,0 +1,392 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Decodes raw BC1/2/3/4/5/7 blocks into the texels the CPU decoder (externals/bc_decoder) would
+// produce, for GPUs that store BCn images decoded or recompressed: when a game copies raw blocks
+// into such an image through another format, they have to be decoded on the GPU. One invocation
+// decodes one 4x4 block.
+//
+// Output rows are padded to whole blocks (4 texels wide, 4 rows per block row) so every block
+// writes whole words: RGBA8 for BC1/2/3/7, R8 for BC4, RG8 for BC5, signed formats as SNORM bytes.
+
+#version 460 core
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer InputBlocks {
+    uint blocks[];
+};
+
+layout(std430, set = 0, binding = 1) writeonly buffer OutputTexels {
+    uint texels[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint blocks_x;
+    uint blocks_y;
+    uint slices;
+    uint format;
+    uint is_signed;
+    uint input_offset;  // in words
+    uint output_offset; // in words
+};
+
+const uint FORMAT_BC1 = 1;
+const uint FORMAT_BC2 = 2;
+const uint FORMAT_BC3 = 3;
+const uint FORMAT_BC4 = 4;
+const uint FORMAT_BC5 = 5;
+const uint FORMAT_BC7 = 7;
+
+// BC7 partition and anchor tables (2 bits per texel; anchors: 2-subset | 3-subset second << 4 |
+// 3-subset third << 8), from externals/bc_decoder.
+const uint PARTITIONS_2[64] = uint[](
+    0x50505050u, 0x40404040u, 0x54545454u, 0x54505040u, 0x50404000u, 0x55545450u,
+    0x55545040u, 0x54504000u, 0x50400000u, 0x55555450u, 0x55544000u, 0x54400000u,
+    0x55555440u, 0x55550000u, 0x55555500u, 0x55000000u, 0x55150100u, 0x00004054u,
+    0x15010000u, 0x00405054u, 0x00004050u, 0x15050100u, 0x05010000u, 0x40505054u,
+    0x00404050u, 0x05010100u, 0x14141414u, 0x05141450u, 0x01155440u, 0x00555500u,
+    0x15014054u, 0x05414150u, 0x44444444u, 0x55005500u, 0x11441144u, 0x05055050u,
+    0x05500550u, 0x11114444u, 0x41144114u, 0x44111144u, 0x15055054u, 0x01055040u,
+    0x05041050u, 0x05455150u, 0x14414114u, 0x50050550u, 0x41411414u, 0x00141400u,
+    0x00041504u, 0x00105410u, 0x10541000u, 0x04150400u, 0x50410514u, 0x41051450u,
+    0x05415014u, 0x14054150u, 0x41050514u, 0x41505014u, 0x40011554u, 0x54150140u,
+    0x50505500u, 0x00555050u, 0x15151010u, 0x54540404u
+);
+
+const uint PARTITIONS_3[64] = uint[](
+    0xAA685050u, 0x6A5A5040u, 0x5A5A4200u, 0x5450A0A8u, 0xA5A50000u, 0xA0A05050u,
+    0x5555A0A0u, 0x5A5A5050u, 0xAA550000u, 0xAA555500u, 0xAAAA5500u, 0x90909090u,
+    0x94949494u, 0xA4A4A4A4u, 0xA9A59450u, 0x2A0A4250u, 0xA5945040u, 0x0A425054u,
+    0xA5A5A500u, 0x55A0A0A0u, 0xA8A85454u, 0x6A6A4040u, 0xA4A45000u, 0x1A1A0500u,
+    0x0050A4A4u, 0xAAA59090u, 0x14696914u, 0x69691400u, 0xA08585A0u, 0xAA821414u,
+    0x50A4A450u, 0x6A5A0200u, 0xA9A58000u, 0x5090A0A8u, 0xA8A09050u, 0x24242424u,
+    0x00AA5500u, 0x24924924u, 0x24499224u, 0x50A50A50u, 0x500AA550u, 0xAAAA4444u,
+    0x66660000u, 0xA5A0A5A0u, 0x50A050A0u, 0x69286928u, 0x44AAAA44u, 0x66666600u,
+    0xAA444444u, 0x54A854A8u, 0x95809580u, 0x96969600u, 0xA85454A8u, 0x80959580u,
+    0xAA141414u, 0x96960000u, 0xAAAA1414u, 0xA05050A0u, 0xA0A5A5A0u, 0x96000000u,
+    0x40804080u, 0xA9A8A9A8u, 0xAAAAAA44u, 0x2A4A5254u
+);
+
+const uint ANCHORS[64] = uint[](
+    0x00000F3Fu, 0x0000083Fu, 0x000008FFu, 0x000003FFu, 0x00000F8Fu, 0x00000F3Fu, 0x000003FFu, 0x000008FFu,
+    0x00000F8Fu, 0x00000F8Fu, 0x00000F6Fu, 0x00000F6Fu, 0x00000F6Fu, 0x00000F5Fu, 0x00000F3Fu, 0x0000083Fu,
+    0x00000F3Fu, 0x00000832u, 0x00000F88u, 0x000003F2u, 0x00000F32u, 0x00000838u, 0x00000F68u, 0x000008AFu,
+    0x00000352u, 0x00000F88u, 0x00000682u, 0x00000A62u, 0x00000F88u, 0x00000F58u, 0x00000AF2u, 0x000008F2u,
+    0x00000F8Fu, 0x000003FFu, 0x00000F36u, 0x00000A58u, 0x00000A62u, 0x000008A8u, 0x0000098Fu, 0x00000AFFu,
+    0x000006F2u, 0x00000F38u, 0x000008F2u, 0x00000F52u, 0x000003F2u, 0x000006FFu, 0x000006FFu, 0x000008F6u,
+    0x00000F36u, 0x000003F2u, 0x00000F56u, 0x00000F58u, 0x00000F5Fu, 0x00000F8Fu, 0x00000F52u, 0x00000FA2u,
+    0x00000F5Fu, 0x00000FAFu, 0x00000F8Fu, 0x00000FDFu, 0x000003FFu, 0x00000FC2u, 0x00000F32u, 0x0000083Fu
+);
+
+// BC7 modes: subsets, partition bits, rotation bits, index selection bits, colour bits,
+// alpha bits, per-endpoint p-bits, shared p-bits, primary and secondary index bits.
+const uint NS[8] = uint[](3, 2, 3, 2, 1, 1, 1, 2);
+const uint PB[8] = uint[](4, 6, 6, 6, 0, 0, 0, 6);
+const uint RB[8] = uint[](0, 0, 0, 0, 2, 2, 0, 0);
+const uint ISB[8] = uint[](0, 0, 0, 0, 1, 0, 0, 0);
+const uint CB[8] = uint[](4, 6, 5, 7, 5, 7, 7, 5);
+const uint AB[8] = uint[](0, 0, 0, 0, 6, 8, 7, 5);
+const uint EPB[8] = uint[](1, 0, 0, 1, 0, 0, 1, 1);
+const uint SPB[8] = uint[](0, 1, 0, 0, 0, 0, 0, 0);
+const uint IB[8] = uint[](3, 3, 2, 2, 2, 2, 4, 2);
+const uint IB2[8] = uint[](0, 0, 0, 0, 3, 2, 0, 0);
+
+const uint WEIGHTS_2[4] = uint[](0, 21, 43, 64);
+const uint WEIGHTS_3[8] = uint[](0, 9, 18, 27, 37, 46, 55, 64);
+const uint WEIGHTS_4[16] = uint[](0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64);
+
+uint px[16]; // the decoded block, RGBA8 with red in the low byte
+uvec4 blk;   // the raw block
+
+uint Pack(uvec4 c) {
+    return (c.r & 0xFFu) | ((c.g & 0xFFu) << 8) | ((c.b & 0xFFu) << 16) | ((c.a & 0xFFu) << 24);
+}
+
+uvec4 Expand565(uint c) {
+    const uint r = (c >> 11) & 0x1Fu;
+    const uint g = (c >> 5) & 0x3Fu;
+    const uint b = c & 0x1Fu;
+    return uvec4((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2), 255u);
+}
+
+// BC1 colour block; BC2 and BC3 always use the four-colour mode.
+void DecodeColor(uint endpoints, uint indices, bool always_four_colors) {
+    const uint c0 = endpoints & 0xFFFFu;
+    const uint c1 = endpoints >> 16;
+    const uvec4 e0 = Expand565(c0);
+    const uvec4 e1 = Expand565(c1);
+    uvec4 c2;
+    uvec4 c3;
+    if (always_four_colors || c0 > c1) {
+        c2 = uvec4((e0.rgb * 2u + e1.rgb) / 3u, 255u);
+        c3 = uvec4((e1.rgb * 2u + e0.rgb) / 3u, 255u);
+    } else {
+        c2 = uvec4((e0.rgb + e1.rgb) >> 1, 255u);
+        c3 = uvec4(0u); // transparent black
+    }
+    for (uint i = 0; i < 16; ++i) {
+        const uint index = (indices >> (i * 2u)) & 3u;
+        px[i] = Pack(index == 0u ? e0 : index == 1u ? e1 : index == 2u ? c2 : c3);
+    }
+}
+
+// BC2 alpha: 4 bits per texel.
+void DecodeExplicitAlpha(uint lo, uint hi) {
+    for (uint i = 0; i < 16; ++i) {
+        const uint a = ((i < 8u ? lo : hi) >> ((i & 7u) * 4u)) & 0xFu;
+        px[i] = bitfieldInsert(px[i], a | (a << 4), 24, 8);
+    }
+}
+
+uint ChannelIndex(uint lo, uint hi, uint offset) {
+    if (offset + 3u <= 32u) {
+        return (lo >> offset) & 7u;
+    }
+    if (offset >= 32u) {
+        return (hi >> (offset - 32u)) & 7u;
+    }
+    return ((lo >> offset) | (hi << (32u - offset))) & 7u;
+}
+
+// C division, rounding towards zero.
+int Divide(int n, int d) {
+    return n < 0 ? -((-n) / d) : n / d;
+}
+
+// BC3 alpha, BC4 and each half of BC5.
+void DecodeChannel(uint lo, uint hi, uint channel, bool is_snorm) {
+    int c0;
+    int c1;
+    if (is_snorm) {
+        c0 = int(lo << 24) >> 24;
+        c1 = int(lo << 16) >> 24;
+    } else {
+        c0 = int(lo & 0xFFu);
+        c1 = int((lo >> 8) & 0xFFu);
+    }
+    for (uint i = 0; i < 16; ++i) {
+        const int index = int(ChannelIndex(lo, hi, 16u + i * 3u));
+        int value;
+        if (index == 0) {
+            value = c0;
+        } else if (index == 1) {
+            value = c1;
+        } else if (c0 > c1) {
+            value = Divide((8 - index) * c0 + (index - 1) * c1, 7);
+        } else if (index < 6) {
+            value = Divide((6 - index) * c0 + (index - 1) * c1, 5);
+        } else if (index == 6) {
+            value = is_snorm ? -128 : 0;
+        } else {
+            value = is_snorm ? 127 : 255;
+        }
+        px[i] = bitfieldInsert(px[i], uint(value) & 0xFFu, int(channel * 8u), 8);
+    }
+}
+
+uint Bits(uint offset, uint count) {
+    if (count == 0u) {
+        return 0u;
+    }
+    const uint word = offset >> 5;
+    const uint shift = offset & 31u;
+    uint value = blk[word] >> shift;
+    if (shift + count > 32u) {
+        value |= blk[min(word + 1u, 3u)] << (32u - shift);
+    }
+    return value & ((1u << count) - 1u);
+}
+
+uint Subset(uint subsets, uint partition_index, uint texel) {
+    if (subsets == 2u) {
+        return (PARTITIONS_2[partition_index] >> (texel * 2u)) & 3u;
+    }
+    if (subsets == 3u) {
+        return (PARTITIONS_3[partition_index] >> (texel * 2u)) & 3u;
+    }
+    return 0u;
+}
+
+uint Anchor(uint subsets, uint partition_index, uint subset) {
+    if (subset == 0u) {
+        return 0u;
+    }
+    if (subset == 1u) {
+        return subsets == 2u ? ANCHORS[partition_index] & 0xFu : (ANCHORS[partition_index] >> 4) & 0xFu;
+    }
+    return (ANCHORS[partition_index] >> 8) & 0xFu;
+}
+
+uint Interpolate(uint e0, uint e1, uint index, uint bits) {
+    const uint weight = bits == 2u ? WEIGHTS_2[index] : bits == 3u ? WEIGHTS_3[index] : WEIGHTS_4[index];
+    return ((64u - weight) * e0 + weight * e1 + 32u) >> 6;
+}
+
+void DecodeBc7() {
+    const uint mode_bits = blk.x & 0xFFu;
+    if (mode_bits == 0u) {
+        // Reserved mode: transparent black.
+        for (uint i = 0; i < 16; ++i) {
+            px[i] = 0u;
+        }
+        return;
+    }
+    const uint mode = uint(findLSB(mode_bits));
+    uint pos = mode + 1u;
+    const uint partition_index = Bits(pos, PB[mode]);
+    pos += PB[mode];
+    const uint rotation = Bits(pos, RB[mode]);
+    pos += RB[mode];
+    const uint selection = Bits(pos, ISB[mode]);
+    pos += ISB[mode];
+
+    const uint subsets = NS[mode];
+    const uint endpoints = subsets * 2u;
+    const uint color_bits = CB[mode];
+    const uint alpha_bits = AB[mode];
+    uvec4 ep[6];
+    for (uint e = 0; e < 6u; ++e) {
+        ep[e] = uvec4(0u, 0u, 0u, 255u);
+    }
+    for (uint channel = 0; channel < 3u; ++channel) {
+        for (uint e = 0; e < endpoints; ++e) {
+            ep[e][channel] = Bits(pos, color_bits);
+            pos += color_bits;
+        }
+    }
+    if (alpha_bits != 0u) {
+        for (uint e = 0; e < endpoints; ++e) {
+            ep[e].a = Bits(pos, alpha_bits);
+            pos += alpha_bits;
+        }
+    }
+    if (EPB[mode] != 0u) {
+        for (uint e = 0; e < endpoints; ++e) {
+            const uint p = Bits(pos, 1u);
+            pos += 1u;
+            ep[e].rgb = (ep[e].rgb << 1) | p;
+            if (alpha_bits != 0u) {
+                ep[e].a = (ep[e].a << 1) | p;
+            }
+        }
+    }
+    if (SPB[mode] != 0u) {
+        for (uint s = 0; s < subsets; ++s) {
+            const uint p = Bits(pos, 1u);
+            pos += 1u;
+            ep[s * 2u].rgb = (ep[s * 2u].rgb << 1) | p;
+            ep[s * 2u + 1u].rgb = (ep[s * 2u + 1u].rgb << 1) | p;
+        }
+    }
+    const uint rgb_bits = color_bits + EPB[mode] + SPB[mode];
+    const uint a_bits = alpha_bits + EPB[mode];
+    for (uint e = 0; e < endpoints; ++e) {
+        ep[e].rgb = ep[e].rgb << (8u - rgb_bits);
+        ep[e].rgb = ep[e].rgb | (ep[e].rgb >> rgb_bits);
+        if (alpha_bits != 0u) {
+            ep[e].a = ep[e].a << (8u - a_bits);
+            ep[e].a = ep[e].a | (ep[e].a >> a_bits);
+        }
+    }
+
+    const uint index_bits = IB[mode];
+    const uint index_bits_2 = IB2[mode];
+    uint primary = pos;
+    uint secondary = pos + 16u * index_bits - subsets;
+    for (uint t = 0; t < 16u; ++t) {
+        const uint s = Subset(subsets, partition_index, t);
+        const bool is_anchor = t == Anchor(subsets, partition_index, s);
+        const uint primary_bits = index_bits - (is_anchor ? 1u : 0u);
+        const uint primary_index = Bits(primary, primary_bits);
+        primary += primary_bits;
+        uint secondary_index = 0u;
+        if (index_bits_2 != 0u) {
+            const uint secondary_bits = index_bits_2 - (t == 0u ? 1u : 0u);
+            secondary_index = Bits(secondary, secondary_bits);
+            secondary += secondary_bits;
+        }
+        const bool color_secondary = selection == 1u;
+        const bool alpha_secondary = index_bits_2 != 0u && selection == 0u;
+        const uint ci = color_secondary ? secondary_index : primary_index;
+        const uint cn = color_secondary ? index_bits_2 : index_bits;
+        const uint ai = alpha_secondary ? secondary_index : primary_index;
+        const uint an = alpha_secondary ? index_bits_2 : index_bits;
+        const uvec4 e0 = ep[s * 2u];
+        const uvec4 e1 = ep[s * 2u + 1u];
+        uvec4 c = uvec4(Interpolate(e0.r, e1.r, ci, cn), Interpolate(e0.g, e1.g, ci, cn),
+                        Interpolate(e0.b, e1.b, ci, cn), Interpolate(e0.a, e1.a, ai, an));
+        if (rotation == 1u) {
+            c = c.agbr;
+        } else if (rotation == 2u) {
+            c = c.rabg;
+        } else if (rotation == 3u) {
+            c = c.rgab;
+        }
+        px[t] = Pack(c);
+    }
+}
+
+void main() {
+    const uint block_index = gl_GlobalInvocationID.x;
+    const uint blocks_per_slice = blocks_x * blocks_y;
+    if (block_index >= blocks_per_slice * slices) {
+        return;
+    }
+    const uint slice = block_index / blocks_per_slice;
+    const uint in_slice = block_index % blocks_per_slice;
+    const uint bx = in_slice % blocks_x;
+    const uint by = in_slice / blocks_x;
+
+    const bool is_16_bytes = format != FORMAT_BC1 && format != FORMAT_BC4;
+    const uint base = input_offset + block_index * (is_16_bytes ? 4u : 2u);
+    blk = uvec4(blocks[base], blocks[base + 1u], is_16_bytes ? blocks[base + 2u] : 0u,
+                is_16_bytes ? blocks[base + 3u] : 0u);
+    for (uint i = 0; i < 16; ++i) {
+        px[i] = 0u;
+    }
+    const bool is_snorm = is_signed != 0u;
+    switch (format) {
+    case FORMAT_BC1:
+        DecodeColor(blk.x, blk.y, false);
+        break;
+    case FORMAT_BC2:
+        DecodeColor(blk.z, blk.w, true);
+        DecodeExplicitAlpha(blk.x, blk.y);
+        break;
+    case FORMAT_BC3:
+        DecodeColor(blk.z, blk.w, true);
+        DecodeChannel(blk.x, blk.y, 3u, false);
+        break;
+    case FORMAT_BC4:
+        DecodeChannel(blk.x, blk.y, 0u, is_snorm);
+        break;
+    case FORMAT_BC5:
+        DecodeChannel(blk.x, blk.y, 0u, is_snorm);
+        DecodeChannel(blk.z, blk.w, 1u, is_snorm);
+        break;
+    default:
+        DecodeBc7();
+        break;
+    }
+
+    const uint bytes_per_texel = format == FORMAT_BC4 ? 1u : format == FORMAT_BC5 ? 2u : 4u;
+    const uint row_words = blocks_x * bytes_per_texel;
+    for (uint y = 0; y < 4u; ++y) {
+        const uint row = (slice * blocks_y + by) * 4u + y;
+        const uint out_base = output_offset + row * row_words + bx * bytes_per_texel;
+        const uint i = y * 4u;
+        if (bytes_per_texel == 4u) {
+            texels[out_base] = px[i];
+            texels[out_base + 1u] = px[i + 1u];
+            texels[out_base + 2u] = px[i + 2u];
+            texels[out_base + 3u] = px[i + 3u];
+        } else if (bytes_per_texel == 2u) {
+            texels[out_base] = (px[i] & 0xFFFFu) | (px[i + 1u] << 16);
+            texels[out_base + 1u] = (px[i + 2u] & 0xFFFFu) | (px[i + 3u] << 16);
+        } else {
+            texels[out_base] = (px[i] & 0xFFu) | ((px[i + 1u] & 0xFFu) << 8) |
+                               ((px[i + 2u] & 0xFFu) << 16) | (px[i + 3u] << 24);
+        }
+    }
+}

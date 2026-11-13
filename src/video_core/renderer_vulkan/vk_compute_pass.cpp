@@ -24,6 +24,7 @@
 #include "video_core/host_shaders/resolve_conditional_render_comp_spv.h"
 #include "video_core/host_shaders/vulkan_quad_indexed_comp_spv.h"
 #include "video_core/host_shaders/vulkan_bcn_astc_encode_comp_spv.h"
+#include "video_core/host_shaders/vulkan_bcn_decode_comp_spv.h"
 #include "video_core/host_shaders/vulkan_bcn_eac_encode_comp_spv.h"
 #include "video_core/host_shaders/vulkan_uint8_comp_spv.h"
 #include "video_core/renderer_vulkan/vk_compute_pass.h"
@@ -549,7 +550,7 @@ BcnAstcEncodePass::BcnAstcEncodePass(const Device& device_, Scheduler& scheduler
                                      MemoryAllocator& memory_allocator_)
     : ComputePass(device_, descriptor_pool_, QUERIES_SCAN_DESCRIPTOR_SET_BINDINGS,
                   QUERIES_SCAN_DESCRIPTOR_UPDATE_TEMPLATE, QUERIES_SCAN_BANK_INFO,
-                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 5>, VULKAN_BCN_ASTC_ENCODE_COMP_SPV),
+                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, VULKAN_BCN_ASTC_ENCODE_COMP_SPV),
       scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
       compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {
     const std::vector<u32> table_data = Tegra::Texture::ASTC::MakeGpuTables();
@@ -575,7 +576,7 @@ BcnAstcEncodePass::~BcnAstcEncodePass() = default;
 std::pair<VkBuffer, VkDeviceSize> BcnAstcEncodePass::Encode(
     VkBuffer src_buffer, VkDeviceSize src_offset, std::span<VideoCommon::BufferImageCopy> copies) {
     struct Dispatch {
-        std::array<u32, 5> push_constants;
+        std::array<u32, 7> push_constants;
         u32 num_blocks;
     };
     boost::container::small_vector<Dispatch, 16> dispatches;
@@ -586,12 +587,16 @@ std::pair<VkBuffer, VkDeviceSize> BcnAstcEncodePass::Encode(
         const u32 height = copy.image_extent.height;
         const u32 slices = copy.image_subresource.num_layers * copy.image_extent.depth;
         const u32 num_blocks = Common::DivCeil(width, 4U) * Common::DivCeil(height, 4U) * slices;
+        // Rows can be padded (texels decoded on the GPU are, the CPU ones are not).
+        const u32 row = copy.buffer_row_length != 0 ? copy.buffer_row_length : width;
+        const u32 rows = copy.buffer_image_height != 0 ? copy.buffer_image_height : height;
         // The RGBA8 levels are written back to back, so texel offsets are exact.
         ASSERT(copy.buffer_offset % 4 == 0);
         dispatches.push_back({{width, height, slices, static_cast<u32>(copy.buffer_offset / 4),
-                               total_blocks},
+                               total_blocks, row, rows},
                               num_blocks});
-        input_end = (std::max)(input_end, copy.buffer_offset + u64{width} * height * slices * 4);
+        const u64 last_texel = (u64{slices - 1} * rows + height - 1) * row + width;
+        input_end = (std::max)(input_end, copy.buffer_offset + last_texel * 4);
         copy.buffer_offset = u64{total_blocks} * 16;
         copy.buffer_size = u64{num_blocks} * 16;
         copy.buffer_row_length = Common::AlignUp(width, 4U);
@@ -635,7 +640,7 @@ BcnEacEncodePass::BcnEacEncodePass(const Device& device_, Scheduler& scheduler_,
                                    ComputePassDescriptorQueue& compute_pass_descriptor_queue_)
     : ComputePass(device_, descriptor_pool_, INPUT_OUTPUT_DESCRIPTOR_SET_BINDINGS,
                   INPUT_OUTPUT_DESCRIPTOR_UPDATE_TEMPLATE, INPUT_OUTPUT_BANK_INFO,
-                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, VULKAN_BCN_EAC_ENCODE_COMP_SPV),
+                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 9>, VULKAN_BCN_EAC_ENCODE_COMP_SPV),
       scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
       compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {}
 
@@ -645,7 +650,7 @@ std::pair<VkBuffer, VkDeviceSize> BcnEacEncodePass::Encode(
     VkBuffer src_buffer, VkDeviceSize src_offset, std::span<VideoCommon::BufferImageCopy> copies,
     u32 channels, bool is_signed) {
     struct Dispatch {
-        std::array<u32, 7> push_constants;
+        std::array<u32, 9> push_constants;
         u32 num_invocations;
     };
     boost::container::small_vector<Dispatch, 16> dispatches;
@@ -657,11 +662,14 @@ std::pair<VkBuffer, VkDeviceSize> BcnEacEncodePass::Encode(
         const u32 height = copy.image_extent.height;
         const u32 slices = copy.image_subresource.num_layers * copy.image_extent.depth;
         const u32 num_blocks = Common::DivCeil(width, 4U) * Common::DivCeil(height, 4U) * slices;
+        // Rows can be padded (texels decoded on the GPU are, the CPU ones are not).
+        const u32 row = copy.buffer_row_length != 0 ? copy.buffer_row_length : width;
+        const u32 rows = copy.buffer_image_height != 0 ? copy.buffer_image_height : height;
         dispatches.push_back({{width, height, slices, static_cast<u32>(copy.buffer_offset),
-                               total_blocks, channels, is_signed ? 1U : 0U},
+                               total_blocks, channels, is_signed ? 1U : 0U, row, rows},
                               num_blocks * channels});
-        input_end =
-            (std::max)(input_end, copy.buffer_offset + u64{width} * height * slices * channels);
+        const u64 last_texel = (u64{slices - 1} * rows + height - 1) * row + width;
+        input_end = (std::max)(input_end, copy.buffer_offset + last_texel * channels);
         copy.buffer_offset = u64{total_blocks} * block_bytes;
         copy.buffer_size = u64{num_blocks} * block_bytes;
         copy.buffer_row_length = Common::AlignUp(width, 4U);
@@ -695,6 +703,113 @@ std::pair<VkBuffer, VkDeviceSize> BcnEacEncodePass::Encode(
         }
         cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                VK_PIPELINE_STAGE_TRANSFER_BIT, 0, WRITE_BARRIER);
+    });
+    return {output.buffer, output.offset};
+}
+
+BcnDecodePass::BcnDecodePass(const Device& device_, Scheduler& scheduler_,
+                             DescriptorPool& descriptor_pool_,
+                             StagingBufferPool& staging_buffer_pool_,
+                             ComputePassDescriptorQueue& compute_pass_descriptor_queue_)
+    : ComputePass(device_, descriptor_pool_, INPUT_OUTPUT_DESCRIPTOR_SET_BINDINGS,
+                  INPUT_OUTPUT_DESCRIPTOR_UPDATE_TEMPLATE, INPUT_OUTPUT_BANK_INFO,
+                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, VULKAN_BCN_DECODE_COMP_SPV),
+      scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
+      compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {}
+
+BcnDecodePass::~BcnDecodePass() = default;
+
+namespace {
+// Format numbers of host_shaders/vulkan_bcn_decode.comp, 0 when it can't decode it.
+u32 BcnDecodeFormat(VideoCore::Surface::PixelFormat format) {
+    using VideoCore::Surface::PixelFormat;
+    switch (format) {
+    case PixelFormat::BC1_RGBA_UNORM:
+    case PixelFormat::BC1_RGBA_SRGB:
+        return 1;
+    case PixelFormat::BC2_UNORM:
+    case PixelFormat::BC2_SRGB:
+        return 2;
+    case PixelFormat::BC3_UNORM:
+    case PixelFormat::BC3_SRGB:
+        return 3;
+    case PixelFormat::BC4_UNORM:
+    case PixelFormat::BC4_SNORM:
+        return 4;
+    case PixelFormat::BC5_UNORM:
+    case PixelFormat::BC5_SNORM:
+        return 5;
+    case PixelFormat::BC7_UNORM:
+    case PixelFormat::BC7_SRGB:
+        return 7;
+    default:
+        return 0;
+    }
+}
+} // Anonymous namespace
+
+bool BcnDecodePass::IsSupported(VideoCore::Surface::PixelFormat format) {
+    return BcnDecodeFormat(format) != 0;
+}
+
+std::pair<VkBuffer, VkDeviceSize> BcnDecodePass::Decode(
+    VkBuffer src_buffer, VkDeviceSize src_offset, VkDeviceSize src_size,
+    std::span<VideoCommon::BufferImageCopy> copies, VideoCore::Surface::PixelFormat format) {
+    using VideoCore::Surface::PixelFormat;
+    struct Dispatch {
+        std::array<u32, 7> push_constants;
+        u32 num_blocks;
+    };
+    const u32 format_number = BcnDecodeFormat(format);
+    ASSERT(format_number != 0);
+    const u32 is_signed = format == PixelFormat::BC4_SNORM || format == PixelFormat::BC5_SNORM;
+    const u32 bytes_per_texel = format_number == 4 ? 1 : format_number == 5 ? 2 : 4;
+    boost::container::small_vector<Dispatch, 16> dispatches;
+    u64 output_size = 0;
+    for (VideoCommon::BufferImageCopy& copy : copies) {
+        const u32 blocks_x = Common::DivCeil(copy.image_extent.width, 4U);
+        const u32 blocks_y = Common::DivCeil(copy.image_extent.height, 4U);
+        const u32 slices = copy.image_subresource.num_layers * copy.image_extent.depth;
+        const u32 num_blocks = blocks_x * blocks_y * slices;
+        ASSERT(copy.buffer_offset % 4 == 0);
+        dispatches.push_back({{blocks_x, blocks_y, slices, format_number, is_signed,
+                               static_cast<u32>(copy.buffer_offset / 4),
+                               static_cast<u32>(output_size / 4)},
+                              num_blocks});
+        const u64 level_size = u64{num_blocks} * 16 * bytes_per_texel;
+        copy.buffer_offset = output_size;
+        copy.buffer_size = level_size;
+        copy.buffer_row_length = blocks_x * 4;
+        copy.buffer_image_height = blocks_y * 4;
+        output_size += level_size;
+    }
+    const auto output = staging_buffer_pool.Request(output_size, MemoryUsage::DeviceLocal);
+
+    compute_pass_descriptor_queue.Acquire();
+    compute_pass_descriptor_queue.AddBuffer(src_buffer, src_offset, src_size);
+    compute_pass_descriptor_queue.AddBuffer(output.buffer, output.offset, output_size);
+    const void* const descriptor_data{compute_pass_descriptor_queue.UpdateData()};
+
+    scheduler.RequestOutsideRenderPassOperationContext();
+    scheduler.Record([this, descriptor_data, dispatches](vk::CommandBuffer cmdbuf) {
+        static constexpr VkMemoryBarrier WRITE_BARRIER{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .pNext = nullptr,
+            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT,
+        };
+        const VkDescriptorSet set = descriptor_allocator.Commit();
+        device.GetLogical().UpdateDescriptorSet(set, *descriptor_template, descriptor_data);
+        cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+        cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_COMPUTE, *layout, 0, set, {});
+        for (const Dispatch& dispatch : dispatches) {
+            cmdbuf.PushConstants(*layout, VK_SHADER_STAGE_COMPUTE_BIT, dispatch.push_constants);
+            cmdbuf.Dispatch(Common::DivCeil(dispatch.num_blocks, 64U), 1, 1);
+        }
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                   VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               0, WRITE_BARRIER);
     });
     return {output.buffer, output.offset};
 }

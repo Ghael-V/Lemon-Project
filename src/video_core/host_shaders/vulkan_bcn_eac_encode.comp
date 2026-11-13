@@ -32,6 +32,8 @@ layout(push_constant) uniform PushConstants {
     uint output_offset; // in 4x4 blocks
     uint channels;      // 1 (BC4 -> R11) or 2 (BC5 -> RG11)
     uint is_signed;
+    uint input_row;     // texels from one input row to the next
+    uint input_height;  // rows from one input slice to the next
 };
 
 const int MODIFIERS[16][8] = {
@@ -94,7 +96,7 @@ void main() {
         const uint sy = min(by * 4 + y, height - 1);
         for (uint x = 0; x < 4; ++x) {
             const uint sx = min(bx * 4 + x, width - 1);
-            const uint texel = (slice * height + sy) * width + sx;
+            const uint texel = (slice * input_height + sy) * input_row + sx;
             const uint value = ReadByte(input_offset + texel * channels + channel);
             int t;
             if (is_signed != 0) {

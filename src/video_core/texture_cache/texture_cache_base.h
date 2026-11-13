@@ -415,6 +415,13 @@ private:
     /// Execute copies from one image to the other, even if they are incompatible
     void CopyImage(ImageId dst_id, ImageId src_id, std::vector<ImageCopy> copies);
 
+    /// Copies raw BCn blocks between images when the runtime stores BCn decoded or recompressed
+    /// (P::HAS_RAW_BCN_COPIES); returns false when the copy is an ordinary one.
+    bool TryCopyRawBcn(Image& dst, Image& src, std::span<const ImageCopy> copies);
+
+    /// Gives a BCn image stored decoded or recompressed its raw blocks, read from guest memory.
+    void PrepareRawBcnBlocks(Image& image);
+
     /// Bind an image view as render target, downloading resources preemtively if needed
     void BindRenderTarget(ImageViewId* old_id, ImageViewId new_id);
 

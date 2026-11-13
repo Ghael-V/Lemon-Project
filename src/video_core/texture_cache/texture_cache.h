@@ -1053,6 +1053,12 @@ ImageId TextureCache<P>::DmaImageId(const Tegra::DMA::ImageOperand& operand, boo
         // No need to waste time on an image that's synced with guest
         return NULL_IMAGE_ID;
     }
+    if constexpr (P::HAS_RAW_BCN_COPIES) {
+        if (runtime.IsBcnStoredConverted(image)) {
+            // The buffer side holds raw blocks the image doesn't store as such.
+            return NULL_IMAGE_ID;
+        }
+    }
     if (image.info.type == ImageType::e3D) {
         // Don't accelerate 3D images.
         return NULL_IMAGE_ID;
@@ -1194,6 +1200,10 @@ template <typename StagingBuffer>
 void TextureCache<P>::UploadImageContents(Image& image, StagingBuffer& staging) {
     const std::span<u8> mapped_span = staging.mapped_span;
     const GPUVAddr gpu_addr = image.gpu_addr;
+    if constexpr (P::HAS_RAW_BCN_COPIES) {
+        // Read from guest memory again when a raw copy needs them.
+        image.InvalidateRawBcnBlocks();
+    }
 
     if (True(image.flags & ImageFlagBits::AcceleratedUpload)) {
         gpu_memory->ReadBlock(gpu_addr, mapped_span.data(), mapped_span.size_bytes(),
@@ -1703,7 +1713,8 @@ ImageId TextureCache<P>::JoinImages(const ImageInfo& info, GPUVAddr gpu_addr, DA
             auto copies = MakeShrinkImageCopies(new_info, overlap.info, base, up_scale, down_shift);
             if (overlap.info.num_samples != new_image.info.num_samples) {
                 runtime.CopyImageMSAA(new_image, overlap, std::move(copies));
-            } else {
+            } else if (!TryCopyRawBcn(new_image, overlap,
+                                      std::span<const ImageCopy>{copies.data(), copies.size()})) {
                 runtime.CopyImage(new_image, overlap, std::move(copies));
             }
             new_image.modification_tick = overlap.modification_tick;
@@ -2534,6 +2545,39 @@ void TextureCache<P>::PrepareImageView(ImageViewId image_view_id, bool is_modifi
 }
 
 template <class P>
+bool TextureCache<P>::TryCopyRawBcn(Image& dst, Image& src, std::span<const ImageCopy> copies) {
+    if constexpr (P::HAS_RAW_BCN_COPIES) {
+        if (!runtime.IsRawBcnCopy(dst, src)) {
+            return false;
+        }
+        PrepareRawBcnBlocks(dst);
+        PrepareRawBcnBlocks(src);
+        runtime.CopyRawBcn(dst, src, copies);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+template <class P>
+void TextureCache<P>::PrepareRawBcnBlocks(Image& image) {
+    if constexpr (P::HAS_RAW_BCN_COPIES) {
+        if (!runtime.IsBcnStoredConverted(image) || image.HasRawBcnBlocks()) {
+            return;
+        }
+        // Guest memory has them: the GPU only writes a BCn image through raw copies, and those
+        // keep the raw blocks from then on.
+        auto staging = runtime.UploadStagingBuffer(image.unswizzled_size_bytes);
+        Tegra::Memory::GpuGuestMemory<u8, Tegra::Memory::GuestMemoryFlags::UnsafeRead>
+            swizzle_data(*gpu_memory, image.gpu_addr, image.guest_size_bytes,
+                         &swizzle_data_buffer);
+        const auto copies = FixSmallVectorADL(UnswizzleImage(
+            *gpu_memory, image.gpu_addr, image.info, swizzle_data, staging.mapped_span));
+        image.UploadRawBcnBlocks(staging, copies);
+    }
+}
+
+template <class P>
 void TextureCache<P>::CopyImage(ImageId dst_id, ImageId src_id, std::vector<ImageCopy> copies) {
     Image& dst = slot_images[dst_id];
     Image& src = slot_images[src_id];
@@ -2552,6 +2596,9 @@ void TextureCache<P>::CopyImage(ImageId dst_id, ImageId src_id, std::vector<Imag
                 copy.extent.height = resolution.ScaleUp(copy.extent.height);
             }
         }
+    }
+    if (TryCopyRawBcn(dst, src, copies)) {
+        return;
     }
     const auto dst_format_type = GetFormatType(dst.info.format);
     const auto src_format_type = GetFormatType(src.info.format);

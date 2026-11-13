@@ -52,6 +52,7 @@ set(SHADER_FILES
     smaa_blending_weight_calculation.frag
     smaa_neighborhood_blending.vert
     smaa_neighborhood_blending.frag
+    vulkan_bcn_decode.comp
     vulkan_bcn_astc_encode.comp
     vulkan_bcn_eac_encode.comp
     vulkan_blit_depth_stencil.frag
