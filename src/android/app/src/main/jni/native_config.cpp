@@ -9,6 +9,8 @@
 #include "android_settings.h"
 #include "common/android/android_common.h"
 #include "common/android/id_cache.h"
+#include "common/fs/fs.h"
+#include "common/fs/path_util.h"
 #include "common/logging/log.h"
 #include "common/settings.h"
 #include "frontend_common/config.h"
@@ -200,6 +202,32 @@ void Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_setLong(JNIEnv* e
         return;
     }
     setting->SetValue(value);
+}
+
+// Where the emulated NAND lives (NANDDir). It can be moved to another storage volume; the path is
+// kept in the global config as nand_directory.
+jstring Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_getNandDir(JNIEnv* env,
+                                                                     jobject obj) {
+    return Common::Android::ToJString(
+        env, Common::FS::GetYuzuPathString(Common::FS::YuzuPath::NANDDir));
+}
+
+jstring Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_getDefaultNandDir(JNIEnv* env,
+                                                                            jobject obj) {
+    const auto path = Common::FS::GetYuzuPath(Common::FS::YuzuPath::YuzuDir) / "nand";
+    return Common::Android::ToJString(env, Common::FS::PathToUTF8String(path));
+}
+
+jboolean Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_setNandDir(JNIEnv* env,
+                                                                      jobject obj,
+                                                                      jstring jpath) {
+    // Android paths are UTF-8, which std::filesystem::path takes as is there.
+    const std::filesystem::path path{Common::Android::GetJString(env, jpath)};
+    if (!Common::FS::CreateDirs(path) && !Common::FS::IsDir(path)) {
+        return false;
+    }
+    Common::FS::SetYuzuPath(Common::FS::YuzuPath::NANDDir, path);
+    return Common::FS::GetYuzuPath(Common::FS::YuzuPath::NANDDir) == path;
 }
 
 jstring Java_dev_ironlemon_ironlemon_1emulator_utils_NativeConfig_getString(JNIEnv* env, jobject obj, jstring jkey,

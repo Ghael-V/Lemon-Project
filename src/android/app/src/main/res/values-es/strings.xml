@@ -967,4 +967,20 @@
     <string name="overlay_save_all_games">Todos los juegos</string>
     <string name="overlay_discard_changes">Descartar cambios</string>
     <string name="overlay_saved_for_game">Mando en pantalla guardado para %1$s</string>
+    <string name="nand_location">Ubicación de la NAND</string>
+    <string name="nand_location_description">Dónde se guardan el firmware, las actualizaciones y DLC instalados, y las partidas.</string>
+    <string name="nand_location_description_current">Firmware, actualizaciones y DLC instalados, y partidas. Ahora en: %1$s</string>
+    <string name="nand_location_change">Cambiar</string>
+    <string name="nand_location_internal">Almacenamiento interno</string>
+    <string name="nand_location_sd">Tarjeta SD</string>
+    <string name="nand_location_option">%1$s (%2$s libres)</string>
+    <string name="nand_location_game_running">Cierra antes el juego</string>
+    <string name="nand_location_no_other">No hay otro almacenamiento. Inserta una tarjeta SD para mover la NAND a ella.</string>
+    <string name="nand_location_move_question">La NAND (%1$s) se copiará a %2$s y después se borrará de donde está ahora. Deja ese almacenamiento en el dispositivo mientras juegas: sin él no se encontrarán el firmware, las actualizaciones ni las partidas.</string>
+    <string name="nand_location_move">Mover</string>
+    <string name="nand_location_moving">Moviendo la NAND</string>
+    <string name="nand_location_moved">La NAND está ahora en %1$s</string>
+    <string name="nand_location_no_space">No hay espacio libre suficiente allí.</string>
+    <string name="nand_location_cancelled">Cancelado: la NAND sigue donde estaba.</string>
+    <string name="nand_location_failed">La copia ha fallado: la NAND sigue donde estaba.</string>
 </resources>

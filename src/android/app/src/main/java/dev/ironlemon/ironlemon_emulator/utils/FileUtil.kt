@@ -345,7 +345,9 @@ object FileUtil {
         rootDir: String,
         outputStream: BufferedOutputStream,
         progressCallback: (max: Long, progress: Long) -> Boolean = { _, _ -> false },
-        compression: Boolean = true
+        compression: Boolean = true,
+        extraDir: File? = null,
+        extraPrefix: String = ""
     ): TaskState {
         try {
             ZipOutputStream(outputStream).use { zos ->
@@ -355,15 +357,23 @@ object FileUtil {
                 }
 
                 var count = 0L
-                val totalFiles = inputFile.walkTopDown().count().toLong()
-                inputFile.walkTopDown().forEach { file ->
+                // [extraDir] (a folder kept elsewhere, such as a NAND moved to an SD card) goes in
+                // the zip under [extraPrefix], as if it were inside [inputFile].
+                val sources = listOfNotNull(
+                    inputFile to rootDir,
+                    extraDir?.takeIf { it.exists() }?.let { it to it.absolutePath }
+                )
+                val totalFiles = sources.sumOf { it.first.walkTopDown().count().toLong() }
+                sources.forEach { (source, sourceRoot) ->
+                val prefix = if (source === extraDir) extraPrefix else ""
+                source.walkTopDown().forEach { file ->
                     if (progressCallback.invoke(totalFiles, count)) {
                         return TaskState.Cancelled
                     }
 
                     if (!file.isDirectory) {
-                        val entryName =
-                            file.absolutePath.removePrefix(rootDir).removePrefix("/")
+                        val entryName = prefix +
+                            file.absolutePath.removePrefix(sourceRoot).removePrefix("/")
                         val entry = ZipEntry(entryName)
                         zos.putNextEntry(entry)
                         if (file.isFile) {
@@ -371,6 +381,7 @@ object FileUtil {
                         }
                         count++
                     }
+                }
                 }
             }
         } catch (e: Exception) {

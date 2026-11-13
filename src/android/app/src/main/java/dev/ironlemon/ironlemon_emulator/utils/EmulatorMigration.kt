@@ -219,7 +219,7 @@ object EmulatorMigration {
     }
 
     // Saves live under the NAND: getSavePath() is relative to it, starting at /user/save.
-    private fun nandDir(): String = DirectoryInitialization.userDirectory + "/nand"
+    private fun nandDir(): String = NandStorage.dir
 
     /** Where Iron Lemon keeps this save: the current user's for account saves, else the device's. */
     private fun lemonSaveDir(save: SaveEntry): File? {

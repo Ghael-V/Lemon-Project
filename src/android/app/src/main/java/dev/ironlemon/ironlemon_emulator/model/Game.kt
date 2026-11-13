@@ -60,7 +60,7 @@ class Game(
         }.zip"
 
     val saveDir: String
-        get() = DirectoryInitialization.userDirectory + "/nand" +
+        get() = dev.ironlemon.ironlemon_emulator.utils.NandStorage.dir +
             NativeLibrary.getSavePath(programId)
 
     val addonDir: String

@@ -117,6 +117,17 @@ object NativeConfig {
 
     external fun getDefaultToString(key: String): String
 
+    /** The emulated NAND's folder, and the one it has by default (on the internal storage). */
+    @Synchronized
+    external fun getNandDir(): String
+
+    @Synchronized
+    external fun getDefaultNandDir(): String
+
+    /** Uses [path] as the NAND's folder, creating it; false if it can't be used. */
+    @Synchronized
+    external fun setNandDir(path: String): Boolean
+
     /**
      * Gets every [GameDir] in AndroidSettings::values.game_dirs
      */

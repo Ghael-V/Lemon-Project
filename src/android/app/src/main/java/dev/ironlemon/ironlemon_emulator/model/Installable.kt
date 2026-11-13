@@ -9,5 +9,9 @@ data class Installable(
     @StringRes val titleId: Int,
     @StringRes val descriptionId: Int,
     val install: (() -> Unit)? = null,
-    val export: (() -> Unit)? = null
+    val export: (() -> Unit)? = null,
+    /** Shown instead of [descriptionId] when set (it depends on the device's state). */
+    val descriptionText: String? = null,
+    /** Label of the [install] button, "Import" by default. */
+    @StringRes val installLabelId: Int = 0
 )

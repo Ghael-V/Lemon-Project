@@ -28,6 +28,7 @@ import java.io.FilenameFilter
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.utils.NandStorage
 import dev.ironlemon.ironlemon_emulator.utils.Log
 import dev.ironlemon.ironlemon_emulator.utils.BundledDriver
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
@@ -381,7 +382,7 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             val filterNCA = FilenameFilter { _, dirName -> dirName.endsWith(".nca") }
 
             val firmwarePath =
-                File(DirectoryInitialization.userDirectory + "/nand/system/Contents/registered/")
+                File(NandStorage.dir + "/system/Contents/registered/")
             val cacheFirmwareDir = File("${cacheDir.path}/registered/")
 
             ProgressDialogFragment.newInstance(
@@ -617,12 +618,18 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             R.string.exporting_user_data,
             true
         ) { progressCallback, _ ->
+            // A NAND moved to another storage goes in the zip as nand/, where an import puts it.
+            val userDir = File(DirectoryInitialization.userDirectory!!)
+            val nandDir = File(NandStorage.dir)
+            val nandElsewhere = !nandDir.canonicalPath.startsWith(userDir.canonicalPath + "/")
             val zipResult = FileUtil.zipFromInternalStorage(
-                File(DirectoryInitialization.userDirectory!!),
+                userDir,
                 DirectoryInitialization.userDirectory!!,
                 BufferedOutputStream(contentResolver.openOutputStream(result)),
                 progressCallback,
-                compression = false
+                compression = false,
+                extraDir = if (nandElsewhere) nandDir else null,
+                extraPrefix = "nand/"
             )
             return@newInstance when (zipResult) {
                 TaskState.Completed -> getString(R.string.user_data_export_success)
@@ -682,9 +689,10 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                     )
                 }
 
-                // Reinitialize relevant data
-                NativeLibrary.initializeSystem(true)
+                // Reinitialize relevant data. The imported NAND was unpacked in the user folder.
                 NativeConfig.initializeGlobalConfig()
+                NandStorage.resetToDefault()
+                NativeLibrary.initializeSystem(true)
                 gamesViewModel.reloadGames(false)
                 driverViewModel.reloadDriverData()
 
