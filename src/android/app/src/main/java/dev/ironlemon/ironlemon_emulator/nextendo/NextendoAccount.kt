@@ -68,6 +68,15 @@ object NextendoAccount {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    // The game waits for this at boot: when the server is down, give up quickly and boot offline
+    // instead of keeping the screen black for up to a minute (three 20 s timeouts and the pauses).
+    private val bootHttp = http.newBuilder()
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(4, TimeUnit.SECONDS)
+        .callTimeout(4, TimeUnit.SECONDS)
+        .build()
+    private const val BOOT_TOKEN_BUDGET_MS = 6_000L
+
     private class GameToken(
         val pid: Long,
         val username: String,
@@ -138,18 +147,19 @@ object NextendoAccount {
         var token = (gameToken ?: loadGameToken())?.takeIf {
             it.expiresAtMs - now > TimeUnit.HOURS.toMillis(1)
         }
+        val deadline = now + BOOT_TOKEN_BUDGET_MS
         for (attempt in 1..3) {
-            if (token != null || username() == null) {
+            if (token != null || username() == null || System.currentTimeMillis() >= deadline) {
                 break
             }
             try {
-                token = fetchGameToken()
+                token = fetchGameToken(bootHttp)
                 if (token == null) {
                     break // Refused by the server, not a network problem: retrying won't help.
                 }
             } catch (e: Exception) {
                 Log.warning("[Nextendo] Game token attempt $attempt failed: ${e.javaClass.simpleName}")
-                Thread.sleep(1500L * attempt)
+                Thread.sleep(500L)
             }
         }
         if (token == null) {
@@ -278,31 +288,35 @@ object NextendoAccount {
     }
 
     /** Refreshes the access token (rotating the stored refresh token), then gets a game token. */
-    private fun fetchGameToken(): GameToken? {
+    private fun fetchGameToken(client: OkHttpClient = http): GameToken? {
         val refreshToken = loadRefreshToken() ?: return null
         val form = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("refresh_token", refreshToken)
             .add("client_id", CLIENT_ID)
             .build()
-        val tokens = postToken(form, signOutOnRejection = true) ?: return null
+        val tokens = postToken(form, signOutOnRejection = true, client = client) ?: return null
         tokens.optString("refresh_token").takeIf { it.isNotEmpty() }?.let { saveRefreshToken(it) }
         val accessToken = tokens.optString("access_token").takeIf { it.isNotEmpty() }
             ?: return null
-        return requestGameToken(accessToken)?.also { token ->
+        return requestGameToken(accessToken, client)?.also { token ->
             gameToken = token
             saveGameToken(token)
             prefs.edit { putString(PREF_USERNAME, token.username) }
         }
     }
 
-    private fun postToken(form: FormBody, signOutOnRejection: Boolean = false): JSONObject? {
+    private fun postToken(
+        form: FormBody,
+        signOutOnRejection: Boolean = false,
+        client: OkHttpClient = http
+    ): JSONObject? {
         val request = Request.Builder()
             .url("$BASE_URL/api/oauth/token")
             .header("X-Nextendo-Client-Id", CLIENT_ID)
             .post(form)
             .build()
-        http.newCall(request).execute().use { response ->
+        client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 Log.warning("[Nextendo] Token request refused (HTTP ${response.code})")
@@ -316,13 +330,13 @@ object NextendoAccount {
         }
     }
 
-    private fun requestGameToken(accessToken: String): GameToken? {
+    private fun requestGameToken(accessToken: String, client: OkHttpClient = http): GameToken? {
         val request = Request.Builder()
             .url("$BASE_URL/api/nex-token")
             .header("Authorization", "Bearer $accessToken")
             .header("X-Nextendo-Client-Id", CLIENT_ID)
             .build()
-        http.newCall(request).execute().use { response ->
+        client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 Log.warning("[Nextendo] Game token refused (HTTP ${response.code})")
