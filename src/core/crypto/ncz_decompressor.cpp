@@ -38,6 +38,8 @@ constexpr std::size_t SectionEntrySize = 0x40; // offset+size+cryptoType+padding
 constexpr std::size_t MaxChunkSize = 0x10000;
 constexpr std::size_t CompressedReadSize = 0x100000;
 constexpr std::size_t BlockHeaderSize = 0x18; // magic, version, type, unused, exponent, count, size
+// Upper bound on NCZ section entries (64 bytes each, so the table is at most 4 MiB).
+constexpr u64 MaxSectionCount = 0x10000;
 constexpr u32 MaxBlockSizeExponent = 28;      // 256 MiB; nsz defaults to 20 (1 MiB)
 // Decompressed blocks kept around per open NCZBLOCK file; games read assets sequentially, so this
 // mostly saves re-decoding a block that one read ended in and the next one starts in.
@@ -132,9 +134,10 @@ std::optional<NczLayout> ParseLayout(const FileSys::VirtualFile& ncz_file) {
     }
 
     const u64 section_count = ReadU64LE(ncz_file, IncompressibleHeaderSize + 8);
-    if (section_count == 0 || section_count > 64) {
-        // Real NCAs have a handful of sections at most; a huge count means we misparsed
-        // something upstream rather than a legitimate file.
+    if (section_count == 0 || section_count > MaxSectionCount) {
+        // A base NCA has a handful of sections, but nsz stores an update's patch (BKTR) data one
+        // entry per subsection, which is thousands of them. Beyond the limit we've misparsed
+        // something upstream rather than hit a legitimate file.
         LOG_ERROR(Crypto, "NCZ file reports an implausible section count ({})", section_count);
         return std::nullopt;
     }
