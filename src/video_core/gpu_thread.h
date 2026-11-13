@@ -107,6 +107,10 @@ public:
     void StartThread(VideoCore::RendererBase& renderer, Core::Frontend::GraphicsContext& context,
                      Tegra::Control::Scheduler& scheduler);
 
+    /// Stops the GPU thread and waits for it to end. It holds the renderer's graphics context
+    /// until then, so this must happen before the renderer goes.
+    void StopThread();
+
     /// Push GPU command entries to be processed
     void SubmitList(s32 channel, Tegra::CommandList&& entries);
 

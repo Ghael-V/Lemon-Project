@@ -60,7 +60,10 @@ struct GPU::Impl {
     ~Impl() {
         // The renderer finishes its last GPU work on the way out, which still writes to the bound
         // channel's 3D engine state. The channels are declared after it and would be freed first,
-        // so let go of the renderer while they still exist.
+        // so let go of the renderer while they still exist. The GPU thread goes first: it holds the
+        // renderer's graphics context until it ends, and released it after the renderer was gone
+        // (a crash on leaving a game, seen on Mali).
+        gpu_thread.StopThread();
         renderer.reset();
     }
 
