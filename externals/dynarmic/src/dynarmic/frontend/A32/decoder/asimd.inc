@@ -52,6 +52,10 @@ INST(asimd_VPMAX_float,     "VPMAX (floating-point)",   "111100110D0znnnndddd111
 INST(asimd_VPMIN_float,     "VPMIN (floating-point)",   "111100110D1znnnndddd1111NQM0mmmm") // ASIMD
 INST(asimd_VRECPS,          "VRECPS",                   "111100100D0znnnndddd1111NQM1mmmm") // ASIMD
 INST(asimd_VRSQRTS,         "VRSQRTS",                  "111100100D1znnnndddd1111NQM1mmmm") // ASIMD
+INST(v8_SHA1C,              "SHA1C",                    "111100100D00nnnndddd1100NQM0mmmm") // v8
+INST(v8_SHA1P,              "SHA1P",                    "111100100D01nnnndddd1100NQM0mmmm") // v8
+INST(v8_SHA1M,              "SHA1M",                    "111100100D10nnnndddd1100NQM0mmmm") // v8
+INST(v8_SHA1SU0,            "SHA1SU0",                  "111100100D11nnnndddd1100NQM0mmmm") // v8
 INST(v8_SHA256H,            "SHA256H",                  "111100110D00nnnndddd1100NQM0mmmm") // v8
 INST(v8_SHA256H2,           "SHA256H2",                 "111100110D01nnnndddd1100NQM0mmmm") // v8
 INST(v8_SHA256SU1,          "SHA256SU1",                "111100110D10nnnndddd1100NQM0mmmm") // v8
@@ -147,8 +151,8 @@ INST(v8_AESD,               "AESD",                     "111100111D11zz00dddd001
 INST(v8_AESMC,              "AESMC",                    "111100111D11zz00dddd001110M0mmmm") // v8
 INST(v8_AESIMC,             "AESIMC",                   "111100111D11zz00dddd001111M0mmmm") // v8
 INST(arm_UDF,               "UNALLOCATED",              "111100111-11--01----001010-0----") // v8
-INST(arm_UDF,               "UNALLOCATED (SHA1H)",      "111100111-11--01----001011-0----") // v8
-INST(arm_UDF,               "UNALLOCATED (SHA1SU1)",    "111100111-11--10----001110-0----") // v8
+INST(v8_SHA1H,              "SHA1H",                    "111100111D11zz01dddd001011M0mmmm") // v8
+INST(v8_SHA1SU1,            "SHA1SU1",                  "111100111D11zz10dddd001110M0mmmm") // v8
 INST(v8_SHA256SU0,          "SHA256SU0",                "111100111D11zz10dddd001111M0mmmm") // v8
 
 // One register and modified immediate
