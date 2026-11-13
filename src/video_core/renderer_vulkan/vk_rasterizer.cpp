@@ -537,22 +537,6 @@ void RasterizerVulkan::DrawTexture() {
         return;
     }
 
-
-    // Drawing a texture 1:1 onto itself without blending changes nothing on hardware, but here
-    // it samples the image the render pass is writing to: undefined in Vulkan, and on tiled GPUs
-    // it reads whatever the image memory last held. Crysis Remastered does this every frame for
-    // its post-processing buffers (suspected cause of its map covering the whole screen).
-    const auto& fb_images = framebuffer->Images();
-    const bool src_is_target =
-        std::find(fb_images.begin(), fb_images.begin() + framebuffer->NumImages(),
-                  texture.ImageHandle()) != fb_images.begin() + framebuffer->NumImages();
-    if (src_is_target && src_rescaling == dst_rescaling &&
-        src_region.start.x == dst_region.start.x && src_region.start.y == dst_region.start.y &&
-        src_region.end.x == dst_region.end.x && src_region.end.y == dst_region.end.y &&
-        maxwell3d->regs.blend.enable[0] == 0) {
-        return;
-    }
-
     // DrawTexture rectangles go through the fragment pipeline, scissor included: Crysis
     // Remastered draws its whole map scaled up and scissors it down to the minimap corner.
     std::optional<VkRect2D> scissor;
