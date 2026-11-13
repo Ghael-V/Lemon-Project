@@ -202,7 +202,7 @@ private fun DriverDownloadScreen(
 private fun DriverSources(onInstalled: (String) -> Unit) {
     val sources = remember {
         DriverDownloader.sourcesFor(
-            adreno = true,
+            adreno = GpuDriverHelper.hasKgslDevice(),
             gpuName = GpuDriverHelper.cachedSystemDriverInfo()?.getOrNull(1)
         )
     }

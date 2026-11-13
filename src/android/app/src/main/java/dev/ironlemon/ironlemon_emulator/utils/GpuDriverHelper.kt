@@ -227,7 +227,11 @@ object GpuDriverHelper {
         return GpuDriverMetadata()
     }
 
+    /** Custom drivers: Adreno (KGSL) and Mali (mali_kbase, the PanVK builds). */
     external fun supportsCustomDriverLoading(): Boolean
+
+    /** An Adreno GPU (KGSL): the Turnip and Qualcomm drivers, rather than PanVK. */
+    external fun hasKgslDevice(): Boolean
 
     external fun getSystemDriverInfo(
         surface: Surface = Surface(SurfaceTexture(true)),

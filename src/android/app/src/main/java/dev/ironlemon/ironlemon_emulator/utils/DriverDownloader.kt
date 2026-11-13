@@ -18,7 +18,7 @@ import org.json.JSONArray
 /**
  * GPU drivers published as GitHub releases, in the zip format adrenotools loads (a meta.json next
  * to the driver library). The releases are read from GitHub's public API; nothing about the device
- * or the user is sent. Only Adreno GPUs can load custom drivers.
+ * or the user is sent. Adreno GPUs get the Turnip/Qualcomm builds, Mali ones the PanVK builds.
  */
 object DriverDownloader {
     /**

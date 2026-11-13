@@ -1222,8 +1222,32 @@ void JNICALL Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_initializeGpuD
     return access(KgslPath, F_OK) == 0;
 }
 
+[[maybe_unused]] static bool CheckMaliPresent() {
+    constexpr auto MaliPath{"/dev/mali0"};
+
+    return access(MaliPath, F_OK) == 0;
+}
+
 [[maybe_unused]] bool SupportsCustomDriver() {
-    return android_get_device_api_level() >= 28 && CheckKgslPresent();
+    if (android_get_device_api_level() < 28) {
+        return false;
+    }
+    // Mesa PanVK builds that talk to the Mali kernel driver (mali_kbase) load too: adrenotools'
+    // custom-driver path only swaps the vulkan.* HAL the system loader opens, so it isn't tied to
+    // Adreno. Its KGSL helpers (turbo, GPU mappings) stay Adreno-only.
+    if (CheckMaliPresent()) {
+        return true;
+    }
+    return CheckKgslPresent();
+}
+
+jboolean JNICALL Java_dev_ironlemon_ironlemon_1emulator_utils_GpuDriverHelper_hasKgslDevice(
+    JNIEnv* env, jobject instance) {
+#ifdef ARCHITECTURE_arm64
+    return CheckKgslPresent();
+#else
+    return false;
+#endif
 }
 
 jboolean JNICALL Java_dev_ironlemon_ironlemon_1emulator_utils_GpuDriverHelper_supportsCustomDriverLoading(
