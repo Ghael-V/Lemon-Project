@@ -82,6 +82,14 @@ object DriverDownloader {
             "LukeValen/panvk-mali-g52",
             forMali = true,
             forGpu = "G52"
+        ),
+        // Built for any Mali on the kernel driver, with only system libraries since v3.5 (the
+        // older releases were Winlator builds that need libraries Android doesn't have).
+        Source(
+            "PanVK FristOneRR",
+            R.string.driver_source_panvk_fristonerr,
+            "FristOneRR/FristOneRR-Panvk-Driver",
+            forMali = true
         )
     )
 
