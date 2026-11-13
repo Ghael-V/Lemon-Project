@@ -88,7 +88,7 @@ class SettingsFragment : Fragment() {
             settingsViewModel,
             settingsAdapter!!,
             args.menuTag
-        )
+        ).also { it.activity = requireActivity() }
 
         binding.toolbarSettingsLayout.title = if (args.menuTag == Settings.MenuTag.SECTION_ROOT &&
             args.game != null

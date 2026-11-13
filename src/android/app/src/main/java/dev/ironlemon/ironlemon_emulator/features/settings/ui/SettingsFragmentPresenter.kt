@@ -38,6 +38,9 @@ class SettingsFragmentPresenter(
 
     private val context get() = YuzuApplication.appContext
 
+    /** The screen's activity, for settings that open another app (Nextendo sign-in). */
+    var activity: android.app.Activity? = null
+
     // Extension for altering settings list based on each setting's properties
     fun ArrayList<SettingsItem>.add(key: String) {
         val item = SettingsItem.settingsItems[key]!!
@@ -385,7 +388,7 @@ class SettingsFragmentPresenter(
                         titleId = R.string.nextendo_sign_in,
                         descriptionId = R.string.nextendo_sign_in_description,
                         isRunnable = activity != null,
-                        iconId = R.drawable.ic_account_circle
+                        iconId = R.drawable.ic_account
                     ) {
                         val currentActivity = activity ?: return@RunnableSetting
                         NextendoAccount.signIn(currentActivity) { error ->
@@ -414,7 +417,7 @@ class SettingsFragmentPresenter(
                             username
                         ),
                         isRunnable = !NativeLibrary.isRunning(),
-                        iconId = R.drawable.ic_account_circle
+                        iconId = R.drawable.ic_account
                     ) {
                         NextendoAccount.signOut()
                         loadSettingsList(true)
