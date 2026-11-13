@@ -47,6 +47,7 @@ enum class CommandId : u8 {
     /* 0x1C */ MultiTapBiquadFilter,
     /* 0x1D */ Capture,
     /* 0x1E */ Compressor,
+    /* 0x1F */ BiquadFilterAndMix,
 };
 
 constexpr u32 CommandMagic{0xCAFEBABE};

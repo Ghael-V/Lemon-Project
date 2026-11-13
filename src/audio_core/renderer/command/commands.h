@@ -20,6 +20,7 @@
 #include "audio_core/renderer/command/mix/copy_mix.h"
 #include "audio_core/renderer/command/mix/depop_for_mix_buffers.h"
 #include "audio_core/renderer/command/mix/depop_prepare.h"
+#include "audio_core/renderer/command/mix/biquad_filter_and_mix.h"
 #include "audio_core/renderer/command/mix/mix.h"
 #include "audio_core/renderer/command/mix/mix_ramp.h"
 #include "audio_core/renderer/command/mix/mix_ramp_grouped.h"

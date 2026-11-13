@@ -7,6 +7,10 @@
 #include "audio_core/renderer/splitter/splitter_context.h"
 #include "common/alignment.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
 namespace AudioCore::Renderer {
 
 SplitterDestinationData* SplitterContext::GetDestinationData(const s32 splitter_id,
@@ -160,6 +164,30 @@ u32 SplitterContext::UpdateData(const u8* input, u32 offset, const u32 count) {
         const u8* flags{input + entry_offset + destination_param_size - 0xC};
         const bool in_use{flags[0] != 0};
         const bool reset_prev_volume{flags[1] != 0};
+        auto& destination{splitter_destinations[data_header->id]};
+        const u8* biquad_data{input + entry_offset + SplitterDestinationData::InParameterBiquadOffset};
+        std::array<VoiceInfo::BiquadFilterParameter, MaxBiquadFilters> biquads{};
+        if (destination_param_size == SplitterDestinationData::InParameterBiquadSize) {
+            std::memcpy(biquads.data(), biquad_data, sizeof(biquads));
+        } else if (destination_param_size == SplitterDestinationData::InParameterFloatBiquadSize) {
+            // Q14: the fixed point the biquad commands take (1.0 == 0x4000).
+            const auto to_q14 = [](f32 value) {
+                return static_cast<s16>(std::clamp(std::lround(value * 16384.0f), -32768L, 32767L));
+            };
+            for (u32 j = 0; j < MaxBiquadFilters; j++) {
+                VoiceInfo::BiquadFilterParameterFloat in{};
+                std::memcpy(&in, biquad_data + j * sizeof(in), sizeof(in));
+                biquads[j].enabled = in.enabled;
+                for (u32 k = 0; k < 3; k++) {
+                    biquads[j].b[k] = to_q14(in.b[k]);
+                }
+                for (u32 k = 0; k < 2; k++) {
+                    biquads[j].a[k] = to_q14(in.a[k]);
+                }
+            }
+        }
+        destination.SetBiquadFilters(biquads);
+
         if (destination_param_size == SplitterDestinationData::InParameterSize) {
             splitter_destinations[data_header->id].Update(
                 *data_header, data_header->in_use, input[entry_offset + 0x6D] != 0,

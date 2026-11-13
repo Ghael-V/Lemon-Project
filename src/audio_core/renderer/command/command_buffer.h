@@ -8,6 +8,7 @@
 #include "audio_core/renderer/command/commands.h"
 #include "audio_core/renderer/effect/light_limiter.h"
 #include "audio_core/renderer/performance/performance_manager.h"
+#include "audio_core/renderer/splitter/splitter_destinations_data.h"
 #include "common/common_types.h"
 
 namespace AudioCore::Renderer {
@@ -196,6 +197,26 @@ public:
      */
     void GenerateMixRampCommand(s32 node_id, s16 buffer_count, s16 input_index, s16 output_index,
                                 f32 volume, f32 prev_volume, CpuAddr prev_samples, u8 precision);
+
+    /**
+     * Generate a biquad filter and mix command for a splitter destination, adding it to the
+     * command list.
+     *
+     * @param node_id             - Node id of the voice this command is generated for.
+     * @param input_index         - Input mix buffer index.
+     * @param output_index        - Output mix buffer index.
+     * @param destination         - Splitter destination holding the filters and their state.
+     * @param needs_init          - Whether the filters start from a clean state.
+     * @param is_first_mix_buffer - Whether this is the destination's first buffer this frame.
+     * @param volume              - Current mix volume.
+     * @param prev_volume         - Previous mix volume.
+     * @param prev_samples        - Previous sample buffer. Used for depopping.
+     * @param precision           - Number of decimal bits for fixed point operations.
+     */
+    void GenerateBiquadFilterAndMixCommand(s32 node_id, s16 input_index, s16 output_index,
+                                           SplitterDestinationData& destination, bool needs_init,
+                                           bool is_first_mix_buffer, f32 volume, f32 prev_volume,
+                                           CpuAddr prev_samples, u8 precision);
 
     /**
      * Generate a mix ramp grouped command, adding it to the command list.

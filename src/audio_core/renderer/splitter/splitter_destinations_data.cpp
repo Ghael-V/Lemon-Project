@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+
 #include "audio_core/renderer/splitter/splitter_destinations_data.h"
 
 namespace AudioCore::Renderer {
@@ -81,6 +83,44 @@ void SplitterDestinationData::Update(const InParameter& params, bool params_in_u
     }
 
     in_use = params_in_use;
+}
+
+void SplitterDestinationData::SetBiquadFilters(
+    const std::array<VoiceInfo::BiquadFilterParameter, MaxBiquadFilters>& filters) {
+    biquads = filters;
+}
+
+bool SplitterDestinationData::IsBiquadFilterEnabled() const {
+    return std::ranges::any_of(biquads, [](const auto& biquad) { return biquad.enabled; });
+}
+
+bool SplitterDestinationData::BiquadFilterNeedsInit() const {
+    for (u32 i = 0; i < MaxBiquadFilters; i++) {
+        if (biquads[i].enabled && !biquad_enabled_prev[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void SplitterDestinationData::UpdateBiquadFilterEnabledPrev() {
+    for (u32 i = 0; i < MaxBiquadFilters; i++) {
+        biquad_enabled_prev[i] = biquads[i].enabled;
+    }
+}
+
+const VoiceInfo::BiquadFilterParameter& SplitterDestinationData::GetBiquadFilter(
+    const u32 index) const {
+    return biquads[index];
+}
+
+VoiceState::BiquadFilterState* SplitterDestinationData::GetBiquadFilterState(const u32 index) {
+    return &biquad_states[index];
+}
+
+VoiceState::BiquadFilterState* SplitterDestinationData::GetBiquadFilterPrevState(
+    const u32 index) {
+    return &biquad_prev_states[index];
 }
 
 void SplitterDestinationData::MarkAsNeedToUpdateInternalState() {

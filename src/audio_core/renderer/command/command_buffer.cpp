@@ -303,6 +303,43 @@ void CommandBuffer::GenerateMixRampCommand(const s32 node_id,
     GenerateEnd<MixRampCommand>(cmd);
 }
 
+void CommandBuffer::GenerateBiquadFilterAndMixCommand(
+    const s32 node_id, const s16 input_index, const s16 output_index,
+    SplitterDestinationData& destination, const bool needs_init, const bool is_first_mix_buffer,
+    const f32 volume, const f32 prev_volume, const CpuAddr prev_samples, const u8 precision) {
+    auto& cmd{GenerateStart<BiquadFilterAndMixCommand, CommandId::BiquadFilterAndMix>(node_id)};
+
+    cmd.input = input_index;
+    cmd.output = output_index;
+    cmd.filter_count = 0;
+    for (u32 i = 0; i < MaxBiquadFilters; i++) {
+        if (!destination.GetBiquadFilter(i).enabled) {
+            continue;
+        }
+        cmd.biquads[cmd.filter_count] = destination.GetBiquadFilter(i);
+        cmd.states[cmd.filter_count] = CpuAddr(destination.GetBiquadFilterState(i));
+        cmd.prev_states[cmd.filter_count] = CpuAddr(destination.GetBiquadFilterPrevState(i));
+        cmd.filter_count++;
+    }
+    cmd.needs_init = needs_init;
+    cmd.is_first_mix_buffer = is_first_mix_buffer;
+    cmd.prev_volume = prev_volume;
+    cmd.volume = volume;
+    cmd.previous_sample = prev_samples;
+    cmd.precision = precision;
+
+    // No estimate of its own in any estimator version: the filters it runs plus the mix.
+    BiquadFilterCommand filter_estimate{};
+    filter_estimate.use_float_processing = true;
+    MixRampCommand mix_estimate{};
+    mix_estimate.precision = precision;
+    cmd.estimated_process_time = time_estimator->Estimate(filter_estimate) * cmd.filter_count +
+                                 time_estimator->Estimate(mix_estimate);
+    estimated_process_time += cmd.estimated_process_time;
+    size += sizeof(BiquadFilterAndMixCommand);
+    count++;
+}
+
 void CommandBuffer::GenerateMixRampGroupedCommand(const s32 node_id, const s16 buffer_count,
                                                   const s16 input_index, s16 output_index,
                                                   std::span<const f32> volumes,

@@ -98,6 +98,8 @@ add_library(audio_core STATIC
     renderer/command/mix/depop_prepare.h
     renderer/command/mix/mix.cpp
     renderer/command/mix/mix.h
+    renderer/command/mix/biquad_filter_and_mix.cpp
+    renderer/command/mix/biquad_filter_and_mix.h
     renderer/command/mix/mix_ramp.cpp
     renderer/command/mix/mix_ramp.h
     renderer/command/mix/mix_ramp_grouped.cpp

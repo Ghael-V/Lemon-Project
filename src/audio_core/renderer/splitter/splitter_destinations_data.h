@@ -7,6 +7,8 @@
 #include <span>
 
 #include "audio_core/common/common.h"
+#include "audio_core/renderer/voice/voice_info.h"
+#include "audio_core/renderer/voice/voice_state.h"
 #include "common/common_types.h"
 
 namespace AudioCore::Renderer {
@@ -27,8 +29,9 @@ public:
                   "SplitterDestinationData::InParameter has the wrong size!");
 
     // Sizes of the destination parameter by revision: the base one, with two Q14 biquad filters
-    // (REV12, 0x18 bytes) and with two float ones (REV15, 0x30 bytes) after mix_id. The filters
-    // are read past; in_use and reset_prev_volume follow them.
+    // (REV12, 0x18 bytes) and with two float ones (REV15, 0x30 bytes) after mix_id; in_use and
+    // reset_prev_volume follow them.
+    static constexpr u32 InParameterBiquadOffset = 0x6C;
     static constexpr u32 InParameterSize = 0x70;
     static constexpr u32 InParameterBiquadSize = 0x90;
     static constexpr u32 InParameterFloatBiquadSize = 0xA8;
@@ -107,6 +110,31 @@ public:
                 bool prev_volume_reset_supported);
 
     /**
+     * Set the biquad filters of this destination (REV12+), already in Q14.
+     */
+    void SetBiquadFilters(const std::array<VoiceInfo::BiquadFilterParameter, MaxBiquadFilters>&
+                              filters);
+
+    /**
+     * Check if any of this destination's biquad filters is enabled.
+     */
+    bool IsBiquadFilterEnabled() const;
+
+    /**
+     * Check if an enabled filter was off last frame, so the filters must start clean.
+     */
+    bool BiquadFilterNeedsInit() const;
+
+    /**
+     * Remember which filters were enabled, after their commands are generated.
+     */
+    void UpdateBiquadFilterEnabledPrev();
+
+    const VoiceInfo::BiquadFilterParameter& GetBiquadFilter(u32 index) const;
+    VoiceState::BiquadFilterState* GetBiquadFilterState(u32 index);
+    VoiceState::BiquadFilterState* GetBiquadFilterPrevState(u32 index);
+
+    /**
      * Mark this destination as needing its volumes updated.
      */
     void MarkAsNeedToUpdateInternalState();
@@ -145,6 +173,13 @@ private:
     bool in_use{};
     /// Does this destination need its volumes updated?
     bool need_update{};
+    /// Biquad filters applied before mixing (REV12+)
+    std::array<VoiceInfo::BiquadFilterParameter, MaxBiquadFilters> biquads{};
+    /// Were the filters enabled last frame?
+    std::array<bool, MaxBiquadFilters> biquad_enabled_prev{};
+    /// Filter state, and the state at the start of the frame, of each filter
+    std::array<VoiceState::BiquadFilterState, MaxBiquadFilters> biquad_states{};
+    std::array<VoiceState::BiquadFilterState, MaxBiquadFilters> biquad_prev_states{};
 };
 
 } // namespace AudioCore::Renderer

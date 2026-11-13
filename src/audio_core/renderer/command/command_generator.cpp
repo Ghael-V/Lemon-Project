@@ -115,6 +115,33 @@ void CommandGenerator::GenerateDataSourceCommand(VoiceInfo& voice_info,
     }
 }
 
+void CommandGenerator::GenerateVoiceMixWithSplitterBiquad(SplitterDestinationData& destination,
+                                                          const VoiceState& voice_state,
+                                                          s16 output_index, const s16 buffer_count,
+                                                          const s16 input_index,
+                                                          const s32 node_id) {
+    u8 precision{15};
+    if (render_context.behavior->IsVolumeMixParameterPrecisionQ23Supported()) {
+        precision = 23;
+    }
+
+    const auto volumes{destination.GetMixVolume()};
+    const auto prev_volumes{destination.GetMixVolumePrev()};
+    bool is_first_mix_buffer{true};
+    for (s16 i = 0; i < buffer_count; i++, output_index++) {
+        if (volumes[i] == 0.0f && prev_volumes[i] == 0.0f) {
+            continue;
+        }
+        const auto prev_samples{render_context.memory_pool_info->Translate(
+            CpuAddr(&voice_state.previous_samples[i]), sizeof(s32))};
+        command_buffer.GenerateBiquadFilterAndMixCommand(
+            node_id, input_index, output_index, destination, destination.BiquadFilterNeedsInit(),
+            is_first_mix_buffer, volumes[i], prev_volumes[i], prev_samples, precision);
+        destination.UpdateBiquadFilterEnabledPrev();
+        is_first_mix_buffer = false;
+    }
+}
+
 void CommandGenerator::GenerateVoiceMixCommand(std::span<const f32> mix_volumes,
                                                std::span<const f32> prev_mix_volumes,
                                                const VoiceState& voice_state, s16 output_index,
@@ -241,10 +268,17 @@ void CommandGenerator::GenerateVoiceCommand(VoiceInfo& voice_info) {
                         if (mix_id < mix_context.GetCount() &&
                             static_cast<s32>(mix_id) != UnusedSplitterId) {
                             auto mix_info{mix_context.GetInfo(mix_id)};
-                            GenerateVoiceMixCommand(
-                                destination->GetMixVolume(), destination->GetMixVolumePrev(),
-                                voice_state, mix_info->buffer_offset, mix_info->buffer_count,
-                                render_context.mix_buffer_count + channel, voice_info.node_id);
+                            if (destination->IsBiquadFilterEnabled()) {
+                                GenerateVoiceMixWithSplitterBiquad(
+                                    *destination, voice_state, mix_info->buffer_offset,
+                                    mix_info->buffer_count,
+                                    render_context.mix_buffer_count + channel, voice_info.node_id);
+                            } else {
+                                GenerateVoiceMixCommand(
+                                    destination->GetMixVolume(), destination->GetMixVolumePrev(),
+                                    voice_state, mix_info->buffer_offset, mix_info->buffer_count,
+                                    render_context.mix_buffer_count + channel, voice_info.node_id);
+                            }
                             destination->MarkAsNeedToUpdateInternalState();
                         }
                     }

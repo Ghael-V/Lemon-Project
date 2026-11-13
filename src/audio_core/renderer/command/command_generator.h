@@ -19,6 +19,7 @@ class VoiceContext;
 class MixContext;
 class EffectContext;
 class SplitterContext;
+class SplitterDestinationData;
 class SinkContext;
 class BehaviorInfo;
 class VoiceInfo;
@@ -134,6 +135,21 @@ public:
      * @param input_index      - Input mix buffer index.
      * @param node_id          - Node id of the voice this command is generated for.
      */
+    /**
+     * Generate the mix of a voice into a splitter destination with biquad filters (REV12+):
+     * every mix buffer the destination sends to gets the filtered voice.
+     *
+     * @param destination  - Splitter destination, with its filters and volumes.
+     * @param voice_state  - State used by the AudioRenderer across calls.
+     * @param output_index - First output mix buffer index.
+     * @param buffer_count - Number of active mix buffers.
+     * @param input_index  - Input mix buffer index.
+     * @param node_id      - Node id of the voice this command is generated for.
+     */
+    void GenerateVoiceMixWithSplitterBiquad(SplitterDestinationData& destination,
+                                            const VoiceState& voice_state, s16 output_index,
+                                            s16 buffer_count, s16 input_index, s32 node_id);
+
     void GenerateVoiceMixCommand(std::span<const f32> mix_volumes,
                                  std::span<const f32> prev_mix_volumes,
                                  const VoiceState& voice_state, s16 output_index, s16 buffer_count,
