@@ -367,6 +367,11 @@ bool IOFile::SetSize(u64 size) const {
         return false;
     }
 
+    // Write out buffered data before truncating: flushed afterwards (by the next seek or close),
+    // it lands past the new end and grows the file back. A save file shrunk by one byte this way
+    // kept the old last byte, and the game read it as corrupted.
+    std::fflush(file);
+
     errno = 0;
 
 #ifdef _WIN32

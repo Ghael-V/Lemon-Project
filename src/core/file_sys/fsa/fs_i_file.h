@@ -137,7 +137,9 @@ private:
     }
 
     Result DoFlush() {
-        // Exists for SDK compatibiltity -- No need to flush file.
+        // Closing the host file used to be what wrote its buffered data out, but a Quick Save
+        // keeps closed files open (see Core::SaveState::UndoJournal), so honor the game's flush.
+        backend->Flush();
         R_SUCCEED();
     }
 
@@ -147,6 +149,10 @@ private:
         ASSERT_MSG(written == size,
                    "Could not write all bytes to file (requested={:016X}, actual={:016X}).", size,
                    written);
+
+        if (option.HasFlushFlag()) {
+            backend->Flush();
+        }
 
         R_SUCCEED();
     }

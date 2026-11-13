@@ -74,6 +74,10 @@ public:
     virtual Result HandleSyncRequest(Kernel::KServerSession& session,
                                      HLERequestContext& context) = 0;
 
+    /// The game closed this domain object. It may stay alive afterwards (a Quick Load can put it
+    /// back), so work its destructor would do on close belongs here.
+    virtual void OnDomainObjectClosed() {}
+
 protected:
     Kernel::KernelCore& kernel;
 };
@@ -130,6 +134,7 @@ public:
             // (Garfield closes files it streams; using one after a load got no answer at all, and
             // the game aborted on the missing reply, 2010-0212).
             if (domain_handlers[index] != nullptr) {
+                domain_handlers[index]->OnDomainObjectClosed();
                 Core::SaveState::UndoJournal::Services().Record(
                     "domain object close",
                     [this, alive = std::weak_ptr<bool>(alive_token), index,

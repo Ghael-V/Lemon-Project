@@ -14,6 +14,10 @@ class IFile final : public ServiceFramework<IFile> {
 public:
     explicit IFile(Core::System& system_, FileSys::VirtualFile file_);
 
+    // A closed file can outlive the close (see Core::SaveState::UndoJournal) and keep its host
+    // file open, so write out what the host still buffers, as closing the host file would.
+    void OnDomainObjectClosed() override;
+
 private:
     std::unique_ptr<FileSys::Fsa::IFile> backend;
 

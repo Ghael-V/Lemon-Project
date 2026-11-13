@@ -329,6 +329,12 @@ std::size_t RealVfsFile::Write(const u8* data, std::size_t length, std::size_t o
     return reference->file->WriteSpan(std::span{data, length});
 }
 
+bool RealVfsFile::Flush() {
+    std::scoped_lock lk{base.list_lock};
+    // A file closed to stay under the open-file limit was flushed when it was closed.
+    return !reference->file || reference->file->Flush();
+}
+
 bool RealVfsFile::Rename(std::string_view name) {
     return base.MoveFile(path, parent_path + '/' + std::string(name)) != nullptr;
 }

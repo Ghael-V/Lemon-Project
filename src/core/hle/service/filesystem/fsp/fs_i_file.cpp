@@ -23,6 +23,10 @@ IFile::IFile(Core::System& system_, FileSys::VirtualFile file_)
     RegisterHandlers(functions);
 }
 
+void IFile::OnDomainObjectClosed() {
+    backend->Flush();
+}
+
 Result IFile::Read(
     FileSys::ReadOption option, Out<s64> out_size, s64 offset,
     const OutBuffer<BufferAttr_HipcMapAlias | BufferAttr_HipcMapTransferAllowsNonSecure> out_buffer,
