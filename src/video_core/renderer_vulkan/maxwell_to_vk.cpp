@@ -263,7 +263,9 @@ FormatInfo SurfaceFormat(const Device& device, FormatType format_type, bool with
     // Transcode on hardware that doesn't support BCn natively
     if (!device.IsOptimalBcnSupported() && VideoCore::Surface::IsPixelFormatBCn(pixel_format)) {
         const bool is_srgb = with_srgb && VideoCore::Surface::IsPixelFormatSRGB(pixel_format);
-        if (pixel_format == PixelFormat::BC4_SNORM) {
+        if (VideoCore::Surface::IsBcnRecompressedToAstc(pixel_format)) {
+            tuple.format = is_srgb ? VK_FORMAT_ASTC_4x4_SRGB_BLOCK : VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+        } else if (pixel_format == PixelFormat::BC4_SNORM) {
             tuple.format = VK_FORMAT_R8_SNORM;
         } else if (pixel_format == PixelFormat::BC4_UNORM) {
             tuple.format = VK_FORMAT_R8_UNORM;
