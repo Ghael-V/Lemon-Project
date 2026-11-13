@@ -41,6 +41,8 @@ NvResult nvhost_ctrl_gpu::Ioctl1(DeviceFD fd, Ioctl command, std::span<const u8>
             return WrapFixed(this, &nvhost_ctrl_gpu::GetTPCMasks1, input, output);
         case 0x7:
             return WrapFixed(this, &nvhost_ctrl_gpu::FlushL2, input, output);
+        case 0x13:
+            return WrapFixed(this, &nvhost_ctrl_gpu::GetNumVsms, input, output);
         case 0x14:
             return WrapFixed(this, &nvhost_ctrl_gpu::GetActiveSlotMask, input, output);
         case 0x1c:
@@ -235,6 +237,14 @@ NvResult nvhost_ctrl_gpu::ZBCQueryTable(IoctlZbcQueryTable& params) {
 
 NvResult nvhost_ctrl_gpu::FlushL2(IoctlFlushL2& params) {
     LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    return NvResult::Success;
+}
+
+NvResult nvhost_ctrl_gpu::GetNumVsms(IoctlNumVsms& params) {
+    LOG_DEBUG(Service_NVDRV, "called");
+    // The Tegra X1's GM20B: one GPC with two TPCs, one SM each (as num_tpc_per_gpc above).
+    params.num_vsms = 2;
+    params.reserved = 0;
     return NvResult::Success;
 }
 

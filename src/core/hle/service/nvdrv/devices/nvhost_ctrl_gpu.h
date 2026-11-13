@@ -151,6 +151,13 @@ private:
     };
     static_assert(sizeof(IoctlGetGpuTime) == 0x10, "IoctlGetGpuTime is incorrect size");
 
+    // NVGPU_GPU_IOCTL_NUM_VSMS: how many streaming multiprocessors the GPU has.
+    struct IoctlNumVsms {
+        u32_le num_vsms{};
+        u32_le reserved{};
+    };
+    static_assert(sizeof(IoctlNumVsms) == 8, "IoctlNumVsms is incorrect size");
+
     NvResult GetCharacteristics1(IoctlCharacteristics& params);
     NvResult GetCharacteristics3(IoctlCharacteristics& params,
                                  std::span<IoctlGpuCharacteristics> gpu_characteristics);
@@ -165,6 +172,7 @@ private:
     NvResult ZBCQueryTable(IoctlZbcQueryTable& params);
     NvResult FlushL2(IoctlFlushL2& params);
     NvResult GetGpuTime(IoctlGetGpuTime& params);
+    NvResult GetNumVsms(IoctlNumVsms& params);
 
     EventInterface& events_interface;
 
