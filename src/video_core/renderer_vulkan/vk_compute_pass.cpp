@@ -713,11 +713,56 @@ BcnDecodePass::BcnDecodePass(const Device& device_, Scheduler& scheduler_,
                              ComputePassDescriptorQueue& compute_pass_descriptor_queue_)
     : ComputePass(device_, descriptor_pool_, INPUT_OUTPUT_DESCRIPTOR_SET_BINDINGS,
                   INPUT_OUTPUT_DESCRIPTOR_UPDATE_TEMPLATE, INPUT_OUTPUT_BANK_INFO,
-                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, VULKAN_BCN_DECODE_COMP_SPV),
+                  COMPUTE_PUSH_CONSTANT_RANGE<sizeof(u32) * 7>, {}),
       scheduler{scheduler_}, staging_buffer_pool{staging_buffer_pool_},
-      compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {}
+      compute_pass_descriptor_queue{compute_pass_descriptor_queue_} {
+    const std::span<const u32> code{VULKAN_BCN_DECODE_COMP_SPV};
+    decode_module = device.GetLogical().CreateShaderModule({
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .codeSize = static_cast<u32>(code.size_bytes()),
+        .pCode = code.data(),
+    });
+    device.SaveShader(code);
+}
 
 BcnDecodePass::~BcnDecodePass() = default;
+
+VkPipeline BcnDecodePass::FormatPipeline(u32 format_number) {
+    vk::Pipeline& format_pipeline = format_pipelines[format_number];
+    if (!format_pipeline) {
+        const VkSpecializationMapEntry entry{
+            .constantID = 0,
+            .offset = 0,
+            .size = sizeof(u32),
+        };
+        const VkSpecializationInfo specialization{
+            .mapEntryCount = 1,
+            .pMapEntries = &entry,
+            .dataSize = sizeof(u32),
+            .pData = &format_number,
+        };
+        format_pipeline = device.GetLogical().CreateComputePipeline(VkComputePipelineCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .stage{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+                .module = *decode_module,
+                .pName = "main",
+                .pSpecializationInfo = &specialization,
+            },
+            .layout = *layout,
+            .basePipelineHandle = {},
+            .basePipelineIndex = 0,
+        });
+    }
+    return *format_pipeline;
+}
 
 namespace {
 // Format numbers of host_shaders/vulkan_bcn_decode.comp, 0 when it can't decode it.
@@ -739,6 +784,9 @@ u32 BcnDecodeFormat(VideoCore::Surface::PixelFormat format) {
     case PixelFormat::BC5_UNORM:
     case PixelFormat::BC5_SNORM:
         return 5;
+    case PixelFormat::BC6H_UFLOAT:
+    case PixelFormat::BC6H_SFLOAT:
+        return 6;
     case PixelFormat::BC7_UNORM:
     case PixelFormat::BC7_SRGB:
         return 7;
@@ -762,8 +810,13 @@ std::pair<VkBuffer, VkDeviceSize> BcnDecodePass::Decode(
     };
     const u32 format_number = BcnDecodeFormat(format);
     ASSERT(format_number != 0);
-    const u32 is_signed = format == PixelFormat::BC4_SNORM || format == PixelFormat::BC5_SNORM;
-    const u32 bytes_per_texel = format_number == 4 ? 1 : format_number == 5 ? 2 : 4;
+    const u32 is_signed = format == PixelFormat::BC4_SNORM || format == PixelFormat::BC5_SNORM ||
+                          format == PixelFormat::BC6H_SFLOAT;
+    const u32 bytes_per_texel = format_number == 4   ? 1
+                                : format_number == 5 ? 2
+                                : format_number == 6 ? 8
+                                                     : 4;
+    const VkPipeline format_pipeline = FormatPipeline(format_number);
     boost::container::small_vector<Dispatch, 16> dispatches;
     u64 output_size = 0;
     for (VideoCommon::BufferImageCopy& copy : copies) {
@@ -791,7 +844,8 @@ std::pair<VkBuffer, VkDeviceSize> BcnDecodePass::Decode(
     const void* const descriptor_data{compute_pass_descriptor_queue.UpdateData()};
 
     scheduler.RequestOutsideRenderPassOperationContext();
-    scheduler.Record([this, descriptor_data, dispatches](vk::CommandBuffer cmdbuf) {
+    scheduler.Record([this, descriptor_data, dispatches,
+                      format_pipeline](vk::CommandBuffer cmdbuf) {
         static constexpr VkMemoryBarrier WRITE_BARRIER{
             .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
             .pNext = nullptr,
@@ -800,7 +854,7 @@ std::pair<VkBuffer, VkDeviceSize> BcnDecodePass::Decode(
         };
         const VkDescriptorSet set = descriptor_allocator.Commit();
         device.GetLogical().UpdateDescriptorSet(set, *descriptor_template, descriptor_data);
-        cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+        cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, format_pipeline);
         cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_COMPUTE, *layout, 0, set, {});
         for (const Dispatch& dispatch : dispatches) {
             cmdbuf.PushConstants(*layout, VK_SHADER_STAGE_COMPUTE_BIT, dispatch.push_constants);

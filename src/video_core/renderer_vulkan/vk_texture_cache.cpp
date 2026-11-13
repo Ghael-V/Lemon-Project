@@ -1347,7 +1347,7 @@ bool TextureCacheRuntime::IsRawBcnCopy(const Image& dst, const Image& src) const
         BytesPerBlock(dst.info.format) != BytesPerBlock(src.info.format)) {
         return false;
     }
-    // The other side has to hold plain blocks or texels (not BC6H, stored as RGBA16F).
+    // The other side has to hold plain blocks or texels, or be converted too.
     if ((!dst_converted && VideoCore::Surface::IsPixelFormatBCn(dst.info.format)) ||
         (!src_converted && VideoCore::Surface::IsPixelFormatBCn(src.info.format))) {
         return false;
