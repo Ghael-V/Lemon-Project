@@ -599,6 +599,7 @@ private fun SettingRow(
         }
         is RunnableSetting -> {
             icon = item.iconId
+            trailingSwitch = item.trailingSwitch
             onClick = { if (item.isRunnable) item.runnable.invoke() }
         }
         is InputSetting -> {

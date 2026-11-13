@@ -313,55 +313,19 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         binding.inGameMenu.setNavigationItemSelectedListener {
             when (it.itemId) {
                 R.id.menu_pause_emulation -> {
-                    if (emulationState.isPaused) {
-                        emulationState.run(false)
-                        it.title = resources.getString(R.string.emulation_pause)
-                        it.icon = ResourcesCompat.getDrawable(
-                            resources,
-                            R.drawable.ic_pause,
-                            requireContext().theme
-                        )
-                    } else {
-                        emulationState.pause()
-                        it.title = resources.getString(R.string.emulation_unpause)
-                        it.icon = ResourcesCompat.getDrawable(
-                            resources,
-                            R.drawable.ic_play,
-                            requireContext().theme
-                        )
-                    }
+                    togglePauseEmulation()
                     binding.inGameMenu.requestFocus()
                     true
                 }
 
                 R.id.menu_quick_save_state -> {
-                    // It may wait a moment for a safe point to save at: not on the main thread.
-                    runQuickState(
-                        R.string.emulation_quick_save_state_working,
-                        R.string.emulation_quick_save_state_still_working
-                    ) {
-                        when (NativeLibrary.quickSaveState()) {
-                            NativeLibrary.QUICK_SAVE_SAVED -> {
-                                saveQuickSaveThumbnail()
-                                R.string.emulation_quick_save_state_success
-                            }
-                            NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
-                            NativeLibrary.QUICK_SAVE_NO_SPACE -> R.string.emulation_quick_save_state_no_space
-                            else -> R.string.emulation_quick_save_state_failure
-                        }
-                    }
+                    quickSaveState()
                     binding.inGameMenu.requestFocus()
                     true
                 }
 
                 R.id.menu_quick_load_state -> {
-                    // Restoring about a gigabyte of memory takes a moment: not on the main thread.
-                    runQuickState(
-                        R.string.emulation_quick_load_state_working,
-                        R.string.emulation_quick_load_state_still_working
-                    ) {
-                        quickLoadMessage(NativeLibrary.quickLoadState())
-                    }
+                    quickLoadState()
                     binding.inGameMenu.requestFocus()
                     true
                 }
@@ -463,10 +427,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_exit -> {
-                    emulationState.stop()
-                    NativeConfig.reloadGlobalConfig()
-                    emulationViewModel.setIsEmulationStopping(true)
-                    binding.drawerLayout.close()
+                    exitEmulation()
                     binding.inGameMenu.requestFocus()
                     true
                 }
@@ -1124,6 +1085,92 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             R.string.emulation_quick_load_state_still_working
         ) {
             quickLoadMessage(NativeLibrary.quickLoadSlot(id))
+        }
+    }
+
+    // Run from the in-game menu or a gamepad hotkey (EmulationActivity).
+
+    fun togglePauseEmulation() {
+        if (!this::emulationState.isInitialized || _binding == null) {
+            return
+        }
+        val item = binding.inGameMenu.menu.findItem(R.id.menu_pause_emulation)
+        if (emulationState.isPaused) {
+            emulationState.run(false)
+            item?.title = resources.getString(R.string.emulation_pause)
+            item?.icon =
+                ResourcesCompat.getDrawable(resources, R.drawable.ic_pause, requireContext().theme)
+        } else {
+            emulationState.pause()
+            item?.title = resources.getString(R.string.emulation_unpause)
+            item?.icon =
+                ResourcesCompat.getDrawable(resources, R.drawable.ic_play, requireContext().theme)
+        }
+    }
+
+    fun exitEmulation() {
+        if (!this::emulationState.isInitialized || _binding == null) {
+            return
+        }
+        emulationState.stop()
+        NativeConfig.reloadGlobalConfig()
+        emulationViewModel.setIsEmulationStopping(true)
+        binding.drawerLayout.close()
+    }
+
+    /** Returns whether the overlay is now shown. */
+    fun toggleStatsOverlay(): Boolean {
+        val show = !BooleanSetting.SHOW_PERFORMANCE_OVERLAY.getBoolean()
+        BooleanSetting.SHOW_PERFORMANCE_OVERLAY.setBoolean(show)
+        if (_binding != null) {
+            updateShowFpsOverlay()
+        }
+        NativeConfig.saveGlobalConfig()
+        return show
+    }
+
+    /** The device overlay here is the thermal one. Returns whether it is now shown. */
+    fun toggleSocOverlay(): Boolean {
+        val show = !BooleanSetting.SHOW_THERMAL_OVERLAY.getBoolean()
+        BooleanSetting.SHOW_THERMAL_OVERLAY.setBoolean(show)
+        if (_binding != null) {
+            updateThermalOverlay()
+        }
+        NativeConfig.saveGlobalConfig()
+        return show
+    }
+
+    fun quickSaveState() {
+        if (!isAdded) {
+            return
+        }
+        // It may wait a moment for a safe point to save at: not on the main thread.
+        runQuickState(
+            R.string.emulation_quick_save_state_working,
+            R.string.emulation_quick_save_state_still_working
+        ) {
+            when (NativeLibrary.quickSaveState()) {
+                NativeLibrary.QUICK_SAVE_SAVED -> {
+                    saveQuickSaveThumbnail()
+                    R.string.emulation_quick_save_state_success
+                }
+                NativeLibrary.QUICK_SAVE_NO_SAFE_MOMENT -> R.string.emulation_quick_state_no_safe_moment
+                NativeLibrary.QUICK_SAVE_NO_SPACE -> R.string.emulation_quick_save_state_no_space
+                else -> R.string.emulation_quick_save_state_failure
+            }
+        }
+    }
+
+    fun quickLoadState() {
+        if (!isAdded) {
+            return
+        }
+        // Restoring about a gigabyte of memory takes a moment: not on the main thread.
+        runQuickState(
+            R.string.emulation_quick_load_state_working,
+            R.string.emulation_quick_load_state_still_working
+        ) {
+            quickLoadMessage(NativeLibrary.quickLoadState())
         }
     }
 

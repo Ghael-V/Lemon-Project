@@ -49,7 +49,7 @@ abstract class SettingsItem(
         return@lazy descriptionString
     }
 
-    val isEditable: Boolean
+    open val isEditable: Boolean
         get() {
             // Can't change docked mode toggle when using handheld mode
             if (setting.key == BooleanSetting.USE_DOCKED_MODE.key) {

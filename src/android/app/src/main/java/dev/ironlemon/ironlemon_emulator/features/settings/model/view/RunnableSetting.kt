@@ -13,7 +13,14 @@ class RunnableSetting(
     descriptionString: String = "",
     val isRunnable: Boolean,
     @DrawableRes val iconId: Int = 0,
+    // Shown greyed out when false (a row that is not runnable is otherwise shown as usual).
+    val isEnabled: Boolean = true,
+    // A switch shown at the row's end, for a setting that belongs to this one.
+    val trailingSwitch: SwitchSetting? = null,
     val runnable: () -> Unit
 ) : SettingsItem(emptySetting, titleId, titleString, descriptionId, descriptionString) {
     override val type = TYPE_RUNNABLE
+
+    override val isEditable: Boolean
+        get() = isEnabled && super.isEditable
 }

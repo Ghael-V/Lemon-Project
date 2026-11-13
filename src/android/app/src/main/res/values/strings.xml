@@ -1453,4 +1453,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="update_auto_check">Check for updates when the app starts</string>
     <string name="update_check_failed">Could not reach the update server.</string>
     <string name="update_not_for_debug">Development builds are not updated from releases.</string>
+    <string name="hotkeys">Hotkeys</string>
+    <string name="hotkeys_need_controller">Hotkeys require a physical controller</string>
+    <string name="hotkey_toggle_stats_overlay">Toggle Performance Stats Overlay</string>
+    <string name="hotkey_toggle_soc_overlay">Toggle Temperature Overlay</string>
+    <string name="hotkey_exit_press_again">Press again to exit</string>
+    <string name="hotkey_confirm_exit">Confirm on Exit?</string>
+    <string name="hotkey_enable_button">Hotkey Enable</string>
+    <string name="hotkey_enable_button_capture">Press the button to hold for every hotkey. The game still gets a quick tap of it, or a longer hold on its own.</string>
+    <string name="hotkey_enable_part">Hotkey Enable (%1$s) is part of every hotkey.</string>
+    <string name="hotkey_needs_another_button">Hold another button together with %1$s</string>
+    <string name="hotkey_press_one_button">Press one button</string>
+    <string name="gamepad_hotkey_capture">Hold the controller buttons for this hotkey together, then let go. Pick buttons the game does not need together.</string>
 </resources>

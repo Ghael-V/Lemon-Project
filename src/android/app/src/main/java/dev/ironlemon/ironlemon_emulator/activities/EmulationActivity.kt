@@ -20,6 +20,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Rational
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -39,6 +40,9 @@ import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.databinding.ActivityEmulationBinding
+import dev.ironlemon.ironlemon_emulator.fragments.EmulationFragment
+import dev.ironlemon.ironlemon_emulator.features.input.GamepadHotkeyTracker
+import dev.ironlemon.ironlemon_emulator.features.input.GamepadHotkeys
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
 import dev.ironlemon.ironlemon_emulator.features.settings.model.IntSetting
@@ -174,6 +178,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
         nfcReader.startScanning()
         startMotionSensorListener()
         InputHandler.updateControllerData()
+        hotkeys.reload()
 
         buildPictureInPictureParams()
     }
@@ -208,9 +213,26 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
             return super.dispatchKeyEvent(event)
         }
 
-        // Runs before the drawer check so its button state stays right while the menu is open.
-        if (isControllerInput && handleMenuHotkeys(event)) {
-            return true
+        // These run before the drawer check so their button state stays right while the menu is
+        // open.
+        // Only controller events get here (the rest returned above).
+        run {
+            val menuHotkey = handleMenuHotkeys(event)
+            // While the menu is open, buttons can be let go without the release coming here (the
+            // controller navigation hook remaps them): hotkeys start again from nothing held.
+            val hotkey = if (emulationViewModel.drawerOpen.value) {
+                hotkeys.reset()
+                false
+            } else {
+                hotkeys.onKeyEvent(
+                    event,
+                    canFire = !menuHotkey && NativeLibrary.isRunning(),
+                    run = ::runHotkey
+                )
+            }
+            if (menuHotkey || hotkey) {
+                return true
+            }
         }
 
         if (emulationViewModel.drawerOpen.value) {
@@ -218,6 +240,68 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
         }
 
         return InputHandler.dispatchKeyEvent(event)
+    }
+
+    private val hotkeys = GamepadHotkeyTracker { InputHandler.dispatchKeyEvent(it) }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Buttons let go while another window has focus never send their release here.
+        if (!hasFocus) {
+            hotkeys.reset()
+        }
+    }
+
+    private var exitHotkeyPressedAt = 0L
+
+    private fun findEmulationFragment(): EmulationFragment? {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
+        return navHostFragment?.childFragmentManager?.fragments?.firstOrNull() as? EmulationFragment
+    }
+
+    private fun runHotkey(action: GamepadHotkeys.Action) {
+        val emulationFragment = findEmulationFragment() ?: return
+        when (action) {
+            GamepadHotkeys.Action.QUICK_SAVE -> emulationFragment.quickSaveState()
+            GamepadHotkeys.Action.QUICK_LOAD -> emulationFragment.quickLoadState()
+            GamepadHotkeys.Action.TOGGLE_STATS_OVERLAY -> emulationFragment.toggleStatsOverlay()
+            GamepadHotkeys.Action.TOGGLE_SOC_OVERLAY -> emulationFragment.toggleSocOverlay()
+            GamepadHotkeys.Action.PAUSE_EMULATION -> emulationFragment.togglePauseEmulation()
+            GamepadHotkeys.Action.EXIT_EMULATION -> {
+                // Exiting loses what was not saved: unless turned off, it takes a second press, as
+                // RetroArch's quit.
+                val now = SystemClock.uptimeMillis()
+                if (!BooleanSetting.HOTKEY_CONFIRM_EXIT.getBoolean() ||
+                    now - exitHotkeyPressedAt < EXIT_HOTKEY_CONFIRM_MS
+                ) {
+                    exitHotkeyPressedAt = 0L
+                    emulationFragment.exitEmulation()
+                } else {
+                    exitHotkeyPressedAt = now
+                    Toast.makeText(this, R.string.hotkey_exit_press_again, Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+        }
+    }
+
+    /** Tells the game that [keyCode], pressed on the controller of [event], was let go. */
+    private fun releaseInGame(event: KeyEvent, keyCode: Int) {
+        InputHandler.dispatchKeyEvent(
+            KeyEvent(
+                event.downTime,
+                event.eventTime,
+                KeyEvent.ACTION_UP,
+                keyCode,
+                0,
+                event.metaState,
+                event.deviceId,
+                0,
+                event.flags,
+                event.source
+            )
+        )
     }
 
     private var hotkeyStickDown = false
@@ -273,20 +357,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
                 } else {
                     KeyEvent.KEYCODE_BUTTON_START
                 }
-                InputHandler.dispatchKeyEvent(
-                    KeyEvent(
-                        event.downTime,
-                        event.eventTime,
-                        KeyEvent.ACTION_UP,
-                        first,
-                        0,
-                        event.metaState,
-                        event.deviceId,
-                        0,
-                        event.flags,
-                        event.source
-                    )
-                )
+                releaseInGame(event, first)
             }
             emulationViewModel.setDrawerOpen(!drawerOpen)
             return true
@@ -568,6 +639,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener {
     }
 
     companion object {
+        private const val EXIT_HOTKEY_CONFIRM_MS = 2000L
         const val EXTRA_SELECTED_GAME = "SelectedGame"
 
         fun launch(activity: AppCompatActivity, game: Game) {

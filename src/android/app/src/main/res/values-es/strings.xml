@@ -800,8 +800,6 @@
     <string name="emulation_quick_save_state_failure">No se pudo guardar</string>
     <string name="emulation_quick_load_state_success">Partida cargada</string>
     <string name="emulation_quick_load_state_failure">No se pudo cargar</string>
-    <string name="emulation_quick_save_state_still_working">El guardado sigue en curso…</string>
-    <string name="emulation_quick_load_state_still_working">La carga sigue en curso…</string>
     <string name="lemon_cheater">Lemon Cheater</string>
     <string name="lemon_cheater_value_hint">Valor</string>
     <string name="lemon_cheater_new_search">Nueva búsqueda</string>
@@ -920,4 +918,18 @@
     <string name="update_auto_check">Buscar actualizaciones al abrir la app</string>
     <string name="update_check_failed">No se ha podido contactar con el servidor de actualizaciones.</string>
     <string name="update_not_for_debug">Las builds de desarrollo no se actualizan desde las releases.</string>
+    <string name="hotkeys">Atajos del mando</string>
+    <string name="hotkeys_need_controller">Los atajos necesitan un mando físico</string>
+    <string name="hotkey_toggle_stats_overlay">Mostrar u ocultar las estadísticas de rendimiento</string>
+    <string name="hotkey_toggle_soc_overlay">Mostrar u ocultar la temperatura</string>
+    <string name="hotkey_exit_press_again">Pulsa otra vez para salir</string>
+    <string name="hotkey_confirm_exit">¿Confirmar al salir?</string>
+    <string name="hotkey_enable_button">Botón de atajos</string>
+    <string name="hotkey_enable_button_capture">Pulsa el botón que mantendrás pulsado en todos los atajos. El juego sigue recibiendo un toque rápido de ese botón, o una pulsación más larga si lo mantienes solo.</string>
+    <string name="hotkey_enable_part">El botón de atajos (%1$s) forma parte de todos los atajos.</string>
+    <string name="hotkey_needs_another_button">Mantén otro botón junto con %1$s</string>
+    <string name="hotkey_press_one_button">Pulsa un solo botón</string>
+    <string name="gamepad_hotkey_capture">Mantén pulsados a la vez los botones del mando para este atajo y suéltalos. Elige botones que el juego no use juntos.</string>
+    <string name="emulation_quick_save_state_still_working">El guardado sigue en curso…</string>
+    <string name="emulation_quick_load_state_still_working">La carga sigue en curso…</string>
 </resources>

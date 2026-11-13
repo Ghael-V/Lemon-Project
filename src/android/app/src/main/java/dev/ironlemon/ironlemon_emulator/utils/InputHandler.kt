@@ -14,6 +14,25 @@ object InputHandler {
     var androidControllers = mapOf<Int, YuzuPhysicalDevice>()
     var registeredControllers = mutableListOf<ParamPackage>()
 
+    /**
+     * The id a button goes by for hotkeys: its key code, or, for controllers that send their
+     * D-pad as key code 0 with a scan code, the scan code kept apart from every key code.
+     */
+    fun getButtonIdFromEvent(event: KeyEvent): Int =
+        if (event.keyCode != 0) event.keyCode else if (event.scanCode != 0) SCAN_CODE_BASE + event.scanCode else 0
+
+    /** A real controller (gamepad or joystick), not a virtual or touch device. */
+    fun isPhysicalGameController(device: InputDevice?): Boolean {
+        if (device == null || device.isVirtual) {
+            return false
+        }
+        val sources = device.sources
+        return sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD ||
+            sources and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK
+    }
+
+    private const val SCAN_CODE_BASE = 0x10000
+
     fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val action = when (event.action) {
             KeyEvent.ACTION_DOWN -> NativeInput.ButtonState.PRESSED

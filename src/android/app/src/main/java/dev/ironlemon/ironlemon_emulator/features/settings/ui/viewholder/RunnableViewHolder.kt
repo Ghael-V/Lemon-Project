@@ -34,6 +34,20 @@ class RunnableViewHolder(val binding: ListItemSettingBinding, adapter: SettingsA
         binding.textSettingValue.setVisible(false)
         binding.buttonClear.setVisible(false)
 
+        val trailingSwitch = setting.trailingSwitch
+        binding.trailingSwitchArea.setVisible(trailingSwitch != null)
+        if (trailingSwitch != null) {
+            binding.textTrailingSwitch.text = trailingSwitch.title
+            binding.trailingSwitch.setOnCheckedChangeListener(null)
+            binding.trailingSwitch.isChecked =
+                trailingSwitch.getIsChecked(trailingSwitch.needsRuntimeGlobal)
+            binding.trailingSwitch.isEnabled = setting.isEditable
+            binding.textTrailingSwitch.alpha = if (setting.isEditable) 1.0f else 0.5f
+            binding.trailingSwitch.setOnCheckedChangeListener { _, checked ->
+                adapter.onBooleanClick(trailingSwitch, checked, bindingAdapterPosition)
+            }
+        }
+
         setStyle(setting.isEditable, binding)
     }
 

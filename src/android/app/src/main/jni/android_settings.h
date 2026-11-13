@@ -77,6 +77,27 @@ struct Values {
     // How many Quick Saves are kept (1 to 4), each about the size of the game's memory.
     Settings::Setting<s32> quick_save_slots{linkage, 2, "quick_save_slots",
                                             Settings::Category::Android};
+
+    // Gamepad hotkeys: the Android key codes of the buttons held together, comma separated
+    // (empty: none).
+    Settings::Setting<std::string> hotkey_quick_save{linkage, "", "hotkey_quick_save",
+                                                     Settings::Category::Android};
+    Settings::Setting<std::string> hotkey_quick_load{linkage, "", "hotkey_quick_load",
+                                                     Settings::Category::Android};
+    Settings::Setting<std::string> hotkey_toggle_stats_overlay{
+        linkage, "", "hotkey_toggle_stats_overlay", Settings::Category::Android};
+    Settings::Setting<std::string> hotkey_toggle_soc_overlay{
+        linkage, "", "hotkey_toggle_soc_overlay", Settings::Category::Android};
+    Settings::Setting<std::string> hotkey_pause_emulation{linkage, "", "hotkey_pause_emulation",
+                                                          Settings::Category::Android};
+    Settings::Setting<std::string> hotkey_exit_emulation{linkage, "", "hotkey_exit_emulation",
+                                                         Settings::Category::Android};
+    // The exit hotkey takes a second press.
+    Settings::Setting<bool> hotkey_confirm_exit{linkage, true, "hotkey_confirm_exit",
+                                                Settings::Category::Android};
+    // Held for every hotkey and held back from the game while pressed (empty: none).
+    Settings::Setting<std::string> hotkey_enable_button{linkage, "", "hotkey_enable_button",
+                                                        Settings::Category::Android};
 };
 
 extern Values values;
