@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 #include <boost/container/flat_map.hpp>
