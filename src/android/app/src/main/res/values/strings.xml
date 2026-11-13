@@ -1481,4 +1481,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="input_overlay_mode_automatic">Automatic</string>
     <string name="input_overlay_mode_always">Always</string>
     <string name="input_overlay_mode_never">Never</string>
+    <string name="frame_generation">Frame generation (Lemon FG)</string>
+    <string name="frame_generation_description">Shows a generated frame between every two the game draws when it runs at 30 fps or so, for smoother motion. Costs some GPU time and a little latency; best with V-Sync on.</string>
 </resources>

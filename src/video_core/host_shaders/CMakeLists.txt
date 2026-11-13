@@ -67,6 +67,12 @@ set(SHADER_FILES
     vulkan_present_scaleforce_fp32.frag
     vulkan_quad_indexed.comp
     vulkan_turbo_mode.comp
+    lemon_fg_generate.comp
+    lemon_fg_luma.comp
+    lemon_fg_median.comp
+    lemon_fg_project.comp
+    lemon_fg_search.comp
+    lemon_fg_still.comp
     vulkan_uint8.comp
 )
 

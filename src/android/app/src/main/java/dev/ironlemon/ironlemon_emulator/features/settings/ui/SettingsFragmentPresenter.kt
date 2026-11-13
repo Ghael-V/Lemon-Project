@@ -218,6 +218,7 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.RENDERER_USE_DISK_SHADER_CACHE.key)
             add(BooleanSetting.RENDERER_FORCE_MAX_CLOCK.key)
             add(BooleanSetting.RENDERER_ASYNCHRONOUS_SHADERS.key)
+            add(BooleanSetting.FRAME_GENERATION.key)
             add(BooleanSetting.RENDERER_REACTIVE_FLUSHING.key)
         }
     }

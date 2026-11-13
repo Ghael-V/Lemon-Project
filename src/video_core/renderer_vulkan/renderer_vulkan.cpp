@@ -117,6 +117,7 @@ RendererVulkan::RendererVulkan(Core::TelemetrySession& telemetry_session_,
                       surface),
       blit_swapchain(device_memory, device, memory_allocator, present_manager, scheduler,
                      PresentFiltersForDisplay),
+      frame_generator(device, memory_allocator, scheduler),
       blit_capture(device_memory, device, memory_allocator, present_manager, scheduler,
                    PresentFiltersForDisplay),
       blit_applet(device_memory, device, memory_allocator, present_manager, scheduler,
@@ -159,6 +160,20 @@ void RendererVulkan::Composite(std::span<const Tegra::FramebufferConfig> framebu
     blit_swapchain.DrawToFrame(rasterizer, frame, framebuffers,
                                render_window.GetFramebufferLayout(), swapchain.GetImageCount(),
                                swapchain.GetImageViewFormat());
+
+    // Frame generation: a frame between the previous one and this one, presented first.
+    const VkExtent2D extent{frame->width, frame->height};
+    Frame* generated = nullptr;
+    if (frame_generator.BeginFrame(extent)) {
+        generated = present_manager.GetRenderFrame();
+        blit_swapchain.MatchFrame(generated, *frame);
+    }
+    frame_generator.Record(*frame->image, generated ? *generated->image : VK_NULL_HANDLE, extent);
+    if (generated) {
+        scheduler.Flush(*generated->render_ready);
+        present_manager.Present(generated);
+    }
+
     scheduler.Flush(*frame->render_ready);
     present_manager.Present(frame);
 

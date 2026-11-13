@@ -1,0 +1,72 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Lemon frame generation: mask of what stays still on screen between A and C (HUD, a character
+// the camera follows), at half the output resolution. Such content doesn't move with the scene,
+// so the generated frame keeps it where it is and doesn't drag it along the motion.
+//
+// mode 0: raw mask, 1 where the 2x2 pixels are the same in A and C (writes r).
+// mode 1: majority: still where the texel is and at least 4 of its 3x3 neighbourhood are, so
+//         scene pixels that match by chance don't count but thin HUD shapes do. This is the
+//         "keep it" mask (writes r).
+// mode 2: dilation of r, the "don't sample it for moving content" mask, which also covers the
+//         soft edges of HUD elements (writes r = source mask, g = keep mask).
+
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler linear_sampler;
+layout(set = 0, binding = 1) uniform texture2D input_a;
+layout(set = 0, binding = 2) uniform texture2D input_c;
+layout(set = 0, binding = 3, rgba16f) uniform writeonly image2D mask_out;
+
+layout(push_constant) uniform PushConstants {
+    ivec2 size;        // of the mask
+    ivec2 frame_size;  // of A and C, mode 0 only
+    int mode;
+};
+
+// Largest channel difference, in 0-1 units, that still counts as the same pixel.
+const float STILL_MAX = 2.0 / 255.0;
+
+vec4 Mask(ivec2 at) {
+    return texelFetch(sampler2D(input_a, linear_sampler), clamp(at, ivec2(0), size - 1), 0);
+}
+
+void main() {
+    const ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(texel, size))) {
+        return;
+    }
+    if (mode == 0) {
+        float difference = 0.0;
+        for (int y = 0; y < 2; ++y) {
+            for (int x = 0; x < 2; ++x) {
+                const ivec2 at = min(texel * 2 + ivec2(x, y), frame_size - 1);
+                const vec3 a = texelFetch(sampler2D(input_a, linear_sampler), at, 0).rgb;
+                const vec3 c = texelFetch(sampler2D(input_c, linear_sampler), at, 0).rgb;
+                const vec3 d = abs(a - c);
+                difference = max(difference, max(d.r, max(d.g, d.b)));
+            }
+        }
+        imageStore(mask_out, texel, vec4(difference <= STILL_MAX ? 1.0 : 0.0, 0.0, 0.0, 0.0));
+        return;
+    }
+    float count = 0.0;
+    float high = 0.0;
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            const float value = Mask(texel + ivec2(x, y)).r;
+            count += value;
+            high = max(high, value);
+        }
+    }
+    const float centre = Mask(texel).r;
+    if (mode == 1) {
+        const float keep = centre > 0.5 && count >= 4.0 ? 1.0 : 0.0;
+        imageStore(mask_out, texel, vec4(keep, 0.0, 0.0, 0.0));
+    } else {
+        imageStore(mask_out, texel, vec4(high, centre, 0.0, 0.0));
+    }
+}

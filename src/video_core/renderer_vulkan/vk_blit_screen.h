@@ -52,6 +52,9 @@ public:
                         Scheduler& scheduler, const PresentFilters& filters);
     ~BlitScreen();
 
+    /// Recreates [frame] if it doesn't have [like]'s size (a generated frame shown after it).
+    void MatchFrame(Frame* frame, const Frame& like);
+
     void DrawToFrame(RasterizerVulkan& rasterizer, Frame* frame,
                      std::span<const Tegra::FramebufferConfig> framebuffers,
                      const Layout::FramebufferLayout& layout, size_t current_swapchain_image_count,

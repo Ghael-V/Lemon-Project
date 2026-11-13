@@ -399,6 +399,10 @@ struct Values {
                                                "async_presentation", Category::RendererAdvanced};
     SwitchableSetting<bool> renderer_force_max_clock{linkage, false, "force_max_clock",
                                                      Category::RendererAdvanced};
+    // Generate a frame between each two the game draws (Lemon FG) when it runs well below the
+    // display.
+    SwitchableSetting<bool> frame_generation{linkage, false, "frame_generation",
+                                             Category::Renderer};
     SwitchableSetting<bool> use_reactive_flushing{linkage,
 #ifdef ANDROID
                                                   false,

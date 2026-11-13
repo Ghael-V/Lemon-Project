@@ -174,6 +174,13 @@ abstract class SettingsItem(
             }
             put(
                 SwitchSetting(
+                    BooleanSetting.FRAME_GENERATION,
+                    titleId = R.string.frame_generation,
+                    descriptionId = R.string.frame_generation_description
+                )
+            )
+            put(
+                SwitchSetting(
                     BooleanSetting.BOOT_INTO_QLAUNCH,
                     titleId = R.string.boot_into_qlaunch,
                     descriptionId = R.string.boot_into_qlaunch_description

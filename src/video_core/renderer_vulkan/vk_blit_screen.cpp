@@ -51,6 +51,15 @@ void BlitScreen::SetWindowAdaptPass() {
     }
 }
 
+void BlitScreen::MatchFrame(Frame* frame, const Frame& like) {
+    if ((frame->width == like.width && frame->height == like.height) || !window_adapt) {
+        return;
+    }
+    WaitIdle();
+    present_manager.RecreateFrame(frame, like.width, like.height, swapchain_view_format,
+                                  window_adapt->GetRenderPass());
+}
+
 void BlitScreen::DrawToFrame(RasterizerVulkan& rasterizer, Frame* frame,
                              std::span<const Tegra::FramebufferConfig> framebuffers,
                              const Layout::FramebufferLayout& layout,

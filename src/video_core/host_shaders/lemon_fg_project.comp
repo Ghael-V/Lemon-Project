@@ -1,0 +1,39 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Lemon frame generation: motion of the frame to generate, at time t between A (0) and C (1).
+// One invocation per 8x8 block of the motion search resolution.
+//
+// The flow u (A(x) ~ C(x + u)) gives the displacement d from A of what the generated frame
+// shows at x: d = t * u(x - d), solved by fixed-point iteration. Output: where to sample A (xy)
+// and C (zw), as offsets in search resolution pixels.
+
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler linear_sampler;
+layout(set = 0, binding = 1) uniform texture2D flow;
+layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D offsets;
+
+layout(push_constant) uniform PushConstants {
+    ivec2 grid;
+    float t;
+};
+
+const float BLOCK = 8.0;
+const int ITERATIONS = 4;
+
+void main() {
+    const ivec2 block = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(block, grid))) {
+        return;
+    }
+    const vec2 centre = vec2(block) + 0.5;
+    vec2 d = vec2(0.0);
+    for (int i = 0; i < ITERATIONS; ++i) {
+        const vec2 uv = (centre - d / BLOCK) / vec2(grid);
+        d = t * textureLod(sampler2D(flow, linear_sampler), uv, 0.0).xy;
+    }
+    imageStore(offsets, block, vec4(-d, d * ((1.0 - t) / t)));
+}

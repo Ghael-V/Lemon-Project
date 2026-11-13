@@ -175,9 +175,15 @@ add_library(video_core STATIC
     renderer_vulkan/present/anti_alias_pass.h
     renderer_vulkan/present/filters.cpp
     renderer_vulkan/present/filters.h
+    renderer_vulkan/present/fg_common.cpp
+    renderer_vulkan/present/fg_common.h
     renderer_vulkan/present/fsr.cpp
     renderer_vulkan/present/fsr.h
     renderer_vulkan/present/fxaa.cpp
+    renderer_vulkan/present/lemon_fg.cpp
+    renderer_vulkan/present/lemon_fg.h
+    renderer_vulkan/present/frame_generator.cpp
+    renderer_vulkan/present/frame_generator.h
     renderer_vulkan/present/fxaa.h
     renderer_vulkan/present/layer.cpp
     renderer_vulkan/present/layer.h

@@ -1,0 +1,45 @@
+// SPDX-FileCopyrightText: Copyright 2026 Lemon Project
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Lemon frame generation: luma of a presented frame, box-filtered down to the motion search
+// resolution (mode 0), or one more level of the luma pyramid, halving it (mode 1).
+
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler linear_sampler;
+layout(set = 0, binding = 1) uniform texture2D source;
+layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D destination;
+
+layout(push_constant) uniform PushConstants {
+    ivec2 source_size;
+    ivec2 destination_size;
+    int mode;
+};
+
+vec3 Tap(vec2 position) {
+    return textureLod(sampler2D(source, linear_sampler), position / vec2(source_size), 0.0).rgb;
+}
+
+void main() {
+    const ivec2 texel = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(texel, destination_size))) {
+        return;
+    }
+    const vec2 scale = vec2(source_size) / vec2(destination_size);
+    const vec2 centre = (vec2(texel) + 0.5) * scale;
+    float luma;
+    if (mode == 0) {
+        // Four bilinear taps, each the average of a 2x2 quad: a 4x4 box at a 4x reduction.
+        const vec2 offset = scale * 0.25;
+        const vec3 sum = Tap(centre + vec2(-offset.x, -offset.y)) +
+                         Tap(centre + vec2(offset.x, -offset.y)) +
+                         Tap(centre + vec2(-offset.x, offset.y)) +
+                         Tap(centre + vec2(offset.x, offset.y));
+        luma = dot(sum * 0.25, vec3(0.299, 0.587, 0.114));
+    } else {
+        luma = Tap(centre).r;
+    }
+    imageStore(destination, texel, vec4(luma, 0.0, 0.0, 0.0));
+}
