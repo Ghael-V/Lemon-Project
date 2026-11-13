@@ -529,7 +529,6 @@
     <string name="ratio_force_four_three">Forzar 4:3</string>
     <string name="ratio_force_twenty_one_nine">Forzar 21:9</string>
     <string name="ratio_force_sixteen_ten">Forzar 16:10</string>
-    <string name="ratio_stretch">Ajustar a la ventana</string>
 
     <!-- CPU Backend -->
     <string name="cpu_backend_dynarmic">DynARMic (lento)</string>
@@ -908,4 +907,6 @@
     <string name="firmware_setup_warning">¿Omitir el firmware?</string>
     <string name="firmware_setup_warning_description">Algunos juegos, y los applets del sistema, no arrancarán sin firmware. Puedes instalarlo más tarde desde Ajustes.</string>
     <string name="migrating">Migrando</string>
+    <string name="renderer_aspect_ratio_description">Para quitar las franjas laterales, elige «Llenar la pantalla». Los juegos dibujan una imagen 16:9, así que se estira salvo que instales el mod panorámico del juego.</string>
+    <string name="ratio_stretch">Llenar la pantalla (estirar)</string>
 </resources>

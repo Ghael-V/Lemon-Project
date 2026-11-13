@@ -653,7 +653,6 @@
     <string name="ratio_force_four_three">Force 4:3</string>
     <string name="ratio_force_twenty_one_nine">Force 21:9</string>
     <string name="ratio_force_sixteen_ten">Force 16:10</string>
-    <string name="ratio_stretch">Stretch to window</string>
 
     <!-- CPU Backend -->
     <string name="cpu_backend_dynarmic">Dynarmic (Slow)</string>
@@ -1441,4 +1440,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="firmware_setup_warning">Skip adding firmware?</string>
     <string name="firmware_setup_warning_description">Some games, and the system applets, will not start without firmware. You can install it later from Settings.</string>
     <string name="migrating">Migrating</string>
+    <string name="renderer_aspect_ratio_description">To get rid of the side bars, choose \"Fill the screen\". Games draw a 16:9 picture, so it gets stretched unless you install the game\'s widescreen mod.</string>
+    <string name="ratio_stretch">Fill the screen (stretch)</string>
 </resources>
