@@ -146,6 +146,9 @@ void CoreTiming::ScheduleLoopingEvent(std::chrono::nanoseconds start_time,
 
 void CoreTiming::UnscheduleEvent(const std::shared_ptr<EventType>& event_type,
                                  UnscheduleEventType type) {
+    if (!event_type) {
+        return;
+    }
     {
         std::scoped_lock lk{basic_lock};
 

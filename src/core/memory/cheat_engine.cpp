@@ -224,7 +224,10 @@ CheatEngine::CheatEngine(System& system_, std::vector<CheatEntry> cheats_,
 }
 
 CheatEngine::~CheatEngine() {
-    core_timing.UnscheduleEvent(event);
+    // No event when the game failed to load before Initialize() (no GPU, say).
+    if (event) {
+        core_timing.UnscheduleEvent(event);
+    }
 }
 
 void CheatEngine::Initialize() {
