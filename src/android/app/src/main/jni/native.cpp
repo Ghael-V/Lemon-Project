@@ -814,7 +814,7 @@ bool EmulationSession::MakeRoomForQuickSave(size_t limit) {
     }
     if (needed == 0) {
         if (auto* process = m_system.ApplicationProcess()) {
-            needed = process->GetUsedUserPhysicalMemorySize(m_system.Kernel());
+            needed = process->GetUsedUserPhysicalMemorySize();
         }
     }
     needed += needed / 20 + (64ULL << 20);
