@@ -72,7 +72,11 @@ class InstallableFragment : IronLemonComposeFragment() {
                                         R.string.string_import
                                     }
                                 ),
-                                iconRes = R.drawable.ic_import,
+                                iconRes = if (item.installIconRes != 0) {
+                                    item.installIconRes
+                                } else {
+                                    R.drawable.ic_import
+                                },
                                 primary = true,
                                 height = 44.dp,
                                 onClick = it
@@ -175,6 +179,7 @@ class InstallableFragment : IronLemonComposeFragment() {
                 R.string.nand_location_description,
                 descriptionText = nandLocationDescription(),
                 installLabelId = R.string.nand_location_change,
+                installIconRes = R.drawable.ic_folder_open,
                 install = { chooseNandLocation() }
             )
         )

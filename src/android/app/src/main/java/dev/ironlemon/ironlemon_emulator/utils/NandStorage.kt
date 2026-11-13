@@ -35,10 +35,11 @@ object NandStorage {
             } else {
                 File(filesDir, "nand")
             }
-            val label = storageManager?.getStorageVolume(filesDir)?.getDescription(context)
-                ?: context.getString(
-                    if (i == 0) R.string.nand_location_internal else R.string.nand_location_sd
-                )
+            // Our own names: some devices describe a card as just "disk".
+            val removable = storageManager?.getStorageVolume(filesDir)?.isRemovable ?: (i > 0)
+            val label = context.getString(
+                if (removable) R.string.nand_location_sd else R.string.nand_location_internal
+            )
             Volume(label, nandDir, filesDir.usableSpace)
         }
     }

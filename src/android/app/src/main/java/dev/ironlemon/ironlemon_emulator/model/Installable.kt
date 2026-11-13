@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.model
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
 data class Installable(
@@ -12,6 +13,7 @@ data class Installable(
     val export: (() -> Unit)? = null,
     /** Shown instead of [descriptionId] when set (it depends on the device's state). */
     val descriptionText: String? = null,
-    /** Label of the [install] button, "Import" by default. */
-    @StringRes val installLabelId: Int = 0
+    /** Label and icon of the [install] button, "Import" by default. */
+    @StringRes val installLabelId: Int = 0,
+    @DrawableRes val installIconRes: Int = 0
 )
