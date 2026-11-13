@@ -948,7 +948,7 @@ struct Memory::Impl {
             // Only pages still in the set are cached and unreadable; as cached pages they get
             // back the permission RasterizerMarkRegionCached gives them.
             if (gpu_written_pages.erase(page) != 0) {
-                host_buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
+                buffer->Protect(page << YUZU_PAGEBITS, YUZU_PAGESIZE,
                                      Common::MemoryPermission::Read);
             }
         }

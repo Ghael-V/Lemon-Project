@@ -403,6 +403,25 @@ struct Values {
     // display.
     SwitchableSetting<bool> frame_generation{linkage, false, "frame_generation",
                                              Category::Renderer};
+    SwitchableSetting<bool> use_asynchronous_shaders{linkage, false, "use_asynchronous_shaders",
+                                                     Category::RendererAdvanced};
+    SwitchableSetting<bool> use_fast_gpu_time{
+        linkage, true, "use_fast_gpu_time", Category::RendererAdvanced, Specialization::Default,
+        true,    true};
+    SwitchableSetting<bool> use_vulkan_driver_pipeline_cache{linkage,
+                                                             true,
+                                                             "use_vulkan_driver_pipeline_cache",
+                                                             Category::RendererAdvanced,
+                                                             Specialization::Default,
+                                                             true,
+                                                             true};
+    SwitchableSetting<bool> enable_compute_pipelines{linkage, false, "enable_compute_pipelines",
+                                                     Category::RendererAdvanced};
+    SwitchableSetting<bool> use_video_framerate{linkage, false, "use_video_framerate",
+                                                Category::RendererAdvanced};
+    SwitchableSetting<bool> barrier_feedback_loops{linkage, true, "barrier_feedback_loops",
+                                                   Category::RendererAdvanced};
+
     Setting<bool> renderer_debug{linkage, false, "debug", Category::RendererDebug};
     Setting<bool> renderer_shader_feedback{linkage, false, "shader_feedback",
                                            Category::RendererDebug};
