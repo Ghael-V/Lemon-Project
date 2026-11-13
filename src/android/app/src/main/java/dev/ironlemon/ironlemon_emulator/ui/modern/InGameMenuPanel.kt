@@ -24,6 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -64,6 +68,19 @@ class PerformanceInfo(
     val onPreset: (Int) -> Unit
 )
 
+/** A quick save as the panel shows it. [newest] is the one Quick Load loads. */
+class QuickSaveSlotInfo(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val picture: ImageBitmap?,
+    val loadable: Boolean,
+    val newest: Boolean
+)
+
+/** The quick saves of this session, read again while the menu is open, and what a tap on one does. */
+class QuickSaveSlots(val read: () -> List<QuickSaveSlotInfo>, val onSlot: (QuickSaveSlotInfo) -> Unit)
+
 /**
  * The in-game side panel, with the performance card floating beside it. It is drawn from the classic
  * menu (the same items, in the same order) and every tap goes through that menu's own handler, so no
@@ -76,6 +93,7 @@ fun InGameMenuPanel(
     game: Game?,
     tick: Int,
     performance: PerformanceInfo?,
+    saves: QuickSaveSlots? = null,
     onItem: (Int) -> Unit
 ) {
     var localTick by remember { mutableIntStateOf(0) }
@@ -92,7 +110,7 @@ fun InGameMenuPanel(
         Modifier.fillMaxHeight().windowInsetsPadding(WindowInsets.systemBars),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Panel(menu, game, tick + localTick, first) { id ->
+        Panel(menu, game, tick + localTick, first, saves) { id ->
             onItem(id)
             localTick++
         }
@@ -103,13 +121,26 @@ fun InGameMenuPanel(
 }
 
 @Composable
-private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, onItem: (Int) -> Unit) {
+private fun Panel(
+    menu: Menu,
+    game: Game?,
+    version: Int,
+    first: FocusRequester,
+    saves: QuickSaveSlots?,
+    onItem: (Int) -> Unit
+) {
     val context = LocalContext.current
     val items = remember(version) { (0 until menu.size()).map { menu.getItem(it) }.filter { it.isVisible } }
     val pause = items.firstOrNull { it.itemId == R.id.menu_pause_emulation }
     val exit = items.firstOrNull { it.itemId == R.id.menu_exit }
+    val quickSave = items.firstOrNull { it.itemId == R.id.menu_quick_save_state }
+    val quickLoad = items.firstOrNull { it.itemId == R.id.menu_quick_load_state }
     val special = setOf(
         R.id.menu_pause_emulation,
+        R.id.menu_quick_save_state,
+        R.id.menu_quick_load_state,
+        // Its slots are in the saves block.
+        R.id.menu_load_slot,
         R.id.menu_exit
     )
     val rest = items.filter { it.itemId !in special }
@@ -133,6 +164,10 @@ private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, 
                 height = 46.dp,
                 modifier = Modifier.fillMaxWidth().focusRequester(first)
             ) { onItem(it.itemId) }
+        }
+
+        if (quickSave != null && quickLoad != null && saves != null) {
+            SavesBlock(quickSave, quickLoad, saves, version, onItem)
         }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(IronLemonColors.Outline))
@@ -176,6 +211,111 @@ private fun Panel(menu: Menu, game: Game?, version: Int, first: FocusRequester, 
                 Spacer(Modifier.width(12.dp))
                 BasicText(it.title?.toString().orEmpty(), style = IronLemonType.Button.copy(color = IronLemonColors.Red, fontSize = 15.sp))
             }
+        }
+    }
+}
+
+/**
+ * Quick Save and Quick Load, and below them this session's saves, newest first: a tap on one loads
+ * it. A save finishes after the tap, so the slots are read again while the menu is open.
+ */
+@Composable
+private fun SavesBlock(
+    quickSave: MenuItem,
+    quickLoad: MenuItem,
+    saves: QuickSaveSlots,
+    version: Int,
+    onItem: (Int) -> Unit
+) {
+    var slots by remember(version) { mutableStateOf(saves.read()) }
+    LaunchedEffect(version) {
+        while (true) {
+            delay(700)
+            slots = saves.read()
+        }
+    }
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(IronLemonColors.Surface)
+            .border(1.dp, IronLemonColors.gradient(0.35f), shape)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IronLemonButton(
+                text = quickSave.title?.toString().orEmpty(),
+                iconRes = R.drawable.ic_save,
+                primary = true,
+                height = 44.dp,
+                modifier = Modifier.weight(1f)
+            ) { onItem(quickSave.itemId) }
+            IronLemonButton(
+                text = quickLoad.title?.toString().orEmpty(),
+                iconRes = R.drawable.ic_restore,
+                height = 44.dp,
+                modifier = Modifier
+                    .weight(1f)
+                    .alpha(if (slots.any { it.loadable }) 1f else 0.4f)
+            ) { onItem(quickLoad.itemId) }
+        }
+        if (slots.isEmpty()) {
+            BasicText(
+                stringResource(R.string.emulation_quick_load_state_not_this_session),
+                style = IronLemonType.Body.copy(fontSize = 13.sp),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(slots, key = { it.id }) { slot -> SlotTile(slot) { saves.onSlot(slot) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SlotTile(slot: QuickSaveSlotInfo, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        Modifier
+            .width(132.dp)
+            .alpha(if (slot.loadable) 1f else 0.38f)
+            .lemonInteractive(
+                shape = shape,
+                cornerRadius = 12.dp,
+                selected = slot.newest,
+                focusScale = 1.04f,
+                onClick = { if (slot.loadable) onClick() }
+            )
+            .clip(shape)
+            .background(IronLemonColors.SurfaceRaised)
+            .then(if (slot.newest) Modifier.border(2.dp, IronLemonColors.Gradient, shape) else Modifier)
+    ) {
+        Box(Modifier.fillMaxWidth().height(74.dp).background(IronLemonColors.Background)) {
+            slot.picture?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            }
+        }
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            BasicText(
+                slot.title,
+                style = IronLemonType.Button.copy(fontSize = 12.sp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            BasicText(
+                slot.subtitle,
+                style = IronLemonType.Body.copy(fontSize = 11.sp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

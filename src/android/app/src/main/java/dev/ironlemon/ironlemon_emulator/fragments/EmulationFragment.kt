@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
+import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSaveSlotInfo
+import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSaveSlots
 import dev.ironlemon.ironlemon_emulator.ui.modern.lemonInteractive
 import java.nio.ByteBuffer
 import androidx.compose.foundation.layout.Arrangement
@@ -614,6 +616,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     game = game,
                     tick = inGameMenuTick.intValue,
                     performance = null,
+                    saves = QuickSaveSlots(read = ::quickSaveSlotInfos, onSlot = ::onQuickSaveSlot),
                     onItem = { id -> menu.performIdentifierAction(id, 0) }
                 )
             }
@@ -697,6 +700,60 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val picture: ImageBitmap?
     )
 
+    // Each slot's picture, read from its file once.
+    private val slotPictures = mutableMapOf<Long, ImageBitmap?>()
+
+    private fun slotPicture(id: Long): ImageBitmap? = slotPictures.getOrPut(id) {
+        BitmapFactory.decodeFile(NativeLibrary.quickSaveThumbnailPath(id))?.asImageBitmap()
+    }
+
+    /** The quick saves of this session, newest first. */
+    private fun quickSaveSlotRows(): List<QuickSaveSlotRow> {
+        val flat = NativeLibrary.getQuickSaveSlots()
+        val count = flat.size / 3
+        // A picture is written just after its save: read it again until it is there.
+        slotPictures.entries.removeAll { it.value == null }
+        return (count - 1 downTo 0).map {
+            val id = flat[it * 3]
+            QuickSaveSlotRow(
+                id = id,
+                savedAtMs = flat[it * 3 + 1],
+                loadable = flat[it * 3 + 2] != 0L,
+                newer = count - 1 - it,
+                picture = slotPicture(id)
+            )
+        }
+    }
+
+    private fun quickSaveSlotInfos(): List<QuickSaveSlotInfo> {
+        if (!isAdded) return emptyList()
+        return quickSaveSlotRows().map { row ->
+            QuickSaveSlotInfo(
+                id = row.id,
+                title = savedWhen(row.savedAtMs),
+                subtitle = if (row.loadable) {
+                    savedAt(row.savedAtMs)
+                } else {
+                    getString(R.string.emulation_load_slot_gone)
+                },
+                picture = row.picture,
+                loadable = row.loadable,
+                newest = row.newer == 0
+            )
+        }
+    }
+
+    /** A slot picked in the menu: the newest loads at once, an older one asks first. */
+    private fun onQuickSaveSlot(slot: QuickSaveSlotInfo) {
+        val row = quickSaveSlotRows().firstOrNull { it.id == slot.id } ?: return
+        if (!row.loadable) return
+        if (row.newer == 0) {
+            loadSlot(row.id)
+        } else {
+            showLoadSlotDialog(confirm = row)
+        }
+    }
+
     /** When a save was made, for a slot's title: "Just now", "12 minutes ago", "Yesterday". */
     private fun savedWhen(savedAtMs: Long): String {
         val now = System.currentTimeMillis()
@@ -748,7 +805,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
      * Lists the quicksave slots, newest first, with their pictures and when they were made, and
      * loads the one picked. Loading an older one deletes the newer ones, so that asks first.
      */
-    private fun showLoadSlotDialog() {
+    private fun showLoadSlotDialog(confirm: QuickSaveSlotRow? = null) {
         if (!isAdded) {
             return
         }
@@ -765,19 +822,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             )
             return
         }
-        val rows = (count - 1 downTo 0).map {
-            val id = flat[it * 3]
-            QuickSaveSlotRow(
-                id = id,
-                savedAtMs = flat[it * 3 + 1],
-                loadable = flat[it * 3 + 2] != 0L,
-                newer = count - 1 - it,
-                picture = BitmapFactory.decodeFile(NativeLibrary.quickSaveThumbnailPath(id))
-                    ?.asImageBitmap()
-            )
-        }
+        val rows = quickSaveSlotRows()
         showIronLemonDialog(requireContext()) { dismiss ->
-            var confirming by remember { mutableStateOf<QuickSaveSlotRow?>(null) }
+            var confirming by remember { mutableStateOf(confirm) }
             val pending = confirming
             if (pending == null) {
                 IronLemonDialogCard(
@@ -816,7 +863,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                         IronLemonButton(
                             text = stringResource(android.R.string.cancel),
                             height = 44.dp,
-                            onClick = { confirming = null }
+                            onClick = { if (confirm != null) dismiss() else confirming = null }
                         )
                         IronLemonButton(
                             text = stringResource(R.string.emulation_load_slot_load),
