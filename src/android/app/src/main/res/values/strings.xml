@@ -1417,4 +1417,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="nextendo_signed_in_as">Signed in as %1$s</string>
     <string name="nextendo_unavailable">This build of Iron Lemon is not registered with Nextendo Network yet.</string>
     <string name="nextendo_no_game_token">Could not connect to Nextendo Network. Online play won\'t work this session; check your connection and restart the game.</string>
+    <string name="migrate_from_emulator">Migrate from another emulator</string>
+    <string name="migrate_from_emulator_description">Bring your saves over from Eden, Citron or yuzu without opening them (plus keys and firmware if Iron Lemon has none yet)</string>
+    <string name="migrate_no_sources">No compatible emulator found. Eden, Citron, yuzu and other yuzu-based emulators are supported.</string>
+    <string name="migrate_choose_source">Migrate from</string>
+    <string name="migrate_wrong_folder">Pick the main %1$s folder, the one the picker opens on, without going into any subfolder.</string>
+    <string name="migrate_nothing">There is nothing to import from %1$s.</string>
+    <string name="migrate_confirm_title">Migrate from %1$s</string>
+    <string name="migrate_found_saves">Saves found: %1$d</string>
+    <string name="migrate_found_conflicts">%1$d of those games already have a save in Iron Lemon.</string>
+    <string name="migrate_found_keys">Your keys will be imported too (Iron Lemon has none yet).</string>
+    <string name="migrate_found_firmware">Your firmware will be imported too (Iron Lemon has none yet).</string>
+    <string name="migrate_replace">Replace Iron Lemon saves</string>
+    <string name="migrate_keep">Keep Iron Lemon saves</string>
+    <string name="migrate_import">Import</string>
+    <string name="migrate_done">Imported: %1$d · Kept from Iron Lemon: %2$d · Failed: %3$d</string>
+    <string name="migrate_done_keys">Keys imported.</string>
+    <string name="migrate_done_firmware">Firmware imported.</string>
+    <string name="migrate_done_backup">The Iron Lemon saves that were replaced are backed up in %1$s</string>
 </resources>

@@ -16,6 +16,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Lets EmulatorMigration find other yuzu-family emulators' user-folder document providers. -->
+    <queries>
+        <intent>
+            <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+        </intent>
+    </queries>
+
     <application
         android:name="dev.ironlemon.ironlemon_emulator.YuzuApplication"
         android:label="@string/app_name_suffixed"
