@@ -110,6 +110,8 @@ import androidx.window.layout.WindowLayoutInfo
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonChoiceList
+import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayPreset
 import dev.ironlemon.ironlemon_emulator.overlay.OnScreenControls
 import dev.ironlemon.ironlemon_emulator.activities.EmulationActivity
 import dev.ironlemon.ironlemon_emulator.databinding.FragmentEmulationBinding
@@ -1280,6 +1282,35 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         super.onDetach()
     }
 
+    /** Layout presets; applying one also shows the controller if it was hidden. */
+    private fun showOverlayPresets() {
+        val presets = OverlayPreset.entries
+        showIronLemonDialog(requireContext()) { dismiss ->
+            IronLemonDialogCard(
+                title = stringResource(R.string.overlay_presets),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(android.R.string.cancel),
+                        height = 44.dp,
+                        onClick = dismiss
+                    )
+                }
+            ) {
+                IronLemonChoiceList(presets.map { stringResource(it.titleRes) }, -1) { index ->
+                    dismiss()
+                    if (!OnScreenControls.shouldShow()) {
+                        OnScreenControls.mode = OnScreenControls.ALWAYS
+                    }
+                    binding.drawerLayout.close()
+                    binding.surfaceInputOverlay.post {
+                        binding.surfaceInputOverlay.applyPreset(presets[index])
+                        refreshInputOverlayVisibility()
+                    }
+                }
+            }
+        }
+    }
+
     private fun resetInputOverlay() {
         IntSetting.OVERLAY_SCALE.reset()
         IntSetting.OVERLAY_OPACITY.reset()
@@ -1574,6 +1605,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 R.id.menu_reset_overlay -> {
                     binding.drawerLayout.close()
                     resetInputOverlay()
+                    true
+                }
+
+                R.id.menu_overlay_presets -> {
+                    showOverlayPresets()
                     true
                 }
 

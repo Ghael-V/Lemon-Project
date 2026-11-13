@@ -54,6 +54,10 @@
         android:checkable="true" />
 
     <item
+        android:id="@+id/menu_overlay_presets"
+        android:title="@string/overlay_presets" />
+
+    <item
         android:id="@+id/menu_reset_overlay"
         android:title="@string/emulation_touch_overlay_reset" />
 

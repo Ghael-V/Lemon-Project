@@ -15,6 +15,7 @@ import android.graphics.drawable.VectorDrawable
 import android.os.Build
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
+import dev.ironlemon.ironlemon_emulator.overlay.model.OverlayPreset
 import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
@@ -871,6 +872,42 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         }
     }
 
+    /**
+     * Applies a layout preset: a one-shot starting point (like Reset), built from the same
+     * per-control defaults the editor resets to, so the result is a layout the editor considers
+     * valid and stays fully editable.
+     */
+    fun applyPreset(preset: OverlayPreset) {
+        resetLayoutVisibilityAndPlacement()
+        IntSetting.OVERLAY_SCALE.reset()
+        when (preset) {
+            OverlayPreset.Default -> Unit
+
+            // yuzu scales the whole controller, not each button: a larger overall scale.
+            OverlayPreset.Big -> IntSetting.OVERLAY_SCALE.setInt(BIG_PRESET_SCALE)
+
+            OverlayPreset.Swapped -> {
+                val overlayControlData = NativeConfig.getOverlayControlData()
+                val dpad = overlayControlData.firstOrNull { it.id == OverlayControl.COMBINED_DPAD.id }
+                val stickL = overlayControlData.firstOrNull { it.id == OverlayControl.STICK_L.id }
+                if (dpad != null && stickL != null) {
+                    val landscape = dpad.landscapePosition
+                    val portrait = dpad.portraitPosition
+                    val foldable = dpad.foldablePosition
+                    dpad.landscapePosition = stickL.landscapePosition
+                    dpad.portraitPosition = stickL.portraitPosition
+                    dpad.foldablePosition = stickL.foldablePosition
+                    stickL.landscapePosition = landscape
+                    stickL.portraitPosition = portrait
+                    stickL.foldablePosition = foldable
+                }
+                NativeConfig.setOverlayControlData(overlayControlData)
+            }
+        }
+        NativeConfig.saveGlobalConfig()
+        refreshControls()
+    }
+
     fun resetLayoutVisibilityAndPlacement() {
         defaultOverlayPositionByLayout(layout)
 
@@ -902,6 +939,9 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     }
 
     companion object {
+        // Overall scale of the Big buttons preset (the default is 50).
+        private const val BIG_PRESET_SCALE = 90
+
         // Ten presses a second: long enough for a game running at 30 FPS to see each change.
         private const val TURBO_PULSE_MS = 50L
 
