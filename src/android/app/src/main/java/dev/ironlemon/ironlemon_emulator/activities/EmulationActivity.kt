@@ -634,6 +634,14 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
 
     fun onEmulationStopped(status: Int) {
         if (status == 0 && emulationViewModel.programChanged.value == -1) {
+            // Started on its own (a shortcut, the widget, a file opened from another app, or the
+            // library's activity gone): leaving the game goes to the library, not out of the app.
+            if (isTaskRoot) {
+                startActivity(
+                    Intent(this, dev.ironlemon.ironlemon_emulator.ui.main.MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                )
+            }
             finish()
         }
         emulationViewModel.setEmulationStopped(true)
