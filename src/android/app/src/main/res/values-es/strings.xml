@@ -909,4 +909,15 @@
     <string name="migrating">Migrando</string>
     <string name="renderer_aspect_ratio_description">Para quitar las franjas laterales, elige «Llenar la pantalla». Los juegos dibujan una imagen 16:9, así que se estira salvo que instales el mod panorámico del juego.</string>
     <string name="ratio_stretch">Llenar la pantalla (estirar)</string>
+    <string name="update_available">Lemon %1$s está disponible</string>
+    <string name="update_no_notes">Hay una nueva versión de Lemon lista para instalar.</string>
+    <string name="update_install">Descargar e instalar</string>
+    <string name="update_later">Más tarde</string>
+    <string name="update_downloading">Descargando la actualización</string>
+    <string name="update_download_failed">No se ha podido descargar la actualización. Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="update_install_failed">No se ha podido instalar la actualización: %1$s</string>
+    <string name="update_up_to_date">Lemon está actualizado</string>
+    <string name="update_auto_check">Buscar actualizaciones al abrir la app</string>
+    <string name="update_check_failed">No se ha podido contactar con el servidor de actualizaciones.</string>
+    <string name="update_not_for_debug">Las builds de desarrollo no se actualizan desde las releases.</string>
 </resources>

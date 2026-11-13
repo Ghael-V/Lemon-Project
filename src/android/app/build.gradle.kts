@@ -65,7 +65,7 @@ android {
         minSdk = 30
         targetSdk = 34
         // Lemon's updater reads the release tag; local builds say 2.0.
-        versionName = System.getenv("GIT_TAG_NAME") ?: "2.0"
+        versionName = System.getenv("GIT_TAG_NAME")?.removePrefix("v") ?: "2.0.0"
 
         // Seconds/10 since 2016, as Lemon numbers its builds, so this one is newer than any of
         // Lemon's and Android accepts it as an update.

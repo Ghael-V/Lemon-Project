@@ -23,6 +23,7 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.transition.MaterialSharedAxis
 import dev.ironlemon.ironlemon_emulator.BuildConfig
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
 import dev.ironlemon.ironlemon_emulator.model.HomeViewModel
 import dev.ironlemon.ironlemon_emulator.ui.modern.AboutActions
 import dev.ironlemon.ironlemon_emulator.ui.modern.ModernAbout
@@ -50,7 +51,7 @@ class AboutFragment : Fragment() {
                 exitTransition = MaterialSharedAxis(MaterialSharedAxis.X, true)
                 findNavController().navigate(R.id.action_aboutFragment_to_licensesFragment)
             },
-            onCheckUpdates = {},
+            onCheckUpdates = { UpdateFlow.checkNow(requireActivity()) },
             onLink = { openLink(getString(it)) }
         )
         setContent { ModernAbout(BuildConfig.VERSION_NAME, actions) }

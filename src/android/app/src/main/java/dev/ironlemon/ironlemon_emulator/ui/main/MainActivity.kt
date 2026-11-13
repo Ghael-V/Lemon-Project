@@ -28,6 +28,7 @@ import java.io.FilenameFilter
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
+import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
 import dev.ironlemon.ironlemon_emulator.databinding.ActivityMainBinding
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
 import dev.ironlemon.ironlemon_emulator.fragments.AddGameFolderDialogFragment
@@ -145,6 +146,13 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         }
 
         setInsets()
+
+        // Lemon's update check, once per launch, once setup is done.
+        if (!PreferenceManager.getDefaultSharedPreferences(applicationContext)
+                .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
+        ) {
+            UpdateFlow.checkAtStart(this)
+        }
     }
 
     private fun checkKeys() {
