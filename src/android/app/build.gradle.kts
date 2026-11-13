@@ -59,17 +59,17 @@ android {
     }
 
     defaultConfig {
-        // TODO If this is ever modified, change application_id in strings.xml
-        applicationId = "dev.ironlemon.ironlemon_emulator"
+        // Lemon's id: Iron Lemon ships as Lemon 2.0 and installs over Lemon (same id and key).
+        // The code keeps its own namespace; nothing else depends on the id.
+        applicationId = "dev.lemon.lemon_emulator"
         minSdk = 30
         targetSdk = 34
-        versionName = getGitVersion()
+        // Lemon's updater reads the release tag; local builds say 2.0.
+        versionName = System.getenv("GIT_TAG_NAME") ?: "2.0"
 
-        versionCode = if (System.getenv("AUTO_VERSIONED") == "true") {
-            autoVersion
-        } else {
-            1
-        }
+        // Seconds/10 since 2016, as Lemon numbers its builds, so this one is newer than any of
+        // Lemon's and Android accepts it as an update.
+        versionCode = autoVersion
 
         ndk {
             @SuppressLint("ChromeOsAbiSupport")
