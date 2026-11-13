@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import dev.ironlemon.ironlemon_emulator.utils.PerGameOverlay
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import java.io.File
@@ -1282,6 +1283,72 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         super.onDetach()
     }
 
+    private var overlayEditBefore: Array<OverlayControlData>? = null
+    private var overlayEditWasCustom = false
+
+    /** Remembers the touch controls layout before an edit, to ask where to keep it afterwards. */
+    private fun beginOverlayEdit() {
+        overlayEditBefore = PerGameOverlay.snapshot()
+        overlayEditWasCustom = NativeConfig.isCustomOverlayActive()
+    }
+
+    /**
+     * If the edit changed the layout, asks whether it is for every game or only for this one.
+     * Closing the dialog keeps the change for every game, as it always worked.
+     */
+    private fun finishOverlayEdit() {
+        val before = overlayEditBefore ?: return
+        overlayEditBefore = null
+        if (_binding == null || !::game.isInitialized || !PerGameOverlay.changed(before)) {
+            return
+        }
+        val target = game
+        val wasCustom = overlayEditWasCustom
+        val edited = NativeConfig.getOverlayControlData()
+        showIronLemonDialog(requireContext()) { dismiss ->
+            IronLemonDialogCard(
+                title = stringResource(R.string.overlay_save_scope_title),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(R.string.overlay_discard_changes),
+                        height = 44.dp,
+                        onClick = {
+                            dismiss()
+                            PerGameOverlay.discard(before, wasCustom)
+                            _binding?.surfaceInputOverlay?.refreshControls()
+                        }
+                    )
+                    IronLemonButton(
+                        text = stringResource(R.string.overlay_save_all_games),
+                        height = 44.dp,
+                        onClick = {
+                            dismiss()
+                            PerGameOverlay.saveForAllGames(target, edited, wasCustom)
+                            _binding?.surfaceInputOverlay?.refreshControls()
+                        }
+                    )
+                    IronLemonButton(
+                        text = stringResource(R.string.overlay_save_this_game),
+                        primary = true,
+                        height = 44.dp,
+                        onClick = {
+                            dismiss()
+                            PerGameOverlay.saveForThisGame(target, before, wasCustom, edited)
+                            _binding?.surfaceInputOverlay?.refreshControls()
+                            Toast.makeText(
+                                requireContext(),
+                                getString(R.string.overlay_saved_for_game, target.title),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+            ) {
+                IronLemonDialogText(stringResource(R.string.overlay_save_scope_message, target.title))
+            }
+        }
+    }
+
     /** Layout presets; applying one also shows the controller if it was hidden. */
     private fun showOverlayPresets() {
         val presets = OverlayPreset.entries
@@ -1303,8 +1370,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     }
                     binding.drawerLayout.close()
                     binding.surfaceInputOverlay.post {
+                        beginOverlayEdit()
                         binding.surfaceInputOverlay.applyPreset(presets[index])
                         refreshInputOverlayVisibility()
+                        finishOverlayEdit()
                     }
                 }
             }
@@ -1314,8 +1383,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private fun resetInputOverlay() {
         IntSetting.OVERLAY_SCALE.reset()
         IntSetting.OVERLAY_OPACITY.reset()
+        beginOverlayEdit()
         binding.surfaceInputOverlay.post {
             binding.surfaceInputOverlay.resetLayoutVisibilityAndPlacement()
+            finishOverlayEdit()
         }
     }
 
@@ -1633,6 +1704,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     }
             }
         }
+        beginOverlayEdit()
         binding.doneControlConfig.setVisible(true)
         Toast.makeText(requireContext(), R.string.overlay_press_mode_hint, Toast.LENGTH_LONG).show()
         binding.surfaceInputOverlay.setIsInEditMode(true)
@@ -1648,6 +1720,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         NativeConfig.saveGlobalConfig()
+        finishOverlayEdit()
     }
 
     @SuppressLint("SetTextI18n")

@@ -32,6 +32,8 @@ void AndroidConfig::ReadAndroidValues() {
         ReadAndroidUIValues();
         ReadUIValues();
         ReadOverlayValues();
+    } else {
+        ReadCustomOverlayValues();
     }
     ReadDriverValues();
     ReadAndroidControlValues();
@@ -187,6 +189,8 @@ void AndroidConfig::SaveAndroidValues() {
         SaveAndroidUIValues();
         SaveUIValues();
         SaveOverlayValues();
+    } else {
+        SaveCustomOverlayValues();
     }
     SaveDriverValues();
     SaveAndroidControlValues();
@@ -230,6 +234,74 @@ void AndroidConfig::SaveDriverValues() {
     BeginGroup(Settings::TranslateCategory(Settings::Category::GpuDriver));
 
     WriteCategory(Settings::Category::GpuDriver);
+
+    EndGroup();
+}
+
+void AndroidConfig::ReadCustomOverlayValues() {
+    BeginGroup(Settings::TranslateCategory(Settings::Category::Overlay));
+
+    auto& custom = AndroidSettings::values.custom_overlay_control_data;
+    custom.clear();
+    const int control_data_size = BeginArray("control_data");
+    for (int i = 0; i < control_data_size; ++i) {
+        SetArrayIndex(i);
+        AndroidSettings::OverlayControlData control_data;
+        control_data.id = ReadStringSetting(std::string("id"));
+        control_data.enabled = ReadBooleanSetting(std::string("enabled"));
+        control_data.landscape_position.first =
+            ReadDoubleSetting(std::string("landscape\\x_position"));
+        control_data.landscape_position.second =
+            ReadDoubleSetting(std::string("landscape\\y_position"));
+        control_data.portrait_position.first =
+            ReadDoubleSetting(std::string("portrait\\x_position"));
+        control_data.portrait_position.second =
+            ReadDoubleSetting(std::string("portrait\\y_position"));
+        control_data.foldable_position.first =
+            ReadDoubleSetting(std::string("foldable\\x_position"));
+        control_data.foldable_position.second =
+            ReadDoubleSetting(std::string("foldable\\y_position"));
+        control_data.press_mode =
+            static_cast<s32>(ReadIntegerSetting(std::string("press_mode"), 0));
+        custom.push_back(control_data);
+    }
+    EndArray();
+
+    EndGroup();
+
+    // A game with a saved layout runs on it; one without follows the global layout.
+    AndroidSettings::values.use_custom_overlay = !custom.empty();
+}
+
+void AndroidConfig::SaveCustomOverlayValues() {
+    BeginGroup(Settings::TranslateCategory(Settings::Category::Overlay));
+
+    // An empty array is written when the game has no layout of its own, which also clears one
+    // that was saved before.
+    BeginArray("control_data");
+    if (AndroidSettings::values.use_custom_overlay) {
+        const auto& custom = AndroidSettings::values.custom_overlay_control_data;
+        for (size_t i = 0; i < custom.size(); ++i) {
+            SetArrayIndex(i);
+            const auto& control_data = custom[i];
+            WriteStringSetting(std::string("id"), control_data.id);
+            WriteBooleanSetting(std::string("enabled"), control_data.enabled);
+            WriteDoubleSetting(std::string("landscape\\x_position"),
+                               control_data.landscape_position.first);
+            WriteDoubleSetting(std::string("landscape\\y_position"),
+                               control_data.landscape_position.second);
+            WriteDoubleSetting(std::string("portrait\\x_position"),
+                               control_data.portrait_position.first);
+            WriteDoubleSetting(std::string("portrait\\y_position"),
+                               control_data.portrait_position.second);
+            WriteDoubleSetting(std::string("foldable\\x_position"),
+                               control_data.foldable_position.first);
+            WriteDoubleSetting(std::string("foldable\\y_position"),
+                               control_data.foldable_position.second);
+            WriteIntegerSetting(std::string("press_mode"), control_data.press_mode);
+        }
+    }
+    EndArray();
 
     EndGroup();
 }

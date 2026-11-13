@@ -328,7 +328,6 @@
     <string name="start">Comenzar</string>
     <string name="clear">Limpiar</string>
     <string name="global">Global</string>
-    <string name="custom">Personalizado</string>
     <string name="notice">Aviso</string>
     <string name="import_complete">La importación se completó</string>
     <string name="more_options">Más opciones</string>
@@ -963,4 +962,11 @@
     <string name="overlay_preset_default">Por defecto</string>
     <string name="overlay_preset_big">Botones grandes</string>
     <string name="overlay_preset_swapped">D-pad y stick intercambiados</string>
+    <string name="custom">Personalizado</string>
+    <string name="overlay_save_scope_title">Guardar el mando en pantalla</string>
+    <string name="overlay_save_scope_message">Has cambiado el mando en pantalla. ¿Quieres conservar el cambio solo para %1$s o para todos los juegos?</string>
+    <string name="overlay_save_this_game">Solo este juego</string>
+    <string name="overlay_save_all_games">Todos los juegos</string>
+    <string name="overlay_discard_changes">Descartar cambios</string>
+    <string name="overlay_saved_for_game">Mando en pantalla guardado para %1$s</string>
 </resources>
