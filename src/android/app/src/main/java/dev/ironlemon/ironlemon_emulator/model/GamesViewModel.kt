@@ -116,10 +116,19 @@ class GamesViewModel : ViewModel() {
                             }
                         }
                         setGames(deserializedGames.toList())
+                        // The app was already open (the library came back after a game): the
+                        // cached list is the scan from a moment ago, no need to walk every folder
+                        // again. A refresh or a folder change still rescans.
+                        if (scannedThisSession && deserializedGames.isNotEmpty()) {
+                            reloading.set(false)
+                            _isReloading.value = false
+                            return@withContext
+                        }
                     }
                 }
 
                 setGames(GameHelper.getGames())
+                scannedThisSession = true
                 reloading.set(false)
                 _isReloading.value = false
 
@@ -186,4 +195,11 @@ class GamesViewModel : ViewModel() {
             reloadGames(true)
         }
     }
+
+    companion object {
+        /** Whether the games were scanned since the app's process started. */
+        @Volatile
+        private var scannedThisSession = false
+    }
 }
+
