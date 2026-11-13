@@ -289,6 +289,12 @@ object NativeLibrary {
     external fun getPerfStats(): DoubleArray
 
     /**
+     * How many frames the game has presented since it started. Only reads a counter: unlike
+     * [getPerfStats], it does not reset the performance figures.
+     */
+    external fun getPresentedFrameCount(): Long
+
+    /**
      * Returns the current CPU backend.
      */
     external fun getCpuBackend(): String

@@ -124,6 +124,14 @@ public:
 
     static void OnEmulationStarted();
 
+    /// Counts a frame the game presented; the loading screen stays until a few have been.
+    void CountPresentedFrame() {
+        m_presented_frames.fetch_add(1, std::memory_order_relaxed);
+    }
+    u64 PresentedFrames() const {
+        return m_presented_frames.load(std::memory_order_relaxed);
+    }
+
     static u64 GetProgramId(JNIEnv* env, jstring jprogramId);
 
 private:
@@ -221,6 +229,7 @@ private:
     mutable std::mutex m_slots_mutex;
 
     std::atomic<bool> m_is_paused = false;
+    std::atomic<u64> m_presented_frames = 0;
     Common::Android::SoftwareKeyboard::AndroidKeyboard* m_software_keyboard{};
     std::unique_ptr<FileSys::ManualContentProvider> m_manual_provider;
     int m_applet_id{1};

@@ -663,7 +663,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private val firstFrameHandler = Handler(Looper.getMainLooper())
     private var firstFrameWatcher: Runnable? = null
 
-    /** Hides the loading screen once the game presents its first frame, or after a minute. */
+    /** Hides the loading screen once the game is presenting frames, or after a minute. */
     private fun startFirstFrameWatcher() {
         stopFirstFrameWatcher()
         val started = SystemClock.elapsedRealtime()
@@ -674,8 +674,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     firstFrameWatcher = null
                     return
                 }
-                val fps = NativeLibrary.getPerfStats().getOrElse(1) { 0.0 }
-                if (fps > 0.0 || SystemClock.elapsedRealtime() - started > FIRST_FRAME_TIMEOUT_MS) {
+                // The first frame is often a black one before the game draws anything: wait until
+                // it has presented a few.
+                val frames = NativeLibrary.getPresentedFrameCount()
+                if (frames >= FIRST_FRAMES_SHOWN ||
+                    SystemClock.elapsedRealtime() - started > FIRST_FRAME_TIMEOUT_MS
+                ) {
                     firstFrameWatcher = null
                     ViewUtils.hideView(b.loadingIndicator)
                     return
@@ -1752,6 +1756,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // The loading screen waits for the game's first frame, checked this often, at most this long.
         private const val FIRST_FRAME_POLL_MS = 200L
         private const val FIRST_FRAME_TIMEOUT_MS = 60_000L
+        private const val FIRST_FRAMES_SHOWN = 10L
 
         // The width of a quicksave slot's picture, in pixels.
         private const val QUICK_SAVE_THUMBNAIL_WIDTH = 320

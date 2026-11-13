@@ -298,6 +298,7 @@ std::string EmulationSession::QuickSaveThumbnailPath(u64 id) {
 Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string& filepath,
                                                                const std::size_t program_index,
                                                                const bool frontend_initiated) {
+    m_presented_frames = 0;
     std::scoped_lock lock(m_mutex);
 
     // Create the render window.
@@ -1492,6 +1493,11 @@ void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_initializeSystem(JNIEn
         EmulationSession::GetInstance().System().Initialize();
     }
     EmulationSession::GetInstance().InitializeSystem(reload);
+}
+
+jlong Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPresentedFrameCount(JNIEnv* env,
+                                                                               jclass clazz) {
+    return static_cast<jlong>(EmulationSession::GetInstance().PresentedFrames());
 }
 
 jdoubleArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPerfStats(JNIEnv* env, jclass clazz) {
