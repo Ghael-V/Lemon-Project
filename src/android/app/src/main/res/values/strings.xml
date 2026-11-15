@@ -1524,4 +1524,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="share_logs_description">Send the emulator log or the crash log when reporting a problem</string>
     <string name="share_crash_log">Share crash log</string>
     <string name="share_crash_log_missing">No crash log found</string>
+    <string name="emulation_show_controller">Show controller</string>
+    <string name="emulation_hide_controller">Hide controller</string>
+    <string name="emulation_on_screen_controls">On-screen controls</string>
 </resources>

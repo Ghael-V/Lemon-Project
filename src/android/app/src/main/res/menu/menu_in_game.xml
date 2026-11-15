@@ -47,14 +47,14 @@
         android:title="@string/per_game_settings" />
 
     <item
-        android:id="@+id/menu_controls"
+        android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"
-        android:title="@string/preferences_controls" />
+        android:title="@string/emulation_show_controller" />
 
     <item
         android:id="@+id/menu_overlay_controls"
         android:icon="@drawable/ic_overlay"
-        android:title="@string/emulation_input_overlay" />
+        android:title="@string/emulation_on_screen_controls" />
 
     <item
         android:id="@+id/menu_lock_drawer"

@@ -449,7 +449,7 @@ private fun itemIcon(item: MenuItem): ImageBitmap? {
     val res = when (item.itemId) {
         R.id.menu_overlay_controls -> R.drawable.ic_overlay
         R.id.menu_settings, R.id.menu_settings_per_game -> R.drawable.ic_settings
-        R.id.menu_controls -> R.drawable.ic_controller
+        R.id.menu_quick_overlay -> R.drawable.ic_controller
         R.id.menu_lock_drawer -> R.drawable.ic_lock
         else -> return null
     }

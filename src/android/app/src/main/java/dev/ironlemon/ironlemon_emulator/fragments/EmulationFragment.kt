@@ -286,6 +286,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         binding.inGameMenu.getHeaderView(0).findViewById<TextView>(R.id.text_game_title).text =
             game.title
 
+        updateQuickOverlayTitle()
+
         binding.inGameMenu.menu.findItem(R.id.menu_lock_drawer).apply {
             val lockMode = IntSetting.LOCK_DRAWER.getInt()
             val titleId = if (lockMode == DrawerLayout.LOCK_MODE_LOCKED_CLOSED) {
@@ -389,12 +391,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_controls -> {
-                    val action = HomeNavigationDirections.actionGlobalSettingsActivity(
-                        null,
-                        Settings.MenuTag.SECTION_INPUT
-                    )
-                    binding.root.findNavController().navigate(action)
+                R.id.menu_quick_overlay -> {
+                    // Shown or hidden by hand: Always or Never from now on, as in the
+                    // on-screen controls menu (Automatic is in Settings > Controls).
+                    OnScreenControls.mode = if (OnScreenControls.shouldShow()) {
+                        OnScreenControls.NEVER
+                    } else {
+                        OnScreenControls.ALWAYS
+                    }
+                    refreshInputOverlayVisibility()
+                    updateQuickOverlayTitle()
                     true
                 }
 
@@ -1151,6 +1157,18 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
     }
 
+    /** "Show controller" or "Hide controller", whichever the in-game menu entry would do. */
+    private fun updateQuickOverlayTitle() {
+        val item = _binding?.inGameMenu?.menu?.findItem(R.id.menu_quick_overlay) ?: return
+        item.title = getString(
+            if (OnScreenControls.shouldShow()) {
+                R.string.emulation_hide_controller
+            } else {
+                R.string.emulation_show_controller
+            }
+        )
+    }
+
     fun exitEmulation() {
         if (!this::emulationState.isInitialized || _binding == null) {
             return
@@ -1662,6 +1680,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     OnScreenControls.mode =
                         if (it.isChecked) OnScreenControls.ALWAYS else OnScreenControls.NEVER
                     refreshInputOverlayVisibility()
+                    updateQuickOverlayTitle()
                     true
                 }
 
