@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "core/file_sys/fssystem/fssystem_hierarchical_integrity_verification_storage.h"
+#include "core/file_sys/errors.h"
 #include "core/file_sys/vfs/vfs_offset.h"
 
 namespace FileSys {
@@ -17,8 +18,18 @@ Result HierarchicalIntegrityVerificationStorage::Initialize(
     const HierarchicalIntegrityVerificationInformation& info,
     HierarchicalStorageInformation storage, int max_data_cache_entries, int max_hash_cache_entries,
     s8 buffer_level) {
-    // Validate preconditions.
-    ASSERT(IntegrityMinLayerCount <= info.max_layers && info.max_layers <= IntegrityMaxLayerCount);
+    // Validate preconditions. A damaged or unexpected NCA (seen on an XCI's patch meta storage)
+    // can give a layer count out of range or missing layers: fail with an error instead of
+    // reading through a null storage, so the content can't be opened but the app keeps running.
+    R_UNLESS(IntegrityMinLayerCount <= info.max_layers && info.max_layers <= IntegrityMaxLayerCount,
+             ResultInvalidArgument);
+    R_UNLESS(storage[HierarchicalStorageInformation::MasterStorage] != nullptr,
+             ResultNullptrArgument);
+    for (s32 i = HierarchicalStorageInformation::Layer1Storage; i <= static_cast<s32>(info.max_layers) - 2; ++i) {
+        R_UNLESS(storage[i] != nullptr, ResultNullptrArgument);
+    }
+    R_UNLESS(storage[HierarchicalStorageInformation::DataStorage] != nullptr,
+             ResultNullptrArgument);
 
     // Set member variables.
     m_max_layers = info.max_layers;
