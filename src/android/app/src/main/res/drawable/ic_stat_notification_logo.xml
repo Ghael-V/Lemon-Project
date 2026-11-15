@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: Copyright 2026 Lemon-Project -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Status bar icons are rendered as a flat alpha mask by the system, so this
+     reuses ic_launcher_foreground's lemon silhouette in a single white fill. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108"
+    android:tint="#FFFFFF">
+    <group
+        android:name="leaf"
+        android:pivotX="68"
+        android:pivotY="28"
+        android:rotation="-30">
+        <path
+            android:name="leaf_shape"
+            android:pathData="M58,28 C58,25.04 62.48,22.5 68,22.5 C73.52,22.5 78,25.04 78,28 C78,30.96 73.52,33.5 68,33.5 C62.48,33.5 58,30.96 58,28 Z"
+            android:fillColor="#FFFFFF" />
+    </group>
+    <path
+        android:name="lemon_body"
+        android:pathData="M29,60 C29,49.51 40.19,41 54,41 C67.81,41 79,49.51 79,60 C79,70.49 67.81,79 54,79 C40.19,79 29,70.49 29,60 Z"
+        android:fillColor="#FFFFFF" />
+</vector>

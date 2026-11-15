@@ -67,9 +67,14 @@ fun IronLemonButton(
     iconRes: Int? = null,
     primary: Boolean = false,
     height: Dp = 52.dp,
+    horizontalPadding: Dp = 24.dp,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(height / 2)
+    // A label too long for the button (narrow 4:3 screens, longer translations) shrinks to fit
+    // instead of being cut.
+    val baseStyle = IronLemonType.Button.copy(color = contentColorFor(primary))
+    var textStyle by remember(text, baseStyle) { mutableStateOf(baseStyle) }
     val contentColor = if (primary) IronLemonColors.OnLemon else IronLemonColors.Text
     Row(
         modifier = modifier
@@ -91,7 +96,7 @@ fun IronLemonButton(
             .then(
                 if (primary) Modifier else Modifier.border(1.dp, IronLemonColors.Text.copy(alpha = 0.16f), shape)
             )
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = horizontalPadding),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -106,12 +111,22 @@ fun IronLemonButton(
         }
         BasicText(
             text = text,
-            style = IronLemonType.Button.copy(color = contentColor),
+            style = textStyle,
             maxLines = 1,
-            softWrap = false
+            softWrap = false,
+            modifier = Modifier.weight(1f, fill = false),
+            onTextLayout = { layout ->
+                val size = textStyle.fontSize
+                if (layout.hasVisualOverflow && size.isSp && size.value > 10f) {
+                    textStyle = textStyle.copy(fontSize = (size.value * 0.92f).sp)
+                }
+            }
         )
     }
 }
+
+private fun contentColorFor(primary: Boolean) =
+    if (primary) IronLemonColors.OnLemon else IronLemonColors.Text
 
 @Composable
 fun IronLemonIconButton(

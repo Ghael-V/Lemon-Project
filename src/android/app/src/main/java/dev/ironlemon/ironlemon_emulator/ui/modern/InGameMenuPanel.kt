@@ -248,6 +248,7 @@ private fun SavesBlock(
             IronLemonButton(
                 text = quickSave.title?.toString().orEmpty(),
                 iconRes = R.drawable.ic_save,
+                horizontalPadding = 12.dp,
                 primary = true,
                 height = 44.dp,
                 modifier = Modifier.weight(1f)
@@ -255,6 +256,7 @@ private fun SavesBlock(
             IronLemonButton(
                 text = quickLoad.title?.toString().orEmpty(),
                 iconRes = R.drawable.ic_restore,
+                horizontalPadding = 12.dp,
                 height = 44.dp,
                 modifier = Modifier
                     .weight(1f)
