@@ -143,6 +143,7 @@ object BundledDriver {
         if (path.isEmpty() || isVerified(path)) {
             return
         }
+        Log.info("[BundledDriver] Watching $path until a game renders with it")
         // commit(), not apply(): this has to be on disk before the driver can take the app down.
         preferences.edit(commit = true) {
             putBoolean(PREF_BOOT_PENDING, true)

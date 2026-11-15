@@ -60,6 +60,14 @@ private var bootedIntoQLaunch = false
 /** The bundled driver is set up once per process. */
 private var bundledDriverChecked = false
 
+/**
+ * The driver check ends on a background thread, often after the activity that started it was
+ * recreated: its notice waits here for whichever MainActivity is resumed.
+ */
+@Volatile
+private var driverRevertNoticePending = false
+private var resumedMainActivity: java.lang.ref.WeakReference<MainActivity>? = null
+
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
 
@@ -189,15 +197,26 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 false
             }
             if (revertedToSystemDriver) {
-                runOnUiThread {
-                    MessageDialogFragment.newInstance(
-                        this,
-                        titleId = R.string.bundled_driver_reverted_title,
-                        descriptionId = R.string.bundled_driver_reverted_description
-                    ).show(supportFragmentManager, MessageDialogFragment.TAG)
+                driverRevertNoticePending = true
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    resumedMainActivity?.get()?.showDriverRevertNoticeIfPending()
                 }
             }
         }.start()
+    }
+
+    private fun showDriverRevertNoticeIfPending() {
+        if (!driverRevertNoticePending || isFinishing || isDestroyed ||
+            supportFragmentManager.isStateSaved
+        ) {
+            return
+        }
+        driverRevertNoticePending = false
+        MessageDialogFragment.newInstance(
+            this,
+            titleId = R.string.bundled_driver_reverted_title,
+            descriptionId = R.string.bundled_driver_reverted_description
+        ).show(supportFragmentManager, MessageDialogFragment.TAG)
     }
 
     // "Start in QLaunch": opening the app from the launcher boots the console's home menu right
@@ -269,6 +288,15 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
     override fun onResume() {
         ThemeHelper.setCorrectTheme(this)
         super.onResume()
+        resumedMainActivity = java.lang.ref.WeakReference(this)
+        showDriverRevertNoticeIfPending()
+    }
+
+    override fun onPause() {
+        if (resumedMainActivity?.get() === this) {
+            resumedMainActivity = null
+        }
+        super.onPause()
     }
 
     private fun setInsets() =
