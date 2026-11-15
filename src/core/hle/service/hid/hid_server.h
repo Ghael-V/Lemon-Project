@@ -37,6 +37,8 @@ private:
     Result ActivateDebugPad(ClientAppletResourceUserId aruid);
     Result ActivateTouchScreen(ClientAppletResourceUserId aruid);
     Result ActivateMouse(ClientAppletResourceUserId aruid);
+    Result ActivateDebugMouse();
+    Result SetGestureOutputRanges();
     Result ActivateKeyboard(ClientAppletResourceUserId aruid);
     Result SendKeyboardLockKeyEvent(u32 flags);
     Result AcquireXpadIdEventHandle(OutCopyHandle<Kernel::KReadableEvent> out_event,

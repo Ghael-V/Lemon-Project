@@ -96,6 +96,7 @@ private:
                                                 FileSys::StorageId storage_id, u64 title_id);
     Result OpenDataStorageWithProgramIndex(OutInterface<IStorage> out_interface, u8 program_index);
     Result DisableAutoSaveDataCreation();
+    Result IsSdCardAccessible(Out<bool> out_is_accessible);
     Result SetGlobalAccessLogMode(AccessLogMode access_log_mode_);
     Result GetGlobalAccessLogMode(Out<AccessLogMode> out_access_log_mode);
     Result OutputAccessLogToSdCard(InBuffer<BufferAttr_HipcMapAlias> log_message_buffer);

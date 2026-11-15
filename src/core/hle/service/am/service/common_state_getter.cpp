@@ -48,7 +48,7 @@ ICommonStateGetter::ICommonStateGetter(Core::System& system_, std::shared_ptr<Ap
         {59, nullptr, "SetVrPositionForDebug"},
         {60, D<&ICommonStateGetter::GetDefaultDisplayResolution>, "GetDefaultDisplayResolution"},
         {61, D<&ICommonStateGetter::GetDefaultDisplayResolutionChangeEvent>, "GetDefaultDisplayResolutionChangeEvent"},
-        {62, nullptr, "GetHdcpAuthenticationState"},
+        {62, D<&ICommonStateGetter::GetHdcpAuthenticationState>, "GetHdcpAuthenticationState"},
         {63, nullptr, "GetHdcpAuthenticationStateChangeEvent"},
         {64, nullptr, "SetTvPowerStateMatchingMode"},
         {65, nullptr, "GetApplicationIdByContentActionName"},
@@ -130,6 +130,12 @@ Result ICommonStateGetter::GetWriterLockAccessorEx(
     Out<SharedPointer<ILockAccessor>> out_lock_accessor, u32 button_type) {
     LOG_INFO(Service_AM, "called, button_type={}", button_type);
     *out_lock_accessor = std::make_shared<ILockAccessor>(system);
+    R_SUCCEED();
+}
+
+Result ICommonStateGetter::GetHdcpAuthenticationState(Out<s32> out_state) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    *out_state = 0;
     R_SUCCEED();
 }
 

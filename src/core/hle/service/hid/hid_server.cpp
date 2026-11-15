@@ -48,7 +48,7 @@ IHidServer::IHidServer(Core::System& system_, std::shared_ptr<ResourceManager> r
         {1, C<&IHidServer::ActivateDebugPad>, "ActivateDebugPad"},
         {11, C<&IHidServer::ActivateTouchScreen>, "ActivateTouchScreen"},
         {21, C<&IHidServer::ActivateMouse>, "ActivateMouse"},
-        {26, nullptr, "ActivateDebugMouse"},
+        {26, C<&IHidServer::ActivateDebugMouse>, "ActivateDebugMouse"},
         {31, C<&IHidServer::ActivateKeyboard>, "ActivateKeyboard"},
         {32, C<&IHidServer::SendKeyboardLockKeyEvent>, "SendKeyboardLockKeyEvent"},
         {40, C<&IHidServer::AcquireXpadIdEventHandle>, "AcquireXpadIdEventHandle"},
@@ -89,6 +89,7 @@ IHidServer::IHidServer(Core::System& system_, std::shared_ptr<ResourceManager> r
         {88, C<&IHidServer::GetSixAxisSensorIcInformation>, "GetSixAxisSensorIcInformation"},
         {89, C<&IHidServer::ResetIsSixAxisSensorDeviceNewlyAssigned>, "ResetIsSixAxisSensorDeviceNewlyAssigned"},
         {91, C<&IHidServer::ActivateGesture>, "ActivateGesture"},
+        {92, C<&IHidServer::SetGestureOutputRanges>, "SetGestureOutputRanges"},
         {100, C<&IHidServer::SetSupportedNpadStyleSet>, "SetSupportedNpadStyleSet"},
         {101, C<&IHidServer::GetSupportedNpadStyleSet>, "GetSupportedNpadStyleSet"},
         {102, C<&IHidServer::SetSupportedNpadIdType>, "SetSupportedNpadIdType"},
@@ -563,6 +564,16 @@ Result IHidServer::ResetIsSixAxisSensorDeviceNewlyAssigned(
 
     R_RETURN(GetResourceManager()->GetNpad()->ResetIsSixAxisSensorDeviceNewlyAssigned(
         aruid.pid, sixaxis_handle));
+}
+
+Result IHidServer::ActivateDebugMouse() {
+    LOG_DEBUG(Service_HID, "(STUBBED) called");
+    R_SUCCEED();
+}
+
+Result IHidServer::SetGestureOutputRanges() {
+    LOG_DEBUG(Service_HID, "(STUBBED) called");
+    R_SUCCEED();
 }
 
 Result IHidServer::ActivateGesture(u32 basic_gesture_id, ClientAppletResourceUserId aruid) {

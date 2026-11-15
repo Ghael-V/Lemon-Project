@@ -54,7 +54,7 @@ ISelfController::ISelfController(Core::System& system_, std::shared_ptr<Applet> 
         {64, nullptr, "SetInputDetectionSourceSet"},
         {65, D<&ISelfController::ReportUserIsActive>, "ReportUserIsActive"},
         {66, nullptr, "GetCurrentIlluminance"},
-        {67, nullptr, "IsIlluminanceAvailable"},
+        {67, D<&ISelfController::IsIlluminanceAvailable>, "IsIlluminanceAvailable"},
         {68, D<&ISelfController::SetAutoSleepDisabled>, "SetAutoSleepDisabled"},
         {69, D<&ISelfController::IsAutoSleepDisabled>, "IsAutoSleepDisabled"},
         {70, nullptr, "ReportMultimediaError"},
@@ -331,6 +331,13 @@ Result ISelfController::SetAutoSleepDisabled(bool is_auto_sleep_disabled) {
     std::scoped_lock lk{m_applet->lock};
     m_applet->auto_sleep_disabled = is_auto_sleep_disabled;
 
+    R_SUCCEED();
+}
+
+Result ISelfController::IsIlluminanceAvailable(Out<bool> out_is_available) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    // Games only read the illuminance when the sensor is there; report one.
+    *out_is_available = true;
     R_SUCCEED();
 }
 

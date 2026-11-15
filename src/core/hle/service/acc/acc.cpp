@@ -650,7 +650,8 @@ public:
             {0, &IManagerForApplication::CheckAvailability, "CheckAvailability"},
             {1, &IManagerForApplication::GetAccountId, "GetAccountId"},
             {2, &IManagerForApplication::EnsureIdTokenCacheAsync, "EnsureIdTokenCacheAsync"},
-            {3, &IManagerForApplication::LoadIdTokenCache, "LoadIdTokenCache"},
+            {3, &IManagerForApplication::LoadIdTokenCache, "LoadIdTokenCacheDeprecated"},
+            {4, &IManagerForApplication::LoadIdTokenCache, "LoadIdTokenCache"}, // 19.0.0+
             {130, &IManagerForApplication::GetNintendoAccountUserResourceCacheForApplication, "GetNintendoAccountUserResourceCacheForApplication"},
             {150, nullptr, "CreateAuthorizationRequest"},
             {160, &IManagerForApplication::StoreOpenContext, "StoreOpenContext"},

@@ -57,6 +57,7 @@ private:
     Result ReportUserIsActive();
     Result SetAutoSleepDisabled(bool is_auto_sleep_disabled);
     Result IsAutoSleepDisabled(Out<bool> out_is_auto_sleep_disabled);
+    Result IsIlluminanceAvailable(Out<bool> out_is_available);
     Result SetInputDetectionPolicy(InputDetectionPolicy input_detection_policy);
     Result GetAccumulatedSuspendedTickValue(Out<u64> out_accumulated_suspended_tick_value);
     Result GetAccumulatedSuspendedTickChangedEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);
