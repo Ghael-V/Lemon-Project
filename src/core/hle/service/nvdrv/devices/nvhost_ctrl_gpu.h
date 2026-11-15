@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <mutex>
+#include <array>
 #include <vector>
 
 #include "common/common_funcs.h"
@@ -138,6 +140,24 @@ private:
         u32_le index_size;
     };
     static_assert(sizeof(IoctlZbcQueryTable) == 52, "IoctlZbcQueryTable is incorrect size");
+
+    // Zero-bandwidth clear values the game registers (color and depth), as nvgpu keeps them:
+    // up to 16 of each kind, reused when the same value is set again.
+    struct ZbcEntry {
+        std::array<u32, 4> color_ds{};
+        std::array<u32, 4> color_l2{};
+        u32 depth{};
+        u32 format{};
+        u32 ref_cnt{};
+    };
+    static constexpr u32 ZbcTableSize = 16;
+    static constexpr u32 ZbcTypeColor = 1;
+    static constexpr u32 ZbcTypeDepth = 2;
+    std::array<ZbcEntry, ZbcTableSize> zbc_color{};
+    std::array<ZbcEntry, ZbcTableSize> zbc_depth{};
+    u32 zbc_color_count{};
+    u32 zbc_depth_count{};
+    std::mutex zbc_mutex;
 
     struct IoctlFlushL2 {
         u32_le flush; // l2_flush | l2_invalidate << 1 | fb_flush << 2

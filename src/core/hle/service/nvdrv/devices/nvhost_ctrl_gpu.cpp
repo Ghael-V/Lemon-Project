@@ -228,13 +228,57 @@ NvResult nvhost_ctrl_gpu::ZCullGetInfo(IoctlNvgpuGpuZcullGetInfoArgs& params) {
 }
 
 NvResult nvhost_ctrl_gpu::ZBCSetTable(IoctlZbcSetTable& params) {
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
-    // TODO(ogniK): What does this even actually do?
+    LOG_DEBUG(Service_NVDRV, "called, type={} format={}", params.type, params.format);
+    std::scoped_lock lk{zbc_mutex};
+    const bool is_color = params.type == ZbcTypeColor;
+    if (!is_color && params.type != ZbcTypeDepth) {
+        return NvResult::BadParameter;
+    }
+    auto& table = is_color ? zbc_color : zbc_depth;
+    auto& count = is_color ? zbc_color_count : zbc_depth_count;
+
+    ZbcEntry entry{};
+    std::copy(std::begin(params.color_ds), std::end(params.color_ds), entry.color_ds.begin());
+    std::copy(std::begin(params.color_l2), std::end(params.color_l2), entry.color_l2.begin());
+    entry.depth = params.depth;
+    entry.format = params.format;
+
+    for (u32 i = 0; i < count; ++i) {
+        auto& existing = table[i];
+        const bool same = is_color ? (existing.color_ds == entry.color_ds &&
+                                      existing.color_l2 == entry.color_l2)
+                                   : existing.depth == entry.depth;
+        if (same && existing.format == entry.format) {
+            ++existing.ref_cnt;
+            return NvResult::Success;
+        }
+    }
+    if (count == ZbcTableSize) {
+        return NvResult::InsufficientMemory;
+    }
+    entry.ref_cnt = 1;
+    table[count++] = entry;
     return NvResult::Success;
 }
 
 NvResult nvhost_ctrl_gpu::ZBCQueryTable(IoctlZbcQueryTable& params) {
-    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    LOG_DEBUG(Service_NVDRV, "called, type={} index={}", params.type, params.index_size);
+    std::scoped_lock lk{zbc_mutex};
+    const bool is_color = params.type == ZbcTypeColor;
+    if (!is_color && params.type != ZbcTypeDepth) {
+        return NvResult::BadParameter;
+    }
+    const auto& table = is_color ? zbc_color : zbc_depth;
+    const u32 count = is_color ? zbc_color_count : zbc_depth_count;
+    // In: the entry's index. Out: the entry, and the table's size.
+    const u32 index = params.index_size;
+    const ZbcEntry entry = index < count ? table[index] : ZbcEntry{};
+    std::copy(entry.color_ds.begin(), entry.color_ds.end(), std::begin(params.color_ds));
+    std::copy(entry.color_l2.begin(), entry.color_l2.end(), std::begin(params.color_l2));
+    params.depth = entry.depth;
+    params.ref_cnt = entry.ref_cnt;
+    params.format = entry.format;
+    params.index_size = ZbcTableSize;
     return NvResult::Success;
 }
 
