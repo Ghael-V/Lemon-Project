@@ -278,7 +278,10 @@ class SetupFragment : Fragment() {
             resetState = { homeViewModel.setShouldPageForward(false) }
         ) { if (it) pageForward() }
         // MainActivity raises this after installing firmware.
-        homeViewModel.checkKeys.collect(viewLifecycleOwner) {
+        homeViewModel.firmwareInstalled.collect(
+            viewLifecycleOwner,
+            resetState = { homeViewModel.setFirmwareInstalled(false) }
+        ) {
             if (it && ::firmwareCallback.isInitialized && NativeLibrary.isFirmwareAvailable()) {
                 firmwareCallback.onStepCompleted()
             }

@@ -409,6 +409,7 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                         cacheFirmwareDir.copyRecursively(firmwarePath, true)
                         NativeLibrary.initializeSystem(true)
                         homeViewModel.setCheckKeys(true)
+                        homeViewModel.setFirmwareInstalled(true)
                         getString(R.string.save_file_imported_success)
                     }
                 } catch (e: Exception) {

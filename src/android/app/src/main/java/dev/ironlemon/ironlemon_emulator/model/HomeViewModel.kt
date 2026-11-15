@@ -73,4 +73,15 @@ class HomeViewModel : ViewModel() {
     fun setCheckKeys(value: Boolean) {
         _checkKeys.value = value
     }
+
+    /**
+     * Firmware was just installed: the setup's firmware step is done. Its own signal, as
+     * MainActivity clears checkKeys the moment it handles it and the setup often never saw it.
+     */
+    private val _firmwareInstalled = MutableStateFlow(false)
+    val firmwareInstalled = _firmwareInstalled.asStateFlow()
+
+    fun setFirmwareInstalled(value: Boolean) {
+        _firmwareInstalled.value = value
+    }
 }
