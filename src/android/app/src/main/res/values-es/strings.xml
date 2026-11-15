@@ -643,7 +643,7 @@
     <string name="lemon_welcome_feature_migrate">Trae tus partidas de Eden o Citron</string>
     <string name="lemon_welcome_feature_savestate">Guardado rápido en cualquier juego</string>
     <string name="lemon_welcome_start">Empezar</string>
-    <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno</string>
+    <string name="lemon_welcome_subtitle">Switch en tu Android, afinado para Adreno y Mali</string>
     <string name="lemon_welcome_title">Bienvenido a Iron Lemon</string>
     <string name="logo_credit">Logo diseñado por Madeleine, que lo hizo de forma desinteresada y con muchísima paciencia. ¡Mil gracias, Madeleine!</string>
     <string name="patrons_thanks">¡Gracias a nuestros mecenas, Gi4nnelli, Xaphiron, Seak, Overlord, Lucky-Kris, Xefir, Pieguy744 y Wiz, por apoyar Lemon!</string>
@@ -658,7 +658,7 @@
 
     <!-- Iron Lemon welcome -->
     <string name="ironlemon_welcome_feature_core">El núcleo original de yuzu, sin los cambios de Eden</string>
-    <string name="ironlemon_welcome_feature_adreno">Los arreglos de Lemon para GPU Adreno y drivers de GPU propios</string>
+    <string name="ironlemon_welcome_feature_adreno">Los arreglos de Lemon para GPU Adreno y Mali, y drivers de GPU propios</string>
     <string name="ironlemon_welcome_feature_library">Una biblioteca rápida con tiempo de juego y favoritos</string>
 
     <string name="ironlemon_about_credits_body">Iron Lemon es el yuzu original, hecho por el equipo de yuzu, con las mejoras del equipo de Lemon. Gracias a todos los que lo hicieron posible.</string>
@@ -715,7 +715,7 @@
     <string name="emulation_quick_load_state_moved_past">El juego ya pasó este guardado. No se puede cargar. Haz un nuevo guardado rápido.</string>
     <!-- Descargador de drivers GPU -->
     <string name="driver_download_title">Descargar drivers</string>
-    <string name="driver_download_description">Drivers publicados en GitHub, listos para instalar. Solo las GPU Adreno pueden cargarlos.</string>
+    <string name="driver_download_description">Drivers publicados en GitHub, listos para instalar: Turnip para GPU Adreno y PanVK para GPU Mali (experimental).</string>
     <string name="driver_download_loading">Leyendo las versiones…</string>
     <string name="driver_download_list_failed">No se pudieron leer las versiones. Revisa la conexión e inténtalo de nuevo.</string>
     <string name="driver_download_retry">Reintentar</string>
