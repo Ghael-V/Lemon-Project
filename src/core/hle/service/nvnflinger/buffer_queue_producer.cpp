@@ -656,8 +656,26 @@ Status BufferQueueProducer::Query(NativeWindow what, s32* out_value) {
     case NativeWindow::ConsumerUsageBits:
         value = core->consumer_usage_bit;
         break;
+    // The rest as Android's BufferQueueProducer answers them.
+    case NativeWindow::DefaultWidth:
+        value = core->default_width;
+        break;
+    case NativeWindow::DefaultHeight:
+        value = core->default_height;
+        break;
+    case NativeWindow::QueuesToWindowComposer:
+    case NativeWindow::TransformHint:
+    case NativeWindow::BufferAge:
+        value = 0;
+        break;
+    case NativeWindow::ConcreteType:
+        value = 2; // NATIVE_WINDOW_SURFACE
+        break;
+    case NativeWindow::DefaultDataSpace:
+        value = 0; // Unknown: the consumer picks
+        break;
     default:
-        ASSERT(false);
+        LOG_WARNING(Service_Nvnflinger, "Unknown query {}", what);
         return Status::BadValue;
     }
 

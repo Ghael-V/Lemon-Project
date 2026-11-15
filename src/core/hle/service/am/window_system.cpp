@@ -160,7 +160,12 @@ void WindowSystem::PruneTerminatedAppletsLocked() {
 
         std::scoped_lock lk{applet->lock};
 
-        if (!applet->process->IsTerminated()) {
+        // A frontend (HLE) applet has no process to terminate: it is done once it completed.
+        // Without this they were never pruned and piled up for the whole game session. The
+        // game keeps its own reference through its ILibraryAppletAccessor.
+        const bool is_terminated = applet->process->IsTerminated() ||
+                                   (applet->frontend != nullptr && applet->is_completed);
+        if (!is_terminated) {
             // Not terminated.
             it = std::next(it);
             continue;
