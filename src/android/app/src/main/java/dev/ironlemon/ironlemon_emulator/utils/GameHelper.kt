@@ -44,6 +44,71 @@ object GameHelper {
         }
     }
 
+    /**
+     * The library from its saved list, without reading every game again: only the folders are
+     * listed. Files already in [cached] keep their entry and are just registered with the core
+     * (updates and DLC in the folders come from there); new files are read; files that are gone
+     * are dropped. A full scan stays for a refresh by hand or a change of folders.
+     */
+    @Synchronized
+    fun refreshFromCache(cached: List<Game>): List<Game> {
+        val context = YuzuApplication.appContext
+        preferences = PreferenceManager.getDefaultSharedPreferences(context)
+        val gameFiles = listGameFiles() ?: return getGames()
+
+        NativeLibrary.reloadKeys()
+        NativeLibrary.clearFilesystemProvider()
+
+        val byPath = cached.associateBy { it.path }
+        val newFiles = gameFiles.filter { it.uri.toString() !in byPath }
+        val games = mutableListOf<Game>()
+        gameFiles.forEach { file ->
+            byPath[file.uri.toString()]?.let {
+                NativeLibrary.addFileToFilesystemProvider(it.path)
+                games.add(it)
+            }
+        }
+        if (newFiles.isNotEmpty()) {
+            _scanProgress.value = ScanProgress(0, newFiles.size, "")
+            try {
+                newFiles.forEachIndexed { done, file ->
+                    _scanProgress.value = ScanProgress(done, newFiles.size, file.filename)
+                    getGame(file.uri, true)?.let { games.add(it) }
+                }
+            } finally {
+                _scanProgress.value = null
+            }
+        }
+        if (newFiles.isNotEmpty() || games.size != cached.size) {
+            saveGames(games)
+        }
+        Log.info(
+            "[GameHelper] Library from cache: ${games.size} games, ${newFiles.size} new, " +
+                "${cached.size - (games.size - newFiles.size)} gone"
+        )
+        return games
+    }
+
+    /** Every game file in the library folders, or null if a folder can no longer be read. */
+    private fun listGameFiles(): List<MinimalDocumentFile>? {
+        val pending = mutableListOf<MinimalDocumentFile>()
+        for (gameDir in NativeConfig.getGameDirs()) {
+            val gameDirUri = Uri.parse(gameDir.uriString)
+            if (!FileUtil.isTreeUriValid(gameDirUri)) {
+                return null // The full scan drops the folder from the settings.
+            }
+            collectFiles(FileUtil.listFiles(gameDirUri), if (gameDir.deepScan) 3 else 1, pending)
+        }
+        return pending.filter { Game.extensions.contains(FileUtil.getExtension(it.uri)) }
+    }
+
+    private fun saveGames(games: List<Game>) {
+        preferences.edit()
+            .remove(KEY_GAMES)
+            .putStringSet(KEY_GAMES, games.map { Json.encodeToString(it) }.toSet())
+            .apply()
+    }
+
     private fun scanGames(): List<Game> {
         val games = mutableListOf<Game>()
         val context = YuzuApplication.appContext
@@ -100,14 +165,7 @@ object GameHelper {
         NativeConfig.setGameDirs(gameDirs.toTypedArray())
 
         // Cache list of games found on disk
-        val serializedGames = mutableSetOf<String>()
-        games.forEach {
-            serializedGames.add(Json.encodeToString(it))
-        }
-        preferences.edit()
-            .remove(KEY_GAMES)
-            .putStringSet(KEY_GAMES, serializedGames)
-            .apply()
+        saveGames(games)
 
         return games.toList()
     }

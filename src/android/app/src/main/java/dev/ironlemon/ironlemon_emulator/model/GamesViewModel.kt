@@ -3,8 +3,6 @@
 
 package dev.ironlemon.ironlemon_emulator.model
 
-import android.net.Uri
-import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
@@ -96,30 +94,20 @@ class GamesViewModel : ViewModel() {
                         PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext)
                             .getStringSet(GameHelper.KEY_GAMES, emptySet())
                     if (storedGames!!.isNotEmpty()) {
-                        val deserializedGames = mutableSetOf<Game>()
-                        storedGames.forEach {
-                            val game: Game
-                            try {
-                                game = Json.decodeFromString(it)
-                            } catch (e: Exception) {
-                                // We don't care about any errors related to parsing the game cache
-                                return@forEach
-                            }
-
-                            val gameExists =
-                                DocumentFile.fromSingleUri(
-                                    YuzuApplication.appContext,
-                                    Uri.parse(game.path)
-                                )?.exists()
-                            if (gameExists == true) {
-                                deserializedGames.add(game)
-                            }
+                        val deserializedGames = storedGames.mapNotNull {
+                            // We don't care about any errors related to parsing the game cache
+                            runCatching { Json.decodeFromString<Game>(it) }.getOrNull()
                         }
-                        setGames(deserializedGames.toList())
-                        // The app was already open (the library came back after a game): the
-                        // cached list is the scan from a moment ago, no need to walk every folder
-                        // again. A refresh or a folder change still rescans.
-                        if (scannedThisSession && deserializedGames.isNotEmpty()) {
+                        // The saved list shows at once; the folders are only listed, not read
+                        // again (see GameHelper.refreshFromCache). Back from a game in the same
+                        // process, even that was done a moment ago. A refresh by hand or a change
+                        // of folders still scans everything.
+                        if (deserializedGames.isNotEmpty()) {
+                            setGames(deserializedGames)
+                            if (!scannedThisSession) {
+                                setGames(GameHelper.refreshFromCache(deserializedGames))
+                                scannedThisSession = true
+                            }
                             reloading.set(false)
                             _isReloading.value = false
                             return@withContext
