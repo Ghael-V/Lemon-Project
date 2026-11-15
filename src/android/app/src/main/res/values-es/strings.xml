@@ -954,8 +954,8 @@
     <string name="overlay_press_mode_toggle">Alternar: un toque lo mantiene pulsado, el siguiente lo suelta</string>
     <string name="overlay_press_mode_turbo">Turbo: se pulsa una y otra vez mientras lo mantienes</string>
     <string name="overlay_press_mode_hint">Toca un botón sin moverlo para elegir cómo se comporta.</string>
-    <string name="whats_new_title">Novedades de Lemon %1$s</string>
-    <string name="whats_new_body">Lemon 2.0 se basa en el núcleo original de yuzu, sin los cambios de Eden, con todo el trabajo de Lemon encima: bastante más rápido en Snapdragon.\n\n• Driver Lemon-Ade integrado y por defecto en Snapdragon\n• Generación de fotogramas Lemon FG (Ajustes &gt; Gráficos)\n• Arrancan juegos más nuevos: revisiones 12 a 15 del renderizador de audio\n• Atajos del mando, botones en pantalla con alternar y turbo, y mando en pantalla oculto automáticamente con uno físico\n• Migración de partidas, claves y firmware desde otro emulador\n• Actualizaciones desde el servidor propio de Lemon</string>
+    <string name="whats_new_title">Novedades de Iron Lemon %1$s</string>
+    <string name="whats_new_body">Iron Lemon 2.0 se basa en el núcleo original de yuzu, sin los cambios de Eden, con todo el trabajo de Lemon encima: bastante más rápido en Snapdragon.\n\n• Driver Lemon-Ade integrado y por defecto en Snapdragon\n• Generación de fotogramas Lemon FG (Ajustes &gt; Gráficos)\n• GPU Mali: texturas BCn recomprimidas para la GPU y descarga de drivers PanVK (experimental)\n• Arrancan juegos más nuevos: revisiones 12 a 15 del renderizador de audio\n• Atajos del mando, botones en pantalla con alternar y turbo, y mando en pantalla oculto automáticamente con uno físico\n• Migración de partidas, claves y firmware desde otro emulador\n• Actualizaciones desde el servidor propio de Lemon</string>
     <string name="overlay_presets">Diseños predefinidos</string>
     <string name="overlay_preset_default">Por defecto</string>
     <string name="overlay_preset_big">Botones grandes</string>
