@@ -3,6 +3,14 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
+import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
 import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -275,10 +283,10 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
-                    R.string.share_log,
-                    R.string.share_log_description,
+                    R.string.share_logs,
+                    R.string.share_logs_description,
                     R.drawable.ic_log,
-                    { shareLog() }
+                    { showShareLogsDialog() }
                 )
             )
             add(
@@ -403,6 +411,64 @@ class HomeSettingsFragment : Fragment() {
                 return
             }
             notify(0, builder.build())
+        }
+    }
+
+    /** One entry for both logs: asks which one to share (after Lemon d6b1ef2e13). */
+    private fun showShareLogsDialog() {
+        showIronLemonDialog(requireContext()) { dismiss ->
+            IronLemonDialogCard(
+                title = stringResource(R.string.share_logs),
+                buttons = {
+                    IronLemonButton(
+                        text = stringResource(android.R.string.cancel),
+                        height = 44.dp,
+                        onClick = dismiss
+                    )
+                }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IronLemonButton(
+                        text = stringResource(R.string.share_log),
+                        iconRes = R.drawable.ic_log,
+                        height = 48.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        dismiss()
+                        shareLog()
+                    }
+                    IronLemonButton(
+                        text = stringResource(R.string.share_crash_log),
+                        iconRes = R.drawable.ic_log,
+                        height = 48.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        dismiss()
+                        shareCrashLog()
+                    }
+                }
+            }
+        }
+    }
+
+    // The crash_log.txt the app's uncaught exception handler writes.
+    private fun shareCrashLog() {
+        val crashLog = DocumentFile.fromSingleUri(
+            mainActivity,
+            DocumentsContract.buildDocumentUri(
+                DocumentProvider.AUTHORITY,
+                "${DocumentProvider.ROOT_ID}/log/${YuzuApplication.CRASH_LOG_FILE}"
+            )
+        )!!
+        if (crashLog.exists()) {
+            val intent = Intent(Intent.ACTION_SEND)
+                .setDataAndType(crashLog.uri, FileUtil.TEXT_PLAIN)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(Intent.EXTRA_STREAM, crashLog.uri)
+            startActivity(Intent.createChooser(intent, getText(R.string.share_crash_log)))
+        } else {
+            Toast.makeText(requireContext(), getText(R.string.share_crash_log_missing), Toast.LENGTH_SHORT)
+                .show()
         }
     }
 

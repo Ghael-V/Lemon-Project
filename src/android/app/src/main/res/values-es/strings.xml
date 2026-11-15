@@ -987,4 +987,8 @@
     <string name="bcn_astc_recompression_description">En GPUs sin soporte de BCn (Mali, Xclipse), guarda las texturas BC1, BC2, BC3 y BC7 como ASTC, y las BC4 y BC5 como EAC, en lugar de sin comprimir. Usa de 2 a 8 veces menos memoria en los juegos que las usan; los detalles finos pueden verse algo más suaves. No hace nada en GPUs que soportan BCn.</string>
     <string name="driver_download_no_build">Todavía no hay un driver para esta GPU.</string>
     <string name="driver_source_panvk_fristonerr">Mesa PanVK para GPUs Mali (Mesa 27), de FristOneRR. Experimental.</string>
+    <string name="share_logs">Compartir registros</string>
+    <string name="share_logs_description">Envía el registro del emulador o el de cierres al informar de un problema</string>
+    <string name="share_crash_log">Compartir registro de cierres</string>
+    <string name="share_crash_log_missing">No se encontró ningún registro de cierres</string>
 </resources>

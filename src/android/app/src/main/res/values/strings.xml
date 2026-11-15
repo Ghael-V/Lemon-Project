@@ -1520,4 +1520,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="bcn_astc_recompression_description">On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC, and BC4 and BC5 as EAC, instead of uncompressed. Uses 2 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn.</string>
     <string name="driver_download_no_build">No driver build for this GPU yet.</string>
     <string name="driver_source_panvk_fristonerr">Mesa PanVK for Mali GPUs (Mesa 27), by FristOneRR. Experimental.</string>
+    <string name="share_logs">Share logs</string>
+    <string name="share_logs_description">Send the emulator log or the crash log when reporting a problem</string>
+    <string name="share_crash_log">Share crash log</string>
+    <string name="share_crash_log_missing">No crash log found</string>
 </resources>

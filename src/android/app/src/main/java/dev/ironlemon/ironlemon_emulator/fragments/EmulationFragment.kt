@@ -664,7 +664,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     SystemClock.elapsedRealtime() - started > FIRST_FRAME_TIMEOUT_MS
                 ) {
                     if (frames > 0) {
-                        BundledDriver.onFirstFrame()
+                        scheduleDriverVerification(frames)
                     }
                     firstFrameWatcher = null
                     ViewUtils.hideView(b.loadingIndicator)
@@ -746,6 +746,28 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private fun stopFirstFrameWatcher() {
         firstFrameWatcher?.let { firstFrameHandler.removeCallbacks(it) }
         firstFrameWatcher = null
+        driverVerification?.let { firstFrameHandler.removeCallbacks(it) }
+        driverVerification = null
+    }
+
+    private var driverVerification: Runnable? = null
+
+    /**
+     * The first frames are often black ones presented before the game draws anything, and a
+     * driver that can't render the game dies right after them. The bundled driver only counts as
+     * working once the game is still alive and presenting new frames a while later.
+     */
+    private fun scheduleDriverVerification(framesAtStart: Long) {
+        val check = Runnable {
+            driverVerification = null
+            if (_binding != null && !emulationViewModel.isEmulationStopping.value &&
+                NativeLibrary.getPresentedFrameCount() > framesAtStart
+            ) {
+                BundledDriver.onFirstFrame()
+            }
+        }
+        driverVerification = check
+        firstFrameHandler.postDelayed(check, DRIVER_VERIFY_DELAY_MS)
     }
 
     private fun showInGameMenuPanel() {
@@ -2029,6 +2051,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         private const val FIRST_FRAME_POLL_MS = 200L
         private const val FIRST_FRAME_TIMEOUT_MS = 60_000L
         private const val FIRST_FRAMES_SHOWN = 10L
+
+        // How long a game has to keep running with the bundled driver before it counts as working.
+        private const val DRIVER_VERIFY_DELAY_MS = 30_000L
 
         private const val ADAPTIVE_PERFORMANCE_NOTIFICATION_ID = 4242
 

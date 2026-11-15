@@ -130,7 +130,7 @@ object BundledDriver {
         preferences.edit(commit = true) { putBoolean(PREF_BOOT_PENDING, true) }
     }
 
-    /** First frame rendered: the bundled driver works on this device. */
+    /** The game kept rendering with it for a while: the bundled driver works on this device. */
     fun onFirstFrame() {
         if (preferences.getBoolean(PREF_BOOT_PENDING, false)) {
             preferences.edit {
