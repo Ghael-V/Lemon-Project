@@ -195,6 +195,7 @@ private:
     KProcessAddress m_current_heap_end{};
     KProcessAddress m_alias_region_start{};
     KProcessAddress m_alias_region_end{};
+    size_t m_alias_region_extra_size{};
     KProcessAddress m_stack_region_start{};
     KProcessAddress m_stack_region_end{};
     KProcessAddress m_kernel_map_region_start{};
@@ -689,6 +690,9 @@ public:
     }
     size_t GetAliasRegionSize() const {
         return m_alias_region_end - m_alias_region_start;
+    }
+    size_t GetAliasRegionExtraSize() const {
+        return m_alias_region_extra_size;
     }
     size_t GetStackRegionSize() const {
         return m_stack_region_end - m_stack_region_start;

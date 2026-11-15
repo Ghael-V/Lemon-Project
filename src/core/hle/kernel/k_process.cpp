@@ -310,7 +310,9 @@ Result KProcess::Initialize(const Svc::CreateProcessParameter& params, const KPa
 
     // Setup page table.
     {
-        const auto as_type = params.flags & Svc::CreateProcessFlag::AddressSpaceMask;
+        const auto as_type =
+            params.flags & (Svc::CreateProcessFlag::AddressSpaceMask |
+                            Svc::CreateProcessFlag::EnableAliasRegionExtraSize);
         const bool enable_aslr = True(params.flags & Svc::CreateProcessFlag::EnableAslr);
         const bool enable_das_merge =
             False(params.flags & Svc::CreateProcessFlag::DisableDeviceAddressSpaceMerge);
@@ -407,7 +409,9 @@ Result KProcess::Initialize(const Svc::CreateProcessParameter& params,
 
     // Setup page table.
     {
-        const auto as_type = params.flags & Svc::CreateProcessFlag::AddressSpaceMask;
+        const auto as_type =
+            params.flags & (Svc::CreateProcessFlag::AddressSpaceMask |
+                            Svc::CreateProcessFlag::EnableAliasRegionExtraSize);
         const bool enable_aslr = True(params.flags & Svc::CreateProcessFlag::EnableAslr);
         const bool enable_das_merge =
             False(params.flags & Svc::CreateProcessFlag::DisableDeviceAddressSpaceMerge);
@@ -1222,6 +1226,9 @@ Result KProcess::LoadFromMetadata(const FileSys::ProgramMetadata& metadata, std:
     switch (metadata.GetAddressSpaceType()) {
     case FileSys::ProgramAddressSpaceType::Is39Bit:
         flag |= Svc::CreateProcessFlag::AddressSpace64Bit;
+        if (metadata.IsAliasRegionExtraSizeEnabled()) {
+            flag |= Svc::CreateProcessFlag::EnableAliasRegionExtraSize;
+        }
 
         // For 39-bit processes, the ASLR region starts at 0x800'0000 and is ~512GiB large.
         // However, some (buggy) programs/libraries like skyline incorrectly depend on the

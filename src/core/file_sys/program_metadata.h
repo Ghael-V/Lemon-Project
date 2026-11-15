@@ -73,6 +73,7 @@ public:
 
     bool Is64BitProgram() const;
     ProgramAddressSpaceType GetAddressSpaceType() const;
+    bool IsAliasRegionExtraSizeEnabled() const;
     u8 GetMainThreadPriority() const;
     u8 GetMainThreadCore() const;
     u32 GetMainThreadStackSize() const;
@@ -96,7 +97,10 @@ private:
 
             BitField<0, 1, u8> has_64_bit_instructions;
             BitField<1, 3, ProgramAddressSpaceType> address_space_type;
-            BitField<4, 4, u8> reserved_2;
+            BitField<4, 1, u8> optimize_memory_allocation;
+            BitField<5, 1, u8> disable_device_address_space_merge;
+            BitField<6, 1, u8> enable_alias_region_extra_size; // 18.0.0+
+            BitField<7, 1, u8> prevent_code_reads;             // 19.0.0+
         };
         u8 reserved_3;
         u8 main_thread_priority;

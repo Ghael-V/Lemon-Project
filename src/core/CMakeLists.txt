@@ -1176,7 +1176,7 @@ else()
     )
 endif()
 
-target_link_libraries(core PUBLIC common PRIVATE audio_core hid_core network video_core nx_tzdb tz)
+target_link_libraries(core PUBLIC common PRIVATE audio_core hid_core network video_core nx_tzdb tz ZLIB::ZLIB)
 target_link_libraries(core PUBLIC Boost::headers PRIVATE fmt::fmt nlohmann_json::nlohmann_json mbedtls RenderDoc::API)
 if (MINGW)
     target_link_libraries(core PRIVATE ${MSWSOCK_LIBRARY})

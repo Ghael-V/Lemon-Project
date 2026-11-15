@@ -241,9 +241,14 @@ Result KPageTableBase::InitializeForProcess(Svc::CreateProcessFlag as_type, bool
     KProcessAddress process_code_end;
     size_t stack_region_size;
     size_t kernel_map_region_size;
+    m_alias_region_extra_size = 0;
     if (m_address_space_width == 39) {
         alias_region_size = GetSpaceSize(KAddressSpaceInfo::Type::Alias);
         heap_region_size = GetSpaceSize(KAddressSpaceInfo::Type::Heap);
+        if (True(as_type & Svc::CreateProcessFlag::EnableAliasRegionExtraSize)) {
+            m_alias_region_extra_size = (GetInteger(end) - GetInteger(start)) / 8;
+            alias_region_size += m_alias_region_extra_size;
+        }
         stack_region_size = GetSpaceSize(KAddressSpaceInfo::Type::Stack);
         kernel_map_region_size = GetSpaceSize(KAddressSpaceInfo::Type::MapSmall);
         m_code_region_start = m_address_space_start + aslr_space_start +

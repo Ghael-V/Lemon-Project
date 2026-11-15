@@ -52,6 +52,22 @@ namespace Common::Compression {
 [[nodiscard]] std::size_t DecompressDataZSTD(std::span<const u8> compressed, std::span<u8> output);
 
 /**
+ * Decompresses ZBIC data: the zstd 1.5.7 variant that NSO segments use since firmware 22.0.0. Its
+ * frames are standard zstd frames whose magic number reads "ZBIC" instead of 0xFD2FB528, so each
+ * frame's magic is restored and the frame is decoded with the regular library.
+ *
+ * @param compressed the ZBIC data (one or more frames).
+ * @param uncompressed_size the exact size of the decompressed data.
+ *
+ * @return the decompressed data, or an empty vector if it is invalid or its size differs.
+ */
+[[nodiscard]] std::vector<u8> DecompressDataZBIC(std::span<const u8> compressed,
+                                                 std::size_t uncompressed_size);
+
+/// True if the data starts with a ZBIC frame.
+[[nodiscard]] bool IsZBIC(std::span<const u8> data);
+
+/**
  * Incremental Zstandard decompressor for sources too large to hold fully in memory (e.g.
  * multi-gigabyte NCZ payloads). The caller feeds compressed bytes via FeedInput() and pulls
  * decompressed bytes via Decompress(); FeedInput() must only be called again once NeedsMoreInput()

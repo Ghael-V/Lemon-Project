@@ -419,6 +419,9 @@ public:
     size_t GetAliasRegionSize() const {
         return m_page_table.GetAliasRegionSize();
     }
+    size_t GetAliasRegionExtraSize() const {
+        return m_page_table.GetAliasRegionExtraSize();
+    }
     size_t GetStackRegionSize() const {
         return m_page_table.GetStackRegionSize();
     }

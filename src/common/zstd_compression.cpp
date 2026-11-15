@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <memory>
+#include <array>
 #include <vector>
 #include <zstd.h>
 
@@ -119,6 +121,65 @@ std::size_t ZSTDStreamDecompressor::Decompress(std::span<u8> output) {
 
 bool ZSTDStreamDecompressor::HasError() const {
     return impl->error;
+}
+
+namespace {
+// Frame magic numbers, as stored (little endian).
+constexpr std::array<u8, 4> ZstdFrameMagic{0x28, 0xB5, 0x2F, 0xFD};
+constexpr std::array<u8, 4> ZbicFrameMagic{'Z', 'B', 'I', 'C'};
+
+bool HasMagic(std::span<const u8> data, const std::array<u8, 4>& magic) {
+    return data.size() >= magic.size() && std::equal(magic.begin(), magic.end(), data.begin());
+}
+} // Anonymous namespace
+
+bool IsZBIC(std::span<const u8> data) {
+    return HasMagic(data, ZbicFrameMagic);
+}
+
+std::vector<u8> DecompressDataZBIC(std::span<const u8> compressed, std::size_t uncompressed_size) {
+    // One copy of the input, whose frame magics are then rewritten in place.
+    std::vector<u8> frames(compressed.begin(), compressed.end());
+    std::vector<u8> output(uncompressed_size);
+
+    std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> context{ZSTD_createDCtx(),
+                                                                 ZSTD_freeDCtx};
+    if (!context) {
+        return {};
+    }
+
+    std::size_t in_offset = 0;
+    std::size_t out_offset = 0;
+    while (in_offset < frames.size()) {
+        const std::span<u8> rest{frames.data() + in_offset, frames.size() - in_offset};
+        if (HasMagic(rest, ZbicFrameMagic)) {
+            std::copy(ZstdFrameMagic.begin(), ZstdFrameMagic.end(), rest.begin());
+        } else if (!HasMagic(rest, ZstdFrameMagic)) {
+            // Trailing alignment padding after the last frame.
+            if (std::all_of(rest.begin(), rest.end(), [](u8 b) { return b == 0; })) {
+                break;
+            }
+            return {};
+        }
+
+        const std::size_t frame_size = ZSTD_findFrameCompressedSize(rest.data(), rest.size());
+        if (ZSTD_isError(frame_size)) {
+            return {};
+        }
+        const std::size_t written =
+            ZSTD_decompressDCtx(context.get(), output.data() + out_offset,
+                                output.size() - out_offset, rest.data(), frame_size);
+        if (ZSTD_isError(written)) {
+            return {};
+        }
+        in_offset += frame_size;
+        out_offset += written;
+    }
+
+    if (out_offset != uncompressed_size) {
+        return {};
+    }
+    return output;
 }
 
 } // namespace Common::Compression

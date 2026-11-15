@@ -9,6 +9,7 @@
 #include "common/hex_util.h"
 #include "common/logging/log.h"
 #include "common/lz4_compression.h"
+#include "common/zstd_compression.h"
 #include "common/settings.h"
 #include "common/swap.h"
 #include "core/core.h"
@@ -38,9 +39,12 @@ struct MODHeader {
 static_assert(sizeof(MODHeader) == 0x1c, "MODHeader has incorrect size.");
 
 std::vector<u8> DecompressSegment(const std::vector<u8>& compressed_data,
-                                  const NSOSegmentHeader& header) {
+                                  const NSOSegmentHeader& header, bool zbic) {
+    // The flag marks ZBIC segments; a segment that starts with a ZBIC frame is one too.
     std::vector<u8> uncompressed_data =
-        Common::Compression::DecompressDataLZ4(compressed_data, header.size);
+        zbic || Common::Compression::IsZBIC(compressed_data)
+            ? Common::Compression::DecompressDataZBIC(compressed_data, header.size)
+            : Common::Compression::DecompressDataLZ4(compressed_data, header.size);
 
     ASSERT_MSG(uncompressed_data.size() == header.size, "{} != {}", header.size,
                uncompressed_data.size());
@@ -56,6 +60,10 @@ constexpr u32 PageAlignSize(u32 size) {
 bool NSOHeader::IsSegmentCompressed(size_t segment_num) const {
     ASSERT_MSG(segment_num < 3, "Invalid segment {}", segment_num);
     return ((flags >> segment_num) & 1) != 0;
+}
+
+bool NSOHeader::IsZBICCompressed() const {
+    return ((flags >> 7) & 1) != 0;
 }
 
 AppLoader_NSO::AppLoader_NSO(FileSys::VirtualFile file_) : AppLoader(std::move(file_)) {}
@@ -112,7 +120,8 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::KProcess& process, Core::
         std::vector<u8> data = nso_file.ReadBytes(nso_header.segments_compressed_size[i],
                                                   nso_header.segments[i].offset);
         if (nso_header.IsSegmentCompressed(i)) {
-            data = DecompressSegment(data, nso_header.segments[i]);
+            data = DecompressSegment(data, nso_header.segments[i],
+                                     nso_header.IsZBICCompressed());
         }
         program_image.resize(module_start + nso_header.segments[i].location +
                              static_cast<u32>(data.size()));

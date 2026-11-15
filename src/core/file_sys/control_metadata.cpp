@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstring>
+#include <zlib.h>
+#include "common/logging/log.h"
 #include "common/settings.h"
 #include "common/string_util.h"
 #include "common/swap.h"
@@ -63,6 +66,40 @@ NACP::NACP() = default;
 
 NACP::NACP(VirtualFile file) {
     file->ReadObject(&raw);
+    ResolveTitles();
+}
+
+void NACP::ResolveTitles() {
+    constexpr std::size_t TitleBlockSize = sizeof(RawNACP::language_entries);
+    const auto* block = reinterpret_cast<const u8*>(raw.language_entries.data());
+
+    // 20.0.0+: a u16 compressed size, then a raw deflate stream of up to 32 entries.
+    if (raw.title_compression == 1) {
+        u16 compressed_size{};
+        std::memcpy(&compressed_size, block, sizeof(compressed_size));
+        if (compressed_size != 0 && compressed_size <= TitleBlockSize - sizeof(compressed_size)) {
+            z_stream stream{};
+            if (inflateInit2(&stream, -MAX_WBITS) == Z_OK) {
+                stream.next_in = const_cast<Bytef*>(block + sizeof(compressed_size));
+                stream.avail_in = compressed_size;
+                stream.next_out = reinterpret_cast<Bytef*>(titles.data());
+                stream.avail_out = static_cast<uInt>(sizeof(titles));
+                const int result = inflate(&stream, Z_FINISH);
+                const std::size_t produced = sizeof(titles) - stream.avail_out;
+                inflateEnd(&stream);
+                if ((result == Z_STREAM_END || result == Z_BUF_ERROR) &&
+                    produced >= sizeof(LanguageEntry)) {
+                    title_count = produced / sizeof(LanguageEntry);
+                    return;
+                }
+            }
+        }
+        LOG_WARNING(Service_FS, "NACP title block marked compressed but could not be inflated");
+        titles = {};
+    }
+
+    std::memcpy(titles.data(), block, TitleBlockSize);
+    title_count = raw.language_entries.size();
 }
 
 NACP::~NACP() = default;
@@ -71,18 +108,18 @@ const LanguageEntry& NACP::GetLanguageEntry() const {
     Language language =
         language_to_codes[static_cast<s32>(Settings::values.language_index.GetValue())];
 
-    {
-        const auto& language_entry = raw.language_entries.at(static_cast<u8>(language));
+    if (static_cast<std::size_t>(language) < title_count) {
+        const auto& language_entry = titles[static_cast<u8>(language)];
         if (!language_entry.GetApplicationName().empty())
             return language_entry;
     }
 
-    for (const auto& language_entry : raw.language_entries) {
-        if (!language_entry.GetApplicationName().empty())
-            return language_entry;
+    for (std::size_t i = 0; i < title_count; ++i) {
+        if (!titles[i].GetApplicationName().empty())
+            return titles[i];
     }
 
-    return raw.language_entries.at(static_cast<u8>(Language::AmericanEnglish));
+    return titles[static_cast<u8>(Language::AmericanEnglish)];
 }
 
 std::string NACP::GetApplicationName() const {

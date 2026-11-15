@@ -144,6 +144,10 @@ ProgramAddressSpaceType ProgramMetadata::GetAddressSpaceType() const {
     return npdm_header.address_space_type;
 }
 
+bool ProgramMetadata::IsAliasRegionExtraSizeEnabled() const {
+    return npdm_header.enable_alias_region_extra_size.As<bool>();
+}
+
 u8 ProgramMetadata::GetMainThreadPriority() const {
     return npdm_header.main_thread_priority;
 }

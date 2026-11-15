@@ -37,7 +37,8 @@ Result GetInfo(Core::System& system, u64* result, InfoType info_id_type, Handle 
     case InfoType::TotalNonSystemMemorySize:
     case InfoType::UsedNonSystemMemorySize:
     case InfoType::IsApplication:
-    case InfoType::FreeThreadCount: {
+    case InfoType::FreeThreadCount:
+    case InfoType::AliasRegionExtraSize: {
         R_UNLESS(info_sub_id == 0, ResultInvalidEnumValue);
 
         const auto& handle_table = GetCurrentProcess(system.Kernel()).GetHandleTable();
@@ -59,6 +60,10 @@ Result GetInfo(Core::System& system, u64* result, InfoType info_id_type, Handle 
 
         case InfoType::AliasRegionSize:
             *result = process->GetPageTable().GetAliasRegionSize();
+            R_SUCCEED();
+
+        case InfoType::AliasRegionExtraSize:
+            *result = process->GetPageTable().GetAliasRegionExtraSize();
             R_SUCCEED();
 
         case InfoType::HeapRegionAddress:
