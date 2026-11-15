@@ -26,8 +26,8 @@ object CheatDatabase {
         /** Atmosphere cheat text for the build, with the master code first. */
         data class Found(val text: String) : Result
 
-        /** The game is in the database, but not with this build. */
-        data object OtherVersions : Result
+        /** The game is in the database, but not with this build: [count] other builds have cheats. */
+        data class OtherVersions(val count: Int) : Result
 
         /** The database has nothing for this game. */
         data object NotFound : Result
@@ -75,15 +75,17 @@ object CheatDatabase {
             }
             try {
                 val builds = JSONObject(body)
+                // Every key but "attribution" is a build ID.
+                val otherBuilds = builds.keys().asSequence().count { it != "attribution" }
                 val cheats = builds.keys().asSequence()
                     .firstOrNull { it.equals(buildId, ignoreCase = true) }
                     ?.let { builds.getJSONObject(it) }
-                    ?: return@withContext Result.OtherVersions
+                    ?: return@withContext Result.OtherVersions(otherBuilds)
                 // The master code first, as in an Atmosphere file.
                 val names = cheats.keys().asSequence().toList()
                     .sortedBy { if (it.startsWith("{")) 0 else 1 }
                 val text = names.joinToString("\n") { cheats.getString(it).trim() + "\n" }
-                if (text.isBlank()) Result.OtherVersions else Result.Found(text)
+                if (text.isBlank()) Result.OtherVersions(otherBuilds - 1) else Result.Found(text)
             } catch (e: Exception) {
                 Log.warning("[CheatDatabase] Unreadable ${kind.directory}/$titleId: $e")
                 Result.Failed

@@ -386,8 +386,9 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
             if (!isAdded) {
                 return@launch
             }
-            status = getString(R.string.cheats_build_id, buildId)
             val outcomes = results.map { it.second }
+            val otherBuilds = outcomes.filterIsInstance<CheatDatabase.Result.OtherVersions>()
+                .maxOfOrNull { it.count } ?: 0
             val message = when {
                 added > 0 -> resources.getQuantityString(R.plurals.cheats_downloaded, added, added)
                 saveFailed -> getString(R.string.cheats_save_failed)
@@ -395,8 +396,12 @@ class CheatsDialogFragment : IronLemonComposeDialogFragment() {
                     getString(R.string.cheats_download_failed)
                 outcomes.all { it is CheatDatabase.Result.NotFound } ->
                     getString(R.string.cheats_download_not_found)
-                else -> getString(R.string.cheats_download_other_versions, buildId)
+                else -> resources.getQuantityString(
+                    R.plurals.cheats_download_other_builds, otherBuilds, buildId, otherBuilds
+                )
             }
+            // Kept in the dialog: a toast alone was easy to miss.
+            status = if (added > 0) getString(R.string.cheats_build_id, buildId) else message
             Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             if (added > 0) {
                 refreshList()

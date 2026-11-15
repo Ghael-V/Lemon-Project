@@ -1727,7 +1727,14 @@ std::optional<FileSys::PatchManager::BuildID> ReadMainBuildId(Core::System& syst
     switch (loader->GetFileType()) {
     case Loader::FileType::NSP: {
         const FileSys::NSP nsp{file, program_id};
-        exefs = nsp.GetExeFS();
+        // A file that bundles the update runs the update's executable.
+        if (const auto update = nsp.GetNCA(FileSys::GetUpdateTitleID(program_id),
+                                           FileSys::ContentRecordType::Program)) {
+            exefs = update->GetExeFS();
+        }
+        if (exefs == nullptr) {
+            exefs = nsp.GetExeFS();
+        }
         if (exefs == nullptr) {
             if (const auto nca = nsp.GetNCA(program_id, FileSys::ContentRecordType::Program)) {
                 exefs = nca->GetExeFS();
@@ -1737,8 +1744,17 @@ std::optional<FileSys::PatchManager::BuildID> ReadMainBuildId(Core::System& syst
     }
     case Loader::FileType::XCI: {
         const FileSys::XCI xci{file, program_id};
-        if (const auto nca_file = xci.GetProgramNCAFile()) {
-            exefs = FileSys::NCA{nca_file}.GetExeFS();
+        // An XCI with its update in the secure partition ("1G+1U") runs the update's executable.
+        if (const auto secure = xci.GetSecurePartitionNSP()) {
+            if (const auto update = secure->GetNCA(FileSys::GetUpdateTitleID(program_id),
+                                                   FileSys::ContentRecordType::Program)) {
+                exefs = update->GetExeFS();
+            }
+        }
+        if (exefs == nullptr) {
+            if (const auto nca_file = xci.GetProgramNCAFile()) {
+                exefs = FileSys::NCA{nca_file}.GetExeFS();
+            }
         }
         break;
     }
