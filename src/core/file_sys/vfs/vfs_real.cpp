@@ -14,6 +14,9 @@
 #include "core/file_sys/vfs/vfs_real.h"
 
 // For FileTimeStampRaw
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
 #include <sys/stat.h>
 
 #ifdef _MSC_VER
@@ -30,7 +33,23 @@ namespace FS = Common::FS;
 
 namespace {
 
-constexpr size_t MaxOpenFiles = 512;
+// Host files kept open at once (the rest are closed and reopened on use). A quarter of the
+// process's descriptor limit, between 512 and 8192: games with many files no longer reopen them
+// all the time, and the emulator keeps plenty of descriptors for everything else.
+size_t MaxOpenFiles() {
+    static const size_t limit = [] {
+        constexpr size_t Minimum = 512;
+        constexpr size_t Maximum = 8192;
+#ifndef _WIN32
+        rlimit rl{};
+        if (getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY) {
+            return std::clamp<size_t>(static_cast<size_t>(rl.rlim_cur) / 4, Minimum, Maximum);
+        }
+#endif
+        return Minimum;
+    }();
+    return limit;
+}
 
 constexpr FS::FileAccessMode ModeFlagsToFileAccessMode(OpenMode mode) {
     switch (mode) {
@@ -233,7 +252,7 @@ void RealVfsFilesystem::DropReference(std::unique_ptr<FileReference>&& reference
 }
 
 void RealVfsFilesystem::EvictSingleReferenceLocked() {
-    if (num_open_files < MaxOpenFiles || open_references.empty()) {
+    if (num_open_files < MaxOpenFiles() || open_references.empty()) {
         return;
     }
 

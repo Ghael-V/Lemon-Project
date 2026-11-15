@@ -96,9 +96,19 @@ std::string SaveDataFactory::GetSaveDataSpaceIdPath(SaveDataSpaceId space) {
         return "/user/";
     case SaveDataSpaceId::Temporary:
         return "/temp/";
+    // The SD card and the system's other save spaces get folders of their own: games and the
+    // system ask for them on newer firmware.
+    case SaveDataSpaceId::SdSystem:
+        return "/sd_system/";
+    case SaveDataSpaceId::SdUser:
+        return "/sd_user/";
+    case SaveDataSpaceId::ProperSystem:
+        return "/proper_system/";
+    case SaveDataSpaceId::SafeMode:
+        return "/safe_mode/";
     default:
-        ASSERT_MSG(false, "Unrecognized SaveDataSpaceId: {:02X}", static_cast<u8>(space));
-        return "/unrecognized/"; ///< To prevent corruption when ignoring asserts.
+        LOG_WARNING(Service_FS, "Unrecognized SaveDataSpaceId: {:02X}", static_cast<u8>(space));
+        return "/unrecognized/";
     }
 }
 
@@ -138,8 +148,12 @@ std::string SaveDataFactory::GetFullPath(ProgramId program_id, VirtualDir dir,
                            title_id);
     case SaveDataType::Cache:
         return fmt::format("{}save/cache/{:016X}", out, title_id);
+    case SaveDataType::Bcat:
+        return fmt::format("{}save/bcat/{:016X}", out, title_id);
+    case SaveDataType::SystemBcat:
+        return fmt::format("{}save/{:016X}/bcat", out, save_id);
     default:
-        ASSERT_MSG(false, "Unrecognized SaveDataType: {:02X}", static_cast<u8>(type));
+        LOG_WARNING(Service_FS, "Unrecognized SaveDataType: {:02X}", static_cast<u8>(type));
         return fmt::format("{}save/unknown_{:X}/{:016X}", out, static_cast<u8>(type), title_id);
     }
 }

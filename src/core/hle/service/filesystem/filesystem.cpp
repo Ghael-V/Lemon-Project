@@ -94,6 +94,12 @@ Result VfsDirectoryServiceWrapper::DeleteFile(const std::string& path_) const {
 Result VfsDirectoryServiceWrapper::CreateDirectory(const std::string& path_) const {
     std::string path(Common::FS::SanitizePath(path_));
 
+    // As on the console: games check for this to tell their data was already set up.
+    if (GetDirectoryRelativeWrapped(backing, path) != nullptr ||
+        backing->GetFileRelative(path) != nullptr) {
+        return FileSys::ResultPathAlreadyExists;
+    }
+
     // NOTE: This is inaccurate behavior. CreateDirectory is not recursive.
     // CreateDirectory should return PathNotFound if the parent directory does not exist.
     // This is here temporarily in order to have UMM "work" in the meantime.
@@ -202,14 +208,30 @@ Result VfsDirectoryServiceWrapper::RenameDirectory(const std::string& src_path_,
         return ResultSuccess;
     }
 
-    // TODO(DarkLordZach): Implement renaming across the tree (move).
-    ASSERT_MSG(false,
-               "Could not rename directory with path \"{}\" to new path \"{}\" because parent dirs "
-               "don't match -- UNIMPLEMENTED",
-               src_path, dest_path);
-
-    // TODO(DarkLordZach): Find a better error code for this
-    return ResultUnknown;
+    // Across parents: copy the tree to the new place, then delete the source.
+    if (src == nullptr) {
+        return FileSys::ResultPathNotFound;
+    }
+    if (GetDirectoryRelativeWrapped(backing, dest_path) != nullptr ||
+        backing->GetFileRelative(dest_path) != nullptr) {
+        return FileSys::ResultPathAlreadyExists;
+    }
+    auto dest_parent = GetDirectoryRelativeWrapped(backing, Common::FS::GetParentPath(dest_path));
+    if (dest_parent == nullptr) {
+        return FileSys::ResultPathNotFound;
+    }
+    auto dest = dest_parent->CreateSubdirectory(Common::FS::GetFilename(dest_path));
+    if (dest == nullptr || !FileSys::VfsRawCopyD(src, dest)) {
+        LOG_ERROR(Service_FS, "Could not move directory \"{}\" to \"{}\"", src_path, dest_path);
+        return ResultUnknown;
+    }
+    auto src_parent = GetDirectoryRelativeWrapped(backing, Common::FS::GetParentPath(src_path));
+    if (src_parent == nullptr ||
+        !src_parent->DeleteSubdirectoryRecursive(Common::FS::GetFilename(src_path))) {
+        LOG_WARNING(Service_FS, "Moved \"{}\" to \"{}\" but could not delete the source",
+                    src_path, dest_path);
+    }
+    return ResultSuccess;
 }
 
 Result VfsDirectoryServiceWrapper::OpenFile(FileSys::VirtualFile* out_file,
