@@ -1473,7 +1473,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="boot_into_qlaunch_description">Opening the app boots the console\'s home menu. Needs the firmware.</string>
     <string name="qlaunch_not_found">The installed firmware has no QLaunch</string>
     <string name="bundled_driver_reverted_title">Back to the system GPU driver</string>
-    <string name="bundled_driver_reverted_description">The built-in Lemon-Ade driver closed the app before the game showed anything, so Lemon went back to your device\'s own driver. You can pick another driver in Settings &gt; GPU driver manager.</string>
+    <string name="bundled_driver_reverted_description">The selected GPU driver closed the app before the game could run, so it went back to your device\'s own driver. You can pick another driver in Settings &gt; GPU driver manager.</string>
     <string name="input_overlay_mode">On-screen controller</string>
     <string name="input_overlay_mode_description">Automatic shows it only when no physical controller is connected or built in.</string>
     <string name="input_overlay_mode_automatic">Automatic</string>

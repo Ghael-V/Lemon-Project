@@ -37,6 +37,11 @@ object BundledDriver {
     private const val PREF_FAILED = "bundled_driver_failed"
     private const val PREF_INSTALLED_NAME = "bundled_driver_installed_name"
 
+    // Any custom driver, bundled or not, is watched the same way until it has run a game: the
+    // driver a launch started with, and the drivers that have already worked on this device.
+    private const val PREF_PENDING_PATH = "custom_driver_boot_pending_path"
+    private const val PREF_VERIFIED_PATHS = "custom_driver_verified_paths"
+
     private val preferences
         get() = PreferenceManager.getDefaultSharedPreferences(YuzuApplication.appContext)
 
@@ -69,19 +74,25 @@ object BundledDriver {
             }
         }
 
-        // A launch with the unverified bundled driver died before rendering anything.
+        // A launch with an unverified custom driver died before the game rendered for a while.
         if (preferences.getBoolean(PREF_BOOT_PENDING, false)) {
+            val failedPath = preferences.getString(PREF_PENDING_PATH, null) ?: path
             preferences.edit {
                 putBoolean(PREF_BOOT_PENDING, false)
-                putBoolean(PREF_FAILED, true)
-                putBoolean(PREF_DECIDED, true)
+                remove(PREF_PENDING_PATH)
+                if (failedPath == path) {
+                    putBoolean(PREF_FAILED, true)
+                    putBoolean(PREF_DECIDED, true)
+                }
             }
-            if (isSelectedGlobally(path)) {
+            if (isSelectedGlobally(failedPath)) {
                 StringSetting.DRIVER_PATH.setString("")
                 NativeConfig.saveGlobalConfig()
-                Log.warning("[BundledDriver] $name never reached a first frame, back to the system driver")
+                Log.warning("[BundledDriver] $failedPath died before rendering, back to the system driver")
                 return true
             }
+            // A per-game driver: that game's own setting, left for the user to change.
+            Log.warning("[BundledDriver] Per-game driver $failedPath died before rendering")
             return false
         }
 
@@ -118,32 +129,53 @@ object BundledDriver {
         return false
     }
 
-    /** Called right before a game starts, once the driver for it has been decided. */
+    private fun isVerified(path: String): Boolean =
+        (path == installedPath() && preferences.getBoolean(PREF_VERIFIED, false)) ||
+            preferences.getStringSet(PREF_VERIFIED_PATHS, emptySet())!!.contains(path)
+
+    /**
+     * Called right before a game starts, once the driver for it (global or per-game) has been
+     * decided. Any custom driver that hasn't run a game on this device yet is watched: imported
+     * settings and downloaded drivers can pick one that takes the app down at every launch.
+     */
     fun onEmulationStarting() {
-        val path = installedPath() ?: return
-        if (StringSetting.DRIVER_PATH.getString() != path ||
-            preferences.getBoolean(PREF_VERIFIED, false)
-        ) {
+        val path = StringSetting.DRIVER_PATH.getString()
+        if (path.isEmpty() || isVerified(path)) {
             return
         }
         // commit(), not apply(): this has to be on disk before the driver can take the app down.
-        preferences.edit(commit = true) { putBoolean(PREF_BOOT_PENDING, true) }
+        preferences.edit(commit = true) {
+            putBoolean(PREF_BOOT_PENDING, true)
+            putString(PREF_PENDING_PATH, path)
+        }
     }
 
-    /** The game kept rendering with it for a while: the bundled driver works on this device. */
+    /** The game kept rendering with it for a while: the driver works on this device. */
     fun onFirstFrame() {
-        if (preferences.getBoolean(PREF_BOOT_PENDING, false)) {
-            preferences.edit {
-                putBoolean(PREF_BOOT_PENDING, false)
+        if (!preferences.getBoolean(PREF_BOOT_PENDING, false)) {
+            return
+        }
+        val path = preferences.getString(PREF_PENDING_PATH, null)
+        val verified = preferences.getStringSet(PREF_VERIFIED_PATHS, emptySet())!!
+        preferences.edit {
+            putBoolean(PREF_BOOT_PENDING, false)
+            remove(PREF_PENDING_PATH)
+            if (path != null) {
+                putStringSet(PREF_VERIFIED_PATHS, verified + path)
+            }
+            if (path == null || path == installedPath()) {
                 putBoolean(PREF_VERIFIED, true)
             }
         }
     }
 
-    /** Emulation stopped normally before a first frame: not a driver failure. */
+    /** Emulation stopped by the user before that: not a driver failure. */
     fun onEmulationStopped() {
         if (preferences.getBoolean(PREF_BOOT_PENDING, false)) {
-            preferences.edit { putBoolean(PREF_BOOT_PENDING, false) }
+            preferences.edit {
+                putBoolean(PREF_BOOT_PENDING, false)
+                remove(PREF_PENDING_PATH)
+            }
         }
     }
 
