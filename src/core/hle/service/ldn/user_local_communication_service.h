@@ -51,6 +51,7 @@ private:
                        OutArray<NetworkInfo, BufferAttr_HipcAutoSelect> out_network_info);
 
     Result SetWirelessControllerRestriction(WirelessControllerRestriction wireless_restriction);
+    Result SetProtocol(u32 protocol);
 
     Result OpenAccessPoint();
 

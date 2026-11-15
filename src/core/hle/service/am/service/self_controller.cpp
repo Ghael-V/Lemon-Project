@@ -53,14 +53,14 @@ ISelfController::ISelfController(Core::System& system_, std::shared_ptr<Applet> 
         {63, D<&ISelfController::GetIdleTimeDetectionExtension>, "GetIdleTimeDetectionExtension"},
         {64, nullptr, "SetInputDetectionSourceSet"},
         {65, D<&ISelfController::ReportUserIsActive>, "ReportUserIsActive"},
-        {66, nullptr, "GetCurrentIlluminance"},
+        {66, D<&ISelfController::GetCurrentIlluminance>, "GetCurrentIlluminance"},
         {67, D<&ISelfController::IsIlluminanceAvailable>, "IsIlluminanceAvailable"},
         {68, D<&ISelfController::SetAutoSleepDisabled>, "SetAutoSleepDisabled"},
         {69, D<&ISelfController::IsAutoSleepDisabled>, "IsAutoSleepDisabled"},
         {70, nullptr, "ReportMultimediaError"},
-        {71, nullptr, "GetCurrentIlluminanceEx"},
+        {71, D<&ISelfController::GetCurrentIlluminanceEx>, "GetCurrentIlluminanceEx"},
         {72, D<&ISelfController::SetInputDetectionPolicy>, "SetInputDetectionPolicy"},
-        {80, nullptr, "SetWirelessPriorityMode"},
+        {80, D<&ISelfController::SetWirelessPriorityMode>, "SetWirelessPriorityMode"},
         {90, D<&ISelfController::GetAccumulatedSuspendedTickValue>, "GetAccumulatedSuspendedTickValue"},
         {91, D<&ISelfController::GetAccumulatedSuspendedTickChangedEvent>, "GetAccumulatedSuspendedTickChangedEvent"},
         {100, D<&ISelfController::SetAlbumImageTakenNotificationEnabled>, "SetAlbumImageTakenNotificationEnabled"},
@@ -331,6 +331,27 @@ Result ISelfController::SetAutoSleepDisabled(bool is_auto_sleep_disabled) {
     std::scoped_lock lk{m_applet->lock};
     m_applet->auto_sleep_disabled = is_auto_sleep_disabled;
 
+    R_SUCCEED();
+}
+
+// Daylight indoors, as a console in a lit room would read.
+constexpr f32 AmbientLux = 10000.0f;
+
+Result ISelfController::GetCurrentIlluminance(Out<f32> out_lux) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    *out_lux = AmbientLux;
+    R_SUCCEED();
+}
+
+Result ISelfController::GetCurrentIlluminanceEx(Out<bool> out_is_over_limit, Out<f32> out_lux) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    *out_is_over_limit = true;
+    *out_lux = AmbientLux;
+    R_SUCCEED();
+}
+
+Result ISelfController::SetWirelessPriorityMode(s32 wireless_priority_mode) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called, wireless_priority_mode={}", wireless_priority_mode);
     R_SUCCEED();
 }
 

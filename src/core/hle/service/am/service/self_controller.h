@@ -58,6 +58,9 @@ private:
     Result SetAutoSleepDisabled(bool is_auto_sleep_disabled);
     Result IsAutoSleepDisabled(Out<bool> out_is_auto_sleep_disabled);
     Result IsIlluminanceAvailable(Out<bool> out_is_available);
+    Result GetCurrentIlluminance(Out<f32> out_lux);
+    Result GetCurrentIlluminanceEx(Out<bool> out_is_over_limit, Out<f32> out_lux);
+    Result SetWirelessPriorityMode(s32 wireless_priority_mode);
     Result SetInputDetectionPolicy(InputDetectionPolicy input_detection_policy);
     Result GetAccumulatedSuspendedTickValue(Out<u64> out_accumulated_suspended_tick_value);
     Result GetAccumulatedSuspendedTickChangedEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);

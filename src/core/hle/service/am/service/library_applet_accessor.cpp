@@ -25,6 +25,7 @@ ILibraryAppletAccessor::ILibraryAppletAccessor(Core::System& system_,
         {30, D<&ILibraryAppletAccessor::GetResult>, "GetResult"},
         {50, nullptr, "SetOutOfFocusApplicationSuspendingEnabled"},
         {60, D<&ILibraryAppletAccessor::PresetLibraryAppletGpuTimeSliceZero>, "PresetLibraryAppletGpuTimeSliceZero"},
+        {90, D<&ILibraryAppletAccessor::Unknown90>, "Unknown90"}, // 20.0.0+, called when an applet starts
         {100, D<&ILibraryAppletAccessor::PushInData>, "PushInData"},
         {101, D<&ILibraryAppletAccessor::PopOutData>, "PopOutData"},
         {102, nullptr, "PushExtraStorage"},
@@ -32,9 +33,9 @@ ILibraryAppletAccessor::ILibraryAppletAccessor(Core::System& system_,
         {104, D<&ILibraryAppletAccessor::PopInteractiveOutData>, "PopInteractiveOutData"},
         {105, D<&ILibraryAppletAccessor::GetPopOutDataEvent>, "GetPopOutDataEvent"},
         {106, D<&ILibraryAppletAccessor::GetPopInteractiveOutDataEvent>, "GetPopInteractiveOutDataEvent"},
-        {110, nullptr, "NeedsToExitProcess"},
+        {110, D<&ILibraryAppletAccessor::NeedsToExitProcess>, "NeedsToExitProcess"},
         {120, nullptr, "GetLibraryAppletInfo"},
-        {150, nullptr, "RequestForAppletToGetForeground"},
+        {150, D<&ILibraryAppletAccessor::RequestForAppletToGetForeground>, "RequestForAppletToGetForeground"},
         {160, D<&ILibraryAppletAccessor::GetIndirectLayerConsumerHandle>, "GetIndirectLayerConsumerHandle"},
     };
     // clang-format on
@@ -55,6 +56,21 @@ Result ILibraryAppletAccessor::IsCompleted(Out<bool> out_is_completed) {
     LOG_DEBUG(Service_AM, "called");
     std::scoped_lock lk{m_applet->lock};
     *out_is_completed = m_applet->is_completed;
+    R_SUCCEED();
+}
+
+Result ILibraryAppletAccessor::Unknown90() {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    R_SUCCEED();
+}
+
+Result ILibraryAppletAccessor::NeedsToExitProcess() {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    R_SUCCEED();
+}
+
+Result ILibraryAppletAccessor::RequestForAppletToGetForeground() {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
     R_SUCCEED();
 }
 

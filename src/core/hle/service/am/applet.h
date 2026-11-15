@@ -119,6 +119,7 @@ struct Applet {
     Event friend_invitation_storage_channel_event;
     Event notification_storage_channel_event;
     Event health_warning_disappeared_system_event;
+    Event application_functions_210_event; // 20.0.0+, purpose unknown; never signalled
     Event acquired_sleep_lock_event;
     Event pop_from_general_channel_event;
     Event library_applet_launchable_event;

@@ -57,7 +57,7 @@ ICommonStateGetter::ICommonStateGetter(Core::System& system_, std::shared_ptr<Ap
         {68, D<&ICommonStateGetter::GetBuiltInDisplayType>, "GetBuiltInDisplayType"},
         {80, D<&ICommonStateGetter::PerformSystemButtonPressingIfInFocus>, "PerformSystemButtonPressingIfInFocus"},
         {90, nullptr, "SetPerformanceConfigurationChangedNotification"},
-        {91, nullptr, "GetCurrentPerformanceConfiguration"},
+        {91, D<&ICommonStateGetter::GetCurrentPerformanceConfiguration>, "GetCurrentPerformanceConfiguration"},
         {100, nullptr, "SetHandlingHomeButtonShortPressedEnabled"},
         {110, nullptr, "OpenMyGpuErrorHandler"},
         {120, D<&ICommonStateGetter::GetAppletLaunchedHistory>, "GetAppletLaunchedHistory"},
@@ -156,6 +156,15 @@ Result ICommonStateGetter::GetOperationMode(Out<OperationMode> out_operation_mod
 Result ICommonStateGetter::GetPerformanceMode(Out<APM::PerformanceMode> out_performance_mode) {
     LOG_DEBUG(Service_AM, "called");
     *out_performance_mode = system.GetAPMController().GetCurrentPerformanceMode();
+    R_SUCCEED();
+}
+
+Result ICommonStateGetter::GetCurrentPerformanceConfiguration(
+    Out<APM::PerformanceConfiguration> out_performance_configuration) {
+    LOG_DEBUG(Service_AM, "called");
+    auto& apm = system.GetAPMController();
+    *out_performance_configuration =
+        apm.GetCurrentPerformanceConfiguration(apm.GetCurrentPerformanceMode());
     R_SUCCEED();
 }
 

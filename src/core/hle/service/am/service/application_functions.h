@@ -76,6 +76,8 @@ private:
     Result TryPopFromFriendInvitationStorageChannel(Out<SharedPointer<IStorage>> out_storage);
     Result GetNotificationStorageChannelEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);
     Result GetHealthWarningDisappearedSystemEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);
+    Result SetMediaPlaybackStateForApplication(bool enabled);
+    Result GetUnknownEvent210(OutCopyHandle<Kernel::KReadableEvent> out_event);
     Result PrepareForJit();
 
     const std::shared_ptr<Applet> m_applet;

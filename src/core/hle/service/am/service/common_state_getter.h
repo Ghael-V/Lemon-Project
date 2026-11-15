@@ -38,6 +38,8 @@ private:
     Result GetHdcpAuthenticationState(Out<s32> out_state);
     Result GetOperationMode(Out<OperationMode> out_operation_mode);
     Result GetPerformanceMode(Out<APM::PerformanceMode> out_performance_mode);
+    Result GetCurrentPerformanceConfiguration(
+        Out<APM::PerformanceConfiguration> out_performance_configuration);
     Result GetBootMode(Out<PM::SystemBootMode> out_boot_mode);
     Result IsVrModeEnabled(Out<bool> out_is_vr_mode_enabled);
     Result SetVrModeEnabled(bool is_vr_mode_enabled);

@@ -53,7 +53,7 @@ IApplicationFunctions::IApplicationFunctions(Core::System& system_, std::shared_
         {37, nullptr, "GetLimitedApplicationLicenseUpgradableEvent"},
         {40, D<&IApplicationFunctions::NotifyRunning>, "NotifyRunning"},
         {50, D<&IApplicationFunctions::GetPseudoDeviceId>, "GetPseudoDeviceId"},
-        {60, nullptr, "SetMediaPlaybackStateForApplication"},
+        {60, D<&IApplicationFunctions::SetMediaPlaybackStateForApplication>, "SetMediaPlaybackStateForApplication"},
         {65, D<&IApplicationFunctions::IsGamePlayRecordingSupported>, "IsGamePlayRecordingSupported"},
         {66, D<&IApplicationFunctions::InitializeGamePlayRecording>, "InitializeGamePlayRecording"},
         {67, D<&IApplicationFunctions::SetGamePlayRecordingState>, "SetGamePlayRecordingState"},
@@ -85,6 +85,7 @@ IApplicationFunctions::IApplicationFunctions(Core::System& system_, std::shared_
         {181, nullptr, "UpgradeLaunchRequiredVersion"},
         {190, nullptr, "SendServerMaintenanceOverlayNotification"},
         {200, nullptr, "GetLastApplicationExitReason"},
+        {210, D<&IApplicationFunctions::GetUnknownEvent210>, "Unknown210"}, // 20.0.0+
         {500, nullptr, "StartContinuousRecordingFlushForDebug"},
         {1000, nullptr, "CreateMovieMaker"},
         {1001, D<&IApplicationFunctions::PrepareForJit>, "PrepareForJit"},
@@ -464,6 +465,17 @@ Result IApplicationFunctions::GetNotificationStorageChannelEvent(
     OutCopyHandle<Kernel::KReadableEvent> out_event) {
     LOG_DEBUG(Service_AM, "called");
     *out_event = m_applet->notification_storage_channel_event.GetHandle();
+    R_SUCCEED();
+}
+
+Result IApplicationFunctions::SetMediaPlaybackStateForApplication(bool enabled) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called, enabled={}", enabled);
+    R_SUCCEED();
+}
+
+Result IApplicationFunctions::GetUnknownEvent210(OutCopyHandle<Kernel::KReadableEvent> out_event) {
+    LOG_DEBUG(Service_AM, "(STUBBED) called");
+    *out_event = m_applet->application_functions_210_event.GetHandle();
     R_SUCCEED();
 }
 
