@@ -35,6 +35,12 @@ android {
         compose = true
     }
 
+    // Release builds run lint's "vital" checks, whose Instantiatable check can't see the app's
+    // class hierarchy here and flags every Activity and View as not extending its base class.
+    lint {
+        checkReleaseBuilds = false
+    }
+
     composeOptions {
         // Compose compiler paired with Kotlin 1.9.24.
         kotlinCompilerExtensionVersion = "1.5.14"
