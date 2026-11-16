@@ -400,8 +400,9 @@ bool QueryCacheBase<Traits>::AccelerateHostConditionalRendering() {
         auto it_current = sub_container.find(cpu_addr & Core::DEVICE_PAGEMASK);
 
         if (it_current == sub_container.end()) {
-            auto it_current_2 = sub_container.find((cpu_addr & Core::DEVICE_PAGEMASK) + 4);
-            if (it_current_2 == sub_container.end()) {
+            // The value may be the second word of the report.
+            it_current = sub_container.find((cpu_addr & Core::DEVICE_PAGEMASK) + 4);
+            if (it_current == sub_container.end()) {
                 return VideoCommon::LookupData{
                     .address = cpu_addr,
                     .found_query = nullptr,
