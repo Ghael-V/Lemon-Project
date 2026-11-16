@@ -262,12 +262,14 @@ Result FSP_SRV::OpenSaveDataFileSystem(OutInterface<IFileSystem> out_interface,
         id = FileSys::StorageId::SdCard;
         break;
     case FileSys::SaveDataSpaceId::System:
+    case FileSys::SaveDataSpaceId::ProperSystem:
+    case FileSys::SaveDataSpaceId::SafeMode:
         id = FileSys::StorageId::NandSystem;
         break;
     case FileSys::SaveDataSpaceId::Temporary:
-    case FileSys::SaveDataSpaceId::ProperSystem:
-    case FileSys::SaveDataSpaceId::SafeMode:
-        ASSERT(false);
+        // Temporary storage is in the user partition (TOTK opens it); the id only sizes it.
+        id = FileSys::StorageId::NandUser;
+        break;
     }
 
     *out_interface =
