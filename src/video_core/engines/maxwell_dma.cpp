@@ -72,7 +72,9 @@ void MaxwellDMA::Launch() {
     // TODO(Subv): Perform more research and implement all features of this engine.
     const LaunchDMA& launch = regs.launch_dma;
     ASSERT(launch.interrupt_type == LaunchDMA::InterruptType::NONE);
-    ASSERT(launch.data_transfer_type == LaunchDMA::DataTransferType::NON_PIPELINED);
+    // Pipelined transfers may overlap the previous one on the GPU; here every copy runs to the
+    // end in order, which is what either kind may rely on. (Asserting it logged thousands of
+    // lines a minute in Super Mario Galaxy.)
 
     if (launch.multi_line_enable) {
         const bool is_src_pitch = launch.src_memory_layout == LaunchDMA::MemoryLayout::PITCH;
