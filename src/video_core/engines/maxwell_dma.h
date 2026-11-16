@@ -233,6 +233,25 @@ public:
             const u32 raw = dst_components_raw;
             return static_cast<Swizzle>((raw >> (i * 3)) & 0x7);
         }
+
+        /// Whether the remap only groups bytes into elements: each destination component is the
+        /// same source component, so a copy of whole elements does the same.
+        bool IsIdentity() const {
+            if (num_src_components_minus_one != num_dst_components_minus_one) {
+                return false;
+            }
+            for (u32 i = 0; i <= num_dst_components_minus_one; ++i) {
+                if (GetComponent(i) != static_cast<Swizzle>(i)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// Bytes per element when remapping.
+        u32 ElementSize() const {
+            return (num_dst_components_minus_one + 1) * (component_size_minus_one + 1);
+        }
     };
     static_assert(sizeof(RemapConst) == 12);
 

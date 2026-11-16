@@ -173,11 +173,14 @@ void MaxwellDMA::Launch() {
 }
 
 void MaxwellDMA::CopyBlockLinearToPitch() {
-    UNIMPLEMENTED_IF(regs.launch_dma.remap_enable != 0);
+    // With a remap, lengths and the x origin count elements of the remapped size, not bytes.
+    const bool remap = regs.launch_dma.remap_enable != 0;
+    const bool can_accelerate = !remap || regs.remap_const.IsIdentity();
+    UNIMPLEMENTED_IF(!can_accelerate);
 
     u32 bytes_per_pixel = 1;
     DMA::ImageOperand src_operand;
-    src_operand.bytes_per_pixel = bytes_per_pixel;
+    src_operand.bytes_per_pixel = remap ? regs.remap_const.ElementSize() : 1;
     src_operand.params = regs.src_params;
     src_operand.address = regs.offset_in;
 
@@ -190,7 +193,7 @@ void MaxwellDMA::CopyBlockLinearToPitch() {
     copy_info.length_x = regs.line_length_in;
     copy_info.length_y = regs.line_count;
     auto& accelerate = rasterizer->AccessAccelerateDMA();
-    if (accelerate.ImageToBuffer(copy_info, src_operand, dst_operand)) {
+    if (can_accelerate && accelerate.ImageToBuffer(copy_info, src_operand, dst_operand)) {
         return;
     }
 
@@ -250,8 +253,10 @@ void MaxwellDMA::CopyPitchToBlockLinear() {
     const u32 remap_components_size = regs.remap_const.component_size_minus_one + 1;
 
     u32 bytes_per_pixel = 1;
+    // With a remap, lengths and the x origin count elements of the remapped size, not bytes.
+    const bool can_accelerate = !is_remapping || regs.remap_const.IsIdentity();
     DMA::ImageOperand dst_operand;
-    dst_operand.bytes_per_pixel = bytes_per_pixel;
+    dst_operand.bytes_per_pixel = is_remapping ? regs.remap_const.ElementSize() : 1;
     dst_operand.params = regs.dst_params;
     dst_operand.address = regs.offset_out;
     DMA::BufferOperand src_operand;
@@ -263,7 +268,7 @@ void MaxwellDMA::CopyPitchToBlockLinear() {
     copy_info.length_x = regs.line_length_in;
     copy_info.length_y = regs.line_count;
     auto& accelerate = rasterizer->AccessAccelerateDMA();
-    if (accelerate.BufferToImage(copy_info, src_operand, dst_operand)) {
+    if (can_accelerate && accelerate.BufferToImage(copy_info, src_operand, dst_operand)) {
         return;
     }
 

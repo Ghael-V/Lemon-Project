@@ -1138,7 +1138,8 @@ std::pair<typename TextureCache<P>::Image*, BufferImageCopy> TextureCache<P>::Dm
     const BufferImageCopy copy{
         .buffer_offset = 0,
         .buffer_size = buffer_size,
-        .buffer_row_length = convert(buffer_operand.pitch),
+        // The pitch is in bytes whatever the element size.
+        .buffer_row_length = buffer_operand.pitch / bpp,
         .buffer_image_height = buffer_operand.height,
         .image_subresource =
             {

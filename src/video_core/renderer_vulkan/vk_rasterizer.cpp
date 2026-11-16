@@ -1156,6 +1156,10 @@ bool AccelerateDMA::DmaBufferImageCopy(const Tegra::DMA::ImageCopy& copy_info,
 
     const auto [image, copy] = texture_cache.DmaBufferImageCopy(
         copy_info, buffer_operand, image_operand, image_id, IS_IMAGE_UPLOAD);
+    if (copy.image_extent.width == 0 || copy.image_extent.height == 0) {
+        // Less than one texel of the image (not a copy the image's format can express).
+        return false;
+    }
     const std::span copy_span{&copy, 1};
 
     if constexpr (IS_IMAGE_UPLOAD) {
