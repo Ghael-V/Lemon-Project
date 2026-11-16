@@ -30,6 +30,7 @@ public:
     Result GetAddOnContentBaseId(Out<u64> out_title_id, ClientProcessId process_id);
     Result PrepareAddOnContent(s32 addon_index, ClientProcessId process_id);
     Result GetAddOnContentListChangedEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);
+    Result GetAddOnContentLostErrorCode(Out<u64> out_error_code);
     Result GetAddOnContentListChangedEventWithProcessId(
         OutCopyHandle<Kernel::KReadableEvent> out_event, ClientProcessId process_id);
     Result NotifyMountAddOnContent();

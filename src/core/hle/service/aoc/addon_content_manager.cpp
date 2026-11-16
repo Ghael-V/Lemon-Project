@@ -60,7 +60,7 @@ IAddOnContentManager::IAddOnContentManager(Core::System& system_)
         {6, nullptr, "PrepareAddOnContentByApplicationId"},
         {7, D<&IAddOnContentManager::PrepareAddOnContent>, "PrepareAddOnContent"},
         {8, D<&IAddOnContentManager::GetAddOnContentListChangedEvent>, "GetAddOnContentListChangedEvent"},
-        {9, nullptr, "GetAddOnContentLostErrorCode"},
+        {9, D<&IAddOnContentManager::GetAddOnContentLostErrorCode>, "GetAddOnContentLostErrorCode"},
         {10, D<&IAddOnContentManager::GetAddOnContentListChangedEventWithProcessId>, "GetAddOnContentListChangedEventWithProcessId"},
         {11, D<&IAddOnContentManager::NotifyMountAddOnContent>, "NotifyMountAddOnContent"},
         {12, D<&IAddOnContentManager::NotifyUnmountAddOnContent>, "NotifyUnmountAddOnContent"},
@@ -166,6 +166,16 @@ Result IAddOnContentManager::GetAddOnContentListChangedEvent(
 
     *out_event = &aoc_change_event->GetReadableEvent();
 
+    R_SUCCEED();
+}
+
+Result IAddOnContentManager::GetAddOnContentLostErrorCode(Out<u64> out_error_code) {
+    LOG_DEBUG(Service_AOC, "called");
+    // The error code a game shows when an add-on it had can no longer be used: 2164-1000 (NIM),
+    // in the error applet's layout: 2000 + module in the low word, the description in the high.
+    constexpr Result lost{ErrorModule::NIMShop, 1000};
+    *out_error_code = (static_cast<u64>(lost.GetDescription()) << 32) |
+                      (2000 + static_cast<u64>(lost.GetModule()));
     R_SUCCEED();
 }
 
