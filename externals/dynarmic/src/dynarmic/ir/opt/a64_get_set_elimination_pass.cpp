@@ -9,6 +9,7 @@
 
 #include "dynarmic/frontend/A64/a64_types.h"
 #include "dynarmic/ir/basic_block.h"
+#include "dynarmic/ir/ir_emitter.h"
 #include "dynarmic/ir/opcodes.h"
 #include "dynarmic/ir/opt/passes.h"
 #include "dynarmic/ir/value.h"
@@ -51,7 +52,35 @@ void A64GetSetElimination(IR::Block& block) {
         info.last_set_instruction = set_inst;
     };
 
-    const auto do_get = [](RegisterInfo& info, Iterator get_inst, TrackingType tracking_type) {
+    // A general register known as one width and read as the other. Reading W of a known X is
+    // its low half. Reading X of a W is the W zero extended only if the W was written (writing
+    // W clears the top half); a W that was only read says nothing about the top half.
+    // Compilers mix the two all the time (a 64-bit add then a 32-bit compare of the result),
+    // and without this every such read went to memory.
+    const auto forward_other_width = [&block](const RegisterInfo& info, Iterator get_inst, TrackingType tracking_type) {
+        const bool w_of_x = tracking_type == TrackingType::W && info.tracking_type == TrackingType::X;
+        const bool x_of_w = tracking_type == TrackingType::X && info.tracking_type == TrackingType::W &&
+                            info.set_instruction_present;
+        if (!w_of_x && !x_of_w) {
+            return false;
+        }
+        const IR::Value& known = info.register_value;
+        if (known.IsImmediate()) {
+            const u32 low = static_cast<u32>(known.GetImmediateAsU64());
+            get_inst->ReplaceUsesWith(w_of_x ? IR::Value{low} : IR::Value{u64{low}});
+            return true;
+        }
+        IR::IREmitter ir{block};
+        ir.SetInsertionPointBefore(get_inst);
+        if (w_of_x) {
+            get_inst->ReplaceUsesWith(ir.LeastSignificantWord(IR::U64{known}));
+        } else {
+            get_inst->ReplaceUsesWith(ir.ZeroExtendWordToLong(IR::U32{known}));
+        }
+        return true;
+    };
+
+    const auto do_get = [&](RegisterInfo& info, Iterator get_inst, TrackingType tracking_type) {
         const auto do_nothing = [&] {
             info = {};
             info.register_value = IR::Value(&*get_inst);
@@ -65,6 +94,10 @@ void A64GetSetElimination(IR::Block& block) {
 
         if (info.tracking_type == tracking_type) {
             get_inst->ReplaceUsesWith(info.register_value);
+            return;
+        }
+
+        if (forward_other_width(info, get_inst, tracking_type)) {
             return;
         }
 
