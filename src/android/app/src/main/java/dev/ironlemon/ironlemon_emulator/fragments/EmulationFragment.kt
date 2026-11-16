@@ -66,6 +66,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import dev.ironlemon.ironlemon_emulator.ui.modern.InGameMenuPanel
+import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSetting
+import dev.ironlemon.ironlemon_emulator.ui.modern.QuickSettingsPanel
+import dev.ironlemon.ironlemon_emulator.features.settings.model.ShortSetting
+import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
+import dev.ironlemon.ironlemon_emulator.features.input.model.NpadStyleIndex
+import androidx.core.view.GravityCompat
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.Manifest
@@ -267,13 +273,28 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
             override fun onDrawerOpened(drawerView: View) {
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-                binding.inGameMenu.requestFocus()
-                // The panel re-reads the menu (titles change while playing) and takes focus.
-                inGameMenuTick.intValue++
+                if (drawerView == binding.quickSettingsSheet) {
+                    // Values are read again (the game or Settings may have changed them).
+                    quickSettingsTick.intValue++
+                    binding.quickSettingsSheet.requestFocus()
+                } else {
+                    binding.inGameMenu.requestFocus()
+                    // The panel re-reads the menu (titles change while playing) and takes focus.
+                    inGameMenuTick.intValue++
+                }
                 emulationViewModel.setDrawerOpen(true)
             }
 
             override fun onDrawerClosed(drawerView: View) {
+                if (drawerView == binding.quickSettingsSheet) {
+                    saveQuickSettings()
+                }
+                // Going from the menu to quick settings closes one drawer as the other opens.
+                if (binding.drawerLayout.isDrawerVisible(GravityCompat.START) ||
+                    binding.drawerLayout.isDrawerVisible(GravityCompat.END)
+                ) {
+                    return
+                }
                 binding.drawerLayout.setDrawerLockMode(IntSetting.LOCK_DRAWER.getInt())
                 emulationViewModel.setDrawerOpen(false)
             }
@@ -381,6 +402,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_quick_settings -> {
+                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                    binding.drawerLayout.openDrawer(GravityCompat.END)
+                    true
+                }
+
                 R.id.menu_settings_per_game -> {
                     val action = HomeNavigationDirections.actionGlobalSettingsActivity(
                         args.game,
@@ -446,6 +473,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
         showInGameMenuPanel()
+        showQuickSettingsPanel()
         showModernLoadingScreen()
 
         setInsets()
@@ -457,7 +485,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     if (!NativeLibrary.isRunning()) {
                         return
                     }
-                    emulationViewModel.setDrawerOpen(!binding.drawerLayout.isOpen)
+                    emulationViewModel.setDrawerOpen(!anyDrawerOpen())
                 }
             }
         )
@@ -522,10 +550,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         emulationViewModel.drawerOpen.collect(viewLifecycleOwner) {
             if (it) {
-                binding.drawerLayout.open()
-                binding.inGameMenu.requestFocus()
+                // The quick settings drawer counts as open too: the menu only opens on its own.
+                if (!binding.drawerLayout.isDrawerVisible(GravityCompat.END)) {
+                    binding.drawerLayout.open()
+                    binding.inGameMenu.requestFocus()
+                }
             } else {
-                binding.drawerLayout.close()
+                binding.drawerLayout.closeDrawers()
             }
         }
         emulationViewModel.programChanged.collect(viewLifecycleOwner) {
@@ -596,6 +627,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private val inGameMenuTick = mutableIntStateOf(0)
+    private val quickSettingsTick = mutableIntStateOf(0)
+    private var quickSettingsChanged = false
+    private val quickSettings: List<Pair<String, QuickSetting>> by lazy { buildQuickSettings() }
 
     /**
      * Iron Lemon's in-game panel (Compose), drawn over the classic drawer menu. It shows that same
@@ -774,6 +808,135 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         driverVerification = check
         firstFrameHandler.postDelayed(check, DRIVER_VERIFY_DELAY_MS)
+    }
+
+    /** The in-game menu or quick settings (DrawerLayout.isOpen only sees the menu). */
+    private fun anyDrawerOpen(): Boolean =
+        binding.drawerLayout.isDrawerVisible(GravityCompat.START) ||
+            binding.drawerLayout.isDrawerVisible(GravityCompat.END)
+
+    /** What the quick settings drawer offers, with the setting each row reads and writes. */
+    private fun buildQuickSettings(): List<Pair<String, QuickSetting>> {
+        val accuracyValues = resources.getIntArray(R.array.rendererAccuracyValues)
+        val filterValues = resources.getIntArray(R.array.rendererScalingFilterValues)
+        val antiAliasingValues = resources.getIntArray(R.array.rendererAntiAliasingValues)
+        // The value in use: this game's own where it has one, every game's elsewhere.
+        val inUse = false
+        return listOf(
+            BooleanSetting.RENDERER_USE_SPEED_LIMIT.key to QuickSetting.Toggle(
+                R.string.frame_limit_enable,
+                get = { BooleanSetting.RENDERER_USE_SPEED_LIMIT.getBoolean(inUse) },
+                set = { BooleanSetting.RENDERER_USE_SPEED_LIMIT.setBoolean(it) }
+            ),
+            ShortSetting.RENDERER_SPEED_LIMIT.key to QuickSetting.Percent(
+                R.string.frame_limit_slider,
+                min = 25,
+                max = 400,
+                step = 5,
+                visible = { BooleanSetting.RENDERER_USE_SPEED_LIMIT.getBoolean(inUse) },
+                get = { ShortSetting.RENDERER_SPEED_LIMIT.getShort(inUse).toInt() },
+                set = { ShortSetting.RENDERER_SPEED_LIMIT.setShort(it.toShort()) }
+            ),
+            BooleanSetting.USE_DOCKED_MODE.key to QuickSetting.Toggle(
+                R.string.use_docked_mode,
+                // A handheld controller only plays in handheld mode.
+                enabled = { NativeInput.getStyleIndex(0) != NpadStyleIndex.Handheld },
+                get = {
+                    NativeInput.getStyleIndex(0) != NpadStyleIndex.Handheld &&
+                        BooleanSetting.USE_DOCKED_MODE.getBoolean(inUse)
+                },
+                set = { BooleanSetting.USE_DOCKED_MODE.setBoolean(it) }
+            ),
+            BooleanSetting.FRAME_GENERATION.key to QuickSetting.Toggle(
+                R.string.frame_generation,
+                get = { BooleanSetting.FRAME_GENERATION.getBoolean(inUse) },
+                set = { BooleanSetting.FRAME_GENERATION.setBoolean(it) }
+            ),
+            IntSetting.RENDERER_ACCURACY.key to QuickSetting.Choice(
+                R.string.renderer_accuracy,
+                R.array.rendererAccuracyNames,
+                accuracyValues,
+                get = { IntSetting.RENDERER_ACCURACY.getInt(inUse) },
+                set = { IntSetting.RENDERER_ACCURACY.setInt(it) }
+            ),
+            IntSetting.RENDERER_SCALING_FILTER.key to QuickSetting.Choice(
+                R.string.renderer_scaling_filter,
+                R.array.rendererScalingFilterNames,
+                filterValues,
+                get = { IntSetting.RENDERER_SCALING_FILTER.getInt(inUse) },
+                set = { IntSetting.RENDERER_SCALING_FILTER.setInt(it) }
+            ),
+            IntSetting.FSR_SHARPENING_SLIDER.key to QuickSetting.Percent(
+                R.string.fsr_sharpness,
+                min = 0,
+                max = 100,
+                step = 5,
+                visible = { IntSetting.RENDERER_SCALING_FILTER.getInt(inUse) == SCALING_FILTER_FSR },
+                get = { IntSetting.FSR_SHARPENING_SLIDER.getInt(inUse) },
+                set = { IntSetting.FSR_SHARPENING_SLIDER.setInt(it) }
+            ),
+            IntSetting.RENDERER_ANTI_ALIASING.key to QuickSetting.Choice(
+                R.string.renderer_anti_aliasing,
+                R.array.rendererAntiAliasingNames,
+                antiAliasingValues,
+                get = { IntSetting.RENDERER_ANTI_ALIASING.getInt(inUse) },
+                set = { IntSetting.RENDERER_ANTI_ALIASING.setInt(it) }
+            )
+        )
+    }
+
+    private fun showQuickSettingsPanel() {
+        binding.quickSettingsSheet.addView(
+            ComposeView(requireContext()).apply {
+                setViewCompositionStrategy(
+                    ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+                )
+                setContent {
+                    QuickSettingsPanel(
+                        tick = quickSettingsTick.intValue,
+                        scope = game.title,
+                        settings = quickSettings.map { it.second }
+                    ) {
+                        quickSettingsChanged = true
+                        // Applied at once: the running game reads them again.
+                        NativeLibrary.applySettings()
+                    }
+                }
+            },
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+    }
+
+    /**
+     * Keeps what changed in quick settings. A setting this game has its own value for (per-game
+     * settings or its performance preset) changed that value, so it goes to the game's file; the
+     * rest to every game's.
+     */
+    private fun saveQuickSettings() {
+        if (!quickSettingsChanged) {
+            return
+        }
+        quickSettingsChanged = false
+        NativeConfig.saveGlobalConfig()
+        val own = quickSettings.filter { !NativeConfig.usingGlobal(it.first) }.map { it.second }
+        if (own.isEmpty() || NativeConfig.isPerGameConfigLoaded()) {
+            return
+        }
+        // Loading the game's file reads its values again: put the new ones back before saving.
+        val restore = own.map { setting ->
+            when (setting) {
+                is QuickSetting.Toggle -> setting.get().let { value -> { setting.set(value) } }
+                is QuickSetting.Percent -> setting.get().let { value -> { setting.set(value) } }
+                is QuickSetting.Choice -> setting.get().let { value -> { setting.set(value) } }
+            }
+        }
+        SettingsFile.loadCustomConfig(game)
+        restore.forEach { it() }
+        NativeConfig.savePerGameConfig()
+        NativeConfig.unloadPerGameConfig()
     }
 
     private fun showInGameMenuPanel() {
@@ -2059,6 +2222,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     companion object {
+        // RENDERER_SCALING_FILTER value of FSR (rendererScalingFilterValues).
+        private const val SCALING_FILTER_FSR = 5
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
         private val thermalStatsUpdateHandler = Handler(Looper.myLooper()!!)
 

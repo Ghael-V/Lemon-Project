@@ -187,6 +187,13 @@
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
+    <!-- Quick settings, opened from the right edge or from the in-game menu -->
+    <FrameLayout
+        android:id="@+id/quick_settings_sheet"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="end" />
+
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/in_game_menu"
         android:layout_width="wrap_content"

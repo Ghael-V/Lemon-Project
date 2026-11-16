@@ -47,6 +47,11 @@
         android:title="@string/per_game_settings" />
 
     <item
+        android:id="@+id/menu_quick_settings"
+        android:icon="@drawable/ic_speed"
+        android:title="@string/quick_settings" />
+
+    <item
         android:id="@+id/menu_quick_overlay"
         android:icon="@drawable/ic_controller"
         android:title="@string/emulation_show_controller" />

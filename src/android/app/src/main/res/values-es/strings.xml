@@ -954,6 +954,8 @@
     <string name="overlay_press_mode_toggle">Alternar: un toque lo mantiene pulsado, el siguiente lo suelta</string>
     <string name="overlay_press_mode_turbo">Turbo: se pulsa una y otra vez mientras lo mantienes</string>
     <string name="overlay_press_mode_hint">Toca un control sin moverlo para cambiar su tamaño o cómo se comporta.</string>
+    <string name="quick_settings">Ajustes rápidos</string>
+    <string name="quick_settings_value">%1$s: %2$d%%</string>
     <string name="overlay_control_options">Opciones del control</string>
     <string name="overlay_control_size">Tamaño: %1$d%%</string>
     <string name="overlay_control_size_reset">Tamaño normal</string>
