@@ -190,7 +190,13 @@ inline void PushImageDescriptors(TextureCache& texture_cache,
             const VideoCommon::ImageViewId image_view_id{(views++)->id};
             const VideoCommon::SamplerId sampler_id{*(samplers++)};
             ImageView& image_view{texture_cache.GetImageView(image_view_id)};
-            const VkImageView vk_image_view{image_view.Handle(desc.type)};
+            VkImageView vk_image_view{image_view.Handle(desc.type)};
+            if (vk_image_view == VK_NULL_HANDLE) {
+                // The bound texture can't be seen as the shader's type (a 2D image read as 3D):
+                // bind the null view of that type instead of an invalid descriptor.
+                vk_image_view = texture_cache.GetImageView(VideoCommon::NULL_IMAGE_VIEW_ID)
+                                    .Handle(desc.type);
+            }
             Sampler& sampler{texture_cache.GetSampler(sampler_id)};
             const bool use_fallback_sampler{sampler.HasAddedAnisotropy() &&
                                             !image_view.SupportsAnisotropy()};

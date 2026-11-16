@@ -2142,15 +2142,102 @@ ImageView::ImageView(TextureCacheRuntime& runtime, const VideoCommon::NullImageV
         return;
     }
 
-    // Handle fallback for devices without nullDescriptor
-    ImageInfo info{};
-    info.format = PixelFormat::A8B8G8R8_UNORM;
+    // Without nullDescriptor every descriptor must point at a real view of the kind the shader
+    // declares: one tiny black image per dimensionality and a view of each texture type on it.
+    // (A single 1D image with 2D views of it for every type, as before, was invalid for most of
+    // them, and Mali's driver crashed on such descriptors: Zelda TOTK.)
+    const auto make_image = [&](ImageType image_type, s32 layers) {
+        ImageInfo info{};
+        info.format = PixelFormat::A8B8G8R8_UNORM;
+        info.type = image_type;
+        info.size = {1, 1, 1};
+        info.resources.levels = 1;
+        info.resources.layers = layers;
+        return MakeImage(*device, runtime.memory_allocator, info, {});
+    };
+    null_image = make_image(ImageType::e1D, 1);
+    null_image_2d = make_image(ImageType::e2D, 6); // six layers, so it can be seen as a cube
+    null_image_3d = make_image(ImageType::e3D, 1);
+    image_handle = *null_image_2d;
 
-    null_image = MakeImage(*device, runtime.memory_allocator, info, {});
-    image_handle = *null_image;
-    for (u32 i = 0; i < Shader::NUM_TEXTURE_TYPES; i++) {
-        image_views[i] = MakeView(VK_FORMAT_A8B8G8R8_UNORM_PACK32, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
+    const auto make_view = [&](VkImage image, VkImageViewType view_type, u32 layers) {
+        return device->GetLogical().CreateImageView({
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = image,
+            .viewType = view_type,
+            .format = VK_FORMAT_A8B8G8R8_UNORM_PACK32,
+            .components{
+                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+            },
+            .subresourceRange{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = layers,
+            },
+        });
+    };
+    using Shader::TextureType;
+    const auto set = [&](TextureType texture_type, vk::ImageView view) {
+        image_views[static_cast<size_t>(texture_type)] = std::move(view);
+    };
+    set(TextureType::Color1D, make_view(*null_image, VK_IMAGE_VIEW_TYPE_1D, 1));
+    set(TextureType::ColorArray1D, make_view(*null_image, VK_IMAGE_VIEW_TYPE_1D_ARRAY, 1));
+    set(TextureType::Color2D, make_view(*null_image_2d, VK_IMAGE_VIEW_TYPE_2D, 1));
+    set(TextureType::ColorArray2D, make_view(*null_image_2d, VK_IMAGE_VIEW_TYPE_2D_ARRAY, 1));
+    set(TextureType::Color2DRect, make_view(*null_image_2d, VK_IMAGE_VIEW_TYPE_2D, 1));
+    set(TextureType::Color3D, make_view(*null_image_3d, VK_IMAGE_VIEW_TYPE_3D, 1));
+    set(TextureType::ColorCube, make_view(*null_image_2d, VK_IMAGE_VIEW_TYPE_CUBE, 6));
+    set(TextureType::ColorArrayCube, make_view(*null_image_2d, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY, 6));
+    render_target = Handle(TextureType::ColorArray2D);
+
+    // Black, and in the layout descriptors use.
+    runtime.scheduler.RequestOutsideRenderPassOperationContext();
+    runtime.scheduler.Record([images = std::array<VkImage, 3>{*null_image, *null_image_2d,
+                                                              *null_image_3d}](
+                                 vk::CommandBuffer cmdbuf) {
+        static constexpr VkImageSubresourceRange range{
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = VK_REMAINING_MIP_LEVELS,
+            .baseArrayLayer = 0,
+            .layerCount = VK_REMAINING_ARRAY_LAYERS,
+        };
+        std::array<VkImageMemoryBarrier, 3> to_general{};
+        for (size_t i = 0; i < images.size(); ++i) {
+            to_general[i] = VkImageMemoryBarrier{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = 0,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = images[i],
+                .subresourceRange = range,
+            };
+        }
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               0, {}, {}, to_general);
+        for (const VkImage image : images) {
+            cmdbuf.ClearColorImage(image, VK_IMAGE_LAYOUT_GENERAL, VkClearColorValue{}, range);
+        }
+        static constexpr VkMemoryBarrier to_shaders{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .pNext = nullptr,
+            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        };
+        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, to_shaders);
+    });
 }
 
 ImageView::~ImageView() = default;
