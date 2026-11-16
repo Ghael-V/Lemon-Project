@@ -302,6 +302,9 @@ object NativeLibrary {
      */
     external fun getPresentedFrameCount(): Long
 
+    /** Frames made by frame generation and presented since the emulator started. */
+    external fun getGeneratedFrameCount(): Long
+
     /**
      * Returns the current CPU backend.
      */

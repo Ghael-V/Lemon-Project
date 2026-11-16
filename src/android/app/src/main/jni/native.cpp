@@ -81,6 +81,7 @@
 #include "hid_core/hid_core.h"
 #include "hid_core/hid_types.h"
 #include "jni/native.h"
+#include "video_core/frame_gen_stats.h"
 #include "video_core/gpu.h"
 #include "video_core/host1x/host1x.h"
 #include "video_core/capture.h"
@@ -1530,6 +1531,11 @@ void Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_initializeSystem(JNIEn
 jlong Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPresentedFrameCount(JNIEnv* env,
                                                                                jclass clazz) {
     return static_cast<jlong>(EmulationSession::GetInstance().PresentedFrames());
+}
+
+jlong Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getGeneratedFrameCount(JNIEnv* env,
+                                                                               jclass clazz) {
+    return static_cast<jlong>(VideoCore::GeneratedFrameCount());
 }
 
 jdoubleArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPerfStats(JNIEnv* env, jclass clazz) {

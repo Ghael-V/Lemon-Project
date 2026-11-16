@@ -1622,6 +1622,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
     }
 
+    // Frames shown (real and generated) at the last FPS counter update, for the FG rate.
+    private var lastShownFrames = 0L
+    private var lastShownTime = 0L
+
     private fun updateShowFpsOverlay() {
         val showOverlay = BooleanSetting.SHOW_PERFORMANCE_OVERLAY.getBoolean()
         binding.showFpsText.setVisible(showOverlay)
@@ -1638,9 +1642,26 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     lastOverlaySpeed = perfStats.getOrElse(SPEED) { 1.0 }
                     val cpuBackend = NativeLibrary.getCpuBackend()
                     val gpuDriver = NativeLibrary.getGpuDriver()
+                    // With frame generation: what reaches the screen, real and generated frames.
+                    val now = SystemClock.elapsedRealtime()
+                    val shown = NativeLibrary.getPresentedFrameCount() +
+                        NativeLibrary.getGeneratedFrameCount()
+                    val fgText = if (BooleanSetting.FRAME_GENERATION.getBoolean(false) &&
+                        lastShownTime > 0 && now > lastShownTime
+                    ) {
+                        String.format(
+                            " | FG: %.1f",
+                            (shown - lastShownFrames) * 1000.0 / (now - lastShownTime)
+                        )
+                    } else {
+                        ""
+                    }
+                    lastShownFrames = shown
+                    lastShownTime = now
                     if (_binding != null) {
-                        binding.showFpsText.text =
-                            String.format("FPS: %.1f\n%s/%s", perfStats[FPS], cpuBackend, gpuDriver)
+                        binding.showFpsText.text = String.format(
+                            "FPS: %.1f%s\n%s/%s", perfStats[FPS], fgText, cpuBackend, gpuDriver
+                        )
                     }
                     perfStatsUpdateHandler.postDelayed(perfStatsUpdater!!, 800)
                 }

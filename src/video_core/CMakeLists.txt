@@ -93,6 +93,7 @@ add_library(video_core STATIC
     macro/macro_interpreter.cpp
     macro/macro_interpreter.h
     fence_manager.h
+    frame_gen_stats.h
     gpu.cpp
     gpu.h
     gpu_thread.cpp

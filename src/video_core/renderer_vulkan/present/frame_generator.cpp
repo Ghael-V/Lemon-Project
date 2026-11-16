@@ -6,6 +6,7 @@
 
 #include "common/logging/log.h"
 #include "common/settings.h"
+#include "video_core/frame_gen_stats.h"
 #include "video_core/renderer_vulkan/present/frame_generator.h"
 #include "video_core/renderer_vulkan/present/lemon_fg.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
@@ -155,6 +156,9 @@ void FrameGenerator::Record(VkImage source, std::span<const VkImage> destination
     for (size_t i = 0; i < generated; ++i) {
         outputs[i] = destinations[i];
         target_images[i] = targets[i].Handle();
+    }
+    if (count > 0 && generated > 0) {
+        VideoCore::CountGeneratedFrames(generated);
     }
     FgImage& input = fg->Input(count);
     const VkImage input_image = input.Handle();
