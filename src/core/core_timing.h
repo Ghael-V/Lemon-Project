@@ -144,6 +144,9 @@ private:
     static void ThreadEntry(CoreTiming& instance);
     void ThreadLoop();
 
+    /// Wakes the timer thread for an event just scheduled, if it is the earliest one.
+    void WakeTimerThreadIf(bool earliest);
+
     void Reset();
 
     std::unique_ptr<Common::WallClock> clock;

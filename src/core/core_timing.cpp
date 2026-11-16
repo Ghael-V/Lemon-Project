@@ -117,31 +117,52 @@ bool CoreTiming::HasPendingEvents() const {
 
 void CoreTiming::ScheduleEvent(std::chrono::nanoseconds ns_into_future,
                                const std::shared_ptr<EventType>& event_type, bool absolute_time) {
+    bool earliest;
     {
         std::scoped_lock scope{basic_lock};
         const auto next_time{absolute_time ? ns_into_future : GetGlobalTimeNs() + ns_into_future};
 
-        auto h{event_queue.emplace(Event{next_time.count(), event_fifo_id++, event_type, 0})};
+        const u64 fifo_order = event_fifo_id++;
+        auto h{event_queue.emplace(Event{next_time.count(), fifo_order, event_type, 0})};
         (*h).handle = h;
+        earliest = event_queue.top().fifo_order == fifo_order;
     }
 
-    event.Set();
+    WakeTimerThreadIf(earliest);
 }
 
 void CoreTiming::ScheduleLoopingEvent(std::chrono::nanoseconds start_time,
                                       std::chrono::nanoseconds resched_time,
                                       const std::shared_ptr<EventType>& event_type,
                                       bool absolute_time) {
+    bool earliest;
     {
         std::scoped_lock scope{basic_lock};
         const auto next_time{absolute_time ? start_time : GetGlobalTimeNs() + start_time};
 
+        const u64 fifo_order = event_fifo_id++;
         auto h{event_queue.emplace(
-            Event{next_time.count(), event_fifo_id++, event_type, resched_time.count()})};
+            Event{next_time.count(), fifo_order, event_type, resched_time.count()})};
         (*h).handle = h;
+        earliest = event_queue.top().fifo_order == fifo_order;
     }
 
-    event.Set();
+    WakeTimerThreadIf(earliest);
+}
+
+void CoreTiming::WakeTimerThreadIf(bool earliest) {
+    // The timer thread sleeps until the earliest event it saw, and every event added since is
+    // either later than that or was the earliest when added and woke it. So only a new earliest
+    // event needs to wake it: games schedule a timeout on almost every wait, and waking it for
+    // each one cost a fifth of a core in Zelda BOTW, with each wake taking both of its locks
+    // only to find nothing due. Waking it always is still what the single-core and Windows
+    // loops expect.
+#ifdef _WIN32
+    earliest = true;
+#endif
+    if (earliest || !is_multicore) {
+        event.Set();
+    }
 }
 
 void CoreTiming::UnscheduleEvent(const std::shared_ptr<EventType>& event_type,
