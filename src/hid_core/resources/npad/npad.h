@@ -183,7 +183,7 @@ private:
     void ControllerUpdate(Core::HID::ControllerTriggerType type, std::size_t controller_idx);
     void InitNewlyAddedController(u64 aruid, Core::HID::NpadIdType npad_id);
     void RequestPadStateUpdate(u64 aruid, Core::HID::NpadIdType npad_id);
-    void WriteEmptyEntry(NpadInternalState* npad);
+    void WriteEmptyEntry(NpadInternalState* npad, bool is_connected = false);
 
     NpadControllerData& GetControllerFromHandle(
         u64 aruid, const Core::HID::SixAxisSensorHandle& device_handle);

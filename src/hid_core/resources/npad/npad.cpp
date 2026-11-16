@@ -368,14 +368,21 @@ void NPad::InitNewlyAddedController(u64 aruid, Core::HID::NpadIdType npad_id) {
     }
 
     npad_resource.SignalStyleSetUpdateEvent(aruid, npad_id);
-    WriteEmptyEntry(controller.shared_memory);
+    // The first entry of a newly connected pad already says it is connected: games that read the
+    // state right after connecting (Turok) saw it disconnected and aborted with NpadNotConnected.
+    WriteEmptyEntry(controller.shared_memory, true);
     hid_core.SetLastActiveController(npad_id);
     abstracted_pads[NpadIdTypeToIndex(npad_id)].Update();
 }
 
-void NPad::WriteEmptyEntry(NpadInternalState* npad) {
+void NPad::WriteEmptyEntry(NpadInternalState* npad, bool is_connected) {
     NPadGenericState dummy_pad_state{};
     NpadGcTriggerState dummy_gc_state{};
+    if (is_connected) {
+        dummy_pad_state.connection_status.is_connected.Assign(1);
+        dummy_pad_state.connection_status.is_left_connected.Assign(1);
+        dummy_pad_state.connection_status.is_right_connected.Assign(1);
+    }
     dummy_pad_state.sampling_number = npad->fullkey_lifo.ReadCurrentEntry().sampling_number + 1;
     npad->fullkey_lifo.WriteNextEntry(dummy_pad_state);
     dummy_pad_state.sampling_number = npad->handheld_lifo.ReadCurrentEntry().sampling_number + 1;
