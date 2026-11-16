@@ -1612,7 +1612,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     }
 
     private fun showOverlayOptions() {
-        val anchor = binding.inGameMenu.findViewById<View>(R.id.menu_overlay_controls)
+        // The options open as a dialog, so the anchor only has to exist: the classic list's row is
+        // hidden behind the in-game panel and may not have been laid out at all.
+        val anchor: View = binding.inGameMenu.findViewById(R.id.menu_overlay_controls)
+            ?: binding.inGameMenu
         val popup = IronLemonPopupMenu(requireContext(), anchor)
 
         popup.menuInflater.inflate(R.menu.menu_overlay_options, popup.menu)
