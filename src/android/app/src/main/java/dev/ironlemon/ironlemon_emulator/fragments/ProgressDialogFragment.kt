@@ -87,7 +87,9 @@ class ProgressDialogFragment : IronLemonComposeDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         taskViewModel.isComplete.collect(viewLifecycleOwner) {
             if (it) {
-                dismiss()
+                // The task can finish while the app is in the background, after Android saved
+                // its state: a plain dismiss() or show() then throws and takes the app down.
+                dismissAllowingStateLoss()
                 when (val result = taskViewModel.result.value) {
                     is String -> Toast.makeText(
                         requireContext(),
@@ -95,10 +97,10 @@ class ProgressDialogFragment : IronLemonComposeDialogFragment() {
                         Toast.LENGTH_LONG
                     ).show()
 
-                    is MessageDialogFragment -> result.show(
-                        requireActivity().supportFragmentManager,
-                        MessageDialogFragment.TAG
-                    )
+                    is MessageDialogFragment -> requireActivity().supportFragmentManager
+                        .beginTransaction()
+                        .add(result, MessageDialogFragment.TAG)
+                        .commitAllowingStateLoss()
 
                     else -> {
                         // Do nothing
