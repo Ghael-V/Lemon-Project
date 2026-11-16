@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <map>
@@ -1563,6 +1564,25 @@ void QueryCacheRuntime::SyncValues(std::span<SyncValuesType> values, VkBuffer ba
             });
         }
         src_buffer = base_src_buffer;
+    }
+
+    // A game can report several results to one address (it reuses a report slot): only the last
+    // may land there, as on the GPU, and one copy command can't write a byte twice (undefined
+    // which write wins). Earlier copies the later ones cover completely are dropped.
+    for (auto& copies : impl->copies_setup) {
+        std::vector<VkBufferCopy> kept;
+        kept.reserve(copies.size());
+        for (auto it = copies.rbegin(); it != copies.rend(); ++it) {
+            const bool covered = std::ranges::any_of(kept, [&](const VkBufferCopy& later) {
+                return later.dstOffset <= it->dstOffset &&
+                       it->dstOffset + it->size <= later.dstOffset + later.size;
+            });
+            if (!covered) {
+                kept.push_back(*it);
+            }
+        }
+        std::ranges::reverse(kept);
+        copies = std::move(kept);
     }
 
     impl->scheduler.RequestOutsideRenderPassOperationContext();

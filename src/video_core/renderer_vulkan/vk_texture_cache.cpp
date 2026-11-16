@@ -1015,13 +1015,19 @@ void TextureCacheRuntime::ReinterpretImage(Image& dst, Image& src,
 
     const auto bpp_in = BytesPerBlock(src.info.format) / DefaultBlockWidth(src.info.format);
     const auto bpp_out = BytesPerBlock(dst.info.format) / DefaultBlockWidth(dst.info.format);
-    std::ranges::transform(copies, vk_in_copies.begin(),
-                           [src_aspect_mask, bpp_in, bpp_out](const auto& copy) {
-                               auto copy2 = copy;
-                               copy2.src_offset.x = (bpp_out * copy.src_offset.x) / bpp_in;
-                               copy2.extent.width = (bpp_out * copy.extent.width) / bpp_in;
-                               return MakeBufferImageCopy(copy2, true, src_aspect_mask);
-                           });
+    // The destination texels' bytes, as source texels. Rounded up: a destination narrower than one
+    // source texel (4 bytes out of a 16-byte texel) was a zero-width copy that moved nothing.
+    std::ranges::transform(copies, vk_in_copies.begin(), [&src, src_aspect_mask, bpp_in,
+                                                          bpp_out](const auto& copy) {
+        auto copy2 = copy;
+        copy2.src_offset.x = (bpp_out * copy.src_offset.x) / bpp_in;
+        const s32 level_width = std::max<s32>(
+            1, static_cast<s32>(src.info.size.width) >> copy.src_subresource.base_level);
+        const s32 width = static_cast<s32>(Common::DivCeil(bpp_out * copy.extent.width, bpp_in));
+        copy2.extent.width = static_cast<u32>(
+            std::clamp(width, 1, std::max(1, level_width - copy2.src_offset.x)));
+        return MakeBufferImageCopy(copy2, true, src_aspect_mask);
+    });
     std::ranges::transform(copies, vk_out_copies.begin(), [dst_aspect_mask](const auto& copy) {
         return MakeBufferImageCopy(copy, false, dst_aspect_mask);
     });
@@ -1030,6 +1036,14 @@ void TextureCacheRuntime::ReinterpretImage(Image& dst, Image& src,
     for (const auto& copy : copies) {
         total_size += copy.extent.width * copy.extent.height * copy.extent.depth * img_bpp;
     }
+    // The source side can be a little larger once rounded up to whole source texels.
+    size_t in_size = 0;
+    const u32 src_bpp = BytesPerBlock(src.info.format);
+    for (const VkBufferImageCopy& copy : vk_in_copies) {
+        in_size += static_cast<size_t>(copy.imageExtent.width) * copy.imageExtent.height *
+                   copy.imageExtent.depth * src_bpp;
+    }
+    total_size = std::max(total_size, in_size);
     const VkBuffer copy_buffer = GetTemporaryBuffer(total_size);
     const VkImage dst_image = dst.Handle();
     const VkImage src_image = src.Handle();
