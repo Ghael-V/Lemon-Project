@@ -684,7 +684,15 @@ Result NPad::SetSupportedNpadIdType(u64 aruid,
 
 Result NPad::SetNpadJoyHoldType(u64 aruid, NpadJoyHoldType hold_type) {
     std::scoped_lock lock{mutex};
-    return npad_resource.SetNpadJoyHoldType(aruid, hold_type);
+    const Result result = npad_resource.SetNpadJoyHoldType(aruid, hold_type);
+    if (result.IsSuccess()) {
+        std::scoped_lock shared_lock{*applet_resource_holder.shared_mutex};
+        auto* data = applet_resource_holder.applet_resource->GetAruidData(aruid);
+        if (data != nullptr && data->shared_memory_format != nullptr) {
+            data->shared_memory_format->npad_condition.hold_type = static_cast<u32>(hold_type);
+        }
+    }
+    return result;
 }
 
 Result NPad::GetNpadJoyHoldType(u64 aruid, NpadJoyHoldType& out_hold_type) const {
