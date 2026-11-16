@@ -1479,6 +1479,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="input_overlay_mode_automatic">Automatic</string>
     <string name="input_overlay_mode_always">Always</string>
     <string name="input_overlay_mode_never">Never</string>
+    <string name="button_layout">Button layout</string>
+    <string name="button_layout_description">Nintendo swaps A↔B and X↔Y of physical controllers in games, so each button presses what a Switch has in its place.</string>
+    <string name="button_layout_standard">As labelled</string>
+    <string name="button_layout_nintendo">Nintendo</string>
     <string name="frame_generation">Frame generation (Lemon FG)</string>
     <string name="frame_generation_description">Generates frames between the ones the game draws (Lemon FG), for smoother motion: as many as bring the game to the target frame rate, or a fixed multiple. Costs some GPU time and a little latency; best with V-Sync on.</string>
     <string name="frame_generation_mode">Generated frames</string>

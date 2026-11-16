@@ -315,6 +315,14 @@
         <item>3</item>
         <item>4</item>
     </integer-array>
+    <string-array name="buttonLayoutNames">
+        <item>@string/button_layout_standard</item>
+        <item>@string/button_layout_nintendo</item>
+    </string-array>
+    <integer-array name="buttonLayoutValues">
+        <item>0</item>
+        <item>1</item>
+    </integer-array>
     <string-array name="inputOverlayModeNames">
         <item>@string/input_overlay_mode_automatic</item>
         <item>@string/input_overlay_mode_always</item>

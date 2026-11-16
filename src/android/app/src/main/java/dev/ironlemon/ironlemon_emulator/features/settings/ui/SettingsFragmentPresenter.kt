@@ -273,6 +273,7 @@ class SettingsFragmentPresenter(
         val inputSettings = NativeConfig.getInputSettings(true)
         sl.apply {
             add(IntSetting.INPUT_OVERLAY_MODE.key)
+            add(IntSetting.BUTTON_LAYOUT.key)
             // In a game the in-game menu edits the controller (and offers 'only this game').
             if (!NativeLibrary.isRunning()) {
                 add(

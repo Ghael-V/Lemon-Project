@@ -847,6 +847,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 },
                 set = { BooleanSetting.USE_DOCKED_MODE.setBoolean(it) }
             ),
+            IntSetting.BUTTON_LAYOUT.key to QuickSetting.Choice(
+                R.string.button_layout,
+                R.array.buttonLayoutNames,
+                resources.getIntArray(R.array.buttonLayoutValues),
+                get = { IntSetting.BUTTON_LAYOUT.getInt(inUse) },
+                set = { IntSetting.BUTTON_LAYOUT.setInt(it) }
+            ),
             BooleanSetting.FRAME_GENERATION.key to QuickSetting.Toggle(
                 R.string.frame_generation,
                 get = { BooleanSetting.FRAME_GENERATION.getBoolean(inUse) },

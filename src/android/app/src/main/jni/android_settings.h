@@ -97,6 +97,8 @@ struct Values {
                                             Settings::Category::Android};
 
     // When the on-screen controller shows: 0 automatic (no physical controller), 1 always, 2 never.
+    // Physical controllers' face buttons: 0 as labelled, 1 Nintendo (A<->B and X<->Y swapped).
+    Settings::Setting<s32> button_layout{linkage, 0, "button_layout", Settings::Category::Overlay};
     Settings::Setting<s32> input_overlay_mode{linkage, 0, "input_overlay_mode",
                                               Settings::Category::Overlay};
 

@@ -7,6 +7,7 @@ import dev.ironlemon.ironlemon_emulator.utils.NativeConfig
 
 enum class IntSetting(override val key: String) : AbstractIntSetting {
     INPUT_OVERLAY_MODE("input_overlay_mode"),
+    BUTTON_LAYOUT("button_layout"),
     CPU_BACKEND("cpu_backend"),
     CPU_ACCURACY("cpu_accuracy"),
     REGION_INDEX("region_index"),

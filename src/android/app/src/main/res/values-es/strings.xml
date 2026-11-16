@@ -945,6 +945,10 @@
     <string name="input_overlay_mode_automatic">Automático</string>
     <string name="input_overlay_mode_always">Siempre</string>
     <string name="input_overlay_mode_never">Nunca</string>
+    <string name="button_layout">Distribución de botones</string>
+    <string name="button_layout_description">Nintendo intercambia A↔B y X↔Y de los mandos físicos en los juegos, para que cada botón haga lo que hace el de una Switch en esa posición.</string>
+    <string name="button_layout_standard">Según la etiqueta</string>
+    <string name="button_layout_nintendo">Nintendo</string>
     <string name="frame_generation">Generación de fotogramas (Lemon FG)</string>
     <string name="frame_generation_description">Genera fotogramas entre los que dibuja el juego (Lemon FG) para un movimiento más fluido: los necesarios para llegar a los FPS objetivo, o un múltiplo fijo. Gasta algo de GPU y añade un poco de latencia; mejor con la sincronización vertical activada.</string>
     <string name="frame_generation_mode">Fotogramas generados</string>

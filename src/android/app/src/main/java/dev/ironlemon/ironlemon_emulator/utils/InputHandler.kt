@@ -5,6 +5,7 @@ package dev.ironlemon.ironlemon_emulator.utils
 
 import android.view.InputDevice
 import android.view.KeyEvent
+import dev.ironlemon.ironlemon_emulator.features.settings.model.IntSetting
 import android.view.MotionEvent
 import dev.ironlemon.ironlemon_emulator.features.input.NativeInput
 import dev.ironlemon.ironlemon_emulator.features.input.YuzuInputOverlayDevice
@@ -51,10 +52,31 @@ object InputHandler {
         NativeInput.onGamePadButtonEvent(
             controllerData.getGUID(),
             controllerData.getPort(),
-            event.keyCode,
+            withButtonLayout(event.keyCode),
             action
         )
         return true
+    }
+
+    /** Physical controllers' face buttons as the game sees them: as labelled, or Nintendo. */
+    const val BUTTON_LAYOUT_STANDARD = 0
+    const val BUTTON_LAYOUT_NINTENDO = 1
+
+    /**
+     * With the Nintendo layout A and B, and X and Y, trade places: the button where a Switch has
+     * A presses A whatever the controller prints on it. Only in games; menus get keys as they are.
+     */
+    private fun withButtonLayout(keyCode: Int): Int {
+        if (IntSetting.BUTTON_LAYOUT.getInt() != BUTTON_LAYOUT_NINTENDO) {
+            return keyCode
+        }
+        return when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
+            KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
+            KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+            KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+            else -> keyCode
+        }
     }
 
     fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {

@@ -245,6 +245,15 @@ abstract class SettingsItem(
             )
             put(
                 SingleChoiceSetting(
+                    IntSetting.BUTTON_LAYOUT,
+                    titleId = R.string.button_layout,
+                    descriptionId = R.string.button_layout_description,
+                    choicesId = R.array.buttonLayoutNames,
+                    valuesId = R.array.buttonLayoutValues
+                )
+            )
+            put(
+                SingleChoiceSetting(
                     IntSetting.INPUT_OVERLAY_MODE,
                     titleId = R.string.input_overlay_mode,
                     descriptionId = R.string.input_overlay_mode_description,
