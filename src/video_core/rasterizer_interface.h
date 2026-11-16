@@ -186,5 +186,10 @@ public:
     virtual bool HasDrawTransformFeedback() {
         return false;
     }
+
+    /// Whether a draw can take its vertex count from a transform feedback byte count on the GPU.
+    virtual bool CanDrawIndirectByteCount() {
+        return true;
+    }
 };
 } // namespace VideoCore

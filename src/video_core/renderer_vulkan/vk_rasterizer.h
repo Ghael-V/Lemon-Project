@@ -133,6 +133,10 @@ public:
 
     void InitializeChannel(Tegra::Control::ChannelState& channel) override;
 
+    bool CanDrawIndirectByteCount() override {
+        return device.IsTransformFeedbackDrawSupported();
+    }
+
     void BindChannel(Tegra::Control::ChannelState& channel) override;
 
     void ReleaseChannel(s32 channel_id) override;

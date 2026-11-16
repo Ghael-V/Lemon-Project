@@ -507,6 +507,12 @@ public:
         return extensions.transform_feedback;
     }
 
+    /// Returns true if the device can draw from a transform feedback byte count on the GPU.
+    bool IsTransformFeedbackDrawSupported() const {
+        return extensions.transform_feedback &&
+               properties.transform_feedback.transformFeedbackDraw != 0;
+    }
+
     /// Returns true if the device supports VK_EXT_transform_feedback properly.
     bool AreTransformFeedbackGeometryStreamsSupported() const {
         return features.transform_feedback.geometryStreams;

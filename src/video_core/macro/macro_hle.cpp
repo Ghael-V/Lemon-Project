@@ -327,6 +327,11 @@ public:
     explicit HLE_DrawIndirectByteCount(Maxwell3D& maxwell3d_) : HLEMacroImpl(maxwell3d_) {}
 
     void Execute(const std::vector<u32>& parameters, [[maybe_unused]] u32 method) override {
+        if (!maxwell3d.Rasterizer().CanDrawIndirectByteCount()) {
+            // The count is read from guest memory instead (the counter is written back there).
+            Fallback(parameters);
+            return;
+        }
         const bool force = maxwell3d.Rasterizer().HasDrawTransformFeedback();
 
         auto topology = static_cast<Maxwell3D::Regs::PrimitiveTopology>(parameters[0] & 0xFFFFU);

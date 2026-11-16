@@ -1225,13 +1225,22 @@ void Device::RemoveUnsuitableExtensions() {
                                        VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
 
     // VK_EXT_transform_feedback
+    // Only the feature and Maxwell's four buffers are required. Geometry streams have their own
+    // switch in the shader compiler, the counters use counter buffers (not Vulkan queries), and
+    // draws from a byte count fall back to the CPU without transformFeedbackDraw. Requiring all
+    // of it left Mali (one stream, no indirect byte-count draw) with no transform feedback at all,
+    // and games that skin their models with it (Zelda BOTW) drew them black.
+    if (extensions.transform_feedback) {
+        const auto& tfb = properties.transform_feedback;
+        LOG_INFO(Render_Vulkan,
+                 "Transform feedback: streams={} (max {}), buffers={}, queries={}, draw={}",
+                 features.transform_feedback.geometryStreams != 0,
+                 tfb.maxTransformFeedbackStreams, tfb.maxTransformFeedbackBuffers,
+                 tfb.transformFeedbackQueries != 0, tfb.transformFeedbackDraw != 0);
+    }
     extensions.transform_feedback =
         features.transform_feedback.transformFeedback &&
-        features.transform_feedback.geometryStreams &&
-        properties.transform_feedback.maxTransformFeedbackStreams >= 4 &&
-        properties.transform_feedback.maxTransformFeedbackBuffers > 0 &&
-        properties.transform_feedback.transformFeedbackQueries &&
-        properties.transform_feedback.transformFeedbackDraw;
+        properties.transform_feedback.maxTransformFeedbackBuffers >= 4;
     RemoveExtensionFeatureIfUnsuitable(extensions.transform_feedback, features.transform_feedback,
                                        VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME);
 
