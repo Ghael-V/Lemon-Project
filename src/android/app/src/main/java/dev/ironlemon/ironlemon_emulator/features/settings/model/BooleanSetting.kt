@@ -22,6 +22,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     JOYSTICK_REL_CENTER("joystick_rel_center"),
     DPAD_SLIDE("dpad_slide"),
     BUTTON_SLIDE("button_slide"),
+    OVERLAY_SNAP_TO_GRID("overlay_snap_to_grid"),
     HAPTIC_FEEDBACK("haptic_feedback"),
     SHOW_PERFORMANCE_OVERLAY("show_performance_overlay"),
     SHOW_INPUT_OVERLAY("show_input_overlay"),

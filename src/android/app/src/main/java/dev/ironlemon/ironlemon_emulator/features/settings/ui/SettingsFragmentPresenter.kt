@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.features.settings.ui
 
+import dev.ironlemon.ironlemon_emulator.activities.OverlayEditorActivity
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
@@ -269,6 +270,18 @@ class SettingsFragmentPresenter(
         val inputSettings = NativeConfig.getInputSettings(true)
         sl.apply {
             add(IntSetting.INPUT_OVERLAY_MODE.key)
+            // In a game the in-game menu edits the controller (and offers 'only this game').
+            if (!NativeLibrary.isRunning()) {
+                add(
+                    RunnableSetting(
+                        titleId = R.string.edit_overlay_layout,
+                        descriptionId = R.string.edit_overlay_layout_description,
+                        isRunnable = true,
+                        iconId = R.drawable.ic_controller
+                    ) { OverlayEditorActivity.launch(context) }
+                )
+            }
+            add(BooleanSetting.OVERLAY_SNAP_TO_GRID.key)
             add(
                 SubmenuSetting(
                     titleString = Settings.getPlayerString(1),

@@ -23,7 +23,9 @@ data class OverlayControlData @Keep constructor(
     var landscapePosition: Pair<Double, Double>,
     var portraitPosition: Pair<Double, Double>,
     var foldablePosition: Pair<Double, Double>,
-    var pressMode: Int = OverlayPressMode.NORMAL
+    var pressMode: Int = OverlayPressMode.NORMAL,
+    /** Size of this control relative to the overall control scale. */
+    var scale: Float = 1f
 ) {
     fun positionFromLayout(layout: OverlayLayout): Pair<Double, Double> =
         when (layout) {

@@ -209,6 +209,13 @@ abstract class SettingsItem(
             )
 
             put(
+                SwitchSetting(
+                    BooleanSetting.OVERLAY_SNAP_TO_GRID,
+                    titleId = R.string.emulation_snap_to_grid,
+                    descriptionId = R.string.emulation_snap_to_grid_description
+                )
+            )
+            put(
                 SingleChoiceSetting(
                     IntSetting.INPUT_OVERLAY_MODE,
                     titleId = R.string.input_overlay_mode,

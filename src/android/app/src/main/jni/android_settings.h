@@ -22,6 +22,8 @@ struct OverlayControlData {
     std::pair<double, double> foldable_position;
     // 0 normal, 1 toggle (a tap holds it, the next lets go), 2 turbo (repeats while held).
     s32 press_mode{0};
+    // Size of this control relative to the others (1 = the overall control scale).
+    double scale{1.0};
 };
 
 struct Values {
@@ -76,6 +78,9 @@ struct Values {
     // A finger that started on a button moves to another button it reaches.
     Settings::Setting<bool> button_slide{linkage, false, "button_slide",
                                          Settings::Category::Overlay};
+    // Controls moved in the editor land on a grid.
+    Settings::Setting<bool> overlay_snap_to_grid{linkage, false, "overlay_snap_to_grid",
+                                                 Settings::Category::Overlay};
     Settings::Setting<bool> haptic_feedback{linkage, true, "haptic_feedback",
                                             Settings::Category::Overlay};
     Settings::Setting<bool> show_performance_overlay{linkage, true, "show_performance_overlay",

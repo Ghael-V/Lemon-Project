@@ -1487,7 +1487,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="overlay_press_mode_normal">Normal</string>
     <string name="overlay_press_mode_toggle">Toggle: a tap holds it, the next lets go</string>
     <string name="overlay_press_mode_turbo">Turbo: pressed over and over while held</string>
-    <string name="overlay_press_mode_hint">Tap a button without moving it to choose how it behaves.</string>
+    <string name="overlay_press_mode_hint">Tap a control without moving it to change its size or how it behaves.</string>
+    <string name="overlay_control_options">Control options</string>
+    <string name="overlay_control_size">Size: %1$d%%</string>
+    <string name="overlay_control_size_reset">Normal size</string>
+    <string name="emulation_snap_to_grid">Snap to grid</string>
+    <string name="emulation_snap_to_grid_description">Controls you move in the editor land on a grid.</string>
+    <string name="overlay_grid_on">Grid: on</string>
+    <string name="overlay_grid_off">Grid: off</string>
+    <string name="edit_overlay_layout">Edit on-screen controller</string>
+    <string name="edit_overlay_layout_description">Move, resize and set up the on-screen controls without starting a game.</string>
     <string name="whats_new_title">What\'s new in Iron Lemon %1$s</string>
     <string name="whats_new_body">Iron Lemon 2.0 is built on the original yuzu core, without Eden\'s changes, with all of Lemon\'s work on top: noticeably faster on Snapdragon.\n\n• Lemon-Ade driver built in and used by default on Snapdragon\n• Lemon FG frame generation (Settings &gt; Graphics)\n• Mali GPUs: BCn textures recompressed for the GPU, and PanVK driver downloads (experimental)\n• Newer games boot: audio renderer revisions 12 to 15\n• Gamepad hotkeys, toggle and turbo on-screen buttons, and the on-screen controller hidden automatically with a physical one\n• Migrate saves, keys and firmware from another emulator\n• Updates from Lemon\'s own server</string>
     <string name="overlay_presets">Layout presets</string>

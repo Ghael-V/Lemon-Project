@@ -2,18 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/menu_toggle_fps"
-        android:title="@string/emulation_fps_counter"
-        android:checkable="true" />
-
-    <item
-        android:id="@+id/thermal_indicator"
-        android:title="@string/emulation_thermal_indicator"
-        android:checkable="true" />
-
-    <item
         android:id="@+id/menu_edit_overlay"
         android:title="@string/emulation_touch_overlay_edit" />
+
+    <item
+        android:id="@+id/menu_overlay_presets"
+        android:title="@string/overlay_presets" />
+
+    <item
+        android:id="@+id/menu_snap_to_grid"
+        android:title="@string/emulation_snap_to_grid"
+        android:checkable="true" />
 
     <item
         android:id="@+id/menu_adjust_overlay"
@@ -22,11 +21,6 @@
     <item
         android:id="@+id/menu_toggle_controls"
         android:title="@string/emulation_toggle_controls" />
-
-    <item
-        android:id="@+id/menu_show_overlay"
-        android:title="@string/emulation_show_overlay"
-        android:checkable="true" />
 
     <item
         android:id="@+id/menu_rel_stick_center"
@@ -54,8 +48,14 @@
         android:checkable="true" />
 
     <item
-        android:id="@+id/menu_overlay_presets"
-        android:title="@string/overlay_presets" />
+        android:id="@+id/menu_toggle_fps"
+        android:title="@string/emulation_fps_counter"
+        android:checkable="true" />
+
+    <item
+        android:id="@+id/thermal_indicator"
+        android:title="@string/emulation_thermal_indicator"
+        android:checkable="true" />
 
     <item
         android:id="@+id/menu_reset_overlay"

@@ -27,6 +27,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import android.graphics.Color
+import android.graphics.Paint
+import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSlider
+import kotlin.math.roundToInt
 import android.view.ViewConfiguration
 import android.view.MotionEvent
 import android.view.SurfaceView
@@ -67,7 +75,16 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
     private lateinit var windowInsets: WindowInsets
 
+    private val gridPaint = Paint().apply {
+        color = Color.WHITE
+        alpha = 40
+        strokeWidth = resources.displayMetrics.density
+    }
+
     var layout = OverlayLayout.Landscape
+
+    /** Shown whatever the on-screen controller mode says (the editor without a game). */
+    var alwaysShown = false
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
@@ -96,6 +113,19 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
+        if (inEditMode && BooleanSetting.OVERLAY_SNAP_TO_GRID.getBoolean()) {
+            val step = gridStep()
+            var x = step.toFloat()
+            while (x < width) {
+                canvas.drawLine(x, 0f, x, height.toFloat(), gridPaint)
+                x += step
+            }
+            var y = step.toFloat()
+            while (y < height) {
+                canvas.drawLine(0f, y, width.toFloat(), y, gridPaint)
+                y += step
+            }
+        }
         for (button in overlayButtons) {
             button.draw(canvas)
         }
@@ -385,19 +415,15 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_POINTER_UP -> if (buttonBeingConfigured === button) {
-                    // Persist button position by saving new place.
-                    saveControlPosition(
-                        buttonBeingConfigured!!.overlayControlData.id,
-                        buttonBeingConfigured!!.bounds.centerX(),
-                        buttonBeingConfigured!!.bounds.centerY(),
-                        layout
-                    )
-                    val slop = ViewConfiguration.get(context).scaledTouchSlop
-                    val tapped = kotlin.math.abs(fingerPositionX - configureDownX) < slop &&
-                        kotlin.math.abs(fingerPositionY - configureDownY) < slop
                     buttonBeingConfigured = null
-                    if (tapped) {
-                        showPressModeDialog(button)
+                    if (isTap(fingerPositionX, fingerPositionY)) {
+                        showControlOptions(button.overlayControlData.id, button)
+                    } else {
+                        placeControl(
+                            button.overlayControlData.id,
+                            button.bounds.centerX(),
+                            button.bounds.centerY()
+                        )
                     }
                 }
             }
@@ -413,6 +439,8 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                         dpad.bounds.contains(fingerPositionX, fingerPositionY)
                     ) {
                         dpadBeingConfigured = dpad
+                        configureDownX = fingerPositionX
+                        configureDownY = fingerPositionY
                         dpadBeingConfigured!!.onConfigureTouch(event)
                     }
 
@@ -424,14 +452,16 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
 
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_POINTER_UP -> if (dpadBeingConfigured === dpad) {
-                    // Persist button position by saving new place.
-                    saveControlPosition(
-                        OverlayControl.COMBINED_DPAD.id,
-                        dpadBeingConfigured!!.bounds.centerX(),
-                        dpadBeingConfigured!!.bounds.centerY(),
-                        layout
-                    )
                     dpadBeingConfigured = null
+                    if (isTap(fingerPositionX, fingerPositionY)) {
+                        showControlOptions(OverlayControl.COMBINED_DPAD.id, null)
+                    } else {
+                        placeControl(
+                            OverlayControl.COMBINED_DPAD.id,
+                            dpad.bounds.centerX(),
+                            dpad.bounds.centerY()
+                        )
+                    }
                 }
             }
         }
@@ -443,6 +473,8 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                     joystick.bounds.contains(fingerPositionX, fingerPositionY)
                 ) {
                     joystickBeingConfigured = joystick
+                    configureDownX = fingerPositionX
+                    configureDownY = fingerPositionY
                     joystickBeingConfigured!!.onConfigureTouch(event)
                 }
 
@@ -452,14 +484,13 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                 }
 
                 MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_POINTER_UP -> if (joystickBeingConfigured != null) {
-                    saveControlPosition(
-                        joystickBeingConfigured!!.prefId,
-                        joystickBeingConfigured!!.bounds.centerX(),
-                        joystickBeingConfigured!!.bounds.centerY(),
-                        layout
-                    )
+                MotionEvent.ACTION_POINTER_UP -> if (joystickBeingConfigured === joystick) {
                     joystickBeingConfigured = null
+                    if (isTap(fingerPositionX, fingerPositionY)) {
+                        showControlOptions(joystick.prefId, null)
+                    } else {
+                        placeControl(joystick.prefId, joystick.bounds.centerX(), joystick.bounds.centerY())
+                    }
                 }
             }
         }
@@ -713,6 +744,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
                             R.drawable.dpad_standard,
                             R.drawable.dpad_standard_cardinal_depressed,
                             R.drawable.dpad_standard_diagonal_depressed,
+                            controlSize(data),
                             position
                         )
                     )
@@ -733,7 +765,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         overlayJoysticks.clear()
 
         // Add all the enabled overlay items back to the HashSet.
-        if (OnScreenControls.shouldShow()) {
+        if (alwaysShown || OnScreenControls.shouldShow()) {
             addOverlayControls(layout)
         }
 
@@ -791,31 +823,85 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         NativeConfig.setOverlayControlData(overlayControlData)
     }
 
-    /** How the button behaves: normal, toggle or turbo (tapped without moving it in the editor). */
-    private fun showPressModeDialog(button: InputOverlayDrawableButton) {
+    private fun saveControlScale(id: String, scale: Float) {
+        val overlayControlData = NativeConfig.getOverlayControlData()
+        overlayControlData.firstOrNull { it.id == id }?.scale = scale
+        NativeConfig.setOverlayControlData(overlayControlData)
+    }
+
+    private fun isTap(x: Int, y: Int): Boolean {
+        val slop = ViewConfiguration.get(context).scaledTouchSlop
+        return kotlin.math.abs(x - configureDownX) < slop &&
+            kotlin.math.abs(y - configureDownY) < slop
+    }
+
+    /** Grid spacing of the editor, in pixels. */
+    private fun gridStep(): Int = (GRID_STEP_DP * resources.displayMetrics.density).roundToInt()
+
+    /** Saves where a control was dropped, on the grid when snapping is on. */
+    private fun placeControl(id: String, x: Int, y: Int) {
+        if (!BooleanSetting.OVERLAY_SNAP_TO_GRID.getBoolean()) {
+            saveControlPosition(id, x, y, layout)
+            return
+        }
+        val step = gridStep()
+        val snappedX = ((x.toFloat() / step).roundToInt() * step).coerceIn(0, width)
+        val snappedY = ((y.toFloat() / step).roundToInt() * step).coerceIn(0, height)
+        saveControlPosition(id, snappedX, snappedY, layout)
+        refreshControls()
+    }
+
+    /**
+     * A control tapped in the editor without moving it: its size and, for buttons, how pressing
+     * it behaves (normal, toggle or turbo).
+     */
+    private fun showControlOptions(id: String, button: InputOverlayDrawableButton?) {
         val modes = listOf(
             OverlayPressMode.NORMAL to R.string.overlay_press_mode_normal,
             OverlayPressMode.TOGGLE to R.string.overlay_press_mode_toggle,
             OverlayPressMode.TURBO to R.string.overlay_press_mode_turbo
         )
-        val current = modes.indexOfFirst { it.first == button.overlayControlData.pressMode }
+        val data = NativeConfig.getOverlayControlData().firstOrNull { it.id == id } ?: return
         showIronLemonDialog(context) { dismiss ->
+            var sizeStep by remember { mutableIntStateOf(sizeToStep(data.scale)) }
             IronLemonDialogCard(
-                title = stringResource(R.string.overlay_press_mode),
+                title = stringResource(R.string.overlay_control_options),
                 buttons = {
                     IronLemonButton(
-                        text = stringResource(android.R.string.cancel),
+                        text = stringResource(R.string.overlay_control_size_reset),
+                        height = 44.dp,
+                        onClick = {
+                            sizeStep = sizeToStep(1f)
+                            saveControlScale(id, 1f)
+                            refreshControls()
+                        }
+                    )
+                    IronLemonButton(
+                        text = stringResource(android.R.string.ok),
+                        primary = true,
                         height = 44.dp,
                         onClick = dismiss
                     )
                 }
             ) {
-                IronLemonDialogText(stringResource(R.string.overlay_press_mode_description))
-                Spacer(Modifier.height(12.dp))
-                IronLemonChoiceList(modes.map { stringResource(it.second) }, current) { index ->
-                    savePressMode(button.overlayControlData.id, modes[index].first)
+                IronLemonDialogText(
+                    stringResource(R.string.overlay_control_size, stepToPercent(sizeStep))
+                )
+                IronLemonSlider(sizeStep, SIZE_STEPS, { step ->
+                    sizeStep = step
+                    saveControlScale(id, stepToPercent(step) / 100f)
                     refreshControls()
-                    dismiss()
+                })
+                if (button != null) {
+                    Spacer(Modifier.height(12.dp))
+                    IronLemonDialogText(stringResource(R.string.overlay_press_mode_description))
+                    Spacer(Modifier.height(8.dp))
+                    val current = modes.indexOfFirst { it.first == data.pressMode }
+                    IronLemonChoiceList(modes.map { stringResource(it.second) }, current) { index ->
+                        savePressMode(id, modes[index].first)
+                        refreshControls()
+                        dismiss()
+                    }
                 }
             }
         }
@@ -914,6 +1000,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
         val overlayControlData = NativeConfig.getOverlayControlData()
         overlayControlData.forEach {
             it.enabled = OverlayControl.from(it.id)?.defaultVisibility == true
+            it.scale = 1f
         }
         NativeConfig.setOverlayControlData(overlayControlData)
 
@@ -939,6 +1026,23 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
     }
 
     companion object {
+        // Grid of the controls editor.
+        private const val GRID_STEP_DP = 16
+
+        // Size of one control: 50% to 200% of the overall scale, in 5% steps.
+        private const val SIZE_MIN_PERCENT = 50
+        private const val SIZE_STEP_PERCENT = 5
+        private const val SIZE_STEPS = (200 - SIZE_MIN_PERCENT) / SIZE_STEP_PERCENT
+
+        private fun sizeToStep(scale: Float): Int =
+            ((scale * 100f - SIZE_MIN_PERCENT) / SIZE_STEP_PERCENT).roundToInt().coerceIn(0, SIZE_STEPS)
+
+        private fun stepToPercent(step: Int): Int = SIZE_MIN_PERCENT + step * SIZE_STEP_PERCENT
+
+        /** The size a control's data asks for, kept in the range the editor offers. */
+        private fun controlSize(data: OverlayControlData): Float =
+            data.scale.coerceIn(SIZE_MIN_PERCENT / 100f, 2f)
+
         // Overall scale of the Big buttons preset (the default is 50).
         private const val BIG_PRESET_SCALE = 90
 
@@ -1115,6 +1219,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             }
             scale *= (IntSetting.OVERLAY_SCALE.getInt() + 50).toFloat()
             scale /= 100f
+            scale *= controlSize(overlayControlData)
 
             // Initialize the InputOverlayDrawableButton.
             val defaultStateBitmap = getBitmap(context, defaultResId, scale)
@@ -1173,6 +1278,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             defaultResId: Int,
             pressedOneDirectionResId: Int,
             pressedTwoDirectionsResId: Int,
+            size: Float,
             position: Pair<Double, Double>
         ): InputOverlayDrawableDpad {
             // Resources handle for fetching the initial Drawable resource.
@@ -1182,6 +1288,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             var scale = 0.25f
             scale *= (IntSetting.OVERLAY_SCALE.getInt() + 50).toFloat()
             scale /= 100f
+            scale *= size
 
             // Initialize the InputOverlayDrawableDpad.
             val defaultStateBitmap =
@@ -1255,6 +1362,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             var scale = 0.3f
             scale *= (IntSetting.OVERLAY_SCALE.getInt() + 50).toFloat()
             scale /= 100f
+            scale *= controlSize(overlayControlData)
 
             // Initialize the InputOverlayDrawableJoystick.
             val bitmapOuter = getBitmap(context, resOuter, scale)

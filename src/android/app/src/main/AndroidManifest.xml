@@ -62,6 +62,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
             android:label="@string/preferences_settings"/>
 
         <activity
+            android:name="dev.ironlemon.ironlemon_emulator.activities.OverlayEditorActivity"
+            android:theme="@style/Theme.IronLemon"
+            android:exported="false" />
+
+        <activity
             android:name="dev.ironlemon.ironlemon_emulator.activities.EmulationActivity"
             android:theme="@style/Theme.IronLemon"
             android:launchMode="singleTop"

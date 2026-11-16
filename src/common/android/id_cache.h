@@ -64,6 +64,7 @@ jfieldID GetOverlayControlDataLandscapePositionField();
 jfieldID GetOverlayControlDataPortraitPositionField();
 jfieldID GetOverlayControlDataFoldablePositionField();
 jfieldID GetOverlayControlDataPressModeField();
+jfieldID GetOverlayControlDataScaleField();
 
 jclass GetPatchClass();
 jmethodID GetPatchConstructor();

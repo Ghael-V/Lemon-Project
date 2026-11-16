@@ -41,6 +41,7 @@ static jmethodID s_overlay_control_data_constructor;
 static jfieldID s_overlay_control_data_id_field;
 static jfieldID s_overlay_control_data_enabled_field;
 static jfieldID s_overlay_control_data_press_mode_field;
+static jfieldID s_overlay_control_data_scale_field;
 static jfieldID s_overlay_control_data_landscape_position_field;
 static jfieldID s_overlay_control_data_portrait_position_field;
 static jfieldID s_overlay_control_data_foldable_position_field;
@@ -231,6 +232,10 @@ jfieldID GetOverlayControlDataPortraitPositionField() {
 
 jfieldID GetOverlayControlDataPressModeField() {
     return s_overlay_control_data_press_mode_field;
+}
+
+jfieldID GetOverlayControlDataScaleField() {
+    return s_overlay_control_data_scale_field;
 }
 
 jfieldID GetOverlayControlDataFoldablePositionField() {
@@ -460,7 +465,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         reinterpret_cast<jclass>(env->NewGlobalRef(overlay_control_data_class));
     s_overlay_control_data_constructor =
         env->GetMethodID(overlay_control_data_class, "<init>",
-                         "(Ljava/lang/String;ZLkotlin/Pair;Lkotlin/Pair;Lkotlin/Pair;I)V");
+                         "(Ljava/lang/String;ZLkotlin/Pair;Lkotlin/Pair;Lkotlin/Pair;IF)V");
     s_overlay_control_data_id_field =
         env->GetFieldID(overlay_control_data_class, "id", "Ljava/lang/String;");
     s_overlay_control_data_enabled_field =
@@ -473,6 +478,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         env->GetFieldID(overlay_control_data_class, "foldablePosition", "Lkotlin/Pair;");
     s_overlay_control_data_press_mode_field =
         env->GetFieldID(overlay_control_data_class, "pressMode", "I");
+    s_overlay_control_data_scale_field =
+        env->GetFieldID(overlay_control_data_class, "scale", "F");
     env->DeleteLocalRef(overlay_control_data_class);
 
     const jclass patch_class = env->FindClass("dev/ironlemon/ironlemon_emulator/model/Patch");

@@ -1629,7 +1629,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()
             findItem(R.id.menu_dpad_slide).isChecked = BooleanSetting.DPAD_SLIDE.getBoolean()
             findItem(R.id.menu_button_slide).isChecked = BooleanSetting.BUTTON_SLIDE.getBoolean()
-            findItem(R.id.menu_show_overlay).isChecked = OnScreenControls.shouldShow()
+            findItem(R.id.menu_snap_to_grid).isChecked =
+                BooleanSetting.OVERLAY_SNAP_TO_GRID.getBoolean()
             findItem(R.id.menu_haptics).isChecked = BooleanSetting.HAPTIC_FEEDBACK.getBoolean()
             findItem(R.id.menu_touchscreen).isChecked = BooleanSetting.TOUCHSCREEN.getBoolean()
         }
@@ -1676,14 +1677,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_show_overlay -> {
-                    // Shown or hidden by hand: Always or Never from now on (Automatic is in
-                    // Settings > Controls).
+                R.id.menu_snap_to_grid -> {
                     it.isChecked = !it.isChecked
-                    OnScreenControls.mode =
-                        if (it.isChecked) OnScreenControls.ALWAYS else OnScreenControls.NEVER
-                    refreshInputOverlayVisibility()
-                    updateQuickOverlayTitle()
+                    BooleanSetting.OVERLAY_SNAP_TO_GRID.setBoolean(it.isChecked)
+                    binding.surfaceInputOverlay.invalidate()
                     true
                 }
 
