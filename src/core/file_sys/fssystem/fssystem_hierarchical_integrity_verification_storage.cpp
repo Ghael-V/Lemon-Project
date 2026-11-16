@@ -25,7 +25,11 @@ Result HierarchicalIntegrityVerificationStorage::Initialize(
              ResultInvalidArgument);
     R_UNLESS(storage[HierarchicalStorageInformation::MasterStorage] != nullptr,
              ResultNullptrArgument);
-    for (s32 i = HierarchicalStorageInformation::Layer1Storage; i <= static_cast<s32>(info.max_layers) - 2; ++i) {
+    // Layer 1 is always read; layers up to max_layers - 2 by the intermediate levels.
+    R_UNLESS(storage[HierarchicalStorageInformation::Layer1Storage] != nullptr,
+             ResultNullptrArgument);
+    for (s32 i = HierarchicalStorageInformation::Layer2Storage;
+         i <= static_cast<s32>(info.max_layers) - 2; ++i) {
         R_UNLESS(storage[i] != nullptr, ResultNullptrArgument);
     }
     R_UNLESS(storage[HierarchicalStorageInformation::DataStorage] != nullptr,
@@ -78,13 +82,15 @@ Result HierarchicalIntegrityVerificationStorage::Initialize(
                  ResultAllocationMemoryFailedAllocateShared);
     }
 
-    // Initialize the final level storage.
+    // Initialize the final level storage. Its data is always in the DataStorage slot (as
+    // Atmosphere does): storage[level + 2] is only that slot with the full 7 layers, and was an
+    // empty one for NCAs with fewer (the patch meta of newer updates), read as null.
     {
         // Initialize the verification storage.
         auto buffer_storage =
             std::make_shared<OffsetVfsFile>(m_buffer_storages[level], info.info[level].size, 0);
         m_verify_storages[level + 1]->Initialize(
-            std::move(buffer_storage), storage[level + 2],
+            std::move(buffer_storage), storage[HierarchicalStorageInformation::DataStorage],
             static_cast<s64>(1) << info.info[level + 1].block_order,
             static_cast<s64>(1) << info.info[level].block_order, true);
 
