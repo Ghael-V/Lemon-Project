@@ -331,6 +331,11 @@ public:
         return features.features.textureCompressionBC;
     }
 
+    /// Returns true if blending can use a second colour output (dual-source blending).
+    bool IsDualSourceBlendSupported() const {
+        return features.features.dualSrcBlend;
+    }
+
     /// Returns true if descriptor aliasing is natively supported.
     bool IsDescriptorAliasingSupported() const {
         return GetDriverID() != VK_DRIVER_ID_QUALCOMM_PROPRIETARY;

@@ -479,6 +479,16 @@ void EmitSetPatch(EmitContext& ctx, IR::Patch patch, Id value) {
 }
 
 void EmitSetFragColor(EmitContext& ctx, u32 index, u32 component, Id value) {
+    if (ctx.runtime_info.dual_source_blend_emulated && component == 3) {
+        // Without dual-source blending the second source's alpha takes the first's place.
+        if (index == 0) {
+            return;
+        }
+        if (index == 1 && Sirit::ValidId(ctx.frag_color[0])) {
+            ctx.OpStore(ctx.OpAccessChain(ctx.output_f32, ctx.frag_color[0], ctx.Const(component)),
+                        value);
+        }
+    }
     const Id component_id{ctx.Const(component)};
     const Id pointer{ctx.OpAccessChain(ctx.output_f32, ctx.frag_color.at(index), component_id)};
     ctx.OpStore(pointer, value);

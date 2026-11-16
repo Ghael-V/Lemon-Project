@@ -777,13 +777,21 @@ void GraphicsPipeline::MakePipeline(VkRenderPass render_pass) {
         for (size_t i = 0; i < mask_table.size(); ++i) {
             write_mask |= mask[i] ? mask_table[i] : 0;
         }
+        // Without dual-source blending (Mali) a pipeline using it is invalid, and the driver's
+        // compiler crashed building it (Super Mario Galaxy): the shader moves the second source's
+        // alpha into the first and the factors read that.
+        const bool two_sources = device.IsDualSourceBlendSupported();
+        const auto factor = [two_sources](Maxwell::Blend::Factor f) {
+            const VkBlendFactor vk_factor = MaxwellToVK::BlendFactor(f);
+            return two_sources ? vk_factor : MaxwellToVK::WithoutSecondSource(vk_factor);
+        };
         cb_attachments.push_back({
             .blendEnable = blend.enable != 0,
-            .srcColorBlendFactor = MaxwellToVK::BlendFactor(blend.SourceRGBFactor()),
-            .dstColorBlendFactor = MaxwellToVK::BlendFactor(blend.DestRGBFactor()),
+            .srcColorBlendFactor = factor(blend.SourceRGBFactor()),
+            .dstColorBlendFactor = factor(blend.DestRGBFactor()),
             .colorBlendOp = MaxwellToVK::BlendEquation(blend.EquationRGB()),
-            .srcAlphaBlendFactor = MaxwellToVK::BlendFactor(blend.SourceAlphaFactor()),
-            .dstAlphaBlendFactor = MaxwellToVK::BlendFactor(blend.DestAlphaFactor()),
+            .srcAlphaBlendFactor = factor(blend.SourceAlphaFactor()),
+            .dstAlphaBlendFactor = factor(blend.DestAlphaFactor()),
             .alphaBlendOp = MaxwellToVK::BlendEquation(blend.EquationAlpha()),
             .colorWriteMask = write_mask,
         });

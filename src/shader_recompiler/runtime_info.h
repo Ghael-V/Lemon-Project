@@ -80,6 +80,12 @@ struct RuntimeInfo {
 
     /// Static Y negate value
     bool y_negate{};
+
+    /// Fragment: render target 0 blends with a second source, the shader's second colour output.
+    bool dual_source_blend{};
+    /// ...and the device can't blend with two sources: the second output's alpha replaces the
+    /// first's, which the blend factors then use instead.
+    bool dual_source_blend_emulated{};
     /// Use storage buffers instead of global pointers on GLASM
     bool glasm_use_storage_buffers{};
 

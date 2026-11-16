@@ -145,7 +145,8 @@ Shader::AttributeType AttributeType(const FixedPipelineState& state, size_t inde
 Shader::RuntimeInfo MakeRuntimeInfo(std::span<const Shader::IR::Program> programs,
                                     const GraphicsPipelineCacheKey& key,
                                     const Shader::IR::Program& program,
-                                    const Shader::IR::Program* previous_program) {
+                                    const Shader::IR::Program* previous_program,
+                                    bool dual_source_supported) {
     Shader::RuntimeInfo info;
     if (previous_program) {
         info.previous_stage_stores = previous_program->info.stores;
@@ -224,11 +225,21 @@ Shader::RuntimeInfo MakeRuntimeInfo(std::span<const Shader::IR::Program> program
         }
         info.convert_depth_mode = gl_ndc;
         break;
-    case Shader::Stage::Fragment:
+    case Shader::Stage::Fragment: {
         info.alpha_test_func = MaxwellToCompareFunction(
             key.state.UnpackComparisonOp(key.state.alpha_test_func.Value()));
         info.alpha_test_reference = Common::BitCast<float>(key.state.alpha_test_ref);
+        const auto& blend = key.state.attachments[0];
+        const bool second_source =
+            blend.enable != 0 &&
+            (MaxwellToVK::IsSecondSourceFactor(MaxwellToVK::BlendFactor(blend.SourceRGBFactor())) ||
+             MaxwellToVK::IsSecondSourceFactor(MaxwellToVK::BlendFactor(blend.DestRGBFactor())) ||
+             MaxwellToVK::IsSecondSourceFactor(MaxwellToVK::BlendFactor(blend.SourceAlphaFactor())) ||
+             MaxwellToVK::IsSecondSourceFactor(MaxwellToVK::BlendFactor(blend.DestAlphaFactor())));
+        info.dual_source_blend = second_source && dual_source_supported;
+        info.dual_source_blend_emulated = second_source && !dual_source_supported;
         break;
+    }
     default:
         break;
     }
@@ -710,7 +721,8 @@ std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline(
         const size_t stage_index{index - 1};
         infos[stage_index] = &program.info;
 
-        const auto runtime_info{MakeRuntimeInfo(programs, key, program, previous_stage)};
+        const auto runtime_info{MakeRuntimeInfo(programs, key, program, previous_stage,
+                                                     device.IsDualSourceBlendSupported())};
         ConvertLegacyToGeneric(program, runtime_info);
         const std::vector<u32> code{EmitSPIRV(profile, runtime_info, program, binding)};
         device.SaveShader(code);

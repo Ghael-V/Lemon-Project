@@ -61,6 +61,27 @@ VkBlendOp BlendEquation(Maxwell::Blend::Equation equation);
 
 VkBlendFactor BlendFactor(Maxwell::Blend::Factor factor);
 
+/// Whether a blend factor reads the second source of dual-source blending.
+[[nodiscard]] constexpr bool IsSecondSourceFactor(VkBlendFactor factor) {
+    return factor == VK_BLEND_FACTOR_SRC1_COLOR || factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR ||
+           factor == VK_BLEND_FACTOR_SRC1_ALPHA || factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+}
+
+/// For devices without dual-source blending: the second source's factors read the first
+/// source's alpha, where the shader then puts the second source's alpha.
+[[nodiscard]] constexpr VkBlendFactor WithoutSecondSource(VkBlendFactor factor) {
+    switch (factor) {
+    case VK_BLEND_FACTOR_SRC1_COLOR:
+    case VK_BLEND_FACTOR_SRC1_ALPHA:
+        return VK_BLEND_FACTOR_SRC_ALPHA;
+    case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR:
+    case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    default:
+        return factor;
+    }
+}
+
 VkFrontFace FrontFace(Maxwell::FrontFace front_face);
 
 VkCullModeFlagBits CullFace(Maxwell::CullFace cull_face);

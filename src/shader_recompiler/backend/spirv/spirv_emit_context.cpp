@@ -1652,7 +1652,13 @@ void EmitContext::DefineOutputs(const IR::Program& program) {
                 continue;
             }
             frag_color[index] = DefineOutput(*this, F32[4], std::nullopt);
-            Decorate(frag_color[index], spv::Decoration::Location, index);
+            if (index == 1 && runtime_info.dual_source_blend) {
+                // The second source of render target 0's dual-source blending.
+                Decorate(frag_color[index], spv::Decoration::Location, 0U);
+                Decorate(frag_color[index], spv::Decoration::Index, 1U);
+            } else {
+                Decorate(frag_color[index], spv::Decoration::Location, index);
+            }
             Name(frag_color[index], fmt::format("frag_color{}", index));
         }
         if (info.stores_frag_depth) {
