@@ -180,6 +180,34 @@ abstract class SettingsItem(
                 )
             )
             put(
+                SingleChoiceSetting(
+                    IntSetting.FRAME_GENERATION_MODE,
+                    titleId = R.string.frame_generation_mode,
+                    descriptionId = R.string.frame_generation_mode_description,
+                    choicesId = R.array.frameGenerationModeNames,
+                    valuesId = R.array.frameGenerationModeValues
+                )
+            )
+            put(
+                SliderSetting(
+                    IntSetting.FRAME_GENERATION_TARGET,
+                    titleId = R.string.frame_generation_target,
+                    descriptionId = R.string.frame_generation_target_description,
+                    min = 30,
+                    max = 120,
+                    units = " FPS"
+                )
+            )
+            put(
+                SingleChoiceSetting(
+                    IntSetting.FRAME_GENERATION_QUALITY,
+                    titleId = R.string.frame_generation_quality,
+                    descriptionId = R.string.frame_generation_quality_description,
+                    choicesId = R.array.frameGenerationQualityNames,
+                    valuesId = R.array.frameGenerationQualityValues
+                )
+            )
+            put(
                 SwitchSetting(
                     BooleanSetting.BCN_ASTC_RECOMPRESSION,
                     titleId = R.string.bcn_astc_recompression,

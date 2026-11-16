@@ -325,4 +325,30 @@
         <item>1</item>
         <item>2</item>
     </integer-array>
+    <string-array name="frameGenerationModeNames">
+        <item>@string/frame_generation_mode_auto</item>
+        <item>x2</item>
+        <item>x3</item>
+        <item>x4</item>
+    </string-array>
+
+    <integer-array name="frameGenerationModeValues">
+        <item>0</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </integer-array>
+
+    <string-array name="frameGenerationQualityNames">
+        <item>@string/frame_generation_quality_best</item>
+        <item>@string/frame_generation_quality_balanced</item>
+        <item>@string/frame_generation_quality_fast</item>
+    </string-array>
+
+    <integer-array name="frameGenerationQualityValues">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </integer-array>
+
 </resources>

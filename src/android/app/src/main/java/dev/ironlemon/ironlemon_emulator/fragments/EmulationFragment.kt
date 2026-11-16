@@ -852,6 +852,35 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 get = { BooleanSetting.FRAME_GENERATION.getBoolean(inUse) },
                 set = { BooleanSetting.FRAME_GENERATION.setBoolean(it) }
             ),
+            IntSetting.FRAME_GENERATION_MODE.key to QuickSetting.Choice(
+                R.string.frame_generation_mode,
+                R.array.frameGenerationModeNames,
+                resources.getIntArray(R.array.frameGenerationModeValues),
+                visible = { BooleanSetting.FRAME_GENERATION.getBoolean(inUse) },
+                get = { IntSetting.FRAME_GENERATION_MODE.getInt(inUse) },
+                set = { IntSetting.FRAME_GENERATION_MODE.setInt(it) }
+            ),
+            IntSetting.FRAME_GENERATION_TARGET.key to QuickSetting.Percent(
+                R.string.frame_generation_target,
+                min = 30,
+                max = 120,
+                step = 5,
+                unit = " FPS",
+                visible = {
+                    BooleanSetting.FRAME_GENERATION.getBoolean(inUse) &&
+                        IntSetting.FRAME_GENERATION_MODE.getInt(inUse) == 0
+                },
+                get = { IntSetting.FRAME_GENERATION_TARGET.getInt(inUse) },
+                set = { IntSetting.FRAME_GENERATION_TARGET.setInt(it) }
+            ),
+            IntSetting.FRAME_GENERATION_QUALITY.key to QuickSetting.Choice(
+                R.string.frame_generation_quality,
+                R.array.frameGenerationQualityNames,
+                resources.getIntArray(R.array.frameGenerationQualityValues),
+                visible = { BooleanSetting.FRAME_GENERATION.getBoolean(inUse) },
+                get = { IntSetting.FRAME_GENERATION_QUALITY.getInt(inUse) },
+                set = { IntSetting.FRAME_GENERATION_QUALITY.setInt(it) }
+            ),
             IntSetting.RENDERER_ACCURACY.key to QuickSetting.Choice(
                 R.string.renderer_accuracy,
                 R.array.rendererAccuracyNames,

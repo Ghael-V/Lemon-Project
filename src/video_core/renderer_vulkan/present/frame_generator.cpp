@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Iron Lemon
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
+#include <cmath>
+
 #include "common/logging/log.h"
 #include "common/settings.h"
 #include "video_core/renderer_vulkan/present/frame_generator.h"
@@ -15,12 +18,11 @@ namespace {
 // Lemon FG reads and writes rgba8; the presentation frames are blitted to and from it.
 constexpr VkFormat FG_FORMAT = VK_FORMAT_R8G8B8A8_UNORM;
 
-// A generated frame is only worth it when the game leaves the display waiting: below about 40 fps
-// one in-between frame fits before the next real one. Faster games are left alone, as two frames
-// per game frame would hold them back to half the display's rate.
-constexpr auto MIN_FRAME_TIME = std::chrono::milliseconds(25);
 // Longer than this the previous frame is too old to blend with (a loading pause, a menu).
 constexpr auto MAX_FRAME_TIME = std::chrono::milliseconds(100);
+
+// frame_generation_quality -> how much smaller the motion search runs than the output.
+constexpr std::array<u32, 3> SEARCH_REDUCTIONS{2, 4, 8};
 
 constexpr VkImageSubresourceRange COLOR_RANGE{
     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -78,18 +80,24 @@ FrameGenerator::FrameGenerator(const Device& device_, MemoryAllocator& memory_al
 
 FrameGenerator::~FrameGenerator() = default;
 
-void FrameGenerator::Rebuild(VkExtent2D extent) {
-    // The chain and target may still be in use by frames in flight.
+void FrameGenerator::Rebuild(VkExtent2D extent, u32 search_reduction) {
+    // The chain and targets may still be in use by frames in flight.
     scheduler.Finish();
     device.GetLogical().WaitIdle();
-    chain = std::make_unique<LemonFgChain>(device, memory_allocator, extent, FG_FORMAT);
-    target = FgImage(device, memory_allocator, extent, FG_FORMAT);
+    chain = std::make_unique<LemonFgChain>(device, memory_allocator, extent, FG_FORMAT,
+                                           search_reduction);
+    for (size_t i = 0; i < targets.size(); ++i) {
+        targets[i] = FgImage(device, memory_allocator, extent, FG_FORMAT);
+        chain->SetTarget(device, targets.size(), i, static_cast<u32>(i), targets[i].View());
+    }
     chain_extent = extent;
+    chain_reduction = search_reduction;
     frame_count = 0;
-    LOG_INFO(Render_Vulkan, "Frame generation at {}x{}", extent.width, extent.height);
+    LOG_INFO(Render_Vulkan, "Frame generation at {}x{}, motion at 1/{}", extent.width,
+             extent.height, search_reduction);
 }
 
-bool FrameGenerator::BeginFrame(VkExtent2D extent) {
+size_t FrameGenerator::BeginFrame(VkExtent2D extent, size_t available) {
     const auto now = std::chrono::steady_clock::now();
     const auto frame_time = now - last_frame;
     last_frame = now;
@@ -101,31 +109,57 @@ bool FrameGenerator::BeginFrame(VkExtent2D extent) {
             scheduler.Finish();
             device.GetLogical().WaitIdle();
             chain.reset();
-            target = FgImage{};
+            targets = {};
             chain_extent = {};
         }
-        return false;
+        return 0;
     }
-    if (!chain || chain_extent.width != extent.width || chain_extent.height != extent.height) {
-        Rebuild(extent);
+    const size_t quality = static_cast<size_t>(
+        std::clamp(Settings::values.frame_generation_quality.GetValue(), 0, 2));
+    const u32 reduction = SEARCH_REDUCTIONS[quality];
+    if (!chain || chain_extent.width != extent.width || chain_extent.height != extent.height ||
+        chain_reduction != reduction) {
+        Rebuild(extent, reduction);
     }
     // The first frame after a rebuild has nothing to blend with.
-    return frame_count > 0 && frame_time >= MIN_FRAME_TIME && frame_time <= MAX_FRAME_TIME;
+    if (frame_count == 0 || frame_time > MAX_FRAME_TIME) {
+        return 0;
+    }
+
+    size_t count;
+    const int mode = Settings::values.frame_generation_mode.GetValue();
+    if (mode >= 2) {
+        // A fixed multiple of the game's rate.
+        count = static_cast<size_t>(mode - 1);
+    } else {
+        // As many as bring the game to the target: a 30 fps game gets one for 60, a 20 fps
+        // game two. Games already at the target get none.
+        const double seconds = std::chrono::duration<double>(frame_time).count();
+        const double target = static_cast<double>(Settings::values.frame_generation_target.GetValue());
+        const long wanted = std::lround(target * seconds) - 1;
+        count = static_cast<size_t>(std::max(0L, wanted));
+    }
+    return std::min({count, MAX_GENERATED, available});
 }
 
-void FrameGenerator::Record(VkImage source, VkImage destination, VkExtent2D extent) {
+void FrameGenerator::Record(VkImage source, std::span<const VkImage> destinations,
+                            VkExtent2D extent) {
     if (!chain) {
         return;
     }
     LemonFgChain* const fg = chain.get();
     const u64 count = frame_count++;
-    const VkImage target_image = target.Handle();
-    const VkImageView target_view = target.View();
+    const size_t generated = std::min(destinations.size(), MAX_GENERATED);
+    std::array<VkImage, MAX_GENERATED> outputs{};
+    std::array<VkImage, MAX_GENERATED> target_images{};
+    for (size_t i = 0; i < generated; ++i) {
+        outputs[i] = destinations[i];
+        target_images[i] = targets[i].Handle();
+    }
     FgImage& input = fg->Input(count);
     const VkImage input_image = input.Handle();
     const VkImageLayout input_layout = input.Layout();
     input.SetLayout(VK_IMAGE_LAYOUT_GENERAL);
-    const Device* dev = &device;
 
     scheduler.RequestOutsideRenderPassOperationContext();
     scheduler.Record([=](vk::CommandBuffer cmdbuf) {
@@ -157,32 +191,32 @@ void FrameGenerator::Record(VkImage source, VkImage destination, VkExtent2D exte
         if (count == 0) {
             return;
         }
-        // Motion between the previous frame and this one.
+        // Motion between the previous frame and this one, shared by every generated frame.
         fg->DispatchShared(cmdbuf, count);
-        if (destination == VK_NULL_HANDLE) {
-            return;
-        }
 
-        // The frame halfway between them, into the target, then into the presentation frame.
-        fg->SetTarget(*dev, 1, 0, 0, target_view);
-        fg->DispatchGeneration(cmdbuf, count, 1, 0, 0, target_image, extent);
-        const std::array before_present_copy{
-            MakeBarrier(destination, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
-        };
-        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               0, {}, {}, before_present_copy);
-        Blit(cmdbuf, target_image, VK_IMAGE_LAYOUT_GENERAL, destination,
-             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, extent);
-        const std::array after_present_copy{
-            MakeBarrier(destination, VK_ACCESS_TRANSFER_WRITE_BIT,
-                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL),
-        };
-        cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                                   VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               0, {}, {}, after_present_copy);
+        // Frame i of n at t = (i + 1) / (n + 1), each into its target, then into its
+        // presentation frame.
+        for (size_t i = 0; i < generated; ++i) {
+            fg->DispatchGeneration(cmdbuf, count, generated, i, static_cast<u32>(i),
+                                   target_images[i], extent);
+            const std::array before_present_copy{
+                MakeBarrier(outputs[i], 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+            };
+            cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                   VK_PIPELINE_STAGE_TRANSFER_BIT, 0, {}, {}, before_present_copy);
+            Blit(cmdbuf, target_images[i], VK_IMAGE_LAYOUT_GENERAL, outputs[i],
+                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, extent);
+            const std::array after_present_copy{
+                MakeBarrier(outputs[i], VK_ACCESS_TRANSFER_WRITE_BIT,
+                            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL),
+            };
+            cmdbuf.PipelineBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                       VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   0, {}, {}, after_present_copy);
+        }
     });
 }
 

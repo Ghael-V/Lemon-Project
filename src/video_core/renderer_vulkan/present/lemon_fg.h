@@ -28,7 +28,7 @@ public:
     static constexpr size_t LEVELS = 3;
 
     LemonFgChain(const Device& device, MemoryAllocator& memory_allocator, VkExtent2D extent,
-                 VkFormat format);
+                 VkFormat format, u32 search_reduction);
 
     LemonFgChain(const LemonFgChain&) = delete;
     LemonFgChain& operator=(const LemonFgChain&) = delete;

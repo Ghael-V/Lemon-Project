@@ -403,6 +403,16 @@ struct Values {
     // display.
     SwitchableSetting<bool> frame_generation{linkage, false, "frame_generation",
                                              Category::Renderer};
+    // How many frames Lemon FG makes per game frame: 0 adapts to reach frame_generation_target,
+    // 2-4 multiplies the game's rate by that.
+    SwitchableSetting<int, true> frame_generation_mode{linkage, 0, 0, 4, "frame_generation_mode",
+                                                       Category::Renderer};
+    // Frames per second the adaptive mode aims for.
+    SwitchableSetting<int, true> frame_generation_target{
+        linkage, 60, 30, 120, "frame_generation_target", Category::Renderer};
+    // Resolution of the motion search: 0 half (best), 1 a quarter, 2 an eighth (fastest).
+    SwitchableSetting<int, true> frame_generation_quality{
+        linkage, 1, 0, 2, "frame_generation_quality", Category::Renderer};
     SwitchableSetting<bool> use_asynchronous_shaders{linkage, false, "use_asynchronous_shaders",
                                                      Category::RendererAdvanced};
     SwitchableSetting<bool> use_fast_gpu_time{

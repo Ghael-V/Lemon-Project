@@ -6,6 +6,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -161,17 +162,23 @@ void RendererVulkan::Composite(std::span<const Tegra::FramebufferConfig> framebu
                                render_window.GetFramebufferLayout(), swapchain.GetImageCount(),
                                swapchain.GetImageViewFormat());
 
-    // Frame generation: a frame between the previous one and this one, presented first.
+    // Frame generation: frames between the previous one and this one, presented first. One
+    // presentation frame is kept free besides this one, or taking them could wait forever.
     const VkExtent2D extent{frame->width, frame->height};
-    Frame* generated = nullptr;
-    if (frame_generator.BeginFrame(extent)) {
-        generated = present_manager.GetRenderFrame();
-        blit_swapchain.MatchFrame(generated, *frame);
+    const size_t pool = present_manager.FrameCount();
+    const size_t available = pool > 2 ? pool - 2 : 0;
+    const size_t generate = frame_generator.BeginFrame(extent, available);
+    std::array<Frame*, FrameGenerator::MAX_GENERATED> generated{};
+    std::array<VkImage, FrameGenerator::MAX_GENERATED> generated_images{};
+    for (size_t i = 0; i < generate; ++i) {
+        generated[i] = present_manager.GetRenderFrame();
+        blit_swapchain.MatchFrame(generated[i], *frame);
+        generated_images[i] = *generated[i]->image;
     }
-    frame_generator.Record(*frame->image, generated ? *generated->image : VK_NULL_HANDLE, extent);
-    if (generated) {
-        scheduler.Flush(*generated->render_ready);
-        present_manager.Present(generated);
+    frame_generator.Record(*frame->image, std::span(generated_images.data(), generate), extent);
+    for (size_t i = 0; i < generate; ++i) {
+        scheduler.Flush(*generated[i]->render_ready);
+        present_manager.Present(generated[i]);
     }
 
     scheduler.Flush(*frame->render_ready);

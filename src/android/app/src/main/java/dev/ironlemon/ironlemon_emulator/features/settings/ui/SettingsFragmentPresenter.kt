@@ -220,6 +220,9 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.RENDERER_FORCE_MAX_CLOCK.key)
             add(BooleanSetting.RENDERER_ASYNCHRONOUS_SHADERS.key)
             add(BooleanSetting.FRAME_GENERATION.key)
+            add(IntSetting.FRAME_GENERATION_MODE.key)
+            add(IntSetting.FRAME_GENERATION_TARGET.key)
+            add(IntSetting.FRAME_GENERATION_QUALITY.key)
             add(BooleanSetting.BCN_ASTC_RECOMPRESSION.key)
         }
     }

@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <memory>
+#include <span>
 
 #include "common/common_types.h"
 #include "video_core/renderer_vulkan/present/fg_common.h"
@@ -19,38 +21,43 @@ class Scheduler;
 
 /**
  * Frame generation for presentation: each frame the game presents is copied into Lemon FG's
- * history, and when the game runs well below the display (30 fps and the like) one frame halfway
- * between the previous and the new one is generated, to be presented before the new one.
+ * history, and up to three frames evenly spaced between the previous and the new one are
+ * generated, to be presented before the new one. How many: as many as bring the game to the
+ * target rate (adaptive), or a fixed multiple of its rate.
  */
 class FrameGenerator {
 public:
     FrameGenerator(const Device& device, MemoryAllocator& memory_allocator, Scheduler& scheduler);
     ~FrameGenerator();
 
+    /// Most frames generated per game frame.
+    static constexpr size_t MAX_GENERATED = FG_MAX_TARGETS - 1;
+
     /**
      * Called on the emulation's render thread for every frame drawn, before it is presented.
-     * Returns whether a frame should be generated for it (then GetRenderFrame a second frame and
-     * call Record with both).
+     * Returns how many frames to generate for it, at most [available] (then take that many
+     * presentation frames and call Record with them).
      */
-    [[nodiscard]] bool BeginFrame(VkExtent2D extent);
+    [[nodiscard]] size_t BeginFrame(VkExtent2D extent, size_t available);
 
     /**
      * Records the copy of [source] (the frame just drawn, in GENERAL layout) into the history
-     * and, when [destination] is not null, the generated frame into it (left in GENERAL, ready
-     * to be presented).
+     * and the generated frames into [destinations], in the order they are to be presented (left
+     * in GENERAL, ready to be presented).
      */
-    void Record(VkImage source, VkImage destination, VkExtent2D extent);
+    void Record(VkImage source, std::span<const VkImage> destinations, VkExtent2D extent);
 
 private:
-    void Rebuild(VkExtent2D extent);
+    void Rebuild(VkExtent2D extent, u32 search_reduction);
 
     const Device& device;
     MemoryAllocator& memory_allocator;
     Scheduler& scheduler;
 
     std::unique_ptr<LemonFgChain> chain;
-    FgImage target;
+    std::array<FgImage, MAX_GENERATED> targets;
     VkExtent2D chain_extent{};
+    u32 chain_reduction{};
     bool supported{};
 
     /// Frames copied into the chain since it was built.

@@ -54,22 +54,24 @@ sealed interface QuickSetting {
         val set: (Boolean) -> Unit
     ) : QuickSetting
 
-    /** A percentage slider from [min] to [max] in [step]s, shown when [visible]. */
+    /** A slider from [min] to [max] in [step]s, shown when [visible]; [unit] follows the value. */
     class Percent(
         override val titleRes: Int,
         val min: Int,
         val max: Int,
         val step: Int,
+        val unit: String = "%",
         val visible: () -> Boolean = { true },
         val get: () -> Int,
         val set: (Int) -> Unit
     ) : QuickSetting
 
-    /** One value out of [namesRes], stored as the matching entry of [values]. */
+    /** One value out of [namesRes], stored as the matching entry of [values]; shown when [visible]. */
     class Choice(
         override val titleRes: Int,
         val namesRes: Int,
         val values: IntArray,
+        val visible: () -> Boolean = { true },
         val get: () -> Int,
         val set: (Int) -> Unit
     ) : QuickSetting
@@ -125,7 +127,9 @@ fun QuickSettingsPanel(
                     is QuickSetting.Percent -> if (remember(token) { setting.visible() }) {
                         PercentRow(setting, token, changed)
                     }
-                    is QuickSetting.Choice -> ChoiceRow(setting, token, changed)
+                    is QuickSetting.Choice -> if (remember(token) { setting.visible() }) {
+                        ChoiceRow(setting, token, changed)
+                    }
                 }
             }
         }
@@ -160,7 +164,7 @@ private fun PercentRow(setting: QuickSetting.Percent, token: Int, onChanged: () 
     SettingCard {
         BasicText(
             stringResource(R.string.quick_settings_value, stringResource(setting.titleRes),
-                setting.min + step * setting.step),
+                setting.min + step * setting.step, setting.unit),
             style = IronLemonType.Button
         )
         IronLemonSlider(step, steps, { value ->

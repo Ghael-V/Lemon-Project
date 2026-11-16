@@ -21,7 +21,6 @@ namespace {
 
 constexpr VkFormat WORK_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr u32 BLOCK = 8;
-constexpr u32 SEARCH_REDUCTION = 4; // motion is searched at a quarter of the output resolution
 
 // Penalties of the motion search, in SAD units (0-255 scale) per pixel of vector length, per
 // block row: chosen on captured gameplay (scratchpad harness), see lemon_fg_search.comp.
@@ -49,10 +48,11 @@ enum SearchMode : u32 {
 } // Anonymous namespace
 
 LemonFgChain::LemonFgChain(const Device& device_, MemoryAllocator& memory_allocator,
-                           VkExtent2D extent_, VkFormat format)
+                           VkExtent2D extent_, VkFormat format, u32 search_reduction)
     : extent{extent_}, device{&device_} {
-    level_size[0] = {std::max(1u, DivCeil(extent.width, SEARCH_REDUCTION)),
-                     std::max(1u, DivCeil(extent.height, SEARCH_REDUCTION))};
+    // Motion is searched on a smaller copy: 2 (half) to 8 (an eighth of the output).
+    level_size[0] = {std::max(1u, DivCeil(extent.width, search_reduction)),
+                     std::max(1u, DivCeil(extent.height, search_reduction))};
     for (size_t level = 1; level < LEVELS; ++level) {
         level_size[level] = {std::max(1u, DivCeil(level_size[level - 1].width, 2)),
                              std::max(1u, DivCeil(level_size[level - 1].height, 2))};

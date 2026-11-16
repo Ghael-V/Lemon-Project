@@ -1480,7 +1480,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="input_overlay_mode_always">Always</string>
     <string name="input_overlay_mode_never">Never</string>
     <string name="frame_generation">Frame generation (Lemon FG)</string>
-    <string name="frame_generation_description">Shows a generated frame between every two the game draws when it runs at 30 fps or so, for smoother motion. Costs some GPU time and a little latency; best with V-Sync on.</string>
+    <string name="frame_generation_description">Generates frames between the ones the game draws (Lemon FG), for smoother motion: as many as bring the game to the target frame rate, or a fixed multiple. Costs some GPU time and a little latency; best with V-Sync on.</string>
+    <string name="frame_generation_mode">Generated frames</string>
+    <string name="frame_generation_mode_description">Auto makes as many as bring the game to the target frame rate; x2 to x4 multiply its frame rate.</string>
+    <string name="frame_generation_target">Target frame rate</string>
+    <string name="frame_generation_target_description">What Auto aims for. Keep it at your screen\'s refresh rate.</string>
+    <string name="frame_generation_quality">Motion quality</string>
+    <string name="frame_generation_quality_description">How finely motion is searched. Quality looks best, Performance is the lightest.</string>
+    <string name="frame_generation_mode_auto">Auto</string>
+    <string name="frame_generation_quality_best">Quality</string>
+    <string name="frame_generation_quality_balanced">Balanced</string>
+    <string name="frame_generation_quality_fast">Performance</string>
     <string name="emulation_button_slide">Button slide</string>
     <string name="overlay_press_mode">Button mode</string>
     <string name="overlay_press_mode_description">How this button behaves when you press it.</string>
@@ -1489,7 +1499,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="overlay_press_mode_turbo">Turbo: pressed over and over while held</string>
     <string name="overlay_press_mode_hint">Tap a control without moving it to change its size or how it behaves.</string>
     <string name="quick_settings">Quick settings</string>
-    <string name="quick_settings_value">%1$s: %2$d%%</string>
+    <string name="quick_settings_value">%1$s: %2$d%3$s</string>
     <string name="overlay_control_options">Control options</string>
     <string name="overlay_control_size">Size: %1$d%%</string>
     <string name="overlay_control_size_reset">Normal size</string>

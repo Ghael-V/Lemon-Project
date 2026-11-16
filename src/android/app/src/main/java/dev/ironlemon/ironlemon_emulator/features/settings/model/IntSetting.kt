@@ -28,7 +28,10 @@ enum class IntSetting(override val key: String) : AbstractIntSetting {
     LOCK_DRAWER("lock_drawer"),
     QUICK_SAVE_SLOTS("quick_save_slots"),
     VERTICAL_ALIGNMENT("vertical_alignment"),
-    FSR_SHARPENING_SLIDER("fsr_sharpening_slider");
+    FSR_SHARPENING_SLIDER("fsr_sharpening_slider"),
+    FRAME_GENERATION_MODE("frame_generation_mode"),
+    FRAME_GENERATION_TARGET("frame_generation_target"),
+    FRAME_GENERATION_QUALITY("frame_generation_quality");
 
     override fun getInt(needsGlobal: Boolean): Int = NativeConfig.getInt(key, needsGlobal)
 

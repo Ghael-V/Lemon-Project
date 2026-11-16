@@ -43,6 +43,11 @@ public:
     /// Returns the last used presentation frame
     Frame* GetRenderFrame();
 
+    /// Presentation frames in the pool (taking more than this at once never returns).
+    [[nodiscard]] size_t FrameCount() const noexcept {
+        return frames.size();
+    }
+
     /// Pushes a frame for presentation
     void Present(Frame* frame);
 
