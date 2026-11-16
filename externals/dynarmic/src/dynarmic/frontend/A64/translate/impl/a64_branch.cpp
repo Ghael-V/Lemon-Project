@@ -32,7 +32,9 @@ bool TranslatorVisitor::BL(Imm<26> imm26) {
     ir.PushRSB(ir.current_location->AdvancePC(4));
 
     const u64 target = ir.PC() + offset;
-    ir.SetTerm(IR::Term::LinkBlock{ir.current_location->SetPC(target)});
+    // A call isn't a loop's back edge (it overwrites the link register), so it needn't stop to
+    // check for a halt or for spent cycles: the loop around it does, and so does the return.
+    ir.SetTerm(IR::Term::LinkBlockFast{ir.current_location->SetPC(target)});
     return false;
 }
 
