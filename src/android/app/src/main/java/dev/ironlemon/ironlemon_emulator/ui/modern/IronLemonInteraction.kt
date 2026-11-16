@@ -20,6 +20,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,6 +55,13 @@ import kotlinx.coroutines.launch
  * - focused (controller / keyboard): grows slightly and gets a soft glow
  * - selected: a lemon outline with a slowly breathing glow
  */
+/**
+ * Whether selected items may pulse. A host whose content stays composed while out of sight (the
+ * in-game drawers, closed for the whole game) provides false then: an endless animation keeps
+ * the UI thread drawing every display frame, seen or not.
+ */
+val LocalLemonPulseActive = compositionLocalOf { true }
+
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.lemonInteractive(
     shape: Shape,
@@ -97,7 +105,7 @@ fun Modifier.lemonInteractive(
     // Only a selected item pulses, and the glow is worked out while drawing. An endless pulse on
     // every item, read here, recomposed the whole in-game menu on every display frame while a game
     // ran, even with its drawer closed: most of a CPU core.
-    val pulse = if (selected) {
+    val pulse = if (selected && LocalLemonPulseActive.current) {
         rememberInfiniteTransition(label = "lemonPulse").animateFloat(
             initialValue = 0.65f,
             targetValue = 1f,

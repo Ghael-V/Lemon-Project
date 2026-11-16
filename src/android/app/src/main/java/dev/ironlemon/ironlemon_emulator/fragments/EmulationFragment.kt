@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.CompositionLocalProvider
+import dev.ironlemon.ironlemon_emulator.ui.modern.LocalLemonPulseActive
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -259,6 +261,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+                updateDrawersShown()
                 binding.surfaceInputOverlay.dispatchTouchEvent(
                     MotionEvent.obtain(
                         SystemClock.uptimeMillis(),
@@ -272,6 +275,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
 
             override fun onDrawerOpened(drawerView: View) {
+                updateDrawersShown()
                 binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
                 if (drawerView == binding.quickSettingsSheet) {
                     // Values are read again (the game or Settings may have changed them).
@@ -286,6 +290,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
 
             override fun onDrawerClosed(drawerView: View) {
+                updateDrawersShown()
                 if (drawerView == binding.quickSettingsSheet) {
                     saveQuickSettings()
                 }
@@ -642,13 +647,19 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private fun showModernLoadingScreen() {
         val card = binding.loadingIndicator
         val parent = card.parent as? ViewGroup ?: return
+        // Composed only while it shows: hidden but composed, its endless animations and progress
+        // polling kept recomposing on every display frame for the whole game (the UI thread was
+        // ~7% of the app's CPU in Zelda BOTW).
+        val composed = mutableStateOf(true)
         val screen = ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                ModernLoadingScreen(
-                    isActive = { _binding?.loadingIndicator?.isVisible == true },
-                    read = ::loadingSnapshot
-                )
+                if (composed.value) {
+                    ModernLoadingScreen(
+                        isActive = { _binding?.loadingIndicator?.isVisible == true },
+                        read = ::loadingSnapshot
+                    )
+                }
             }
             isClickable = true // nothing behind it is usable while it shows
         }
@@ -665,6 +676,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             val shown = card.isVisible && card.alpha > 0f
             screen.visibility = if (shown) View.VISIBLE else View.GONE
             screen.alpha = card.alpha
+            if (composed.value != shown) {
+                composed.value = shown
+            }
             true
         }
     }
@@ -921,6 +935,18 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         )
     }
 
+    /** Whether a drawer is (even partly) on screen: their panels only animate then. */
+    private val drawersShown = mutableStateOf(false)
+
+    private fun updateDrawersShown() {
+        val layout = _binding?.drawerLayout ?: return
+        val shown = layout.isDrawerVisible(GravityCompat.START) ||
+            layout.isDrawerVisible(GravityCompat.END)
+        if (drawersShown.value != shown) {
+            drawersShown.value = shown
+        }
+    }
+
     private fun showQuickSettingsPanel() {
         binding.quickSettingsSheet.addView(
             ComposeView(requireContext()).apply {
@@ -928,14 +954,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
                 )
                 setContent {
-                    QuickSettingsPanel(
-                        tick = quickSettingsTick.intValue,
-                        scope = game.title,
-                        settings = quickSettings.map { it.second }
-                    ) {
-                        quickSettingsChanged = true
-                        // Applied at once: the running game reads them again.
-                        NativeLibrary.applySettings()
+                    CompositionLocalProvider(LocalLemonPulseActive provides drawersShown.value) {
+                        QuickSettingsPanel(
+                            tick = quickSettingsTick.intValue,
+                            scope = game.title,
+                            settings = quickSettings.map { it.second }
+                        ) {
+                            quickSettingsChanged = true
+                            // Applied at once: the running game reads them again.
+                            NativeLibrary.applySettings()
+                        }
                     }
                 }
             },
@@ -980,14 +1008,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val panel = ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                InGameMenuPanel(
-                    menu = menu,
-                    game = game,
-                    tick = inGameMenuTick.intValue,
-                    performance = null,
-                    saves = QuickSaveSlots(read = ::quickSaveSlotInfos, onSlot = ::onQuickSaveSlot),
-                    onItem = { id -> menu.performIdentifierAction(id, 0) }
-                )
+                CompositionLocalProvider(LocalLemonPulseActive provides drawersShown.value) {
+                    InGameMenuPanel(
+                        menu = menu,
+                        game = game,
+                        tick = inGameMenuTick.intValue,
+                        performance = null,
+                        saves = QuickSaveSlots(read = ::quickSaveSlotInfos, onSlot = ::onQuickSaveSlot),
+                        onItem = { id -> menu.performIdentifierAction(id, 0) }
+                    )
+                }
             }
         }
         // The classic list stays (its items anchor popups) but is no longer seen.

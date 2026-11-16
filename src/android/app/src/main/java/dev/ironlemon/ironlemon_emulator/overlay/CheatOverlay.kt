@@ -4,6 +4,8 @@
 
 package dev.ironlemon.ironlemon_emulator.overlay
 
+import dev.ironlemon.ironlemon_emulator.ui.modern.LocalLemonPulseActive
+import androidx.compose.runtime.CompositionLocalProvider
 import android.content.Context
 import android.util.AttributeSet
 import android.view.Gravity
@@ -141,10 +143,25 @@ class CheatOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var scope = CoroutineScope(Dispatchers.Main + Job())
     private var isBusy = false
 
+    // The panel is composed for the whole game and hidden most of it: its selected items only
+    // pulse while it is on screen (an endless animation redraws on every display frame).
+    private val panelShown = mutableStateOf(false)
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (panelShown.value != isVisible) {
+            panelShown.value = isVisible
+        }
+    }
+
     init {
         panel = ComposeView(context).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            setContent { CheatPanel() }
+            setContent {
+                CompositionLocalProvider(LocalLemonPulseActive provides panelShown.value) {
+                    CheatPanel()
+                }
+            }
         }
         addView(
             panel,

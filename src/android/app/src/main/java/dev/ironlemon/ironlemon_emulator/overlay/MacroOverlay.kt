@@ -4,6 +4,8 @@
 
 package dev.ironlemon.ironlemon_emulator.overlay
 
+import dev.ironlemon.ironlemon_emulator.ui.modern.LocalLemonPulseActive
+import androidx.compose.runtime.CompositionLocalProvider
 import android.content.Context
 import android.util.AttributeSet
 import android.view.Gravity
@@ -90,10 +92,25 @@ class MacroOverlay(context: Context, attrs: AttributeSet?) : FrameLayout(context
      *  bookkeeping consistent) - invoked when the user taps "Show on-screen controller". */
     var onShowOverlayRequested: (() -> Unit)? = null
 
+    // The panel is composed for the whole game and hidden most of it: its selected items only
+    // pulse while it is on screen (an endless animation redraws on every display frame).
+    private val panelShown = mutableStateOf(false)
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (panelShown.value != isVisible) {
+            panelShown.value = isVisible
+        }
+    }
+
     init {
         panel = ComposeView(context).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            setContent { MacroPanel() }
+            setContent {
+                CompositionLocalProvider(LocalLemonPulseActive provides panelShown.value) {
+                    MacroPanel()
+                }
+            }
         }
         addView(
             panel,
