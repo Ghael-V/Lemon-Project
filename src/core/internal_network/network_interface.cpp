@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <atomic>
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -119,9 +120,17 @@ std::vector<NetworkInterface> GetAvailableNetworkInterfaces() {
 
         u32 gateway{};
 
-        std::ifstream file{"/proc/net/route"};
+        // Android doesn't let apps read the routing table: say so once and stop trying (games
+        // ask for the interfaces many times a second).
+        static std::atomic_bool route_table_unreadable{false};
+        std::ifstream file;
+        if (!route_table_unreadable) {
+            file.open("/proc/net/route");
+        }
         if (!file.is_open()) {
-            LOG_ERROR(Network, "Failed to open \"/proc/net/route\"");
+            if (!route_table_unreadable.exchange(true)) {
+                LOG_WARNING(Network, "Can't read \"/proc/net/route\": no gateway address");
+            }
 
             result.emplace_back(NetworkInterface{
                 .name{ifa->ifa_name},
