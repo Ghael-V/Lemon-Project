@@ -4,11 +4,16 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 
 #include "common/common_types.h"
 
 namespace Service::HID {
 
+// An entry the application reads without locking, as a sequence lock: its sampling number is odd
+// while the entry is being written, and twice the state's own sampling number once it is done.
+// Newer SDKs retry while it is odd, so a plain counter (odd every other entry) kept them reading
+// the same entry forever (The Drifter, Turok).
 template <typename State>
 struct AtomicStorage {
     s64 sampling_number;
@@ -40,13 +45,22 @@ struct Lifo {
     }
 
     void WriteNextEntry(const State& new_state) {
+        const auto next = GetNextEntryIndex();
+        auto& entry = entries[next];
+        const s64 done = static_cast<s64>(new_state.sampling_number) << 1;
+
+        // Mark the entry as being written, write it, mark it done, and only then publish it.
+        entry.sampling_number = done | 1;
+        std::atomic_thread_fence(std::memory_order_release);
+        entry.state = new_state;
+        std::atomic_thread_fence(std::memory_order_release);
+        entry.sampling_number = done;
+        std::atomic_thread_fence(std::memory_order_release);
+
+        buffer_tail = static_cast<s64>(next);
         if (buffer_count < static_cast<s64>(max_buffer_size) - 1) {
             buffer_count++;
         }
-        buffer_tail = GetNextEntryIndex();
-        const auto& previous_entry = ReadPreviousEntry();
-        entries[buffer_tail].sampling_number = previous_entry.sampling_number + 1;
-        entries[buffer_tail].state = new_state;
     }
 };
 

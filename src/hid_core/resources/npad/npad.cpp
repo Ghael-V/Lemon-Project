@@ -383,21 +383,21 @@ void NPad::WriteEmptyEntry(NpadInternalState* npad, bool is_connected) {
         dummy_pad_state.connection_status.is_left_connected.Assign(1);
         dummy_pad_state.connection_status.is_right_connected.Assign(1);
     }
-    dummy_pad_state.sampling_number = npad->fullkey_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->fullkey_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->fullkey_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->handheld_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->handheld_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->handheld_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->joy_dual_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->joy_dual_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->joy_dual_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->joy_left_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->joy_left_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->joy_left_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->joy_right_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->joy_right_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->joy_right_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->palma_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->palma_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->palma_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_pad_state.sampling_number = npad->system_ext_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_pad_state.sampling_number = npad->system_ext_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->system_ext_lifo.WriteNextEntry(dummy_pad_state);
-    dummy_gc_state.sampling_number = npad->gc_trigger_lifo.ReadCurrentEntry().sampling_number + 1;
+    dummy_gc_state.sampling_number = npad->gc_trigger_lifo.ReadCurrentEntry().state.sampling_number + 1;
     npad->gc_trigger_lifo.WriteNextEntry(dummy_gc_state);
 }
 
