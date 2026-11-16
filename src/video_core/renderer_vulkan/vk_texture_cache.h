@@ -274,6 +274,12 @@ public:
 
     [[nodiscard]] bool IsRescaled() const noexcept;
 
+    /// False when the host format can't be sampled with linear filtering (on Mali, 32-bit float
+    /// formats among others): a linear sampler on it is undefined and reads black there.
+    [[nodiscard]] bool SupportsLinearFilter() const noexcept {
+        return supports_linear_filter;
+    }
+
     [[nodiscard]] VkImageView Handle(Shader::TextureType texture_type) const noexcept {
         return *image_views[static_cast<size_t>(texture_type)];
     }
@@ -319,6 +325,7 @@ private:
     VkImageView render_target = VK_NULL_HANDLE;
     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     u32 buffer_size = 0;
+    bool supports_linear_filter = true;
 };
 
 class ImageAlloc : public VideoCommon::ImageAllocBase {};
@@ -331,6 +338,15 @@ public:
         return *sampler;
     }
 
+    /// Whether this sampler filters linearly (min, mag or between mips).
+    [[nodiscard]] bool UsesLinearFilter() const noexcept {
+        return uses_linear_filter;
+    }
+
+    /// The same sampler with nearest filtering and no anisotropy, for views whose format can't
+    /// be filtered linearly. Created on first use.
+    [[nodiscard]] VkSampler HandleWithoutLinearFilter();
+
     [[nodiscard]] VkSampler HandleWithDefaultAnisotropy() const noexcept {
         return *sampler_default_anisotropy;
     }
@@ -340,8 +356,12 @@ public:
     }
 
 private:
+    const Device* device;
+    Tegra::Texture::TSCEntry tsc;
+    bool uses_linear_filter = false;
     vk::Sampler sampler;
     vk::Sampler sampler_default_anisotropy;
+    vk::Sampler sampler_without_linear_filter;
 };
 
 class Framebuffer {

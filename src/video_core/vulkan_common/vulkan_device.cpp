@@ -856,6 +856,15 @@ bool Device::IsFormatSupported(VkFormat wanted_format, VkFormatFeatureFlags want
     return (supported_usage & wanted_usage) == wanted_usage;
 }
 
+bool Device::IsLinearFilterSupported(VkFormat format) const {
+    const auto it = format_properties.find(format);
+    if (it == format_properties.end()) {
+        return true;
+    }
+    return (it->second.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) !=
+           0;
+}
+
 std::string Device::GetDriverIdentity() const {
     std::string uuid;
     for (const u8 byte : properties.properties.pipelineCacheUUID) {

@@ -208,6 +208,10 @@ public:
     bool IsFormatSupported(VkFormat wanted_format, VkFormatFeatureFlags wanted_usage,
                            FormatType format_type) const;
 
+    /// Returns true if an optimally tiled image of this format can be sampled with linear
+    /// filtering (unknown formats are assumed to support it).
+    bool IsLinearFilterSupported(VkFormat format) const;
+
     /// Reports a device loss.
     void ReportLoss() const;
 

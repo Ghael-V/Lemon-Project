@@ -2063,6 +2063,7 @@ ImageView::ImageView(TextureCacheRuntime& runtime, const VideoCommon::ImageViewI
         }
     }
     const auto format_info = MaxwellToVK::SurfaceFormat(*device, FormatType::Optimal, true, format);
+    supports_linear_filter = device->IsLinearFilterSupported(format_info.format);
     const VkImageViewUsageCreateInfo image_view_usage{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
         .pNext = nullptr,
@@ -2238,9 +2239,10 @@ vk::ImageView ImageView::MakeView(VkFormat vk_format, VkImageAspectFlags aspect_
     });
 }
 
-Sampler::Sampler(TextureCacheRuntime& runtime, const Tegra::Texture::TSCEntry& tsc) {
-    const auto& device = runtime.device;
-    const bool arbitrary_borders = runtime.device.IsExtCustomBorderColorSupported();
+namespace {
+vk::Sampler CreateSampler(const Device& device, const Tegra::Texture::TSCEntry& tsc, f32 anisotropy,
+                          bool force_nearest) {
+    const bool arbitrary_borders = device.IsExtCustomBorderColorSupported();
     const auto color = tsc.BorderColor();
 
     const VkSamplerCustomBorderColorCreateInfoEXT border_ci{
@@ -2259,44 +2261,67 @@ Sampler::Sampler(TextureCacheRuntime& runtime, const Tegra::Texture::TSCEntry& t
         .pNext = pnext,
         .reductionMode = MaxwellToVK::SamplerReduction(tsc.reduction_filter),
     };
-    if (runtime.device.IsExtSamplerFilterMinmaxSupported()) {
+    if (device.IsExtSamplerFilterMinmaxSupported()) {
         pnext = &reduction_ci;
     } else if (reduction_ci.reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE_EXT) {
         LOG_WARNING(Render_Vulkan, "VK_EXT_sampler_filter_minmax is required");
     }
+    const VkFilter mag_filter =
+        force_nearest ? VK_FILTER_NEAREST : MaxwellToVK::Sampler::Filter(tsc.mag_filter);
+    const VkFilter min_filter =
+        force_nearest ? VK_FILTER_NEAREST : MaxwellToVK::Sampler::Filter(tsc.min_filter);
+    const VkSamplerMipmapMode mipmap_mode = force_nearest
+                                                ? VK_SAMPLER_MIPMAP_MODE_NEAREST
+                                                : MaxwellToVK::Sampler::MipmapMode(tsc.mipmap_filter);
+    if (force_nearest) {
+        anisotropy = 1.0f;
+    }
+    return device.GetLogical().CreateSampler(VkSamplerCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = pnext,
+        .flags = 0,
+        .magFilter = mag_filter,
+        .minFilter = min_filter,
+        .mipmapMode = mipmap_mode,
+        .addressModeU = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_u, tsc.mag_filter),
+        .addressModeV = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_v, tsc.mag_filter),
+        .addressModeW = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_p, tsc.mag_filter),
+        .mipLodBias = tsc.LodBias(),
+        .anisotropyEnable = static_cast<VkBool32>(anisotropy > 1.0f ? VK_TRUE : VK_FALSE),
+        .maxAnisotropy = anisotropy,
+        .compareEnable = tsc.depth_compare_enabled,
+        .compareOp = MaxwellToVK::Sampler::DepthCompareFunction(tsc.depth_compare_func),
+        .minLod = tsc.mipmap_filter == TextureMipmapFilter::None ? 0.0f : tsc.MinLod(),
+        .maxLod = tsc.mipmap_filter == TextureMipmapFilter::None ? 0.25f : tsc.MaxLod(),
+        .borderColor =
+            arbitrary_borders ? VK_BORDER_COLOR_FLOAT_CUSTOM_EXT : ConvertBorderColor(color),
+        .unnormalizedCoordinates = VK_FALSE,
+    });
+}
+} // Anonymous namespace
+
+Sampler::Sampler(TextureCacheRuntime& runtime, const Tegra::Texture::TSCEntry& tsc_)
+    : device{&runtime.device}, tsc{tsc_} {
     // Some games have samplers with garbage. Sanitize them here.
     const f32 max_anisotropy = std::clamp(tsc.MaxAnisotropy(), 1.0f, 16.0f);
-
-    const auto create_sampler = [&](const f32 anisotropy) {
-        return device.GetLogical().CreateSampler(VkSamplerCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .pNext = pnext,
-            .flags = 0,
-            .magFilter = MaxwellToVK::Sampler::Filter(tsc.mag_filter),
-            .minFilter = MaxwellToVK::Sampler::Filter(tsc.min_filter),
-            .mipmapMode = MaxwellToVK::Sampler::MipmapMode(tsc.mipmap_filter),
-            .addressModeU = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_u, tsc.mag_filter),
-            .addressModeV = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_v, tsc.mag_filter),
-            .addressModeW = MaxwellToVK::Sampler::WrapMode(device, tsc.wrap_p, tsc.mag_filter),
-            .mipLodBias = tsc.LodBias(),
-            .anisotropyEnable = static_cast<VkBool32>(anisotropy > 1.0f ? VK_TRUE : VK_FALSE),
-            .maxAnisotropy = anisotropy,
-            .compareEnable = tsc.depth_compare_enabled,
-            .compareOp = MaxwellToVK::Sampler::DepthCompareFunction(tsc.depth_compare_func),
-            .minLod = tsc.mipmap_filter == TextureMipmapFilter::None ? 0.0f : tsc.MinLod(),
-            .maxLod = tsc.mipmap_filter == TextureMipmapFilter::None ? 0.25f : tsc.MaxLod(),
-            .borderColor =
-                arbitrary_borders ? VK_BORDER_COLOR_FLOAT_CUSTOM_EXT : ConvertBorderColor(color),
-            .unnormalizedCoordinates = VK_FALSE,
-        });
-    };
-
-    sampler = create_sampler(max_anisotropy);
+    sampler = CreateSampler(*device, tsc, max_anisotropy, false);
 
     const f32 max_anisotropy_default = static_cast<f32>(1U << tsc.max_anisotropy);
     if (max_anisotropy > max_anisotropy_default) {
-        sampler_default_anisotropy = create_sampler(max_anisotropy_default);
+        sampler_default_anisotropy = CreateSampler(*device, tsc, max_anisotropy_default, false);
     }
+    uses_linear_filter =
+        MaxwellToVK::Sampler::Filter(tsc.mag_filter) == VK_FILTER_LINEAR ||
+        MaxwellToVK::Sampler::Filter(tsc.min_filter) == VK_FILTER_LINEAR ||
+        MaxwellToVK::Sampler::MipmapMode(tsc.mipmap_filter) == VK_SAMPLER_MIPMAP_MODE_LINEAR ||
+        max_anisotropy > 1.0f;
+}
+
+VkSampler Sampler::HandleWithoutLinearFilter() {
+    if (!sampler_without_linear_filter) {
+        sampler_without_linear_filter = CreateSampler(*device, tsc, 1.0f, true);
+    }
+    return *sampler_without_linear_filter;
 }
 
 Framebuffer::Framebuffer(TextureCacheRuntime& runtime, std::span<ImageView*, NUM_RT> color_buffers,
