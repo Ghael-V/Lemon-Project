@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: 0BSD
  */
 
+#include <limits>
 #include <optional>
 
 #include <mcl/assert.hpp>
@@ -176,7 +177,13 @@ void FoldDivide(IR::Inst& inst, bool is_32_bit, bool is_signed) {
     const auto lhs = inst.GetArg(0);
     if (lhs.IsImmediate() && rhs.IsImmediate()) {
         if (is_signed) {
-            const s64 result = lhs.GetImmediateAsS64() / rhs.GetImmediateAsS64();
+            const s64 dividend = lhs.GetImmediateAsS64();
+            const s64 divisor = rhs.GetImmediateAsS64();
+            // The one quotient that doesn't fit: ARM's SDIV gives the dividend back (INT_MIN),
+            // while in C++ it is undefined and traps on x86 hosts. 32-bit operands arrive sign
+            // extended, so their INT32_MIN / -1 is computed exactly as 2^31 and truncates right.
+            const bool overflows = divisor == -1 && dividend == std::numeric_limits<s64>::min();
+            const s64 result = overflows ? dividend : dividend / divisor;
             ReplaceUsesWith(inst, is_32_bit, static_cast<u64>(result));
         } else {
             const u64 result = lhs.GetImmediateAsU64() / rhs.GetImmediateAsU64();
@@ -381,6 +388,16 @@ void FoldZeroExtendXToLong(IR::Inst& inst) {
 void ConstantPropagation(IR::Block& block) {
     for (auto& inst : block) {
         const auto opcode = inst.GetOpcode();
+
+        // The flags of a flag-setting logical op (ANDS, ORRS, ...) are computed with the op
+        // itself. Folding it into a value or into one of its operands leaves the flags
+        // pseudo-op pointing at whatever produced that operand, whose flags differ (an ADD's
+        // carry and overflow) or which can't produce flags at all (asserts). Add and Sub
+        // already keep their pseudo-ops out of folding; these must too.
+        if (inst.MayGetNZCVFromOp() && (inst.GetAssociatedPseudoOperation(Op::GetNZCVFromOp) ||
+                                        inst.GetAssociatedPseudoOperation(Op::GetNZFromOp))) {
+            continue;
+        }
 
         switch (opcode) {
         case Op::LeastSignificantWord:
