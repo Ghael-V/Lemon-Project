@@ -22,6 +22,9 @@ using namespace Common::Literals;
 struct StagingBufferMap {
     ~StagingBufferMap();
 
+    /// OpenGL maps coherent memory: nothing to do (see Vulkan's StagingBufferRef).
+    void InvalidateForRead() const {}
+
     std::span<u8> mapped_span;
     size_t offset = 0;
     OGLSync* sync;

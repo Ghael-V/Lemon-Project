@@ -58,8 +58,17 @@ struct Range {
 }
 
 [[nodiscard]] VkMemoryPropertyFlags MemoryUsagePreferredVmaFlags(MemoryUsage usage) {
-    return usage != MemoryUsage::DeviceLocal ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                                             : VkMemoryPropertyFlagBits{};
+    switch (usage) {
+    case MemoryUsage::DeviceLocal:
+        return {};
+    case MemoryUsage::Download:
+        // The CPU reads these. Uncached memory reads at a crawl (on Mali the only coherent
+        // host-visible memory is uncached: copying images and buffers back took a fifth of a core
+        // in Zelda BOTW), so prefer cached memory; readers invalidate it before reading.
+        return VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    default:
+        return VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
 }
 
 [[nodiscard]] VmaAllocationCreateFlags MemoryUsageVmaFlags(MemoryUsage usage) {

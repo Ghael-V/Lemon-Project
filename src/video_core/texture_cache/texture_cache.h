@@ -117,6 +117,7 @@ void TextureCache<P>::RunGarbageCollector() {
             const auto copies = FullDownloadCopies(image.info);
             image.DownloadMemory(map, copies);
             runtime.Finish();
+            map.InvalidateForRead();
             SwizzleImage(*gpu_memory, image.gpu_addr, image.info, copies, map.mapped_span,
                          swizzle_data_buffer);
         }
@@ -599,6 +600,7 @@ void TextureCache<P>::DownloadMemory(DAddr cpu_addr, size_t size) {
         const auto copies = FullDownloadCopies(image.info);
         image.DownloadMemory(map, copies);
         runtime.Finish();
+        map.InvalidateForRead();
         SwizzleImage(*gpu_memory, image.gpu_addr, image.info, copies, map.mapped_span,
                      swizzle_data_buffer);
     }
@@ -664,6 +666,7 @@ void TextureCache<P>::DownloadGpuModifiedImages(DAddr cpu_addr, size_t size, boo
         runtime.Finish();
         for (auto& download : downloads) {
             const Image& image = slot_images[download.image_id];
+            download.map.InvalidateForRead();
             SwizzleImage(*gpu_memory, image.gpu_addr, image.info, download.copies,
                          download.map.mapped_span, swizzle_data_buffer);
         }
@@ -989,6 +992,9 @@ void TextureCache<P>::PopAsyncFlushes() {
             return;
         }
         auto download_map = std::move(async_buffers.front());
+        for (const auto& download_buffer : download_map) {
+            download_buffer.InvalidateForRead();
+        }
         for (size_t i = download_ids.size(); i > 0; i--) {
             auto& download_info = download_ids[i - 1];
             auto& download_buffer = download_map[download_info.async_buffer_id];
@@ -1041,6 +1047,7 @@ void TextureCache<P>::PopAsyncFlushes() {
         }
         // Wait for downloads to finish
         runtime.Finish();
+        download_map.InvalidateForRead();
         download_map.offset = original_offset;
         std::span<u8> download_span = download_map.mapped_span;
         for (const PendingDownload& download_info : download_ids) {

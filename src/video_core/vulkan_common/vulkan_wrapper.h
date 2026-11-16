@@ -740,6 +740,17 @@ public:
 
     void Invalidate() const;
 
+    /// The memory behind the buffer, for invalidating part of it (see StagingBufferRef).
+    VmaAllocator Allocator() const noexcept {
+        return allocator;
+    }
+    VmaAllocation Allocation() const noexcept {
+        return allocation;
+    }
+    bool IsCoherent() const noexcept {
+        return is_coherent;
+    }
+
     void SetObjectNameEXT(const char* name) const;
 
 private:

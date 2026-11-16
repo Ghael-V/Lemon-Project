@@ -837,6 +837,7 @@ public:
             pending_flush_sets.pop_front();
         }
 
+        staging_ref.InvalidateForRead();
         size_t offset_base = staging_ref.offset;
         for (auto q : flushed_queries) {
             auto* query = GetQuery(q);

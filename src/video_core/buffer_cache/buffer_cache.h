@@ -635,6 +635,7 @@ void BufferCache<P>::PopAsyncBuffers() {
     }
     auto& downloads = pending_downloads.front();
     auto& async_buffer = async_buffers.front();
+    async_buffer->InvalidateForRead();
     u8* base = async_buffer->mapped_span.data();
     const size_t base_offset = async_buffer->offset;
     for (const auto& copy : downloads) {
@@ -1644,6 +1645,7 @@ void BufferCache<P>::DownloadBufferMemory(Buffer& buffer, DAddr device_addr, u64
         }
         runtime.CopyBuffer(download_staging.buffer, buffer, copies_span, true);
         runtime.Finish();
+        download_staging.InvalidateForRead();
         for (const BufferCopy& copy : copies) {
             const DAddr copy_device_addr = buffer.CpuAddr() + copy.src_offset;
             // Undo the modified offset

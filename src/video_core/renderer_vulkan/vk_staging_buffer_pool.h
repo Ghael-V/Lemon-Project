@@ -23,6 +23,14 @@ struct StagingBufferRef {
     MemoryUsage usage;
     u32 log2_level;
     u64 index;
+    /// Download buffers live in cached memory where there is some, and it may not be coherent:
+    /// the CPU's cache can then hold older contents than what the GPU wrote.
+    VmaAllocator vma_allocator{};
+    VmaAllocation vma_allocation{};
+    bool coherent{true};
+
+    /// Call once the GPU finished writing, before the CPU reads what it wrote.
+    void InvalidateForRead() const;
 };
 
 class StagingBufferPool {
@@ -65,6 +73,9 @@ private:
                 .usage = usage,
                 .log2_level = log2_level,
                 .index = index,
+                .vma_allocator = buffer.Allocator(),
+                .vma_allocation = buffer.Allocation(),
+                .coherent = buffer.IsCoherent(),
             };
         }
     };

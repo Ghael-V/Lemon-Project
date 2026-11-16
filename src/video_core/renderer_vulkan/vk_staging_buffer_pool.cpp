@@ -13,11 +13,18 @@
 #include "common/common_types.h"
 #include "common/literals.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
+#include "video_core/vulkan_common/vma.h"
 #include "video_core/renderer_vulkan/vk_staging_buffer_pool.h"
 #include "video_core/vulkan_common/vulkan_device.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
 
 namespace Vulkan {
+
+void StagingBufferRef::InvalidateForRead() const {
+    if (!coherent && vma_allocation) {
+        vmaInvalidateAllocation(vma_allocator, vma_allocation, 0, VK_WHOLE_SIZE);
+    }
+}
 namespace {
 
 using namespace Common::Literals;
