@@ -7,7 +7,6 @@
 
 #include <array>
 #include <optional>
-#include <random>
 #include <utility>
 #include <vector>
 
@@ -143,6 +142,8 @@ struct HostLocInfo final {
     size_t uses_this_inst = 0;
     size_t accumulated_uses = 0;
     size_t expected_uses = 0;
+    /// RegAlloc::use_clock when an instruction last let go of this register.
+    u64 last_used = 0;
 
     bool Contains(const IR::Inst*) const;
     void SetupScratchLocation();
@@ -158,7 +159,7 @@ public:
     using ArgumentInfo = std::array<Argument, IR::max_arg_count>;
 
     explicit RegAlloc(oaknut::CodeGenerator& code, FpsrManager& fpsr_manager, std::vector<int> gpr_order, std::vector<int> fpr_order)
-            : code{code}, fpsr_manager{fpsr_manager}, gpr_order{gpr_order}, fpr_order{fpr_order}, rand_gen{std::random_device{}()} {}
+            : code{code}, fpsr_manager{fpsr_manager}, gpr_order{gpr_order}, fpr_order{fpr_order} {}
 
     ArgumentInfo GetArgumentInfo(IR::Inst* inst);
     bool WasValueDefined(IR::Inst* inst) const;
@@ -333,7 +334,8 @@ private:
     HostLocInfo flags;
     std::array<HostLocInfo, SpillCount> spills;
 
-    mutable std::mt19937 rand_gen;
+    /// Counts register releases, to find the least recently used register to spill.
+    u64 use_clock = 0;
 
     tsl::robin_set<const IR::Inst*> defined_insts;
 };
@@ -352,7 +354,9 @@ RAReg<T>::~RAReg() {
         reg_alloc.ValueInfo(read_value.GetInst()).locked--;
     }
     if (reg) {
-        reg_alloc.ValueInfo(HostLoc{kind, reg->index()}).realized = false;
+        HostLocInfo& info = reg_alloc.ValueInfo(HostLoc{kind, reg->index()});
+        info.realized = false;
+        info.last_used = ++reg_alloc.use_clock;
     }
 }
 

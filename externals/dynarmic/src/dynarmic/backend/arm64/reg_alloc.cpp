@@ -433,12 +433,16 @@ int RegAlloc::AllocateRegister(const std::array<HostLocInfo, 32>& regs, const st
         return *empty;
     }
 
-    std::vector<int> candidates;
-    std::copy_if(order.begin(), order.end(), std::back_inserter(candidates), [&](int i) { return regs[i].MaybeAllocatable(); });
-
-    // TODO: LRU
-    std::uniform_int_distribution<size_t> dis{0, candidates.size() - 1};
-    return candidates[dis(rand_gen)];
+    // Spill the register used longest ago: its value is the least likely to be needed soon,
+    // and the same block always compiles to the same code.
+    int best = -1;
+    for (const int i : order) {
+        if (regs[i].MaybeAllocatable() && (best < 0 || regs[i].last_used < regs[best].last_used)) {
+            best = i;
+        }
+    }
+    ASSERT_MSG(best >= 0, "All registers are in use");
+    return best;
 }
 
 void RegAlloc::SpillGpr(int index) {
