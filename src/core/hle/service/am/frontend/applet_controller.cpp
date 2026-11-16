@@ -131,6 +131,7 @@ void Controller::Initialize() {
             break;
         case ControllerAppletVersion::Version7:
         case ControllerAppletVersion::Version8:
+        case ControllerAppletVersion::Version9:
             ASSERT(user_arg.size() == sizeof(ControllerSupportArgNew));
             std::memcpy(&controller_user_arg_new, user_arg.data(), user_arg.size());
             break;
@@ -196,6 +197,7 @@ void Controller::Execute() {
                                              controller_user_arg_old.explain_text.end()));
             case ControllerAppletVersion::Version7:
             case ControllerAppletVersion::Version8:
+            case ControllerAppletVersion::Version9:
             default:
                 return ConvertToFrontendParameters(
                     controller_private_arg, controller_user_arg_new.header,
