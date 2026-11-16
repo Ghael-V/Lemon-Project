@@ -197,6 +197,9 @@ public:
     /// UpdateRenderTargets should be called before this
     Framebuffer* GetFramebuffer();
 
+    /// The render targets with at most one color slot per image level and layer
+    [[nodiscard]] RenderTargets WithoutAliasedColorBuffers(const RenderTargets& targets) const;
+
     /// Mark images in a range as modified from the CPU
     void WriteMemory(DAddr cpu_addr, size_t size);
 
@@ -470,6 +473,7 @@ private:
 
     bool has_deleted_images = false;
     bool is_rescaling = false;
+    bool render_targets_for_clear = false;
     u64 total_used_memory = 0;
     u64 minimum_memory;
     u64 expected_memory;

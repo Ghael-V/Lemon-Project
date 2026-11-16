@@ -11,6 +11,7 @@
 #include "video_core/engines/draw_manager.h"
 #include "video_core/renderer_vulkan/fixed_pipeline_state.h"
 #include "video_core/renderer_vulkan/vk_state_tracker.h"
+#include "video_core/texture_cache/aliased_render_targets.h"
 
 namespace Vulkan {
 namespace {
@@ -86,8 +87,12 @@ void FixedPipelineState::Refresh(Tegra::Engines::Maxwell3D& maxwell3d, DynamicFe
     alpha_to_one_enabled.Assign(regs.anti_alias_alpha_control.alpha_to_one != 0 ? 1 : 0);
     app_stage.Assign(maxwell3d.engine_state);
 
+    // Slots the texture cache leaves out of the framebuffer have no format here either.
+    const u32 aliased_targets = VideoCommon::AliasedColorTargets(regs, false);
     for (size_t i = 0; i < regs.rt.size(); ++i) {
-        color_formats[i] = static_cast<u8>(regs.rt[i].format);
+        color_formats[i] = (aliased_targets & (1U << i)) != 0
+                               ? static_cast<u8>(Tegra::RenderTargetFormat::NONE)
+                               : static_cast<u8>(regs.rt[i].format);
     }
     alpha_test_ref = Common::BitCast<u32>(regs.alpha_test_ref);
     point_size = Common::BitCast<u32>(regs.point_size);

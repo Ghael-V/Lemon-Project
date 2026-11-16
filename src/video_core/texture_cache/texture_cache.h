@@ -15,6 +15,7 @@
 #include "video_core/host1x/gpu_device_memory_manager.h"
 #include "video_core/texture_cache/image_view_base.h"
 #include "video_core/texture_cache/samples_helper.h"
+#include "video_core/texture_cache/aliased_render_targets.h"
 #include "video_core/texture_cache/texture_cache_base.h"
 #include "video_core/texture_cache/util.h"
 
@@ -432,6 +433,7 @@ template <class P>
 void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
     using namespace VideoCommon::Dirty;
     auto& flags = maxwell3d->dirty.flags;
+    render_targets_for_clear = is_clear;
     if (!flags[Dirty::RenderTargets]) {
         for (size_t index = 0; index < NUM_RT; ++index) {
             ImageViewId& color_buffer_id = render_targets.color_buffer_ids[index];
@@ -479,7 +481,22 @@ void TextureCache<P>::UpdateRenderTargets(bool is_clear) {
 
 template <class P>
 typename P::Framebuffer* TextureCache<P>::GetFramebuffer() {
-    return &slot_framebuffers[GetFramebufferId(render_targets)];
+    return &slot_framebuffers[GetFramebufferId(WithoutAliasedColorBuffers(render_targets))];
+}
+
+template <class P>
+RenderTargets TextureCache<P>::WithoutAliasedColorBuffers(const RenderTargets& targets) const {
+    const u32 aliased = AliasedColorTargets(maxwell3d->regs, render_targets_for_clear);
+    if (aliased == 0) {
+        return targets;
+    }
+    RenderTargets result = targets;
+    for (size_t index = 0; index < NUM_RT; ++index) {
+        if ((aliased & (1U << index)) != 0) {
+            result.color_buffer_ids[index] = ImageViewId{};
+        }
+    }
+    return result;
 }
 
 template <class P>
