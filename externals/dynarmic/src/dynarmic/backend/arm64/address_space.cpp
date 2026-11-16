@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: 0BSD
  */
 
+#include <algorithm>
 #include <cstdio>
 
 #include <mcl/bit_cast.hpp>
@@ -24,7 +25,9 @@ AddressSpace::AddressSpace(size_t code_cache_size)
         : code_cache_size(code_cache_size)
         , mem(code_cache_size)
         , code(mem.ptr(), mem.ptr())
-        , fastmem_manager(exception_handler) {
+        , fastmem_manager(exception_handler)
+        , fast_dispatch_table(std::make_unique<FastDispatchEntry[]>(std::size_t{1} << fast_dispatch_bits)) {
+    ClearFastDispatchTable();
     ASSERT_MSG(code_cache_size <= 128 * 1024 * 1024, "code_cache_size > 128 MiB not currently supported");
 
     exception_handler.Register(mem, code_cache_size);
@@ -70,10 +73,30 @@ CodePtr AddressSpace::GetOrEmit(IR::LocationDescriptor descriptor) {
     return block_info.entry_point;
 }
 
+CodePtr AddressSpace::GetOrEmitForDispatch(IR::LocationDescriptor descriptor) {
+    const CodePtr entry_point = GetOrEmit(descriptor);
+    // After GetOrEmit: emitting may have cleared the cache, and the table with it.
+    FastDispatchEntry& entry = fast_dispatch_table[FastDispatchIndex(descriptor.Value())];
+    entry.location = descriptor.Value();
+    entry.code = entry_point;
+    return entry_point;
+}
+
+void AddressSpace::ClearFastDispatchTable() {
+    std::fill_n(fast_dispatch_table.get(), std::size_t{1} << fast_dispatch_bits,
+                FastDispatchEntry{fast_dispatch_empty, nullptr});
+}
+
 void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescriptor>& descriptors) {
     UnprotectCodeMemory();
 
     for (const auto& descriptor : descriptors) {
+        // A descriptor only ever lives in its own slot.
+        FastDispatchEntry& dispatch_entry = fast_dispatch_table[FastDispatchIndex(descriptor.Value())];
+        if (dispatch_entry.location == descriptor.Value()) {
+            dispatch_entry = FastDispatchEntry{fast_dispatch_empty, nullptr};
+        }
+
         const auto iter = block_entries.find(descriptor);
         if (iter == block_entries.end()) {
             continue;
@@ -90,6 +113,7 @@ void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescri
 }
 
 void AddressSpace::ClearCache() {
+    ClearFastDispatchTable();
     block_entries.clear();
     reverse_block_entries.clear();
     block_infos.clear();

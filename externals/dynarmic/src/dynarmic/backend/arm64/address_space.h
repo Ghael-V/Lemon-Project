@@ -6,6 +6,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <optional>
 
 #include <mcl/stdint.hpp>
@@ -38,6 +39,26 @@ public:
     CodePtr ReverseGetEntryPoint(CodePtr host_pc);
 
     CodePtr GetOrEmit(IR::LocationDescriptor descriptor);
+
+    /// GetOrEmit for the dispatcher: also remembers the block in the fast dispatch table, where
+    /// the dispatcher's emitted code finds it next time without calling here.
+    CodePtr GetOrEmitForDispatch(IR::LocationDescriptor descriptor);
+
+    /// Fast dispatch table: one slot per hash of a location descriptor, holding the descriptor
+    /// last dispatched there and its code. Indirect branches and returns the RSB misses reach the
+    /// dispatcher, which looks here before calling into C++ to find the block.
+    struct FastDispatchEntry {
+        u64 location;
+        CodePtr code;
+    };
+    static constexpr size_t fast_dispatch_bits = 16;
+    static constexpr u64 fast_dispatch_index_mask = (u64{1} << fast_dispatch_bits) - 1;
+    /// A location no descriptor the dispatcher computes can have (the single-step bit is set).
+    static constexpr u64 fast_dispatch_empty = ~u64{0};
+    /// The emitted dispatcher computes the same: (location >> 2) ^ (location >> 18), masked.
+    static constexpr size_t FastDispatchIndex(u64 location) {
+        return static_cast<size_t>(((location >> 2) ^ (location >> (2 + fast_dispatch_bits))) & fast_dispatch_index_mask);
+    }
 
     void InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescriptor>& descriptors);
 
@@ -82,6 +103,9 @@ protected:
 
     ExceptionHandler exception_handler;
     FastmemManager fastmem_manager;
+
+    std::unique_ptr<FastDispatchEntry[]> fast_dispatch_table;
+    void ClearFastDispatchTable();
 
     struct PreludeInfo {
         std::ptrdiff_t end_of_prelude;

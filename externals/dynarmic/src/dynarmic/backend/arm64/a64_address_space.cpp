@@ -492,6 +492,33 @@ void A64AddressSpace::EmitPrelude() {
             code.B(LE, return_from_run_code);
         }
 
+        const bool fast_dispatch = conf.HasOptimization(OptimizationFlag::FastDispatch);
+        oaknut::Label l_table, slow_path;
+        if (fast_dispatch) {
+            // X0 = the location descriptor, as A64JitState::GetLocationDescriptor makes it
+            code.MOV(Wscratch0, A64::LocationDescriptor::fpcr_mask);
+            code.LDR(W0, Xstate, offsetof(A64JitState, fpcr));
+            code.LDR(X1, Xstate, offsetof(A64JitState, pc));
+            code.AND(W0, W0, Wscratch0);
+            code.AND(X1, X1, A64::LocationDescriptor::pc_mask);
+            code.LSL(X0, X0, A64::LocationDescriptor::fpcr_shift);
+            code.ORR(X0, X0, X1);
+
+            // X2 = its slot, as FastDispatchIndex computes it
+            code.LSR(X1, X0, 2);
+            code.EOR(X1, X1, X0, oaknut::LogShift::LSR, 2 + fast_dispatch_bits);
+            code.AND(X1, X1, fast_dispatch_index_mask);
+            code.LDR(X2, l_table);
+            code.ADD(X2, X2, X1, oaknut::AddSubShift::LSL, 4);
+            static_assert(sizeof(FastDispatchEntry) == 16);
+
+            code.LDP(Xscratch0, Xscratch1, X2);
+            code.CMP(Xscratch0, X0);
+            code.B(NE, slow_path);
+            code.BR(Xscratch1);
+        }
+
+        code.l(slow_path);
         code.LDR(X0, l_this);
         code.MOV(X1, Xstate);
         code.LDR(Xscratch0, l_addr);
@@ -501,12 +528,18 @@ void A64AddressSpace::EmitPrelude() {
         const auto fn = [](A64AddressSpace& self, A64JitState& context) -> CodePtr {
             return self.GetOrEmit(context.GetLocationDescriptor());
         };
+        const auto fn_dispatch = [](A64AddressSpace& self, A64JitState& context) -> CodePtr {
+            return self.GetOrEmitForDispatch(context.GetLocationDescriptor());
+        };
 
         code.align(8);
         code.l(l_this);
         code.dx(mcl::bit_cast<u64>(this));
         code.l(l_addr);
-        code.dx(mcl::bit_cast<u64>(Common::FptrCast(fn)));
+        code.dx(fast_dispatch ? mcl::bit_cast<u64>(Common::FptrCast(fn_dispatch))
+                              : mcl::bit_cast<u64>(Common::FptrCast(fn)));
+        code.l(l_table);
+        code.dx(mcl::bit_cast<u64>(fast_dispatch_table.get()));
     }
 
     prelude_info.return_from_run_code = code.xptr<void*>();
