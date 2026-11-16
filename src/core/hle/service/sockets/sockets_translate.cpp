@@ -5,6 +5,7 @@
 
 #include "common/assert.h"
 #include "common/common_types.h"
+#include "common/logging/log.h"
 #include "core/hle/service/sockets/sockets.h"
 #include "core/hle/service/sockets/sockets_translate.h"
 #include "core/internal_network/network.h"
@@ -259,9 +260,11 @@ PollEvents Translate(Network::PollEvents flags) {
 }
 
 Network::SockAddrIn Translate(SockAddrIn value) {
-    // Note: 6 is incorrect, but can be passed by homebrew (because libnx sets
-    // sin_len to 6 when deserializing getaddrinfo results).
-    ASSERT(value.len == 0 || value.len == sizeof(value) || value.len == 6);
+    // The length isn't used: 6 comes from homebrew (libnx sets sin_len to 6 when deserializing
+    // getaddrinfo results) and games pass others too (Crysis 3), so it is only logged.
+    if (value.len != 0 && value.len != sizeof(value) && value.len != 6) {
+        LOG_DEBUG(Service, "sockaddr_in with length {}", value.len);
+    }
 
     return {
         .family = Translate(static_cast<Domain>(value.family)),

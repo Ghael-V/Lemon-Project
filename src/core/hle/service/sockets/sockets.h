@@ -82,6 +82,8 @@ enum class OptName : u32 {
     RCVTIMEO = 0x1006,
     ERROR_ = 0x1007,   // avoid name collision with Windows macro
     NOSIGPIPE = 0x800, // at least according to libnx
+    NOOFFLOAD = 0x4000, // FreeBSD SO_NO_OFFLOAD
+    NODDP = 0x8000,     // FreeBSD SO_NO_DDP
 };
 
 enum class ShutdownHow : s32 {
