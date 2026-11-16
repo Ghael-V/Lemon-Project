@@ -809,6 +809,17 @@ bool RasterizerVulkan::MustFlushRegion(DAddr addr, u64 size, VideoCommon::CacheT
 }
 
 VideoCore::RasterizerDownloadArea RasterizerVulkan::GetFlushArea(DAddr addr, u64 size) {
+    // The CPU asks on reads of every GPU-tracked page. Where the texture cache has no image at
+    // all (memory only buffers use) the answer is the page, as below, without waiting for the
+    // texture cache's mutex, which the GPU thread holds through each draw (Zelda BOTW's CPU
+    // threads spent most of their lock waits here).
+    if (!texture_cache.MayHaveImages(addr, size)) {
+        return VideoCore::RasterizerDownloadArea{
+            .start_address = Common::AlignDown(addr, Core::DEVICE_PAGESIZE),
+            .end_address = Common::AlignUp(addr + size, Core::DEVICE_PAGESIZE),
+            .preemtive = true,
+        };
+    }
     {
         std::scoped_lock lock{texture_cache.mutex};
         auto area = texture_cache.GetFlushArea(addr, size);

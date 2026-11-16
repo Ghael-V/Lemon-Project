@@ -197,6 +197,20 @@ public:
     /// UpdateRenderTargets should be called before this
     Framebuffer* GetFramebuffer();
 
+    /// Whether any image may be in this memory. Safe without the mutex: false means no image
+    /// was registered there when asked.
+    [[nodiscard]] bool MayHaveImages(DAddr addr, u64 size) const noexcept {
+        const u64 first = addr >> YUZU_PAGEBITS;
+        const u64 last = (addr + std::max<u64>(size, 1) - 1) >> YUZU_PAGEBITS;
+        for (u64 page = first; page <= last; ++page) {
+            if (page >= DEVICE_PAGE_BLOCKS ||
+                page_image_counts[page].load(std::memory_order_acquire) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// The render targets with at most one color slot per image level and layer
     [[nodiscard]] RenderTargets WithoutAliasedColorBuffers(const RenderTargets& targets) const;
 
@@ -467,6 +481,21 @@ private:
     std::unordered_map<RenderTargets, FramebufferId> framebuffers;
 
     std::unordered_map<u64, std::vector<ImageMapId>, Common::IdentityHash<u64>> page_table;
+
+    /// Images in each page_table page (1 MiB of device memory), readable without the cache's
+    /// mutex: the CPU asks on reads of GPU-tracked memory while the GPU thread holds the mutex.
+    static constexpr size_t DEVICE_PAGE_BLOCKS = size_t{1} << (34 - YUZU_PAGEBITS);
+    std::unique_ptr<std::atomic<u32>[]> page_image_counts{
+        std::make_unique<std::atomic<u32>[]>(DEVICE_PAGE_BLOCKS)};
+
+    void SyncPageImageCount(u64 page) {
+        if (page >= DEVICE_PAGE_BLOCKS) {
+            return;
+        }
+        const auto it = page_table.find(page);
+        const u32 count = it == page_table.end() ? 0 : static_cast<u32>(it->second.size());
+        page_image_counts[page].store(count, std::memory_order_release);
+    }
     std::unordered_map<ImageId, boost::container::small_vector<ImageViewId, 16>> sparse_views;
 
     DAddr virtual_invalid_space{};
