@@ -340,14 +340,10 @@ struct Values {
 
     // Graphics Settings
     ResolutionScalingInfo resolution_info{};
-    // Lemon Lite starts with lighter defaults for weaker GPUs; every one can still be changed.
-#ifdef LEMON_LITE
-    SwitchableSetting<ResolutionSetup> resolution_setup{linkage, ResolutionSetup::Res3_4X,
-                                                        "resolution_setup", Category::Renderer};
-#else
+    // Lighter values for weaker devices are the Speed mode (Android PerformancePresets), not
+    // another build's defaults.
     SwitchableSetting<ResolutionSetup> resolution_setup{linkage, ResolutionSetup::Res1X,
                                                         "resolution_setup", Category::Renderer};
-#endif
 
     SwitchableSetting<VSyncMode, true> vsync_mode{linkage,
                                                   VSyncMode::Fifo,
@@ -358,12 +354,7 @@ struct Values {
                                                   true};
 
     SwitchableSetting<ScalingFilter> scaling_filter{linkage,
-#ifdef LEMON_LITE
-                                                    // Smooths the 0.75x picture on its way up to the screen.
-                                                    ScalingFilter::Bilinear,
-#else
                                                     ScalingFilter::NearestNeighbor,
-#endif
                                                     "scaling_filter",
                                                     Category::Renderer,
                                                     Specialization::Default,
@@ -522,13 +513,9 @@ struct Values {
                                          linkage, 0, "bg_blue", Category::Renderer, Specialization::Default, true, true};
 
     // Accurate: it costs nothing measurable now (TOTK on the Odin 48.1 -> 47.9 fps, BOTW on the
-    // S24 Ultra 16.6 -> 17.0) and renders particles and some lighting right. Lemon Lite keeps Fast.
+    // S24 Ultra 16.6 -> 17.0) and renders particles and some lighting right. The Speed mode uses Low.
     SwitchableSetting<GpuAccuracy, true> gpu_accuracy{linkage,
-#ifdef LEMON_LITE
-                                                      GpuAccuracy::Low,
-#else
                                                       GpuAccuracy::High,
-#endif
                                                       "gpu_accuracy",
                                                       Category::RendererAdvanced,
                                                       Specialization::Default,
@@ -672,14 +659,9 @@ struct Values {
                                                        true,
                                                        true};
 
-#ifdef LEMON_LITE
-    // Lite: draws wait for no shader (less stutter; some objects can be missing while they build).
-    SwitchableSetting<bool> use_asynchronous_shaders{linkage, true, "use_asynchronous_shaders",
-                                                     Category::RendererHacks};
-#else
+    // The Speed mode turns it on (less stutter; some objects can be missing while they build).
     SwitchableSetting<bool> use_asynchronous_shaders{linkage, false, "use_asynchronous_shaders",
                                                      Category::RendererHacks};
-#endif
 
     SwitchableSetting<GpuUnswizzleSize> gpu_unswizzle_texture_size{linkage,
                                                   GpuUnswizzleSize::Large,

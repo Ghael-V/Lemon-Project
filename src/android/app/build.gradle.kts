@@ -78,7 +78,7 @@ android {
         targetSdk = 36
         versionName = getGitVersion()
         versionCode = autoVersion
-        // Lemon Lite and Lemon Lite & Spoofed set it to true.
+        // The last Lemon Lite sets it to true.
         buildConfigField("boolean", "LITE", "false")
 
         externalNativeBuild {
@@ -252,8 +252,10 @@ android {
             }
         }
 
-        // Lemon Lite: lighter default settings for weaker GPUs, no bundled Lemon-Ade (that driver is
-        // only picked on the Adreno 830). Own package, so it installs next to Lemon.
+        // Lemon Lite, its last release: Lite's lighter settings are Lemon's Speed mode now. It runs
+        // Lemon's code with Lemon's defaults (it applies Speed once on its first start, so it doesn't
+        // turn heavier), says goodbye, and its updater offers Lemon itself (LEMON_LITE only picks
+        // the update asset). Own package, so it installs next to Lemon. No bundled Lemon-Ade.
         create("lite") {
             dimension = "version"
             minSdk = 31
@@ -278,24 +280,25 @@ android {
             }
         }
 
-        // Lemon Lite & Spoofed: Lemon Lite under AnTuTu's package name, which some phone makers
-        // (MediaTek devices above all) give their full performance profile.
-        create("liteSpoofed") {
+        // Lemon Spoofed: Lemon, nothing else changed, under AnTuTu's package name, which some phone
+        // makers (MediaTek devices above all) give their full performance profile. It was Lemon
+        // Lite & Spoofed under the same package, so those installs update into it, data kept.
+        create("spoofed") {
             dimension = "version"
             minSdk = 31
-            manifestPlaceholders += mapOf("appNameBase" to "Lemon Lite Spoofed")
-            resValue("string", "app_name_suffixed", "Lemon Lite Spoofed")
+            manifestPlaceholders += mapOf("appNameBase" to "Lemon Spoofed")
+            resValue("string", "app_name_suffixed", "Lemon Spoofed")
             applicationId = "com.antutu.ABenchMark"
 
             externalNativeBuild {
                 cmake {
-                    arguments.addAll(listOf("-DLEMON_LITE=ON", "-DLEMON_SPOOFED=ON"))
+                    arguments.add("-DLEMON_SPOOFED=ON")
                 }
             }
-            buildConfigField("boolean", "LITE", "true")
             sourceSets {
-                getByName("liteSpoofed") {
-                    res.srcDirs("src/liteShared/res")
+                getByName("spoofed") {
+                    // Lemon's bundled Lemon-Ade, like the standard build.
+                    assets.srcDirs("src/mainline/assets")
                 }
             }
 
