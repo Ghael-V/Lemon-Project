@@ -849,11 +849,11 @@
     <string name="performance_preset_description">Velocidad, Normal o Calidad: todo el emulador configurado con un toque</string>
     <string name="performance_preset_for">Modo · %1$s</string>
     <string name="preset_speed">Velocidad</string>
-    <string name="preset_speed_description">todo al mínimo, para equipos modestos: media resolución, modo portátil, CPU insegura y shaders asíncronos</string>
+    <string name="preset_speed_description">todo al mínimo, para equipos modestos</string>
     <string name="preset_normal">Normal</string>
-    <string name="preset_normal_description">los ajustes por defecto: buen equilibrio entre velocidad e imagen</string>
+    <string name="preset_normal_description">los ajustes por defecto</string>
     <string name="preset_quality">Calidad</string>
-    <string name="preset_quality_description">la mejor imagen cueste lo que cueste: máxima resolución, modo dock, SMAA, filtrado 16x y precisión de GPU alta</string>
+    <string name="preset_quality_description">la mejor imagen, cueste lo que cueste</string>
     <string name="preset_use_global">Usar los ajustes globales</string>
     <string name="preset_custom">Personalizado</string>
     <string name="preset_custom_values">Los ajustes no coinciden ahora con ningún modo.</string>
