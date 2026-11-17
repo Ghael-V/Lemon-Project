@@ -3,6 +3,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifdef __ANDROID__
+#include <algorithm>
+#include <cstdio>
+#include <sched.h>
+#include <utility>
+#include <vector>
 #include <sys/resource.h>
 #include <unistd.h>
 #endif
@@ -147,5 +152,43 @@ void SetCurrentThreadName(const char* name) {
 #endif
 
 #endif
+
+void SetCurrentThreadToFastCores() {
+#ifdef __ANDROID__
+    // Little cores run at well under half the speed of the big ones: a thread the whole frame
+    // waits on (the GPU thread) landing there stretches the frame.
+    std::vector<std::pair<int, long>> cores;
+    for (int cpu = 0; cpu < 32; ++cpu) {
+        const std::string path =
+            "/sys/devices/system/cpu/cpu" + std::to_string(cpu) + "/cpufreq/cpuinfo_max_freq";
+        FILE* const file = std::fopen(path.c_str(), "r");
+        if (!file) {
+            break;
+        }
+        long freq = 0;
+        if (std::fscanf(file, "%ld", &freq) == 1) {
+            cores.emplace_back(cpu, freq);
+        }
+        std::fclose(file);
+    }
+    if (cores.empty()) {
+        return;
+    }
+    const auto [min_it, max_it] = std::ranges::minmax_element(
+        cores, [](const auto& a, const auto& b) { return a.second < b.second; });
+    const long slowest = min_it->second;
+    if (max_it->second == slowest) {
+        return;
+    }
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    for (const auto& [cpu, freq] : cores) {
+        if (freq > slowest) {
+            CPU_SET(cpu, &set);
+        }
+    }
+    sched_setaffinity(0, sizeof(set), &set);
+#endif
+}
 
 } // namespace Common

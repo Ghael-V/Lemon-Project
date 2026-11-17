@@ -106,4 +106,9 @@ void SetCurrentThreadPriority(ThreadPriority new_priority);
 
 void SetCurrentThreadName(const char* name);
 
+/// Android: keeps the calling thread off the slowest CPU cluster (the cores with the lowest
+/// maximum frequency), for threads every frame waits on. Does nothing elsewhere or when all
+/// cores are alike.
+void SetCurrentThreadToFastCores();
+
 } // namespace Common

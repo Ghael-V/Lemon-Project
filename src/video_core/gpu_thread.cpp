@@ -32,6 +32,9 @@ static void RunThread(std::stop_token stop_token, Core::System& system,
 
     Common::SetCurrentThreadName(name.c_str());
     Common::SetCurrentThreadPriority(Common::ThreadPriority::Critical);
+    // The game waits on this thread's progress (syncpoints) several times a frame: keep it on
+    // the fast cores.
+    Common::SetCurrentThreadToFastCores();
 #ifdef __ANDROID__
     Common::Android::PerformanceHint::AddCurrentThread();
 #endif
