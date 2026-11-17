@@ -1521,7 +1521,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="edit_overlay_layout">Edit on-screen controller</string>
     <string name="edit_overlay_layout_description">Move, resize and set up the on-screen controls without starting a game.</string>
     <string name="whats_new_title">What\'s new in Iron Lemon %1$s</string>
-    <string name="whats_new_body">Iron Lemon 0.1.0 is now an app of its own, installed next to Lemon: Lemon\'s work on the original yuzu core, without Eden\'s changes.\n\n• Modes in Settings: Speed, Normal or Quality, the whole emulator set up in one tap\n• Lemon FG frame generation, next to the mode in Settings\n• Faster on Mali: GPU results read back from cached memory, and a faster JIT\n• Lemon-Ade driver built in and used by default on Snapdragon\n• Mali GPUs: BCn textures recompressed for the GPU\n• Import saves, keys and firmware from Lemon or another emulator\n• No more crashes when leaving a game</string>
+    <string name="whats_new_body">Updates now come inside the app: Iron Lemon checks its own releases and installs them for you.
+
+• Iron Lemon Spoofed: the same app under a benchmark package name, next to Lemon Spoofed
+• GPU accuracy renamed Low, Normal and High; the Normal mode now uses Normal
+• A warning when your keys are older than your firmware, instead of games stuck loading
+• Lemon-Ade is picked on Snapdragon from the very first launch
+• A shader the Qualcomm driver refuses no longer closes the app
+• Cheats, asynchronous shaders and 2D viewports fixed, and a clearer background in the library</string>
     <string name="overlay_presets">Layout presets</string>
     <string name="overlay_preset_default">Default</string>
     <string name="overlay_preset_big">Big buttons</string>
