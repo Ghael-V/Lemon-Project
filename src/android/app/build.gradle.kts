@@ -158,12 +158,25 @@ android {
             isDefault = true
             dimension = "version"
             buildConfigField("Boolean", "PREMIUM", "false")
+            // The release asset this build updates from (AppUpdater).
+            buildConfigField("String", "UPDATE_APK_SUFFIX", "\"-standard.apk\"")
         }
 
         create("ea") {
             dimension = "version"
             buildConfigField("Boolean", "PREMIUM", "true")
+            buildConfigField("String", "UPDATE_APK_SUFFIX", "\"-ea.apk\"")
             applicationIdSuffix = ".ea"
+        }
+
+        // Iron Lemon Spoofed: Iron Lemon, nothing else changed, under an AnTuTu package name,
+        // which some phone makers (MediaTek devices above all) give their full performance
+        // profile. Not Lemon Spoofed's com.antutu.ABenchMark, so the two can be installed together.
+        create("spoofed") {
+            dimension = "version"
+            buildConfigField("Boolean", "PREMIUM", "false")
+            buildConfigField("String", "UPDATE_APK_SUFFIX", "\"-spoofed.apk\"")
+            applicationId = "com.antutu.benchmark.full"
         }
     }
 
@@ -200,6 +213,24 @@ android {
             }
         }
     }
+    }
+}
+
+// The label comes from the build type's resValue, which outranks a flavor's: the Spoofed variants
+// get theirs here ("Iron Lemon Spoofed", with the build type's "Debug" endings).
+androidComponents {
+    onVariants { variant ->
+        if (variant.flavorName == "spoofed") {
+            val label = when (variant.buildType) {
+                "debug" -> "Iron Lemon Spoofed Debug"
+                "relWithDebInfo" -> "Iron Lemon Spoofed Debug Release"
+                else -> "Iron Lemon Spoofed"
+            }
+            variant.resValues.put(
+                variant.makeResValueKey("string", "app_name_suffixed"),
+                com.android.build.api.variant.ResValue(label, null)
+            )
+        }
     }
 }
 

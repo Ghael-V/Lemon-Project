@@ -35,10 +35,11 @@ object AppUpdater {
     private const val FORGEJO = "https://git.lemon-emu.org/api/v1/repos/lemon/Lemon-Project/releases?limit=50"
     private const val GITHUB = "https://api.github.com/repos/Ghael-V/Lemon-Project/releases?per_page=50"
 
-    // Iron Lemon's releases among Lemon's, and the APK they carry.
+    // Iron Lemon's releases among Lemon's, and the APK they carry for this variant:
+    // IronLemon-vX.Y.Z-standard.apk, IronLemon-Spoofed-vX.Y.Z-spoofed.apk.
     private const val TAG_PREFIX = "ironlemon-"
     private const val APK_PREFIX = "IronLemon-"
-    private const val APK_EXTENSION = ".apk"
+    private val APK_SUFFIX = BuildConfig.UPDATE_APK_SUFFIX
 
     private const val PREF_AUTO_CHECK = "update_auto_check"
     private const val INSTALL_ACTION = "dev.ironlemon.UPDATE_INSTALL_STATUS"
@@ -107,7 +108,7 @@ object AppUpdater {
         for (i in 0 until assets.length()) {
             val asset = assets.getJSONObject(i)
             val name = asset.optString("name")
-            if (name.startsWith(APK_PREFIX) && name.endsWith(APK_EXTENSION)) {
+            if (name.startsWith(APK_PREFIX) && name.endsWith(APK_SUFFIX)) {
                 return Release(
                     tag = tag,
                     notes = json.optString("body"),
