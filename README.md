@@ -159,9 +159,11 @@ consolidated build going forward instead of splitting fixes across three branche
   Lemon Lite & Spoofed becomes **Lemon Spoofed** (package name only); the last Lite tells its users and updates to
   Lemon. **Asynchronous GPU emulation on by default**: building a shader no longer stalls the emulated CPU (BOTW on
   the Odin: drops of 50 ms or more 18 → 5 in the same route). Mali: BC6H raw blocks decoded on the GPU, PanVK drivers
-  offered in every build. Cheats: no crash when a game with cheats stops, only code pages are invalidated, and code
-  is put back when cheats change. A draw that writes memory is never skipped while its shader builds. 8- and 16-bit
-  storage writes as two atomics. Viewport Y flip for 2D games.
+  offered in every build. **Eventfds work** (Absolum no longer aborts with 2162-0001; Splatoon 3 online), and read()
+  on a socket receives. **A warning when the keys are older than the firmware** instead of games stuck loading. A
+  lighter blur behind the game list. Cheats: no crash when a game with cheats stops, only code pages are
+  invalidated, and code is put back when cheats change. A draw that writes memory is never skipped while its shader
+  builds. 8- and 16-bit storage writes as two atomics. Viewport Y flip for 2D games. rcssf joins Team Lemon.
 - **v1.4.1** — Fixes 1.4.0 closing as soon as it opened: R8 removed a constructor parameter the native code looks up.
 - **v1.4.0** — **Several quick saves** with a Load save list (BitRanger), **toggle and turbo** on on-screen buttons,
   optional button slide, and **moving the NAND** to another folder or a microSD card with its content. BitRanger: guest
