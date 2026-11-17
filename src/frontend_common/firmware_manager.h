@@ -4,9 +4,11 @@
 #pragma once
 
 #include "common/common_types.h"
+#include "common/logging.h"
 #include "core/core.h"
 #include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/content_archive.h"
+#include "core/loader/loader.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include <algorithm>
@@ -79,6 +81,29 @@ inline bool CheckFirmwarePresence(Core::System &system)
     }
 
     return true;
+}
+
+/**
+ * \brief Whether the installed firmware has content the installed keys can't decrypt: firmware
+ * updated to a version whose key generation is newer than the keys. Games then fail in odd ways
+ * (stuck loading, a crash a few seconds in) instead of saying what's wrong. Reads every system
+ * title's header, so call it off the UI thread.
+ */
+inline bool FirmwareNeedsNewerKeys(Core::System &system)
+{
+    auto bis_system = system.GetFileSystemController().GetSystemNANDContents();
+    if (!bis_system) {
+        return false;
+    }
+    for (const auto &entry : bis_system->ListEntries()) {
+        const auto nca = bis_system->GetEntry(entry);
+        if (nca && nca->GetStatus() == Loader::ResultStatus::ErrorMissingKeyAreaKey) {
+            LOG_WARNING(Frontend, "Firmware title {:016X} needs newer keys than the installed ones",
+                        entry.title_id);
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
