@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <span>
 #include <vector>
 #include <variant>
@@ -43,8 +44,16 @@ private:
     /// Maximum number of file descriptors
     static constexpr size_t MAX_FD = 128;
 
+    /// An eventfd: a counter that Write adds to and Read takes. It has no host socket.
+    struct EventCounter {
+        std::mutex mutex;
+        u64 value = 0;
+        bool semaphore = false; // Read takes one at a time
+    };
+
     struct FileDescriptor {
         std::shared_ptr<Network::SocketBase> socket;
+        std::shared_ptr<EventCounter> event_counter;
         s32 flags = 0;
         bool is_connection_based = false;
     };
@@ -157,6 +166,12 @@ private:
     void ExecuteWork(HLERequestContext& ctx, Work work);
 
     std::pair<s32, Errno> SocketImpl(Domain domain, Type type, Protocol protocol);
+    std::pair<s32, Errno> EventFdImpl(u64 initial_value, u32 flags);
+    std::pair<s32, Errno> EventReadImpl(s32 fd, std::vector<u8>& out);
+    std::pair<s32, Errno> EventWriteImpl(s32 fd, std::span<const u8> in);
+    /// Whether fd is open and a socket (an eventfd has none).
+    bool IsSocketDescriptor(s32 fd) const noexcept;
+    bool IsEventDescriptor(s32 fd) const noexcept;
     std::pair<s32, Errno> PollImpl(std::vector<u8>& write_buffer, std::span<const u8> read_buffer, s32 nfds, s32 timeout);
     std::pair<s32, Errno> AcceptImpl(s32 fd, std::vector<u8>& write_buffer);
     Errno BindImpl(s32 fd, std::span<const u8> addr);
