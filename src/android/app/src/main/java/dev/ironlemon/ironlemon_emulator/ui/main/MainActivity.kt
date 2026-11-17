@@ -167,14 +167,14 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
         setInsets()
 
-        // Lemon's update check, once per launch, once setup is done.
+        // The update check, once per launch, once setup is done.
         if (!PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
         ) {
             UpdateFlow.checkAtStart(this)
             setUpBundledDriver()
             if (savedInstanceState == null) {
-                WhatsNew.showIfUpdated(this, firstInstall = false)
+                WhatsNew.showIfNew(this)
             }
             if (savedInstanceState == null) {
                 bootIntoQLaunchIfWanted(navHostFragment.navController)
@@ -253,6 +253,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     fun finishSetup(navController: NavController) {
         navController.navigate(R.id.action_firstTimeSetupFragment_to_gamesFragment)
+        // onCreate showed nothing while setup ran: show this version's news now, once.
+        WhatsNew.showIfNew(this)
     }
 
     private fun setUpNavigation(navController: NavController) {

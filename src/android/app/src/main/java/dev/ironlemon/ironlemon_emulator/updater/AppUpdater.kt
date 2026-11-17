@@ -17,21 +17,28 @@ import dev.ironlemon.ironlemon_emulator.utils.Log
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Lemon's updates: the latest release on Lemon's Forgejo server (GitHub mirror as a fallback),
- * offered only when it is newer than this build and carries this build's APK. The APK goes through
- * Android's package installer, which always asks the user to confirm.
+ * Iron Lemon's updates. They are published in Lemon's repository (Forgejo, GitHub mirror as a
+ * fallback) with their own tags, `ironlemon-vX.Y.Z`, as prereleases so Lemon's "latest" stays
+ * Lemon's. The newest of them is offered when it is newer than this build and carries Iron Lemon's
+ * APK. The APK goes through Android's package installer, which always asks the user to confirm.
  */
 object AppUpdater {
-    data class Release(val tag: String, val notes: String, val apkUrl: String, val apkName: String)
+    data class Release(val tag: String, val notes: String, val apkUrl: String, val apkName: String) {
+        /** The version the tag names, as the user sees it ("v0.2.0"). */
+        val version: String get() = versionOf(tag)
+    }
 
-    private const val FORGEJO = "https://git.lemon-emu.org/api/v1/repos/lemon/Lemon-Project/releases/latest"
-    private const val GITHUB = "https://api.github.com/repos/Ghael-V/Lemon-Project/releases/latest"
+    private const val FORGEJO = "https://git.lemon-emu.org/api/v1/repos/lemon/Lemon-Project/releases?limit=50"
+    private const val GITHUB = "https://api.github.com/repos/Ghael-V/Lemon-Project/releases?per_page=50"
 
-    // The standard build's APK; Lite and the other variants carry their own suffix.
-    private const val APK_SUFFIX = "-standard.apk"
+    // Iron Lemon's releases among Lemon's, and the APK they carry.
+    private const val TAG_PREFIX = "ironlemon-"
+    private const val APK_PREFIX = "IronLemon-"
+    private const val APK_EXTENSION = ".apk"
 
     private const val PREF_AUTO_CHECK = "update_auto_check"
     private const val INSTALL_ACTION = "dev.ironlemon.UPDATE_INSTALL_STATUS"
@@ -44,16 +51,13 @@ object AppUpdater {
             putBoolean(PREF_AUTO_CHECK, enabled)
         }
 
-    /**
-     * Off: the servers above publish Lemon, a different app since Iron Lemon took its own id.
-     * Until Iron Lemon has releases of its own, it offers no updates.
-     */
-    val canUpdate: Boolean get() = false
+    /** Development builds don't follow releases: their version is not a release's. */
+    val canUpdate: Boolean get() = !BuildConfig.DEBUG
 
     /** The newer release, or null (up to date, nothing for this build, or no answer). Blocking. */
     fun findUpdate(): Release? {
-        val latest = fetch(FORGEJO) ?: fetch(GITHUB) ?: return null
-        return latest.takeIf { isNewer(it.tag, BuildConfig.VERSION_NAME) }
+        val newest = fetchNewest(FORGEJO) ?: fetchNewest(GITHUB) ?: return null
+        return newest.takeIf { isNewer(versionOf(it.tag), BuildConfig.VERSION_NAME) }
     }
 
     /** True when the servers answered (so "up to date" can be told apart from "no connection"). */
@@ -61,7 +65,11 @@ object AppUpdater {
     var lastCheckReachedServer = false
         private set
 
-    private fun fetch(url: String): Release? {
+    /** "ironlemon-v0.2.0" -> "v0.2.0". */
+    private fun versionOf(tag: String): String = tag.removePrefix(TAG_PREFIX)
+
+    /** The newest Iron Lemon release in the list at [url] that carries its APK, or null. */
+    private fun fetchNewest(url: String): Release? {
         return try {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8000
@@ -70,28 +78,45 @@ object AppUpdater {
             }
             connection.inputStream.bufferedReader().use { reader ->
                 lastCheckReachedServer = true
-                val json = JSONObject(reader.readText())
-                val assets = json.optJSONArray("assets") ?: return null
-                for (i in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(i)
-                    val name = asset.optString("name")
-                    if (name.endsWith(APK_SUFFIX)) {
-                        return Release(
-                            tag = json.optString("tag_name"),
-                            notes = json.optString("body"),
-                            apkUrl = asset.optString("browser_download_url"),
-                            apkName = name
-                        )
+                val releases = JSONArray(reader.readText())
+                var newest: Release? = null
+                for (i in 0 until releases.length()) {
+                    val release = toRelease(releases.getJSONObject(i)) ?: continue
+                    if (newest == null || isNewer(versionOf(release.tag), versionOf(newest.tag))) {
+                        newest = release
                     }
                 }
-                // A release with no APK for this build (another variant's, or still uploading)
-                // is not an update for it.
-                null
+                newest
             }
         } catch (e: Exception) {
             Log.warning("[Updater] $url: ${e.message}")
             null
         }
+    }
+
+    /**
+     * An Iron Lemon release with its APK; null for Lemon's own releases, drafts, and releases
+     * whose APK isn't there (yet).
+     */
+    private fun toRelease(json: JSONObject): Release? {
+        val tag = json.optString("tag_name")
+        if (!tag.startsWith(TAG_PREFIX) || json.optBoolean("draft")) {
+            return null
+        }
+        val assets = json.optJSONArray("assets") ?: return null
+        for (i in 0 until assets.length()) {
+            val asset = assets.getJSONObject(i)
+            val name = asset.optString("name")
+            if (name.startsWith(APK_PREFIX) && name.endsWith(APK_EXTENSION)) {
+                return Release(
+                    tag = tag,
+                    notes = json.optString("body"),
+                    apkUrl = asset.optString("browser_download_url"),
+                    apkName = name
+                )
+            }
+        }
+        return null
     }
 
     /**

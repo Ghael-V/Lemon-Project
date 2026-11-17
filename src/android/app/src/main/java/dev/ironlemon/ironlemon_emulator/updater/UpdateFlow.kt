@@ -83,7 +83,7 @@ object UpdateFlow {
     private fun offer(activity: FragmentActivity, release: AppUpdater.Release) {
         showIronLemonDialog(activity) { dismiss ->
             IronLemonDialogCard(
-                title = stringResource(R.string.update_available, release.tag),
+                title = stringResource(R.string.update_available, release.version),
                 buttons = {
                     IronLemonButton(
                         text = stringResource(R.string.update_later),
