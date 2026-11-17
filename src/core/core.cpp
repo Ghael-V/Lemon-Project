@@ -416,10 +416,14 @@ struct System::Impl {
         Core::SaveState::UndoJournal::StopAll();
         kernel.CloseServices();
         kernel.ShutdownCores();
+        // Before the services: the cheat tick still runs on the timing thread here, and reads the
+        // controllers through the service manager (it crashed in a freed mutex when a game with
+        // cheats was stopped). Destroying the engine unschedules its tick and waits for a running
+        // one to finish.
+        cheat_engine.reset();
         services.reset();
         service_manager.reset();
         fs_controller.Reset();
-        cheat_engine.reset();
         core_timing.ClearPendingEvents();
         app_loader.reset();
         audio_core.reset();
