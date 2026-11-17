@@ -1292,7 +1292,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="source_link" translatable="false">https://git.lemon-emu.org/lemon/Lemon-Project</string>
     <string name="source_link_button">Source code</string>
     <string name="team_lemon" translatable="false">Team Lemon</string>
-    <string name="team_lemon_members" translatable="false">Ghael · Seak · Sidgey · BitRanger</string>
+    <string name="team_lemon_members" translatable="false">Ghael · Seak · Sidgey · BitRanger · rcssf</string>
     <string name="team_link">https://lemon-emu.org/#team</string>
     <string name="website_link_button">Website</string>
 

@@ -32,6 +32,8 @@ It contains no Eden history, no Eden commits and none of Eden's changes.
 - **Excluded on purpose:** every commit authored by Eden developers, and Eden's Android UI changes.
 - **Android only:** the desktop frontends are removed.
 
+Made by **Team Lemon**: Ghael, Seak, Sidgey, BitRanger and rcssf.
+
 ## License
 
 yuzu code is GPL-2.0-or-later, Lemon additions are GPL-3.0-or-later. Original copyright notices
