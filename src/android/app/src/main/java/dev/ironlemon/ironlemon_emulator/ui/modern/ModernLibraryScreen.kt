@@ -139,7 +139,9 @@ fun ModernLibraryScreen(
                     bitmap = bitmap,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().blur(70.dp).graphicsLayer { alpha = 0.9f }
+                    // Soft enough to hide the upscaled icon's pixels, light enough that its
+                    // shapes and colours still read behind the list.
+                    modifier = Modifier.fillMaxSize().blur(20.dp).graphicsLayer { alpha = 0.9f }
                 )
             }
         }
@@ -147,9 +149,9 @@ fun ModernLibraryScreen(
             Modifier.fillMaxSize().background(
                 Brush.horizontalGradient(
                     listOf(
-                        IronLemonColors.Background.copy(alpha = 0.92f),
-                        IronLemonColors.Background.copy(alpha = 0.55f),
-                        IronLemonColors.Background.copy(alpha = 0.25f)
+                        IronLemonColors.Background.copy(alpha = 0.85f),
+                        IronLemonColors.Background.copy(alpha = 0.4f),
+                        IronLemonColors.Background.copy(alpha = 0.1f)
                     )
                 )
             )
