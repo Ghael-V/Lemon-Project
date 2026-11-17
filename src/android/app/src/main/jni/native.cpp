@@ -48,6 +48,7 @@
 #include "core/crypto/key_manager.h"
 #include "core/crypto/ncz_decompressor.h"
 #include "core/file_sys/card_image.h"
+#include "core/file_sys/common_funcs.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/fs_filesystem.h"
 #include "core/file_sys/submission_package.h"
@@ -1187,18 +1188,23 @@ int Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_installFileToNand(JNIEn
 jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_doesUpdateMatchProgram(JNIEnv* env, jobject jobj,
                                                                       jstring jprogramId,
                                                                       jstring jupdatePath) {
-    u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
-    std::string updatePath = Common::Android::GetJString(env, jupdatePath);
-    std::shared_ptr<FileSys::NSP> nsp = std::make_shared<FileSys::NSP>(
+    // A title ID's low 13 bits say which part of an application it is: the program index of a
+    // multi-program game, 0x800 for its update, 0x1000 + n for add-on content n. Two IDs are the
+    // same game when everything above those bits agrees.
+    const auto same_application = [](u64 lhs, u64 rhs) {
+        return ((lhs ^ rhs) & FileSys::BASE_TITLE_ID_MASK) == 0;
+    };
+    const u64 program_id = EmulationSession::GetProgramId(env, jprogramId);
+    const std::string update_path = Common::Android::GetJString(env, jupdatePath);
+    const auto nsp = std::make_shared<FileSys::NSP>(
         EmulationSession::GetInstance().System().GetFilesystem()->OpenFile(
-            updatePath, FileSys::OpenMode::Read));
-    for (const auto& item : nsp->GetNCAs()) {
-        for (const auto& nca_details : item.second) {
-            if (nca_details.second->GetName().ends_with(".cnmt.nca")) {
-                auto update_id = nca_details.second->GetTitleId() & ~0xFFFULL;
-                if (update_id == program_id) {
-                    return true;
-                }
+            update_path, FileSys::OpenMode::Read));
+    // The package's metadata NCAs carry the title IDs it installs.
+    for (const auto& [title_id, ncas] : nsp->GetNCAs()) {
+        for (const auto& [record, nca] : ncas) {
+            if (nca->GetName().ends_with(".cnmt.nca") &&
+                same_application(nca->GetTitleId(), program_id)) {
+                return true;
             }
         }
     }
