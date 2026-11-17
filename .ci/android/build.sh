@@ -25,8 +25,8 @@ Options:
     -r, --release        	Enable update checker. If set, sets the DEVEL bool variable to false.
                          	By default, DEVEL is true.
     -t, --target <FLAVOR> 	Build flavor (variable: TARGET)
-                          	Valid values are: standard, lite, lite-spoofed, legacy, optimized,
-                          	or all (standard, lite and lite-spoofed, the three a release ships)
+                          	Valid values are: standard, spoofed, lite (its last release), legacy,
+                          	optimized, or all (standard, spoofed and lite, what a release ships)
                           	Default: standard
     -b, --build-type <TYPE>	Build type (variable: TYPE)
                           	Valid values are: Release, RelWithDebInfo, Debug
@@ -98,14 +98,14 @@ fi
 TARGET_LOWER=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
 
 case "$TARGET_LOWER" in
-	all) TARGETS="standard lite lite-spoofed" ;;
+	all) TARGETS="standard spoofed lite" ;;
 	*) TARGETS="$TARGET_LOWER" ;;
 esac
 
 flavor_of() {
 	case "$1" in
 		lite) echo Lite ;;
-		lite-spoofed) echo LiteSpoofed ;;
+		spoofed) echo Spoofed ;;
 		legacy) echo Legacy ;;
 		optimized) echo GenshinSpoof ;;
 		standard) echo Mainline ;;
@@ -190,7 +190,7 @@ for t in $TARGETS; do
     case "$t" in
         standard) RELEASE_PREFIX=Lemon; RELEASE_SUFFIX=standard ;;
         lite) RELEASE_PREFIX=Lemon-Lite; RELEASE_SUFFIX=lite ;;
-        lite-spoofed) RELEASE_PREFIX=Lemon-Lite-Spoofed; RELEASE_SUFFIX=lite-spoofed ;;
+        spoofed) RELEASE_PREFIX=Lemon-Spoofed; RELEASE_SUFFIX=spoofed ;;
         *) continue ;;
     esac
     [ "$DEVEL" != "true" ] || continue
@@ -202,6 +202,13 @@ for t in $TARGETS; do
     RELEASE_FILE="${RELEASE_PREFIX}-${RELEASE_TAG}-${RELEASE_SUFFIX}.apk"
     cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" "${ARTIFACTS_DIR}/${RELEASE_FILE}"
     echo "-- Release file: ${RELEASE_FILE}"
+    if [ "$t" = spoofed ]; then
+        # Lemon Lite & Spoofed installs (same package) still look for "lite-spoofed.apk": the same
+        # APK under that name too, so they update into Lemon Spoofed.
+        LEGACY_FILE="Lemon-Lite-Spoofed-${RELEASE_TAG}-lite-spoofed.apk"
+        cp -f "${ARTIFACTS_DIR}/app-${LOWER_FLAVOR}-${LOWER_TYPE}.apk" "${ARTIFACTS_DIR}/${LEGACY_FILE}"
+        echo "-- Release file: ${LEGACY_FILE} (copy for Lite & Spoofed installs)"
+    fi
 done
 
 ls -l "${ARTIFACTS_DIR}/"

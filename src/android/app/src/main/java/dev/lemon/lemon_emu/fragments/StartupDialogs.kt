@@ -20,6 +20,7 @@ import dev.lemon.lemon_emu.databinding.DialogSupportBinding
 import dev.lemon.lemon_emu.features.settings.model.BooleanSetting
 import dev.lemon.lemon_emu.ui.main.MainActivity
 import dev.lemon.lemon_emu.utils.NativeConfig
+import dev.lemon.lemon_emu.utils.PerformancePresets
 
 // The startup notices are DialogFragments so the system restores them, once, when MainActivity is
 // recreated (theme setup right after launch, every rotation). Plain dialogs got closed by that
@@ -130,6 +131,48 @@ class WhatsNewDialogFragment : DialogFragment() {
                 WhatsNewDialogFragment().show(fragmentManager, TAG)
             }
             return true
+        }
+    }
+}
+
+/**
+ * The last Lemon Lite's goodbye: Lite's light settings are Lemon's Speed mode now, so Lite users are
+ * pointed to Lemon (another package: installed next to Lite, saves brought over with "Migrate from
+ * another emulator"). Shown on every launch of a Lite build until it's gone; the updater of this build
+ * offers Lemon too.
+ */
+class LiteFarewellDialogFragment : DialogFragment() {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        return MaterialAlertDialogBuilder(requireContext())
+            .setIcon(R.drawable.ic_new_label)
+            .setTitle(R.string.lite_farewell_title)
+            .setMessage(R.string.lite_farewell_body)
+            .setPositiveButton(R.string.lite_farewell_download) { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, getString(R.string.lite_farewell_link).toUri()))
+            }
+            .setNegativeButton(R.string.not_now, null)
+            .create()
+    }
+
+    companion object {
+        const val TAG = "LiteFarewellDialogFragment"
+        private const val PREF_SPEED_APPLIED = "lite_farewell_speed_applied"
+
+        /** Call once per launch of a Lite build. */
+        fun onAppLaunch(context: Context, fragmentManager: FragmentManager) {
+            val preferences = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+            // Lite's light settings were its defaults; this build has Lemon's. Untouched settings
+            // (Normal) get the Speed mode once, so Lite doesn't turn heavier on its last update.
+            if (!preferences.getBoolean(PREF_SPEED_APPLIED, false)) {
+                if (PerformancePresets.current() == PerformancePresets.Preset.NORMAL) {
+                    PerformancePresets.apply(PerformancePresets.Preset.SPEED)
+                    NativeConfig.saveGlobalConfig()
+                }
+                preferences.edit { putBoolean(PREF_SPEED_APPLIED, true) }
+            }
+            if (fragmentManager.findFragmentByTag(TAG) == null) {
+                LiteFarewellDialogFragment().show(fragmentManager, TAG)
+            }
         }
     }
 }

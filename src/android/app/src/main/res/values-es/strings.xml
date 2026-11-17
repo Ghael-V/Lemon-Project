@@ -1447,6 +1447,9 @@
     <string name="whats_new_got_it">Entendido</string>
     <string name="whats_new_read_more">Leer más</string>
     <string name="whats_new_link">https://lemon-emu.org/es/#features</string>
+    <string name="lite_farewell_title">Lemon Lite ahora es parte de Lemon</string>
+    <string name="lite_farewell_body">Esta es la última versión de Lemon Lite. Sus ajustes ligeros son ahora el modo Velocidad de Lemon (Ajustes › Modo), así que ya no hace falta una app aparte.\n\nInstala Lemon con el botón de abajo y, en sus Ajustes, usa «Migrar desde otro emulador» para traer tus partidas, claves y firmware. A partir de ahora, las actualizaciones llegan como Lemon.</string>
+    <string name="lite_farewell_download">Descargar Lemon</string>
     <string name="join_discord_button">Unirse a nuestro Discord</string>
     <string name="buymeacoffee_link_button">Invítame a un café</string>
     <string name="kofi_link_button">Ko-fi</string>

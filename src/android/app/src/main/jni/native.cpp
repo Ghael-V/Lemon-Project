@@ -1580,14 +1580,12 @@ void JNICALL Java_dev_lemon_lemon_1emu_NativeLibrary_initializeGpuDriver(JNIEnv*
     if (android_get_device_api_level() < 28) {
         return false;
     }
-#ifdef LEMON_LITE
-    // Lemon Lite also loads Mesa PanVK builds that talk to the Mali kernel driver (mali_kbase).
-    // adrenotools' custom-driver path only swaps the vulkan.* HAL the system loader opens, so it
-    // isn't tied to Adreno; its KGSL helpers (turbo, GPU mappings) stay Adreno-only.
+    // Mesa PanVK builds that talk to the Mali kernel driver (mali_kbase) load too (this was Lemon
+    // Lite's alone). adrenotools' custom-driver path only swaps the vulkan.* HAL the system loader
+    // opens, so it isn't tied to Adreno; its KGSL helpers (turbo, GPU mappings) stay Adreno-only.
     if (CheckMaliPresent()) {
         return true;
     }
-#endif
     return CheckKgslPresent();
 }
 

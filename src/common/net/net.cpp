@@ -83,9 +83,14 @@ std::vector<Asset> Release::GetPlatformAssets() const {
     find_asset("Standard", {"chromeos.apk"});
 #elif defined(ARCHITECTURE_arm64)
 #ifdef LEMON_SPOOFED
-    find_asset("Standard", {"lite-spoofed.apk"});
+    // Lemon Spoofed. Releases also carry a copy named "...-lite-spoofed.apk" for Lite & Spoofed
+    // installs, which still look for that name; both end in "spoofed.apk".
+    find_asset("Standard", {"spoofed.apk"});
 #elif defined(LEMON_LITE)
-    find_asset("Standard", {"lite.apk"});
+    // The last Lemon Lite: Lite's light settings are Lemon's Speed mode now, so its updates are
+    // Lemon itself (another package: it installs next to Lite, and saves come over through
+    // "Import from another emulator").
+    find_asset("Standard", {"standard.apk"});
 #elif defined(YUZU_LEGACY)
     find_asset("Standard", {"legacy.apk"});
 #elif defined(GENSHIN_SPOOF)
