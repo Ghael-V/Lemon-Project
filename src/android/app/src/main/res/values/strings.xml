@@ -604,6 +604,10 @@
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_read_more">Read more</string>
     <string name="whats_new_link">https://lemon-emu.org/#features</string>
+    <string name="lite_farewell_title">Lemon Lite is now part of Lemon</string>
+    <string name="lite_farewell_body">This is the last Lemon Lite. Its lighter settings are now Lemon\'s Speed mode (Settings › Mode), so there is no need for a separate app.\n\nInstall Lemon with the button below, then use \"Migrate from another emulator\" in Lemon\'s Settings to bring your saves, keys and firmware over. From now on, updates come as Lemon.</string>
+    <string name="lite_farewell_download">Download Lemon</string>
+    <string name="lite_farewell_link" translatable="false">https://git.lemon-emu.org/lemon/Lemon-Project/releases/latest</string>
     <string name="join_discord_button">Join our Discord</string>
     <string name="buymeacoffee_link" translatable="false">https://buymeacoffee.com/ghael</string>
     <string name="buymeacoffee_link_button">Buy me a coffee</string>

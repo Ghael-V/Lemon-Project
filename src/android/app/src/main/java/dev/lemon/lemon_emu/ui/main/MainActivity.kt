@@ -6,6 +6,7 @@ package dev.lemon.lemon_emu.ui.main
 
 import android.content.Intent
 import dev.lemon.lemon_emu.utils.GameLaunchUtils
+import dev.lemon.lemon_emu.BuildConfig
 import dev.lemon.lemon_emu.HomeNavigationDirections
 import android.content.Context
 import android.net.Uri
@@ -36,6 +37,7 @@ import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
+import dev.lemon.lemon_emu.fragments.LiteFarewellDialogFragment
 import dev.lemon.lemon_emu.fragments.SupportDialogFragment
 import dev.lemon.lemon_emu.fragments.WhatsNewDialogFragment
 import dev.lemon.lemon_emu.fragments.UpdateDialogFragment
@@ -182,8 +184,11 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
         // Once per launch; on a recreation (theme setup, rotation) the system restores the dialogs.
         if (!firstTimeSetup && savedInstanceState == null) {
-            // One notice at a time: what's new first, the support card on a later launch.
-            if (!WhatsNewDialogFragment.onAppLaunch(this, supportFragmentManager)) {
+            // One notice at a time: what's new first, the support card on a later launch. The last
+            // Lemon Lite says goodbye instead.
+            if (BuildConfig.LITE) {
+                LiteFarewellDialogFragment.onAppLaunch(this, supportFragmentManager)
+            } else if (!WhatsNewDialogFragment.onAppLaunch(this, supportFragmentManager)) {
                 SupportDialogFragment.onAppLaunch(this, supportFragmentManager)
             }
             if (NativeLibrary.isUpdateCheckerEnabled() &&
