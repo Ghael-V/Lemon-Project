@@ -5,9 +5,13 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include <array>
+#include <chrono>
+#include <cstring>
 #include <memory>
 #include <utility>
+#include <thread>
 #include <vector>
 
 #include <fmt/ranges.h>
@@ -466,6 +470,15 @@ void BSD_USA::Write(HLERequestContext& ctx) {
 
     LOG_DEBUG(Service, "called. fd={} len={}", fd, ctx.GetReadBufferSize());
 
+    if (IsEventDescriptor(fd)) {
+        const auto [ret, bsd_errno] = EventWriteImpl(fd, ctx.ReadBuffer());
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(ResultSuccess);
+        rb.Push<s32>(ret);
+        rb.PushEnum(bsd_errno);
+        return;
+    }
+
     ExecuteWork(ctx, SendWork{
                          .fd = fd,
                          .flags = 0,
@@ -477,12 +490,25 @@ void BSD_USA::Read(HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
     const s32 fd = rp.Pop<s32>();
 
-    LOG_WARNING(Service, "(STUBBED) called. fd={} len={}", fd, ctx.GetWriteBufferSize());
+    LOG_DEBUG(Service, "called. fd={} len={}", fd, ctx.GetWriteBufferSize());
 
-    IPC::ResponseBuilder rb{ctx, 4};
-    rb.Push(ResultSuccess);
-    rb.Push<u32>(0); // ret
-    rb.Push<u32>(0); // bsd errno
+    if (IsEventDescriptor(fd)) {
+        std::vector<u8> message(ctx.GetWriteBufferSize());
+        const auto [ret, bsd_errno] = EventReadImpl(fd, message);
+        ctx.WriteBuffer(message);
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(ResultSuccess);
+        rb.Push<s32>(ret);
+        rb.PushEnum(bsd_errno);
+        return;
+    }
+
+    // read() on a socket is recv() without flags.
+    ExecuteWork(ctx, RecvWork{
+                         .fd = fd,
+                         .flags = 0,
+                         .message = std::vector<u8>(ctx.GetWriteBufferSize()),
+                     });
 }
 
 void BSD_USA::Close(HLERequestContext& ctx) {
@@ -538,12 +564,71 @@ void BSD_USA::DuplicateSocket(HLERequestContext& ctx) {
 
 void BSD_USA::EventFd(HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
-    const u64 initval = rp.Pop<u64>();
+    // flags (u32, then padding) before the initial value: games pass the non-blocking flag (4)
+    // first, which was read as the value before.
     const u32 flags = rp.Pop<u32>();
+    rp.Skip(1, false);
+    const u64 initial_value = rp.Pop<u64>();
 
-    LOG_WARNING(Service, "(STUBBED) called. initval={}, flags={}", initval, flags);
+    LOG_DEBUG(Service, "called. initial_value={}, flags={}", initial_value, flags);
 
-    BuildErrnoResponse(ctx, Errno::SUCCESS);
+    const auto [fd, bsd_errno] = EventFdImpl(initial_value, flags);
+    IPC::ResponseBuilder rb{ctx, 4};
+    rb.Push(ResultSuccess);
+    rb.Push<s32>(fd);
+    rb.PushEnum(bsd_errno);
+}
+
+std::pair<s32, Errno> BSD_USA::EventFdImpl(u64 initial_value, u32 flags) {
+    constexpr u32 EFD_SEMAPHORE = 1;
+    const s32 fd = FindFreeFileDescriptorHandle();
+    if (fd < 0) {
+        LOG_ERROR(Service, "No more file descriptors available");
+        return {-1, Errno::MFILE};
+    }
+    auto counter = std::make_shared<EventCounter>();
+    counter->value = initial_value;
+    counter->semaphore = (flags & EFD_SEMAPHORE) != 0;
+    file_descriptors[fd] = FileDescriptor{};
+    file_descriptors[fd]->event_counter = std::move(counter);
+    LOG_INFO(Service, "New eventfd fd={}", fd);
+    return {fd, Errno::SUCCESS};
+}
+
+// Never blocks: the guest's non-blocking eventfds get EAGAIN, and a blocking one is woken through
+// poll, which is how games wait on them.
+std::pair<s32, Errno> BSD_USA::EventReadImpl(s32 fd, std::vector<u8>& out) {
+    if (out.size() < sizeof(u64)) {
+        return {-1, Errno::INVAL};
+    }
+    EventCounter& counter = *file_descriptors[fd]->event_counter;
+    std::scoped_lock lock{counter.mutex};
+    if (counter.value == 0) {
+        return {-1, Errno::AGAIN};
+    }
+    const u64 taken = counter.semaphore ? 1 : counter.value;
+    counter.value -= taken;
+    std::memcpy(out.data(), &taken, sizeof(taken));
+    return {static_cast<s32>(sizeof(u64)), Errno::SUCCESS};
+}
+
+std::pair<s32, Errno> BSD_USA::EventWriteImpl(s32 fd, std::span<const u8> in) {
+    if (in.size() < sizeof(u64)) {
+        return {-1, Errno::INVAL};
+    }
+    u64 added{};
+    std::memcpy(&added, in.data(), sizeof(added));
+    if (added == ~u64{0}) {
+        return {-1, Errno::INVAL};
+    }
+    EventCounter& counter = *file_descriptors[fd]->event_counter;
+    std::scoped_lock lock{counter.mutex};
+    // The counter holds at most 2^64 - 2.
+    if (counter.value > ~u64{0} - 1 - added) {
+        return {-1, Errno::AGAIN};
+    }
+    counter.value += added;
+    return {static_cast<s32>(sizeof(u64)), Errno::SUCCESS};
 }
 
 template <typename Work>
@@ -643,6 +728,73 @@ std::pair<s32, Errno> BSD_USA::PollImpl(std::vector<u8>& write_buffer, std::span
         }
     }
 
+    // Eventfds are answered here; only sockets go to the host's poll.
+    std::vector<size_t> event_entries;
+    std::vector<size_t> socket_entries;
+    for (size_t i = 0; i < fds.size(); ++i) {
+        (file_descriptors[fds[i].fd]->event_counter ? event_entries : socket_entries).push_back(i);
+    }
+    const auto poll_events = [&] {
+        s32 ready = 0;
+        for (const size_t i : event_entries) {
+            EventCounter& counter = *file_descriptors[fds[i].fd]->event_counter;
+            u64 value;
+            {
+                std::scoped_lock lock{counter.mutex};
+                value = counter.value;
+            }
+            PollEvents revents{};
+            if (True(fds[i].events & PollEvents::In) && value > 0) {
+                revents |= PollEvents::In;
+            }
+            if (True(fds[i].events & PollEvents::Out) && value < ~u64{0} - 1) {
+                revents |= PollEvents::Out;
+            }
+            fds[i].revents = revents;
+            ready += revents != PollEvents{} ? 1 : 0;
+        }
+        return ready;
+    };
+    if (!event_entries.empty()) {
+        // Waits in short slices so a Write from another thread is seen.
+        constexpr s32 SLICE_MS = 5;
+        std::vector<Network::PollFD> sockets(socket_entries.size());
+        for (size_t j = 0; j < socket_entries.size(); ++j) {
+            const PollFD& pollfd = fds[socket_entries[j]];
+            sockets[j].socket = file_descriptors[pollfd.fd]->socket.get();
+            sockets[j].events = Translate(pollfd.events);
+            sockets[j].revents = Network::PollEvents{};
+        }
+        s32 waited = 0;
+        while (true) {
+            const s32 events_ready = poll_events();
+            const bool last = events_ready > 0 || (timeout >= 0 && waited >= timeout);
+            const s32 slice = last ? 0 : (timeout < 0 ? SLICE_MS : std::min(SLICE_MS, timeout - waited));
+            s32 sockets_ready = 0;
+            if (!sockets.empty()) {
+                for (auto& socket : sockets) {
+                    socket.revents = Network::PollEvents{};
+                }
+                const auto [count, error] = Network::Poll(sockets, slice);
+                if (count < 0) {
+                    return Translate(std::make_pair(count, error));
+                }
+                sockets_ready = count;
+            } else if (slice > 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(slice));
+            }
+            waited += slice;
+            if (last || sockets_ready > 0) {
+                for (size_t j = 0; j < socket_entries.size(); ++j) {
+                    fds[socket_entries[j]].revents = Translate(sockets[j].revents);
+                }
+                const s32 total = poll_events() + sockets_ready;
+                std::memcpy(write_buffer.data(), fds.data(), nfds * sizeof(PollFD));
+                return {total, Errno::SUCCESS};
+            }
+        }
+    }
+
     std::vector<Network::PollFD> host_pollfds(fds.size());
     std::transform(fds.begin(), fds.end(), host_pollfds.begin(), [](PollFD pollfd) {
         Network::PollFD result;
@@ -683,7 +835,7 @@ std::pair<s32, Errno> BSD_USA::PollImpl(std::vector<u8>& write_buffer, std::span
 }
 
 std::pair<s32, Errno> BSD_USA::AcceptImpl(s32 fd, std::vector<u8>& write_buffer) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
 
@@ -714,7 +866,7 @@ std::pair<s32, Errno> BSD_USA::AcceptImpl(s32 fd, std::vector<u8>& write_buffer)
 }
 
 Errno BSD_USA::BindImpl(s32 fd, std::span<const u8> addr) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
     ASSERT(addr.size() >= 16);
@@ -729,7 +881,7 @@ Errno BSD_USA::BindImpl(s32 fd, std::span<const u8> addr) {
 }
 
 Errno BSD_USA::ConnectImpl(s32 fd, std::span<const u8> addr) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
 
@@ -752,7 +904,7 @@ Errno BSD_USA::ConnectImpl(s32 fd, std::span<const u8> addr) {
 }
 
 Errno BSD_USA::GetPeerNameImpl(s32 fd, std::vector<u8>& write_buffer) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
 
@@ -774,7 +926,7 @@ Errno BSD_USA::GetPeerNameImpl(s32 fd, std::vector<u8>& write_buffer) {
 }
 
 Errno BSD_USA::GetSockNameImpl(s32 fd, std::vector<u8>& write_buffer) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
 
@@ -796,7 +948,7 @@ Errno BSD_USA::GetSockNameImpl(s32 fd, std::vector<u8>& write_buffer) {
 }
 
 Errno BSD_USA::ListenImpl(s32 fd, s32 backlog) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
     if (!file_descriptors[fd]->socket) {
@@ -810,7 +962,8 @@ std::pair<s32, Errno> BSD_USA::FcntlImpl(s32 fd, FcntlCmd cmd, s32 arg) {
     if (!IsFileDescriptorValid(fd)) {
         return {-1, Errno::BADF};
     }
-    if (!file_descriptors[fd]->socket) {
+    // An eventfd has no socket, only its flags (games make theirs non-blocking).
+    if (!file_descriptors[fd]->socket && !file_descriptors[fd]->event_counter) {
         LOG_WARNING(Service, "Uninitialized socket");
         return {-1, Errno::BADF};
     }
@@ -822,6 +975,10 @@ std::pair<s32, Errno> BSD_USA::FcntlImpl(s32 fd, FcntlCmd cmd, s32 arg) {
         ASSERT(arg == 0);
         return {descriptor.flags, Errno::SUCCESS};
     case FcntlCmd::SETFL: {
+        if (!descriptor.socket) {
+            descriptor.flags = arg;
+            return {0, Errno::SUCCESS};
+        }
         const bool enable = (arg & Network::FLAG_O_NONBLOCK) != 0;
         const Errno bsd_errno = Translate(descriptor.socket->SetNonBlock(enable));
         if (bsd_errno != Errno::SUCCESS) {
@@ -842,7 +999,7 @@ std::pair<s32, Errno> BSD_USA::IoctlImpl(s32 fd, u32 request, std::span<const u8
     constexpr u32 FIONREAD = 0x4004667f;
     constexpr u32 FIONBIO = 0x8004667e;
 
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
     if (!file_descriptors[fd]->socket) {
@@ -887,7 +1044,7 @@ std::pair<s32, Errno> BSD_USA::IoctlImpl(s32 fd, u32 request, std::span<const u8
 }
 
 Errno BSD_USA::GetSockOptImpl(s32 fd, u32 level, OptName optname, std::vector<u8>& optval) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
     if (!file_descriptors[fd]->socket) {
@@ -922,7 +1079,7 @@ Errno BSD_USA::GetSockOptImpl(s32 fd, u32 level, OptName optname, std::vector<u8
 }
 
 Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<const u8> optval) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
     if (!file_descriptors[fd]->socket) {
@@ -971,6 +1128,11 @@ Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<cons
     case OptName::NOSIGPIPE:
         LOG_WARNING(Service, "(STUBBED) setting NOSIGPIPE to {}", value);
         return Errno::SUCCESS;
+    case OptName::NO_OFFLOAD:
+    case OptName::NO_DDP:
+        // Hints for the console's network hardware (Crysis 3 sets them): nothing to do here.
+        LOG_DEBUG(Service, "Ignoring socket option {:#x} = {}", static_cast<u32>(optname), value);
+        return Errno::SUCCESS;
     default:
         UNIMPLEMENTED_MSG("Unimplemented optname={}", optname);
         return Errno::SUCCESS;
@@ -978,7 +1140,7 @@ Errno BSD_USA::SetSockOptImpl(s32 fd, u32 level, OptName optname, std::span<cons
 }
 
 Errno BSD_USA::ShutdownImpl(s32 fd, s32 how) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return Errno::BADF;
     }
     if (!file_descriptors[fd]->socket) {
@@ -990,7 +1152,7 @@ Errno BSD_USA::ShutdownImpl(s32 fd, s32 how) {
 }
 
 std::pair<s32, Errno> BSD_USA::RecvImpl(s32 fd, u32 flags, std::vector<u8>& message) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
 
@@ -1018,7 +1180,7 @@ std::pair<s32, Errno> BSD_USA::RecvImpl(s32 fd, u32 flags, std::vector<u8>& mess
 
 std::pair<s32, Errno> BSD_USA::RecvFromImpl(s32 fd, u32 flags, std::vector<u8>& message,
                                         std::vector<u8>& addr) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
 
@@ -1065,7 +1227,7 @@ std::pair<s32, Errno> BSD_USA::RecvFromImpl(s32 fd, u32 flags, std::vector<u8>& 
 }
 
 std::pair<s32, Errno> BSD_USA::SendImpl(s32 fd, u32 flags, std::span<const u8> message) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
     if (!file_descriptors[fd]->socket) {
@@ -1077,7 +1239,7 @@ std::pair<s32, Errno> BSD_USA::SendImpl(s32 fd, u32 flags, std::span<const u8> m
 
 std::pair<s32, Errno> BSD_USA::SendToImpl(s32 fd, u32 flags, std::span<const u8> message,
                                       std::span<const u8> addr) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return {-1, Errno::BADF};
     }
     if (!file_descriptors[fd]->socket) {
@@ -1100,6 +1262,11 @@ std::pair<s32, Errno> BSD_USA::SendToImpl(s32 fd, u32 flags, std::span<const u8>
 Errno BSD_USA::CloseImpl(s32 fd) {
     if (!IsFileDescriptorValid(fd)) {
         return Errno::BADF;
+    }
+    if (file_descriptors[fd]->event_counter) {
+        LOG_INFO(Service, "Close eventfd fd={}", fd);
+        file_descriptors[fd].reset();
+        return Errno::SUCCESS;
     }
     if (!file_descriptors[fd]->socket) {
         LOG_WARNING(Service, "Uninitialized socket");
@@ -1137,7 +1304,7 @@ std::variant<s32, Errno> BSD_USA::DuplicateSocketImpl(s32 fd) {
 }
 
 std::optional<std::shared_ptr<Network::SocketBase>> BSD_USA::GetSocket(s32 fd) {
-    if (!IsFileDescriptorValid(fd)) {
+    if (!IsSocketDescriptor(fd)) {
         return std::nullopt;
     }
     if (!file_descriptors[fd]->socket) {
@@ -1166,6 +1333,15 @@ bool BSD_USA::IsFileDescriptorValid(s32 fd) const noexcept {
         return false;
     }
     return true;
+}
+
+bool BSD_USA::IsSocketDescriptor(s32 fd) const noexcept {
+    return IsFileDescriptorValid(fd) && file_descriptors[fd]->socket != nullptr;
+}
+
+bool BSD_USA::IsEventDescriptor(s32 fd) const noexcept {
+    return fd >= 0 && fd < static_cast<s32>(MAX_FD) && file_descriptors[fd] &&
+           file_descriptors[fd]->event_counter != nullptr;
 }
 
 void BSD_USA::BuildErrnoResponse(HLERequestContext& ctx, Errno bsd_errno) const noexcept {
