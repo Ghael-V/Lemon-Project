@@ -64,7 +64,7 @@ multi-platform CI, no PowerVR-specific code paths. It ships in two builds: **Lem
 same app under a benchmark app's package name). Lighter or sharper settings are a mode away: Speed, Normal or Quality.
 
 Started as a personal build for the maintainer's own device(s), Lemon is now made by **Team Lemon**: Ghael, Seak,
-Sidgey and BitRanger. Builds are published on the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of
+Sidgey, BitRanger and rcssf. Builds are published on the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of
 Lemon's own server and the app checks for new ones on launch (with the GitHub mirror as a fallback). It's still a
 small project — there's a [Discord](https://discord.com/invite/PEE7Q5TVM5) for feedback and support, but it isn't
 actively looking for external contributions; the source and releases are public under the GPL.
