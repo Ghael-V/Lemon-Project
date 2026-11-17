@@ -2329,7 +2329,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         // The thermal path posts this from a system callback with none of the session checks the
         // performance watchdog does - without these, an event landing while the session is
-        // stopping (or mid ROM swap) would save the BATTERY preset into whatever config is
+        // stopping (or mid ROM swap) would save the Speed mode into whatever config is
         // loaded by then, possibly the next game's.
         if (!emulationViewModel.emulationStarted.value ||
             emulationViewModel.isEmulationStopping.value ||
@@ -2339,7 +2339,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         adaptivePerformanceDowngradeApplied = true
 
-        PerformancePresets.apply(PerformancePresets.Preset.BATTERY)
+        PerformancePresets.apply(PerformancePresets.Preset.SPEED)
         if (shouldUseCustom) {
             NativeConfig.savePerGameConfig()
         } else {

@@ -48,17 +48,22 @@ object SettingsActions {
         )
     }
 
-    fun showPerformancePresetDialog(activity: FragmentActivity) {
+    /** The global mode; [onApplied] runs once a mode was chosen (to refresh what shows it). */
+    fun showPerformancePresetDialog(activity: FragmentActivity, onApplied: () -> Unit = {}) {
         val presets = PerformancePresets.Preset.entries.toTypedArray()
-        val labels = presets.map { activity.getString(it.titleRes) }.toTypedArray()
+        val labels = presets.map {
+            "${activity.getString(it.titleRes)}\n${activity.getString(it.descriptionRes)}"
+        }.toTypedArray()
+        val currentIndex = presets.indexOf(PerformancePresets.current())
 
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.performance_preset)
-            .setItems(labels) { dialog, which ->
+            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
                 val preset = presets[which]
                 PerformancePresets.apply(preset)
                 NativeConfig.saveGlobalConfig()
                 dialog.dismiss()
+                onApplied()
                 Toast.makeText(
                     activity,
                     activity.getString(R.string.preset_applied, activity.getString(preset.titleRes)),

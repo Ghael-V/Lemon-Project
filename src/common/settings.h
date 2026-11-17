@@ -495,12 +495,10 @@ struct Values {
     SwitchableSetting<bool> frame_gen_dump_flow{linkage, false, "frame_gen_dump_flow",
                                                 Category::Renderer};
 
-    SwitchableSetting<bool> use_asynchronous_gpu_emulation{linkage,
-#ifdef __ANDROID__
-        false,
-#else
-        true,
-#endif
+    // On by default everywhere. Off, every wait the GPU has (a shader being built, above all)
+    // stops the emulated CPU too: measured on the Odin 3 (2026-11-17, BOTW, cold shader cache)
+    // 18 frames over 50 ms and 0.89 s lost in a minute, against 5 and 0.27 s with it on.
+    SwitchableSetting<bool> use_asynchronous_gpu_emulation{linkage, true,
         "use_asynchronous_gpu_emulation", Category::Renderer};
     // *nix platforms may have issues with the borderless windowed fullscreen mode.
     // Default to exclusive fullscreen on these platforms for now.

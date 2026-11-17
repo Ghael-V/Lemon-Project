@@ -46,6 +46,7 @@ import dev.lemon.lemon_emu.adapters.HomeSettingAdapter
 import dev.lemon.lemon_emu.databinding.FragmentHomeSettingsBinding
 import dev.lemon.lemon_emu.features.DocumentProvider
 import dev.lemon.lemon_emu.features.fetcher.SpacingItemDecoration
+import dev.lemon.lemon_emu.features.settings.SettingsActions
 import dev.lemon.lemon_emu.features.settings.SettingsCategories
 import dev.lemon.lemon_emu.features.settings.SettingsSearchIndex
 import dev.lemon.lemon_emu.features.settings.model.Settings
@@ -155,10 +156,30 @@ class HomeSettingsFragment : Fragment() {
         (binding.root as ViewGroup).addView(composeView, params)
     }
 
-    // The settings categories (shared with the settings root), with "migrate from another
-    // emulator" first while there is one to migrate from and "reset" last.
+    // The current global mode's name, or "Custom" when the settings were tuned by hand.
+    private fun modeLabel(): String =
+        PerformancePresets.current()?.let { getString(it.titleRes) }
+            ?: getString(R.string.preset_custom)
+
+    // The mode first (the one-tap way to set Lemon up), then the settings categories (shared with
+    // the settings root), with "migrate from another emulator" while there is one to migrate from
+    // and "reset" last.
     private fun buildOptionsList(): MutableList<HomeSetting> =
         mutableListOf<HomeSetting>().apply {
+            val modeName = MutableStateFlow(modeLabel())
+            add(
+                HomeSetting(
+                    R.string.performance_preset,
+                    R.string.performance_preset_description,
+                    R.drawable.ic_speed,
+                    {
+                        SettingsActions.showPerformancePresetDialog(requireActivity()) {
+                            modeName.value = modeLabel()
+                        }
+                    },
+                    details = modeName
+                )
+            )
             val migrationSources = EmulatorMigration.findSources(requireContext())
             if (migrationSources.isNotEmpty()) {
                 add(
