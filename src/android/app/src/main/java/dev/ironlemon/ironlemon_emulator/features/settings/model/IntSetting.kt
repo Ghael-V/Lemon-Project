@@ -22,6 +22,7 @@ enum class IntSetting(override val key: String) : AbstractIntSetting {
     RENDERER_ASPECT_RATIO("aspect_ratio"),
     AUDIO_OUTPUT_ENGINE("output_engine"),
     MAX_ANISOTROPY("max_anisotropy"),
+    VRAM_USAGE_MODE("vram_usage_mode"),
     THEME("theme"),
     THEME_MODE("theme_mode"),
     OVERLAY_SCALE("control_scale"),

@@ -16,7 +16,7 @@ import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets.Preset
 
 /**
  * Adaptive performance: when a game overheats the device or keeps running well below full speed,
- * that game gets the Battery preset. Graphics settings such as the resolution only take effect at
+ * that game gets Speed mode. Graphics settings such as the resolution only take effect at
  * boot, and the config must not change under a running game, so the preset is written when the
  * game is next started. On by default; the switch is in the performance preset dialog.
  */
@@ -34,7 +34,7 @@ object AdaptivePerformance {
             putBoolean(PREF_ENABLED, enabled)
         }
 
-    /** Remembers that [game] should get the Battery preset at its next start. */
+    /** Remembers that [game] should get Speed mode at its next start. */
     fun markPending(context: Context, game: Game) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val pending = prefs.getStringSet(PREF_PENDING, emptySet())!!.toMutableSet()
@@ -43,8 +43,8 @@ object AdaptivePerformance {
     }
 
     /**
-     * Gives [game] the Battery preset if a past session asked for it. Call before its config is
-     * loaded for boot. Does nothing when it already gets Battery's values, its own or the global.
+     * Gives [game] Speed mode if a past session asked for it. Call before its config is
+     * loaded for boot. Does nothing when it already gets Speed's values, its own or the global.
      */
     fun applyPending(context: Context, game: Game) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -58,8 +58,8 @@ object AdaptivePerformance {
         }
         val own = PerformancePresets.currentFor(game)
         val effective = own ?: PerformancePresets.current()
-        if (effective != Preset.BATTERY) {
-            PerformancePresets.applyFor(game, Preset.BATTERY)
+        if (effective != Preset.SPEED) {
+            PerformancePresets.applyFor(game, Preset.SPEED)
         }
     }
 
