@@ -272,7 +272,9 @@ void QueryCacheBase<Traits>::CounterReport(GPUVAddr addr, QueryType counter_type
         }
         query_base->value += streamer->GetAmendValue();
         streamer->SetAccumulationValue(query_base->value);
-        if (True(query_base->flags & QueryFlagBits::HasTimestamp)) {
+        if (pointer == nullptr || pointer_timestamp == nullptr) [[unlikely]] {
+            // The game's memory there is already gone (leaving a game): nowhere to write.
+        } else if (True(query_base->flags & QueryFlagBits::HasTimestamp)) {
             u64 timestamp = impl->gpu.GetTicks();
             std::memcpy(pointer_timestamp, &timestamp, sizeof(timestamp));
             std::memcpy(pointer, &query_base->value, sizeof(query_base->value));
@@ -288,7 +290,9 @@ void QueryCacheBase<Traits>::CounterReport(GPUVAddr addr, QueryType counter_type
         impl->rasterizer.SignalFence(std::move(operation));
     } else {
         if (!Settings::IsGPULevelHigh() && counter_type == QueryType::Payload) {
-            if (has_timestamp) {
+            if (pointer == nullptr || pointer_timestamp == nullptr) [[unlikely]] {
+                // Unmapped (leaving a game): nothing to write.
+            } else if (has_timestamp) {
                 u64 timestamp = impl->gpu.GetTicks();
                 u64 value = static_cast<u64>(payload);
                 std::memcpy(pointer_timestamp, &timestamp, sizeof(timestamp));
@@ -562,6 +566,9 @@ bool QueryCacheBase<Traits>::SemiFlushQueryDirty(QueryCacheBase<Traits>::QueryLo
     if (True(query_base->flags & QueryFlagBits::IsFinalValueSynced) &&
         False(query_base->flags & QueryFlagBits::IsGuestSynced)) {
         auto* ptr = impl->device_memory.template GetPointer<u8>(query_base->guest_address);
+        if (ptr == nullptr) [[unlikely]] {
+            return false;
+        }
         if (True(query_base->flags & QueryFlagBits::HasTimestamp)) {
             std::memcpy(ptr, &query_base->value, sizeof(query_base->value));
             return false;
