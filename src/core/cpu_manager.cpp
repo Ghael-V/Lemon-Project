@@ -5,6 +5,9 @@
 #include "common/microprofile.h"
 #include "common/scope_exit.h"
 #include "common/thread.h"
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include "core/core.h"
 #include "core/core_timing.h"
 #include "core/cpu_manager.h"
@@ -195,6 +198,9 @@ void CpuManager::RunThread(std::stop_token token, std::size_t core) {
     MicroProfileOnThreadCreate(name.c_str());
     Common::SetCurrentThreadName(name.c_str());
     Common::SetCurrentThreadPriority(Common::ThreadPriority::Critical);
+#ifdef __ANDROID__
+    Common::Android::PerformanceHint::AddCurrentThread();
+#endif
     auto& data = core_data[core];
     data.host_context = Common::Fiber::ThreadToFiber();
 

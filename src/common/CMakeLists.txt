@@ -189,6 +189,8 @@ if(ANDROID)
             fs/fs_android.h
             android/android_common.cpp
             android/android_common.h
+            android/performance_hint.cpp
+            android/performance_hint.h
             android/id_cache.cpp
             android/id_cache.h
             android/applets/software_keyboard.cpp

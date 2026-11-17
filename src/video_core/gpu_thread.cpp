@@ -6,6 +6,9 @@
 #include "common/scope_exit.h"
 #include "common/settings.h"
 #include "common/thread.h"
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include "core/core.h"
 #include "core/frontend/graphics_context.h"
 #include "core/memory.h"
@@ -29,6 +32,9 @@ static void RunThread(std::stop_token stop_token, Core::System& system,
 
     Common::SetCurrentThreadName(name.c_str());
     Common::SetCurrentThreadPriority(Common::ThreadPriority::Critical);
+#ifdef __ANDROID__
+    Common::Android::PerformanceHint::AddCurrentThread();
+#endif
     system.RegisterHostThread();
 
     auto current_context = context.Acquire();

@@ -10,6 +10,9 @@
 
 #include "common/microprofile.h"
 #include "common/thread.h"
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include "video_core/renderer_vulkan/vk_command_pool.h"
 #include "video_core/renderer_vulkan/vk_master_semaphore.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
@@ -147,6 +150,10 @@ bool Scheduler::UpdateRescaling(bool is_rescaling) {
 
 void Scheduler::WorkerThread(std::stop_token stop_token) {
     Common::SetCurrentThreadName("VulkanWorker");
+    Common::SetCurrentThreadPriority(Common::ThreadPriority::VeryHigh);
+#ifdef __ANDROID__
+    Common::Android::PerformanceHint::AddCurrentThread();
+#endif
 
     const auto TryPopQueue{[this](auto& work) -> bool {
         if (work_queue.empty()) {

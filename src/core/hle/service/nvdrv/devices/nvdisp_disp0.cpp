@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include <boost/container/small_vector.hpp>
 
 #include "common/assert.h"
@@ -81,6 +84,9 @@ void nvdisp_disp0::Composite(std::span<const Nvnflinger::HwcLayer> sorted_layers
     }
 
     system.GPU().RequestComposite(std::move(output_layers), std::move(output_fences));
+#ifdef __ANDROID__
+    Common::Android::PerformanceHint::ReportFrame();
+#endif
     system.SpeedLimiter().DoSpeedLimiting(system.CoreTiming().GetGlobalTimeUs());
     system.GetPerfStats().EndSystemFrame();
     system.GetPerfStats().BeginSystemFrame();

@@ -7,6 +7,9 @@
 #include <utility>
 
 #include "audio_core/audio_core.h"
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include "common/fs/fs.h"
 #include "common/logging/log.h"
 #include "common/microprofile.h"
@@ -405,6 +408,9 @@ struct System::Impl {
 
     void ShutdownMainProcess() {
         SetShuttingDown(true);
+#ifdef __ANDROID__
+        Common::Android::PerformanceHint::Shutdown();
+#endif
 
         // Log last frame performance stats if game was loaded
         if (perf_stats) {

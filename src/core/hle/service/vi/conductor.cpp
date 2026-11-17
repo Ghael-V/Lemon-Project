@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "common/settings.h"
+#ifdef __ANDROID__
+#include "common/android/performance_hint.h"
+#endif
 #include "core/core.h"
 #include "core/core_timing.h"
 #include "core/hle/service/vi/conductor.h"
@@ -67,6 +70,11 @@ void Conductor::UnlinkVsyncEvent(u64 display_id, Event* event) {
 }
 
 void Conductor::ProcessVsync() {
+#ifdef __ANDROID__
+    // The time a frame may take: this display's period at the current swap interval and speed.
+    Common::Android::PerformanceHint::SetTargetFrameDuration(
+        std::chrono::nanoseconds{this->GetNextTicks()});
+#endif
     for (auto& [display_id, manager] : m_vsync_managers) {
         m_container.ComposeOnDisplay(&m_swap_interval, &m_compose_speed_scale, display_id);
         std::scoped_lock lk{m_vsync_events_lock};

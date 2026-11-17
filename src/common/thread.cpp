@@ -2,6 +2,10 @@
 // SPDX-FileCopyrightText: 2014 Citra Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#ifdef __ANDROID__
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 #include <string>
 
 #include "common/error.h"
@@ -61,6 +65,29 @@ void SetCurrentThreadPriority(ThreadPriority new_priority) {
 #else
 
 void SetCurrentThreadPriority(ThreadPriority new_priority) {
+#ifdef __ANDROID__
+    // Android schedules apps' threads by nice value. Emulation threads ahead of the rest
+    // (the system's own display threads use -4 and -8).
+    int nice_value = 0;
+    switch (new_priority) {
+    case ThreadPriority::Low:
+        nice_value = 10;
+        break;
+    case ThreadPriority::Normal:
+        nice_value = 0;
+        break;
+    case ThreadPriority::High:
+        nice_value = -4;
+        break;
+    case ThreadPriority::VeryHigh:
+        nice_value = -6;
+        break;
+    case ThreadPriority::Critical:
+        nice_value = -8;
+        break;
+    }
+    setpriority(PRIO_PROCESS, static_cast<id_t>(gettid()), nice_value);
+#else
     pthread_t this_thread = pthread_self();
 
     const auto scheduling_type = SCHED_OTHER;
@@ -76,6 +103,7 @@ void SetCurrentThreadPriority(ThreadPriority new_priority) {
     }
 
     pthread_setschedparam(this_thread, scheduling_type, &params);
+#endif
 }
 
 #endif
