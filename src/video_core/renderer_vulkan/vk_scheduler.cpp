@@ -73,7 +73,9 @@ void Scheduler::WaitWorker() {
     // Ensure the queue is drained.
     {
         std::unique_lock ql{queue_mutex};
+        ++drain_waiters;
         event_cv.wait(ql, [this] { return work_queue.empty(); });
+        --drain_waiters;
     }
 
     // Now wait for execution to finish.
@@ -84,11 +86,15 @@ void Scheduler::DispatchWork() {
     if (chunk->Empty()) {
         return;
     }
+    bool wake_worker;
     {
         std::scoped_lock ql{queue_mutex};
         work_queue.push(std::move(chunk));
+        wake_worker = std::exchange(worker_idle, false);
     }
-    event_cv.notify_all();
+    if (wake_worker) {
+        event_cv.notify_all();
+    }
     AcquireNewChunk();
 }
 
@@ -157,12 +163,15 @@ void Scheduler::WorkerThread(std::stop_token stop_token) {
 
     const auto TryPopQueue{[this](auto& work) -> bool {
         if (work_queue.empty()) {
+            worker_idle = true;
             return false;
         }
-
+        worker_idle = false;
         work = std::move(work_queue.front());
         work_queue.pop();
-        event_cv.notify_all();
+        if (work_queue.empty() && drain_waiters != 0) {
+            event_cv.notify_all();
+        }
         return true;
     }};
 

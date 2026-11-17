@@ -270,6 +270,11 @@ private:
     std::mutex reserve_mutex;
     std::mutex queue_mutex;
     std::condition_variable_any event_cv;
+    /// Under queue_mutex: the worker found the queue empty and waits for work, and how many
+    /// threads wait for the queue to drain. A notification (a syscall on Android, waiters or not)
+    /// only goes to someone waiting: chunks are dispatched hundreds of times a frame.
+    bool worker_idle{};
+    u32 drain_waiters{};
     std::jthread worker_thread;
 };
 
