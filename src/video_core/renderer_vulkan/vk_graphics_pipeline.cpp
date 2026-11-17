@@ -39,6 +39,30 @@ using Shader::Backend::SPIRV::RESCALING_LAYOUT_WORDS_OFFSET;
 using Tegra::Texture::TexturePair;
 using VideoCore::Surface::PixelFormat;
 using VideoCore::Surface::PixelFormatFromDepthFormat;
+
+/// Whether a stage stores to memory (global memory, storage buffers, image buffers or images):
+/// what it stores outlives the draw, later draws read it.
+bool StageStoresToMemory(const Shader::Info& info) {
+    if (info.stores_global_memory) {
+        return true;
+    }
+    for (const auto& descriptor : info.storage_buffers_descriptors) {
+        if (descriptor.is_written) {
+            return true;
+        }
+    }
+    for (const auto& descriptor : info.image_buffer_descriptors) {
+        if (descriptor.is_written) {
+            return true;
+        }
+    }
+    for (const auto& descriptor : info.image_descriptors) {
+        if (descriptor.is_written) {
+            return true;
+        }
+    }
+    return false;
+}
 using VideoCore::Surface::PixelFormatFromRenderTargetFormat;
 
 constexpr size_t NUM_STAGES = Maxwell::MaxShaderStage;
@@ -254,6 +278,7 @@ GraphicsPipeline::GraphicsPipeline(
             continue;
         }
         stage_infos[stage] = *info;
+        writes_memory = writes_memory || StageStoresToMemory(*info);
         enabled_uniform_buffer_masks[stage] = info->constant_buffer_mask;
         std::ranges::copy(info->constant_buffer_used_sizes, uniform_buffer_sizes[stage].begin());
         num_textures += Shader::NumDescriptors(info->texture_descriptors);

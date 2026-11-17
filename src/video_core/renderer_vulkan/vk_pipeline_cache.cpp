@@ -634,9 +634,19 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     if (!use_asynchronous_shaders) {
         return pipeline;
     }
+    // A draw whose output is data, not pixels, must never be skipped: skinning or particles
+    // written to memory, transform feedback, or a draw with the rasterizer off. Later draws read
+    // what it produces, so skipping it once breaks them until the data is produced again, which
+    // may be never (characters drawn from vertices computed once).
+    const auto& regs = maxwell3d->regs;
+    const bool produces_data = pipeline->WritesMemory() ||
+                               regs.transform_feedback_enabled != 0 || regs.rasterize_enable == 0;
+    if (produces_data) {
+        return pipeline;
+    }
     // If something is using depth, we can assume that games are not rendering anything which
     // will be used one time.
-    if (maxwell3d->regs.zeta_enable) {
+    if (regs.zeta_enable) {
         return nullptr;
     }
     // If games are using a small index count, we can assume these are full screen quads.

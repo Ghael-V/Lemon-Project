@@ -123,6 +123,11 @@ public:
         return is_built.load(std::memory_order::relaxed);
     }
 
+    /// One of the shaders stores to memory that outlives the draw.
+    [[nodiscard]] bool WritesMemory() const noexcept {
+        return writes_memory;
+    }
+
     template <typename Spec>
     static auto MakeConfigureSpecFunc() {
         return [](GraphicsPipeline* pl, bool is_indexed) { pl->ConfigureImpl<Spec>(is_indexed); };
@@ -167,6 +172,7 @@ private:
     u32 num_textures{};
     u32 attribute_handle{};
     bool uses_attribute_handle{};
+    bool writes_memory{};
     bool uses_gs_scratch{};
 
     vk::DescriptorSetLayout descriptor_set_layout;
