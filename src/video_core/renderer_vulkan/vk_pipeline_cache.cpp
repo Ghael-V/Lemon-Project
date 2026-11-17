@@ -480,7 +480,8 @@ ComputePipeline* PipelineCache::CurrentComputePipeline() {
     const auto [pair, is_new]{compute_cache.try_emplace(key)};
     auto& pipeline{pair->second};
     if (!is_new) {
-        return pipeline.get();
+        // One the driver refused dispatches nothing.
+        return pipeline && pipeline->IsBuilt() && pipeline->Failed() ? nullptr : pipeline.get();
     }
     pipeline = CreateComputePipeline(key, shader);
     return pipeline.get();
@@ -629,7 +630,8 @@ GraphicsPipeline* PipelineCache::CurrentGraphicsPipelineSlowPath() {
 
 GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const noexcept {
     if (pipeline->IsBuilt()) {
-        return pipeline;
+        // One the driver refused draws nothing.
+        return pipeline->Failed() ? nullptr : pipeline;
     }
     if (!use_asynchronous_shaders) {
         return pipeline;

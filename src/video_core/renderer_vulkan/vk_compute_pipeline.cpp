@@ -41,6 +41,32 @@ ComputePipeline::ComputePipeline(const Device& device_, vk::PipelineCache& pipel
                 uniform_buffer_sizes.begin());
 
     auto func{[this, &descriptor_pool, shader_notify, pipeline_statistics] {
+        try {
+            Build(descriptor_pool, pipeline_statistics);
+        } catch (const vk::Exception& exception) {
+            // Refused by the driver: marked failed (its dispatches are dropped) instead of
+            // letting the exception end the app from the worker thread.
+            LOG_ERROR(Render_Vulkan, "Compute pipeline not created: {}; its dispatches are skipped",
+                      exception.what());
+            build_failed = true;
+        }
+        std::scoped_lock lock{build_mutex};
+        is_built = true;
+        build_condvar.notify_one();
+        if (shader_notify) {
+            shader_notify->MarkShaderComplete();
+        }
+    }};
+    if (thread_worker) {
+        thread_worker->QueueWork(std::move(func));
+    } else {
+        func();
+    }
+}
+
+void ComputePipeline::Build(DescriptorPool& descriptor_pool,
+                            PipelineStatistics* pipeline_statistics) {
+    {
         DescriptorLayoutBuilder builder{device};
         builder.Add(info, VK_SHADER_STAGE_COMPUTE_BIT);
 
@@ -82,17 +108,6 @@ ComputePipeline::ComputePipeline(const Device& device_, vk::PipelineCache& pipel
         if (pipeline_statistics) {
             pipeline_statistics->Collect(*pipeline);
         }
-        std::scoped_lock lock{build_mutex};
-        is_built = true;
-        build_condvar.notify_one();
-        if (shader_notify) {
-            shader_notify->MarkShaderComplete();
-        }
-    }};
-    if (thread_worker) {
-        thread_worker->QueueWork(std::move(func));
-    } else {
-        func();
     }
 }
 
@@ -208,6 +223,9 @@ void ComputePipeline::Configure(Tegra::Engines::KeplerCompute& kepler_compute,
     const bool is_rescaling = !info.texture_descriptors.empty() || !info.image_descriptors.empty();
     scheduler.Record([this, descriptor_data, is_rescaling,
                       rescaling_data = rescaling.Data()](vk::CommandBuffer cmdbuf) {
+        if (build_failed) {
+            return;
+        }
         cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
         if (!descriptor_set_layout) {
             return;

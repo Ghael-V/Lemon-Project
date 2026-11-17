@@ -155,6 +155,10 @@ private:
     template <typename Func>
     void PrepareDraw(bool is_indexed, Func&&);
 
+    /// Records a command of the draw being prepared, dropped if its pipeline failed to build.
+    template <typename Func>
+    void RecordDraw(Func&& command);
+
     /// A stretch of a draw whose vertices all carry the same texture handle.
     struct AttributeHandleRun {
         u32 first;
@@ -167,6 +171,8 @@ private:
 
     std::vector<AttributeHandleRun> attribute_handle_runs;
     GraphicsPipeline* attribute_handle_pipeline{};
+    /// The pipeline of the draw PrepareDraw is recording.
+    GraphicsPipeline* drawing_pipeline{};
     bool split_attribute_handles{};
 
     void FlushWork();

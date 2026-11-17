@@ -288,6 +288,36 @@ GraphicsPipeline::GraphicsPipeline(
         uses_gs_scratch |= info->uses_gs_scratch;
     }
     auto func{[this, shader_notify, &render_pass_cache, &descriptor_pool, pipeline_statistics] {
+        try {
+            Build(render_pass_cache, descriptor_pool, pipeline_statistics);
+        } catch (const vk::Exception& exception) {
+            // The driver turned this one down (seen as VK_ERROR_UNKNOWN on Qualcomm's driver).
+            // An exception here would end the app from the worker thread: the pipeline is
+            // marked failed instead, and its draws are dropped.
+            LOG_ERROR(Render_Vulkan,
+                      "Graphics pipeline (vertex {:016x}, fragment {:016x}) not created: {}; "
+                      "its draws are skipped",
+                      key.unique_hashes[1], key.unique_hashes[5], exception.what());
+            build_failed = true;
+        }
+        std::scoped_lock lock{build_mutex};
+        is_built = true;
+        build_condvar.notify_one();
+        if (shader_notify) {
+            shader_notify->MarkShaderComplete();
+        }
+    }};
+    if (worker_thread) {
+        worker_thread->QueueWork(std::move(func));
+    } else {
+        func();
+    }
+    configure_func = ConfigureFunc(spv_modules, stage_infos);
+}
+
+void GraphicsPipeline::Build(RenderPassCache& render_pass_cache, DescriptorPool& descriptor_pool,
+                             PipelineStatistics* pipeline_statistics) {
+    {
         DescriptorLayoutBuilder builder{MakeBuilder(device, stage_infos)};
         uses_push_descriptor = builder.CanUsePushDescriptor();
         descriptor_set_layout = builder.CreateDescriptorSetLayout(uses_push_descriptor);
@@ -305,20 +335,7 @@ GraphicsPipeline::GraphicsPipeline(
         if (pipeline_statistics) {
             pipeline_statistics->Collect(*pipeline);
         }
-
-        std::scoped_lock lock{build_mutex};
-        is_built = true;
-        build_condvar.notify_one();
-        if (shader_notify) {
-            shader_notify->MarkShaderComplete();
-        }
-    }};
-    if (worker_thread) {
-        worker_thread->QueueWork(std::move(func));
-    } else {
-        func();
     }
-    configure_func = ConfigureFunc(spv_modules, stage_infos);
 }
 
 void GraphicsPipeline::AddTransition(GraphicsPipeline* transition) {
@@ -539,6 +556,9 @@ void GraphicsPipeline::ConfigureDraw(const RescalingPushConstant& rescaling,
                       is_rescaling, update_rescaling,
                       uses_render_area = render_area.uses_render_area,
                       render_area_data = render_area.words](vk::CommandBuffer cmdbuf) {
+        if (build_failed) {
+            return;
+        }
         if (bind_pipeline) {
             cmdbuf.BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline);
         }

@@ -123,6 +123,11 @@ public:
         return is_built.load(std::memory_order::relaxed);
     }
 
+    /// The driver refused to create it: nothing can be drawn with it. Final once IsBuilt().
+    [[nodiscard]] bool Failed() const noexcept {
+        return build_failed.load();
+    }
+
     /// One of the shaders stores to memory that outlives the draw.
     [[nodiscard]] bool WritesMemory() const noexcept {
         return writes_memory;
@@ -144,6 +149,9 @@ private:
 
     void ConfigureDraw(const RescalingPushConstant& rescaling,
                        const RenderAreaPushConstant& render_are);
+
+    void Build(RenderPassCache& render_pass_cache, DescriptorPool& descriptor_pool,
+               PipelineStatistics* pipeline_statistics);
 
     void MakePipeline(VkRenderPass render_pass);
 
@@ -184,6 +192,8 @@ private:
     std::condition_variable build_condvar;
     std::mutex build_mutex;
     std::atomic_bool is_built{false};
+    // Set before is_built, so whoever sees it built sees whether it failed.
+    std::atomic_bool build_failed{false};
     bool uses_push_descriptor{false};
 };
 

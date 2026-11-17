@@ -45,7 +45,18 @@ public:
     void Configure(Tegra::Engines::KeplerCompute& kepler_compute, Tegra::MemoryManager& gpu_memory,
                    Scheduler& scheduler, BufferCache& buffer_cache, TextureCache& texture_cache);
 
+    [[nodiscard]] bool IsBuilt() const noexcept {
+        return is_built.load(std::memory_order::relaxed);
+    }
+
+    /// The driver refused to create it: nothing can be dispatched with it. Final once IsBuilt().
+    [[nodiscard]] bool Failed() const noexcept {
+        return build_failed.load();
+    }
+
 private:
+    void Build(DescriptorPool& descriptor_pool, PipelineStatistics* pipeline_statistics);
+
     const Device& device;
     vk::PipelineCache& pipeline_cache;
     GuestDescriptorQueue& guest_descriptor_queue;
@@ -63,6 +74,8 @@ private:
     std::condition_variable build_condvar;
     std::mutex build_mutex;
     std::atomic_bool is_built{false};
+    // Set before is_built, so whoever sees it built sees whether it failed.
+    std::atomic_bool build_failed{false};
 };
 
 } // namespace Vulkan

@@ -212,6 +212,18 @@ RasterizerVulkan::RasterizerVulkan(Core::Frontend::EmuWindow& emu_window_, Tegra
 RasterizerVulkan::~RasterizerVulkan() = default;
 
 template <typename Func>
+void RasterizerVulkan::RecordDraw(Func&& command) {
+    // The pipeline may still be building when the draw is recorded: whether it failed is only
+    // known once the recorded commands run, after the wait ConfigureDraw recorded.
+    scheduler.Record([pipeline = drawing_pipeline,
+                      command = std::forward<Func>(command)](vk::CommandBuffer cmdbuf) {
+        if (!pipeline->Failed()) {
+            command(cmdbuf);
+        }
+    });
+}
+
+template <typename Func>
 void RasterizerVulkan::PrepareDraw(bool is_indexed, Func&& draw_func) {
     MICROPROFILE_SCOPE(Vulkan_Drawing);
 
@@ -228,6 +240,7 @@ void RasterizerVulkan::PrepareDraw(bool is_indexed, Func&& draw_func) {
         return;
     }
     std::scoped_lock lock{buffer_cache.mutex, texture_cache.mutex};
+    drawing_pipeline = pipeline;
     // update engine as channel may be different.
     pipeline->SetEngine(maxwell3d, gpu_memory);
     attribute_handle_pipeline = nullptr;
@@ -347,13 +360,12 @@ void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
             if (gs_layout != VK_NULL_HANDLE) {
                 // Primitive ids start over with every instance: one draw and generation each.
                 for (u32 instance = 0; instance < params.num_instances; ++instance) {
-                    scheduler.Record([params, instance, gs_layout,
-                                      generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
+                    RecordDraw([params, instance, gs_layout,
+                                generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
                         PushGsGeneration(cmdbuf, gs_layout, generation);
                         if (params.is_indexed) {
                             cmdbuf.DrawIndexed(params.num_vertices, 1, params.first_index,
-                                               params.base_vertex,
-                                               params.base_instance + instance);
+                                               params.base_vertex, params.base_instance + instance);
                         } else {
                             cmdbuf.Draw(params.num_vertices, 1, params.base_vertex,
                                         params.base_instance + instance);
@@ -362,7 +374,7 @@ void RasterizerVulkan::Draw(bool is_indexed, u32 instance_count) {
                 }
                 return;
             }
-            scheduler.Record([params](vk::CommandBuffer cmdbuf) {
+            RecordDraw([params](vk::CommandBuffer cmdbuf) {
                 if (params.is_indexed) {
                     cmdbuf.DrawIndexed(params.num_vertices, params.num_instances,
                                        params.first_index, params.base_vertex,
@@ -417,16 +429,15 @@ void RasterizerVulkan::DrawIndirect() {
                     LOG_WARNING(Render_Vulkan, "Indirect count draw with a geometry shader that "
                                                "claims its primitives shares one generation");
                 }
-                scheduler.Record([layout, generation = NextGsGeneration()](
-                                     vk::CommandBuffer cmdbuf) {
+                RecordDraw([layout, generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
                     PushGsGeneration(cmdbuf, layout, generation);
                 });
             } else {
                 // One draw and generation each: primitive ids start over with every draw.
                 for (u32 draw = 0; draw < static_cast<u32>(params.max_draw_counts); ++draw) {
-                    scheduler.Record([buffer_obj = buffer->Handle(),
-                                      draw_offset = offset + draw * params.stride, params, layout,
-                                      generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
+                    RecordDraw([buffer_obj = buffer->Handle(),
+                                draw_offset = offset + draw * params.stride, params, layout,
+                                generation = NextGsGeneration()](vk::CommandBuffer cmdbuf) {
                         PushGsGeneration(cmdbuf, layout, generation);
                         if (params.is_indexed) {
                             cmdbuf.DrawIndexedIndirect(buffer_obj, draw_offset, 1,
@@ -441,8 +452,8 @@ void RasterizerVulkan::DrawIndirect() {
             }
         }
         if (params.is_byte_count) {
-            scheduler.Record([buffer_obj = buffer->Handle(), offset,
-                              stride = params.stride](vk::CommandBuffer cmdbuf) {
+            RecordDraw([buffer_obj = buffer->Handle(), offset,
+                        stride = params.stride](vk::CommandBuffer cmdbuf) {
                 cmdbuf.DrawIndirectByteCountEXT(1, 0, buffer_obj, offset, 0,
                                                 static_cast<u32>(stride));
             });
@@ -452,9 +463,8 @@ void RasterizerVulkan::DrawIndirect() {
             const auto count = buffer_cache.GetDrawIndirectCount();
             const auto& draw_buffer = count.first;
             const auto& offset_base = count.second;
-            scheduler.Record([draw_buffer_obj = draw_buffer->Handle(),
-                              buffer_obj = buffer->Handle(), offset_base, offset,
-                              params](vk::CommandBuffer cmdbuf) {
+            RecordDraw([draw_buffer_obj = draw_buffer->Handle(), buffer_obj = buffer->Handle(),
+                        offset_base, offset, params](vk::CommandBuffer cmdbuf) {
                 if (params.is_indexed) {
                     cmdbuf.DrawIndexedIndirectCount(
                         buffer_obj, offset, draw_buffer_obj, offset_base,
@@ -467,7 +477,7 @@ void RasterizerVulkan::DrawIndirect() {
             });
             return;
         }
-        scheduler.Record([buffer_obj = buffer->Handle(), offset, params](vk::CommandBuffer cmdbuf) {
+        RecordDraw([buffer_obj = buffer->Handle(), offset, params](vk::CommandBuffer cmdbuf) {
             if (params.is_indexed) {
                 cmdbuf.DrawIndexedIndirect(buffer_obj, offset,
                                            static_cast<u32>(params.max_draw_counts),
@@ -723,8 +733,9 @@ void RasterizerVulkan::DispatchCompute() {
         .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
     };
     const auto barrier_before_dispatch = [](vk::CommandBuffer cmdbuf) {
-        cmdbuf.PipelineBarrier(producer_consumer_stages, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-                                                             VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+        cmdbuf.PipelineBarrier(producer_consumer_stages,
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                   VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
                                0, make_writes_visible);
     };
     const auto barrier_after_dispatch = [](vk::CommandBuffer cmdbuf) {
@@ -742,9 +753,11 @@ void RasterizerVulkan::DispatchCompute() {
             buffer_cache.ObtainBuffer(*indirect_address, 12, sync_info, post_op);
         scheduler.RequestOutsideRenderPassOperationContext();
         scheduler.Record(barrier_before_dispatch);
-        scheduler.Record([indirect_buffer = buffer->Handle(),
+        scheduler.Record([pipeline, indirect_buffer = buffer->Handle(),
                           indirect_offset = offset](vk::CommandBuffer cmdbuf) {
-            cmdbuf.DispatchIndirect(indirect_buffer, indirect_offset);
+            if (!pipeline->Failed()) {
+                cmdbuf.DispatchIndirect(indirect_buffer, indirect_offset);
+            }
         });
         scheduler.Record(barrier_after_dispatch);
         return;
@@ -752,7 +765,11 @@ void RasterizerVulkan::DispatchCompute() {
     const std::array<u32, 3> dim{qmd.grid_dim_x, qmd.grid_dim_y, qmd.grid_dim_z};
     scheduler.RequestOutsideRenderPassOperationContext();
     scheduler.Record(barrier_before_dispatch);
-    scheduler.Record([dim](vk::CommandBuffer cmdbuf) { cmdbuf.Dispatch(dim[0], dim[1], dim[2]); });
+    scheduler.Record([pipeline, dim](vk::CommandBuffer cmdbuf) {
+        if (!pipeline->Failed()) {
+            cmdbuf.Dispatch(dim[0], dim[1], dim[2]);
+        }
+    });
     scheduler.Record(barrier_after_dispatch);
 }
 
