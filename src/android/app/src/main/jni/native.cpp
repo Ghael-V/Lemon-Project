@@ -2555,6 +2555,10 @@ jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_isFirmwareAvailable(JNIEnv* env
     return isFirmwarePresent();
 }
 
+jboolean Java_dev_lemon_lemon_1emu_NativeLibrary_firmwareNeedsNewerKeys(JNIEnv* env, jclass clazz) {
+    return FirmwareManager::FirmwareNeedsNewerKeys(EmulationSession::GetInstance().System());
+}
+
 jstring Java_dev_lemon_lemon_1emu_NativeLibrary_firmwareVersion(JNIEnv* env, jclass clazz) {
     const auto pair = FirmwareManager::GetFirmwareVersion(EmulationSession::GetInstance().System());
     const auto firmware_data = pair.first;

@@ -654,6 +654,12 @@ object NativeLibrary {
     external fun isFirmwareAvailable(): Boolean
 
     /**
+     * True when the installed firmware has content the installed keys can't decrypt (firmware
+     * newer than the keys). Slow: reads every system title's header.
+     */
+    external fun firmwareNeedsNewerKeys(): Boolean
+
+    /**
      * Gets the firmware version.
      *
      * @return Reported firmware version

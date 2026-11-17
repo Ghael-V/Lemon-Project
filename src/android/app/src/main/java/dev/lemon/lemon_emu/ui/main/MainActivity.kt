@@ -391,7 +391,29 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 descriptionId = R.string.keys_missing_description,
                 helpLinkId = R.string.keys_missing_help
             ).show(supportFragmentManager, MessageDialogFragment.TAG)
+            return
         }
+        // Keys present but older than the firmware: games then hang while loading with nothing
+        // said. Reading the firmware's headers takes a moment, so off the main thread.
+        Thread {
+            val outdated = try {
+                NativeLibrary.isFirmwareAvailable() && NativeLibrary.firmwareNeedsNewerKeys()
+            } catch (e: Exception) {
+                Log.error("[Keys] Firmware check failed: ${e.message}")
+                false
+            }
+            if (outdated) {
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed && !supportFragmentManager.isStateSaved) {
+                        MessageDialogFragment.newInstance(
+                            titleId = R.string.keys_outdated,
+                            descriptionId = R.string.keys_outdated_description,
+                            helpLinkId = R.string.keys_missing_help
+                        ).show(supportFragmentManager, MessageDialogFragment.TAG)
+                    }
+                }
+            }
+        }.start()
     }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
