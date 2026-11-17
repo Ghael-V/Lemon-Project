@@ -354,12 +354,12 @@ struct Values {
     SwitchableSetting<u8, false> bg_blue{
         linkage, 0, "bg_blue", Category::Renderer, Specialization::Default, true, true};
 
+    // The middle level (shown as "Normal"; the app calls Normal "Low" and Extreme "High"), what
+    // the Normal mode uses. On the Odin, TOTK with the frame cap lifted ran ~10-15% slower than
+    // with the lowest level (47.7 vs 52.7-56.2 fps), but stayed at 30 at normal speed; the Speed
+    // mode keeps the lowest.
     SwitchableSetting<GpuAccuracy, true> gpu_accuracy{linkage,
-#ifdef ANDROID
-                                                      GpuAccuracy::Normal,
-#else
                                                       GpuAccuracy::High,
-#endif
                                                       GpuAccuracy::Normal,
                                                       GpuAccuracy::Extreme,
                                                       "gpu_accuracy",
