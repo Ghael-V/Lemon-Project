@@ -28,6 +28,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavDirections
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
@@ -109,6 +110,25 @@ class ModernGamesFragment : Fragment() {
         homeViewModel.setStatusBarShadeVisibility(false)
     }
 
+    /**
+     * Navigates only while the library is the current screen: a second tap during the first
+     * navigation's transition would navigate again from a screen that is already leaving, which
+     * leaves the navigation library without the fragment and closes the app on the next pause.
+     */
+    private fun navigateFromLibrary(action: Int) {
+        val navController = findNavController()
+        if (navController.currentDestination?.id == R.id.gamesFragment) {
+            navController.navigate(action)
+        }
+    }
+
+    private fun navigateFromLibrary(directions: NavDirections) {
+        val navController = findNavController()
+        if (navController.currentDestination?.id == R.id.gamesFragment) {
+            navController.navigate(directions)
+        }
+    }
+
     private fun buildActions() = LibraryActions(
         onLaunch = { game ->
             GameLaunchUtils.launchGame(
@@ -118,7 +138,7 @@ class ModernGamesFragment : Fragment() {
             )
         },
         onDetails = { game ->
-            findNavController().navigate(
+            navigateFromLibrary(
                 HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
             )
         },
@@ -129,21 +149,21 @@ class ModernGamesFragment : Fragment() {
                 putBoolean(game.keyIsFavorite, !preferences.getBoolean(game.keyIsFavorite, false))
             }
         },
-        onSettings = { findNavController().navigate(R.id.homeSettingsFragment) },
-        onStatistics = { findNavController().navigate(R.id.statisticsFragment) },
+        onSettings = { navigateFromLibrary(R.id.homeSettingsFragment) },
+        onStatistics = { navigateFromLibrary(R.id.statisticsFragment) },
         onAddGames = {
             (requireActivity() as MainActivity).getGamesDirectory
                 .launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data)
         },
-        onManageFolders = { findNavController().navigate(R.id.gameFoldersFragment) },
-        onInstallContent = { findNavController().navigate(R.id.installableFragment) },
+        onManageFolders = { navigateFromLibrary(R.id.gameFoldersFragment) },
+        onInstallContent = { navigateFromLibrary(R.id.installableFragment) },
         onLaunchQLaunch = {
             val qlaunchGame = GameLaunchUtils.qlaunchGame()
             if (qlaunchGame == null) {
                 Toast.makeText(requireContext(), R.string.qlaunch_not_found, Toast.LENGTH_SHORT)
                     .show()
             } else {
-                findNavController().navigate(
+                navigateFromLibrary(
                     HomeNavigationDirections.actionGlobalEmulationActivity(qlaunchGame)
                 )
             }
