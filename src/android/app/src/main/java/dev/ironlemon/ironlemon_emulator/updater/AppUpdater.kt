@@ -34,7 +34,7 @@ object AppUpdater {
     private const val APK_SUFFIX = "-standard.apk"
 
     private const val PREF_AUTO_CHECK = "update_auto_check"
-    private const val INSTALL_ACTION = "dev.lemon.UPDATE_INSTALL_STATUS"
+    private const val INSTALL_ACTION = "dev.ironlemon.UPDATE_INSTALL_STATUS"
 
     fun isAutoCheckEnabled(context: Context): Boolean =
         PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PREF_AUTO_CHECK, true)
@@ -44,8 +44,11 @@ object AppUpdater {
             putBoolean(PREF_AUTO_CHECK, enabled)
         }
 
-    /** Development builds don't follow releases: their version is not a release's. */
-    val canUpdate: Boolean get() = !BuildConfig.DEBUG
+    /**
+     * Off: the servers above publish Lemon, a different app since Iron Lemon took its own id.
+     * Until Iron Lemon has releases of its own, it offers no updates.
+     */
+    val canUpdate: Boolean get() = false
 
     /** The newer release, or null (up to date, nothing for this build, or no answer). Blocking. */
     fun findUpdate(): Release? {

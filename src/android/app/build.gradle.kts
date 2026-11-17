@@ -65,9 +65,9 @@ android {
     }
 
     defaultConfig {
-        // Lemon's id: Iron Lemon ships as Lemon 2.0 and installs over Lemon (same id and key).
-        // The code keeps its own namespace; nothing else depends on the id.
-        applicationId = "dev.lemon.lemon_emulator"
+        // Iron Lemon's own id: it installs next to Lemon instead of over it (and can import
+        // Lemon's data through the migration screen, which finds it like any other emulator).
+        applicationId = "dev.ironlemon.ironlemon_emulator"
         minSdk = 30
         targetSdk = 34
         // Lemon's updater reads the release tag; local builds say 2.0.
