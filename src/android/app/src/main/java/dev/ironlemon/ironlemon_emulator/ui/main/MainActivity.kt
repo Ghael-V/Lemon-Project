@@ -173,9 +173,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ) {
             UpdateFlow.checkAtStart(this)
             setUpBundledDriver()
-            if (savedInstanceState == null) {
-                WhatsNew.showIfNew(this)
-            }
+            // Also when recreated: a card the previous instance showed went with it.
+            WhatsNew.showIfNew(this)
             if (savedInstanceState == null) {
                 bootIntoQLaunchIfWanted(navHostFragment.navController)
             }

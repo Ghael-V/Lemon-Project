@@ -18,6 +18,10 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 /**
  * "What's new": shown once per version, the first time the app opens past setup with it, on a new
  * install too (Iron Lemon is an app of its own: nobody arrives by updating another app).
+ *
+ * The version counts as seen only once the user closes the card: the activity is often recreated
+ * right after it starts (configuration changes), which destroys a card shown in the first
+ * onCreate before anyone could read it. The recreated activity shows it again.
  */
 object WhatsNew {
     private const val PREF_LAST_VERSION = "whats_new_last_version"
@@ -28,8 +32,10 @@ object WhatsNew {
         if (prefs.getString(PREF_LAST_VERSION, null) == current) {
             return
         }
-        prefs.edit { putString(PREF_LAST_VERSION, current) }
-        showIronLemonDialog(activity) { dismiss ->
+        showIronLemonDialog(
+            activity,
+            onDismiss = { prefs.edit { putString(PREF_LAST_VERSION, current) } }
+        ) { dismiss ->
             IronLemonDialogCard(
                 title = stringResource(R.string.whats_new_title, current),
                 buttons = {
