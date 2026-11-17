@@ -57,6 +57,6 @@ class PerformanceTileService : TileService() {
 
     companion object {
         private const val KEY_LAST_PRESET_INDEX = "qs_tile_performance_preset_index"
-        private const val DEFAULT_PRESET_INDEX = 1 // Balanced
+        private const val DEFAULT_PRESET_INDEX = 1 // Normal
     }
 }
