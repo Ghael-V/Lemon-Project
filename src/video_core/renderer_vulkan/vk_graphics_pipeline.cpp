@@ -268,6 +268,13 @@ GraphicsPipeline::GraphicsPipeline(
         if (!info) {
             continue;
         }
+        has_side_effects |= info->stores_global_memory ||
+                            std::ranges::any_of(info->storage_buffers_descriptors,
+                                                [](const auto& d) { return d.is_written; }) ||
+                            std::ranges::any_of(info->image_buffer_descriptors,
+                                                [](const auto& d) { return d.is_written; }) ||
+                            std::ranges::any_of(info->image_descriptors,
+                                                [](const auto& d) { return d.is_written; });
         stage_infos[stage] = *info;
         enabled_uniform_buffer_masks[stage] = info->constant_buffer_mask;
         std::ranges::copy(info->constant_buffer_used_sizes, uniform_buffer_sizes[stage].begin());
