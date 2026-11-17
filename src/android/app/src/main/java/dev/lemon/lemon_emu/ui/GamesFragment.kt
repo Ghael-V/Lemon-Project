@@ -340,7 +340,10 @@ class GamesFragment : Fragment() {
 
     private fun navigateToSettings() {
         val navController = findNavController()
-        navController.navigate(R.id.action_gamesFragment_to_homeSettingsFragment)
+        // Not twice: a second tap during the transition breaks the navigation library's state.
+        if (navController.currentDestination?.id == R.id.gamesFragment) {
+            navController.navigate(R.id.action_gamesFragment_to_homeSettingsFragment)
+        }
     }
 
     private fun navigateToStatistics() {

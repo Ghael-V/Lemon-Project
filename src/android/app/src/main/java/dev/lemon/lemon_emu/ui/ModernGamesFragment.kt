@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.NavDirections
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import dev.lemon.lemon_emu.HomeNavigationDirections
@@ -117,6 +118,26 @@ class ModernGamesFragment : Fragment() {
         homeViewModel.setStatusBarShadeVisibility(false)
     }
 
+    /**
+     * Navigates only while the library is the current screen. A second tap that lands before the
+     * first navigation's transition ends would navigate again from a screen that is already
+     * leaving; the navigation library then loses track of the fragment and the app closes on the
+     * next pause ("HomeSettingsFragment is unknown to the FragmentNavigator", a user's crash log).
+     */
+    private fun navigateFromLibrary(action: Int) {
+        val navController = findNavController()
+        if (navController.currentDestination?.id == R.id.gamesFragment) {
+            navController.navigate(action)
+        }
+    }
+
+    private fun navigateFromLibrary(directions: NavDirections) {
+        val navController = findNavController()
+        if (navController.currentDestination?.id == R.id.gamesFragment) {
+            navController.navigate(directions)
+        }
+    }
+
     private fun buildActions() = LibraryActions(
         onLaunch = { game ->
             GameLaunchUtils.launchGame(
@@ -126,7 +147,7 @@ class ModernGamesFragment : Fragment() {
             )
         },
         onDetails = { game ->
-            findNavController().navigate(
+            navigateFromLibrary(
                 HomeNavigationDirections.actionGlobalPerGamePropertiesFragment(game)
             )
         },
@@ -137,11 +158,11 @@ class ModernGamesFragment : Fragment() {
                 putBoolean(game.keyIsFavorite, !preferences.getBoolean(game.keyIsFavorite, false))
             }
         },
-        onSettings = { findNavController().navigate(R.id.action_gamesFragment_to_homeSettingsFragment) },
-        onStatistics = { findNavController().navigate(R.id.action_global_statisticsFragment) },
+        onSettings = { navigateFromLibrary(R.id.action_gamesFragment_to_homeSettingsFragment) },
+        onStatistics = { navigateFromLibrary(R.id.action_global_statisticsFragment) },
         onAddGames = { getGamesDirectory.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data) },
         onManageFolders = {
-            findNavController().navigate(
+            navigateFromLibrary(
                 HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
                     SettingsSubscreen.GAME_FOLDERS,
                     null
@@ -149,7 +170,7 @@ class ModernGamesFragment : Fragment() {
             )
         },
         onInstallContent = {
-            findNavController().navigate(
+            navigateFromLibrary(
                 HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
                     SettingsSubscreen.INSTALLABLE,
                     null
@@ -159,7 +180,7 @@ class ModernGamesFragment : Fragment() {
         onLaunchQLaunch = ::launchQLaunch,
         onPerformance = ::showPerformancePresetDialog,
         onDriverSettings = { game ->
-            findNavController().navigate(
+            navigateFromLibrary(
                 HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
                     SettingsSubscreen.FREEDRENO_SETTINGS,
                     game
