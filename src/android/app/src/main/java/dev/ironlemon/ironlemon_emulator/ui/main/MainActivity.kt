@@ -166,6 +166,9 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             if (it) checkKeys()
         }
 
+        // Also during the first-time setup: the game launched right after it must already get
+        // Lemon-Ade, not the system driver.
+        setUpBundledDriver()
         setInsets()
 
         // The update check, once per launch, once setup is done.
@@ -173,7 +176,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
         ) {
             UpdateFlow.checkAtStart(this)
-            setUpBundledDriver()
             // Also when recreated: a card the previous instance showed went with it. One notice at
             // a time: What's new first, the support card on a later launch.
             if (!WhatsNew.showIfNew(this)) {
