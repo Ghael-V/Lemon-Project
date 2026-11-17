@@ -60,8 +60,8 @@
 Lemon is an Android-only Nintendo Switch emulator built for Adreno GPUs and, since 1.1, Mali GPUs too. It runs on
 the open-source emulation core developed by the yuzu community and the projects that followed it, trimmed down to
 just what's needed to build and run it on Android phones and handhelds: no Qt/desktop/CLI targets, no
-multi-platform CI, no PowerVR-specific code paths. It ships in three builds: **Lemon**, **Lemon Lite** (lighter
-defaults for Adreno 6xx/7xx and Mali) and **Lemon Lite & Spoofed** (Lite under a benchmark app's package name).
+multi-platform CI, no PowerVR-specific code paths. It ships in two builds: **Lemon** and **Lemon Spoofed** (the
+same app under a benchmark app's package name). Lighter or sharper settings are a mode away: Speed, Normal or Quality.
 
 Started as a personal build for the maintainer's own device(s), Lemon is now made by **Team Lemon**: Ghael, Seak,
 Sidgey and BitRanger. Builds are published on the [Releases page](https://git.lemon-emu.org/lemon/Lemon-Project/releases) of
@@ -85,10 +85,12 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
 - **Online play on Nextendo Network** — sign in from Settings → Online (in the browser, Lemon never sees the
   password) and supported games play online on Nextendo's servers; Mario Kart 8 Deluxe races work.
 - **Mali GPUs** — BCn textures, which Mali cannot sample, are recompressed to ASTC (BC4/BC5 to EAC) on the GPU instead of being
-  stored uncompressed (Funko Fusion: 958 MB → 179 MB). Lemon Lite's driver downloader offers experimental PanVK
-  builds for the Mali-G720 and Mali-G52, each only to its own GPU.
-- **Three builds** — Lemon, Lemon Lite (0.75x resolution and asynchronous shaders by default, no bundled driver)
-  and Lemon Lite & Spoofed. They install side by side; Lite can import keys, firmware, games and saves from Lemon.
+  stored uncompressed (Funko Fusion: 958 MB → 179 MB), and BC6H (HDR) textures are decoded on the GPU. The driver
+  downloader offers experimental PanVK builds for the Mali-G720 and Mali-G52, each only to its own GPU.
+- **Modes** — Speed, Normal and Quality, first in Settings: one choice sets resolution, filtering, anti-aliasing,
+  GPU accuracy and asynchronous shaders. Speed is what Lemon Lite used to be; Normal is the default.
+- **Two builds** — Lemon and Lemon Spoofed (the same app under a benchmark app's package name, which some phones
+  give their full performance profile). They install side by side.
 - **Settings in ten categories with search** — Lemon, Graphics, Performance, Controls, In-game display, Console,
   Online, Content and data, Help, Advanced and debug, and a search on the settings home that finds any option at
   any depth and scrolls to it.
@@ -153,6 +155,13 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.5.0** — **Speed, Normal and Quality modes**, first in Settings. **Lemon Lite becomes the Speed mode** and
+  Lemon Lite & Spoofed becomes **Lemon Spoofed** (package name only); the last Lite tells its users and updates to
+  Lemon. **Asynchronous GPU emulation on by default**: building a shader no longer stalls the emulated CPU (BOTW on
+  the Odin: drops of 50 ms or more 18 → 5 in the same route). Mali: BC6H raw blocks decoded on the GPU, PanVK drivers
+  offered in every build. Cheats: no crash when a game with cheats stops, only code pages are invalidated, and code
+  is put back when cheats change. A draw that writes memory is never skipped while its shader builds. 8- and 16-bit
+  storage writes as two atomics. Viewport Y flip for 2D games.
 - **v1.4.1** — Fixes 1.4.0 closing as soon as it opened: R8 removed a constructor parameter the native code looks up.
 - **v1.4.0** — **Several quick saves** with a Load save list (BitRanger), **toggle and turbo** on on-screen buttons,
   optional button slide, and **moving the NAND** to another folder or a microSD card with its content. BitRanger: guest

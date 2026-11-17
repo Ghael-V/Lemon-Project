@@ -1442,8 +1442,8 @@
     <string name="update_checking">Buscando actualizaciones…</string>
     <string name="update_none">No hay una versión más nueva, o no se pudo conectar con el servidor de actualizaciones.</string>
     <string name="update_open_page">Abrir la página de descarga</string>
-    <string name="whats_new_title">Novedades de Lemon 1.4</string>
-    <string name="whats_new_body">• Varios guardados rápidos: conserva hasta 4 y vuelve a uno anterior desde una lista con imágenes. ¡Gracias, BitRanger!\n• Los botones en pantalla pueden quedarse pulsados con un toque o repetirse solos: toca uno en el editor de la superposición para elegirlo.\n• Mueve el contenido instalado a otra carpeta o a una microSD: Ajustes → Contenido y datos → Rutas personalizadas → Directorio NAND.\n• Los juegos usan mucha menos memoria y van mejor cuando reescriben la misma memoria en cada fotograma (BitRanger).\n• La carga rápida es más estable y cerrar un juego ya no provoca cierres inesperados de vez en cuando (BitRanger).</string>
+    <string name="whats_new_title">Novedades de Lemon 1.5</string>
+    <string name="whats_new_body">• Tres modos, lo primero en Ajustes: Velocidad, Normal y Calidad. Elige uno y Lemon ajusta el resto. Normal es el modo por defecto.\n• Lemon Lite pasa a ser el modo Velocidad: un solo Lemon para todos. Quien use Lite &amp; Spoofed pasa a Lemon Spoofed.\n• Menos bajones mientras juegas: la GPU se emula en su propio hilo por defecto, así que compilar un shader ya no frena el juego.\n• Mali: las texturas HDR (BC6H) se decodifican en la GPU, y los drivers PanVK experimentales se ofrecen en todas las versiones.\n• Trucos: al desactivar uno se restaura el código del juego, y detener un juego con trucos ya no provoca un cierre.</string>
     <string name="whats_new_got_it">Entendido</string>
     <string name="whats_new_read_more">Leer más</string>
     <string name="whats_new_link">https://lemon-emu.org/es/#features</string>
