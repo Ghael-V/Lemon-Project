@@ -143,6 +143,11 @@ public:
         return is_built.load(std::memory_order::relaxed);
     }
 
+    /// True when a stage writes memory (global memory, storage buffers or images).
+    [[nodiscard]] bool HasSideEffects() const noexcept {
+        return has_side_effects;
+    }
+
     template <typename Spec>
     static auto MakeConfigureSpecFunc() {
         return [](GraphicsPipeline* pl, bool is_indexed) { return pl->ConfigureImpl<Spec>(is_indexed); };
@@ -192,6 +197,7 @@ private:
     bool uses_attribute_handle{};
     bool uses_gs_scratch{};
     bool fragment_has_color0_output{};
+    bool has_side_effects{};
 
     vk::DescriptorSetLayout descriptor_set_layout;
     DescriptorAllocator descriptor_allocator;

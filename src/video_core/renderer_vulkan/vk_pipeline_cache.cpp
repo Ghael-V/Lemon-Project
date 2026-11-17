@@ -798,6 +798,15 @@ GraphicsPipeline* PipelineCache::BuiltPipeline(GraphicsPipeline* pipeline) const
     if (!use_asynchronous_shaders) {
         return pipeline;
     }
+    // A draw that writes memory (vertex data computed in a vertex shader, transform feedback, a
+    // draw with the rasterizer off) is used by later draws: skipping it breaks them for the
+    // session, not one frame (Super Mario Party Jamboree's characters after a fresh shader cache).
+    // From Eden 6a767ac43a.
+    const auto& regs = maxwell3d->regs;
+    if (pipeline->HasSideEffects() || regs.transform_feedback_enabled != 0 ||
+        regs.rasterize_enable == 0) {
+        return pipeline;
+    }
     // If games are using a small index count, we can assume these are full screen quads.
     // Usually these shaders are only used once for building textures so we can assume they
     // can't be built async.
