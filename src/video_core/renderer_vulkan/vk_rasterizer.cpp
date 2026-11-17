@@ -839,7 +839,8 @@ void RasterizerVulkan::InvalidateRegion(DAddr addr, u64 size, VideoCommon::Cache
     if (addr == 0 || size == 0) {
         return;
     }
-    if (True(which & VideoCommon::CacheType::TextureCache)) {
+    if (True(which & VideoCommon::CacheType::TextureCache) &&
+        texture_cache.MayHaveImages(addr, size)) {
         std::scoped_lock lock{texture_cache.mutex};
         texture_cache.WriteMemory(addr, size);
     }
@@ -856,7 +857,12 @@ void RasterizerVulkan::InvalidateRegion(DAddr addr, u64 size, VideoCommon::Cache
 }
 
 void RasterizerVulkan::InnerInvalidation(std::span<const std::pair<DAddr, std::size_t>> sequences) {
-    {
+    // Most CPU writes land where only buffers live: the texture cache's lock (which the CPU
+    // threads also take on their writes) is only needed where an image may be.
+    const bool any_images = std::ranges::any_of(sequences, [this](const auto& sequence) {
+        return texture_cache.MayHaveImages(sequence.first, sequence.second);
+    });
+    if (any_images) {
         std::scoped_lock lock{texture_cache.mutex};
         for (const auto& [addr, size] : sequences) {
             texture_cache.WriteMemory(addr, size);
@@ -888,7 +894,9 @@ bool RasterizerVulkan::OnCPUWrite(DAddr addr, u64 size) {
         }
     }
 
-    {
+    // Without an image there the texture cache has nothing to do: skip its lock, which the GPU
+    // thread holds through every draw (the emulated cores waited on it on each such write).
+    if (texture_cache.MayHaveImages(addr, size)) {
         std::scoped_lock lock{texture_cache.mutex};
         texture_cache.WriteMemory(addr, size);
     }
@@ -902,7 +910,7 @@ void RasterizerVulkan::OnCacheInvalidation(DAddr addr, u64 size) {
         return;
     }
 
-    {
+    if (texture_cache.MayHaveImages(addr, size)) {
         std::scoped_lock lock{texture_cache.mutex};
         texture_cache.WriteMemory(addr, size);
     }
