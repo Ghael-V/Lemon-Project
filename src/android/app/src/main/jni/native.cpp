@@ -1678,6 +1678,26 @@ jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_isFirmwareAvailabl
     return true;
 }
 
+// Firmware updated past the keys: some system title of the new key generation can't be decrypted,
+// and games then hang while loading with nothing said. Reads every system title's header.
+jboolean Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_firmwareNeedsNewerKeys(JNIEnv* env,
+                                                                                   jclass clazz) {
+    const auto bis_system =
+        EmulationSession::GetInstance().System().GetFileSystemController().GetSystemNANDContents();
+    if (!bis_system) {
+        return false;
+    }
+    for (const auto& entry : bis_system->ListEntries()) {
+        const auto nca = bis_system->GetEntry(entry.title_id, entry.type);
+        if (nca && nca->GetStatus() == Loader::ResultStatus::ErrorMissingKeyAreaKey) {
+            LOG_WARNING(Frontend, "Firmware title {:016X} needs newer keys than the installed ones",
+                        entry.title_id);
+            return true;
+        }
+    }
+    return false;
+}
+
 jobjectArray Java_dev_ironlemon_ironlemon_1emulator_NativeLibrary_getPatchesForFile(JNIEnv* env, jobject jobj,
                                                                      jstring jpath,
                                                                      jstring jprogramId) {

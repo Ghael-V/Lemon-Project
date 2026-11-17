@@ -143,6 +143,8 @@
     <string name="verify_installed_content_description">Checks all installed content for corruption</string>
     <string name="keys_missing">Encryption keys are missing</string>
     <string name="keys_missing_description">Firmware and retail games cannot be decrypted</string>
+    <string name="keys_outdated">Your keys are older than your firmware</string>
+    <string name="keys_outdated_description">The installed firmware needs newer keys than the ones you have, so games can stay stuck while loading or close a few seconds in. Install the prod.keys that match this firmware version, or install a firmware your keys support.</string>
     <string name="keys_missing_help">https://lemon-emu.org/faq.html#start</string>
 
     <!-- Applet launcher strings -->

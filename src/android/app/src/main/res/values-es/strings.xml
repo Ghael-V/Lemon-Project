@@ -142,6 +142,8 @@
     <string name="verify_installed_content_description">Comprueba todo el contenido instalado por si hubiese alguno corrupto</string>
     <string name="keys_missing">Faltan las claves de encriptación</string>
     <string name="keys_missing_description">El firmware y los juegos no se pueden desencriptar</string>
+    <string name="keys_outdated">Tus claves son más antiguas que tu firmware</string>
+    <string name="keys_outdated_description">El firmware instalado necesita claves más nuevas que las que tienes, así que los juegos pueden quedarse cargando o cerrarse a los pocos segundos. Instala las prod.keys que correspondan a esta versión del firmware, o instala un firmware compatible con tus claves.</string>
     <string name="keys_missing_help">https://lemon-emu.org/faq.html#start</string>
 
     <!-- Applet launcher strings -->
