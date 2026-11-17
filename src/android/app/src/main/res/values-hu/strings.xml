@@ -517,9 +517,6 @@
     <string name="renderer_none">Nincs</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">Normál</string>
-    <string name="renderer_accuracy_high">Magas</string>
-    <string name="renderer_accuracy_extreme">Extrém (Lassú)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

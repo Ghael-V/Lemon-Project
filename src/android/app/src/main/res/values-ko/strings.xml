@@ -473,9 +473,6 @@
     <string name="renderer_none">없음</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">보통</string>
-    <string name="renderer_accuracy_high">높음</string>
-    <string name="renderer_accuracy_extreme">극한 (느림)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

@@ -481,9 +481,6 @@
     <string name="renderer_none">هیچ</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">معمولی</string>
-    <string name="renderer_accuracy_high">زیاد</string>
-    <string name="renderer_accuracy_extreme">افراطی (کند)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

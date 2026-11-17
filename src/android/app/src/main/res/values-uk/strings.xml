@@ -250,9 +250,6 @@
     <string name="renderer_none">Вимкнено</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">Нормальна</string>
-    <string name="renderer_accuracy_high">Висока</string>
-    <string name="renderer_accuracy_extreme">Екстрим (повільно)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

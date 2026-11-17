@@ -527,9 +527,6 @@
     <string name="renderer_none">无</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">正常</string>
-    <string name="renderer_accuracy_high">高</string>
-    <string name="renderer_accuracy_extreme">极高 (慢速)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

@@ -532,9 +532,6 @@ uma tentativa de mapeamento automático</string>
     <string name="renderer_none">Nenhum</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">Normal</string>
-    <string name="renderer_accuracy_high">Alto</string>
-    <string name="renderer_accuracy_extreme">Estremo (Lento)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

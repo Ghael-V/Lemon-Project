@@ -38,7 +38,8 @@ object PerformancePresets {
 
     // Numbers are the core's enums (common/settings_enums.h): ResolutionSetup Res1_2X = 0, Res3X = 5
     // (the highest offered under Graphics); ScalingFilter NearestNeighbor = 0, Bicubic = 2;
-    // AntiAliasing None = 0, Smaa = 2; GpuAccuracy Normal = 0, High = 1; AnisotropyMode Default = 1,
+    // AntiAliasing None = 0, Smaa = 2; GpuAccuracy Normal = 0, High = 1 (shown as Low, Normal);
+    // AnisotropyMode Default = 1,
     // X16 = 5; CpuAccuracy Unsafe = 2; VramUsageMode Conservative = 0, Aggressive = 1.
     private fun values(preset: Preset): List<Value> = when (preset) {
         Preset.SPEED -> listOf(

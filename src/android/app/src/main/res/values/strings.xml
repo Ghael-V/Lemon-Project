@@ -222,7 +222,7 @@
     <string name="set_custom_rtc">Set custom RTC</string>
 
     <!-- Graphics settings strings -->
-    <string name="renderer_accuracy">Accuracy level</string>
+    <string name="renderer_accuracy">GPU accuracy</string>
     <string name="renderer_resolution">Resolution (Handheld/Docked)</string>
     <string name="renderer_vsync">VSync mode</string>
     <string name="renderer_screen_layout">Orientation</string>
@@ -606,9 +606,9 @@
     <string name="renderer_none">None</string>
 
     <!-- Renderer Accuracy -->
+    <string name="renderer_accuracy_low">Low</string>
     <string name="renderer_accuracy_normal">Normal</string>
-    <string name="renderer_accuracy_high">High</string>
-    <string name="renderer_accuracy_extreme">Extreme (Slow)</string>
+    <string name="renderer_accuracy_high">High (Slow)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

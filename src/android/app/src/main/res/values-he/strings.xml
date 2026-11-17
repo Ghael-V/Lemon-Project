@@ -392,9 +392,6 @@
     <string name="renderer_none">אין שום דבר</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">רגיל</string>
-    <string name="renderer_accuracy_high">גבוה</string>
-    <string name="renderer_accuracy_extreme">אקסטרים (איטי)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

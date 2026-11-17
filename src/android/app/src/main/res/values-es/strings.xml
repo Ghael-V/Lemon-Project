@@ -219,7 +219,7 @@
     <string name="set_custom_rtc">Configurar RTC personalizado</string>
 
     <!-- Graphics settings strings -->
-    <string name="renderer_accuracy">Nivel de precisión</string>
+    <string name="renderer_accuracy">Precisión de la GPU</string>
     <string name="renderer_resolution">Resolución (Portátil/Sobremesa)</string>
     <string name="renderer_vsync">Modo VSync</string>
     <string name="renderer_screen_layout">Orientación</string>
@@ -481,9 +481,9 @@
     <string name="renderer_none">Ninguno</string>
 
     <!-- Renderer Accuracy -->
+    <string name="renderer_accuracy_low">Baja</string>
     <string name="renderer_accuracy_normal">Normal</string>
-    <string name="renderer_accuracy_high">Alto</string>
-    <string name="renderer_accuracy_extreme">Extremo (Lento)</string>
+    <string name="renderer_accuracy_high">Alta (Lenta)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>

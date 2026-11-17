@@ -431,9 +431,6 @@
     <string name="renderer_none">Nessuna</string>
 
     <!-- Renderer Accuracy -->
-    <string name="renderer_accuracy_normal">Normale</string>
-    <string name="renderer_accuracy_high">Alta</string>
-    <string name="renderer_accuracy_extreme">Estrema (Lenta)</string>
 
     <!-- Resolutions -->
     <string name="resolution_half">0.5X (360p/540p)</string>
