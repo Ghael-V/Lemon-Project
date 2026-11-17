@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.dp
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonButton
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogCard
 import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
+import dev.ironlemon.ironlemon_emulator.ui.modern.frameGenerationSummary
+import dev.ironlemon.ironlemon_emulator.ui.modern.showFrameGenerationDialog
 import dev.ironlemon.ironlemon_emulator.ui.modern.showPerformancePresetDialog
 import dev.ironlemon.ironlemon_emulator.utils.PerformancePresets
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,6 +147,21 @@ class HomeSettingsFragment : Fragment() {
                         }
                     },
                     details = presetName
+                )
+            )
+            // Frame generation next to the mode: both are about how games run, for every game.
+            val frameGenerationState = MutableStateFlow(frameGenerationSummary(requireContext()))
+            add(
+                HomeSetting(
+                    R.string.frame_generation,
+                    R.string.frame_generation_card_description,
+                    R.drawable.ic_frames,
+                    {
+                        showFrameGenerationDialog(requireContext()) {
+                            frameGenerationState.value = frameGenerationSummary(requireContext())
+                        }
+                    },
+                    details = frameGenerationState
                 )
             )
             add(

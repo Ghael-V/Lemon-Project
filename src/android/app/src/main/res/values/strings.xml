@@ -1556,4 +1556,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <item quantity="one">The database has cheats for this game, but not for your version (build %1$s): only for %2$d other version. They usually match the latest update: install it and download again.</item>
         <item quantity="other">The database has cheats for this game, but not for your version (build %1$s): only for %2$d other versions. They usually match the latest update: install it and download again.</item>
     </plurals>
+    <string name="frame_generation_card_description">Smoother motion: frames generated between the game\'s own</string>
+    <string name="frame_generation_switch">Generate frames</string>
+    <string name="frame_generation_off">Off</string>
+    <string name="frame_generation_auto_summary">Auto · %1$d FPS</string>
 </resources>

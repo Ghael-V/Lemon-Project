@@ -1023,4 +1023,8 @@
         <item quantity="one">La base de datos tiene trucos para este juego, pero no para tu versión (build %1$s): solo para %2$d versión distinta. Suele ser la última actualización: instálala y vuelve a descargar.</item>
         <item quantity="other">La base de datos tiene trucos para este juego, pero no para tu versión (build %1$s): solo para %2$d versiones distintas. Suele ser la última actualización: instálala y vuelve a descargar.</item>
     </plurals>
+    <string name="frame_generation_card_description">Movimiento más fluido: fotogramas generados entre los del juego</string>
+    <string name="frame_generation_switch">Generar fotogramas</string>
+    <string name="frame_generation_off">Desactivada</string>
+    <string name="frame_generation_auto_summary">Auto · %1$d FPS</string>
 </resources>

@@ -219,10 +219,13 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.RENDERER_USE_DISK_SHADER_CACHE.key)
             add(BooleanSetting.RENDERER_FORCE_MAX_CLOCK.key)
             add(BooleanSetting.RENDERER_ASYNCHRONOUS_SHADERS.key)
-            add(BooleanSetting.FRAME_GENERATION.key)
-            add(IntSetting.FRAME_GENERATION_MODE.key)
-            add(IntSetting.FRAME_GENERATION_TARGET.key)
-            add(IntSetting.FRAME_GENERATION_QUALITY.key)
+            // Globally it lives in Settings next to the mode; a game's own value is set here.
+            if (NativeConfig.isPerGameConfigLoaded()) {
+                add(BooleanSetting.FRAME_GENERATION.key)
+                add(IntSetting.FRAME_GENERATION_MODE.key)
+                add(IntSetting.FRAME_GENERATION_TARGET.key)
+                add(IntSetting.FRAME_GENERATION_QUALITY.key)
+            }
             add(BooleanSetting.BCN_ASTC_RECOMPRESSION.key)
         }
     }
