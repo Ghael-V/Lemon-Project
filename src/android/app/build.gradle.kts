@@ -70,11 +70,10 @@ android {
         applicationId = "dev.ironlemon.ironlemon_emulator"
         minSdk = 30
         targetSdk = 34
-        // Lemon's updater reads the release tag; local builds say 2.0.
-        versionName = System.getenv("GIT_TAG_NAME")?.removePrefix("v") ?: "2.0.0"
+        // Iron Lemon's own numbering since it became an app of its own (tag v0.1.0 and on).
+        versionName = System.getenv("GIT_TAG_NAME")?.removePrefix("v") ?: "0.1.0"
 
-        // Seconds/10 since 2016, as Lemon numbers its builds, so this one is newer than any of
-        // Lemon's and Android accepts it as an update.
+        // Seconds/10 since 2016: every build is newer than the one before.
         versionCode = autoVersion
 
         ndk {
