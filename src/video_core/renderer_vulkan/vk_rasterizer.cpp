@@ -83,8 +83,14 @@ VkViewport GetViewportState(const Device& device, const Maxwell& regs, size_t in
                           src.swizzle.y == Maxwell::ViewportSwizzle::NegativeY;
 
     if (lower_left) {
-        // Flip by surface clip height
-        y += conv(static_cast<f32>(regs.surface_clip.height));
+        // With the origin at the bottom, Maxwell places ndc at translate_y + scale_y * ndc counted
+        // up from the bottom; Vulkan counts down from the top, so that point must land at
+        // clip_height - (translate_y + scale_y * ndc). A negative-height viewport does that with
+        // origin clip_height - (translate_y - scale_y), the bottom edge mirrored, and
+        // height -2 * scale_y. Adding the clip height instead of mirroring was only right for
+        // viewports starting at 0; one with a negative scale (a game flipping Y itself, Aggelos)
+        // ended up off screen.
+        y = conv(static_cast<f32>(regs.surface_clip.height)) - y;
         height = -height;
     }
 
