@@ -96,7 +96,7 @@ inline bool FirmwareNeedsNewerKeys(Core::System &system)
         return false;
     }
     for (const auto &entry : bis_system->ListEntries()) {
-        const auto nca = bis_system->GetEntry(entry);
+        const auto nca = bis_system->GetEntry(entry.title_id, entry.type);
         if (nca && nca->GetStatus() == Loader::ResultStatus::ErrorMissingKeyAreaKey) {
             LOG_WARNING(Frontend, "Firmware title {:016X} needs newer keys than the installed ones",
                         entry.title_id);
