@@ -444,10 +444,13 @@ struct System::Impl {
         Core::SaveState::UndoJournal::StopAll();
         kernel.CloseServices();
         kernel.ShutdownCores();
+        // The cheat tick runs on the timing thread and asks the service manager for the
+        // controllers: end it while the services still exist. Destroying the engine unschedules
+        // the tick and waits for one that is running.
+        cheat_engine.reset();
         services.reset();
         service_manager.reset();
         fs_controller.Reset();
-        cheat_engine.reset();
         telemetry_session.reset();
         core_timing.ClearPendingEvents();
         app_loader.reset();

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+#include <array>
+#include <cstring>
 #include <locale>
 #include "common/hex_util.h"
 #include "common/microprofile.h"
@@ -44,8 +47,52 @@ std::string_view ExtractName(std::size_t& out_name_size, std::string_view data,
 }
 } // Anonymous namespace
 
-StandardVmCallbacks::StandardVmCallbacks(System& system_, const CheatProcessMetadata& metadata_)
-    : metadata{metadata_}, system{system_} {}
+void CodePatchJournal::Remember(VAddr address, std::span<const u8> original) {
+    const bool already_kept = std::ranges::any_of(patches, [&](const Patch& patch) {
+        return patch.address == address && patch.original.size() == original.size();
+    });
+    if (!already_kept) {
+        patches.push_back({address, std::vector<u8>(original.begin(), original.end())});
+    }
+}
+
+std::size_t CodePatchJournal::Restore(System& system) {
+    auto* const process = system.ApplicationProcess();
+    std::size_t written = 0;
+    for (auto patch = patches.rbegin(); process != nullptr && patch != patches.rend(); ++patch) {
+        auto& memory = system.ApplicationMemory();
+        if (!memory.IsValidVirtualAddress(patch->address) ||
+            !memory.WriteBlock(patch->address, patch->original.data(), patch->original.size())) {
+            continue;
+        }
+        Core::InvalidateInstructionCacheRange(process, patch->address, patch->original.size());
+        written += patch->original.size();
+    }
+    patches.clear();
+    executable_pages.clear();
+    return written;
+}
+
+bool CodePatchJournal::IsCode(System& system, VAddr address) {
+    const VAddr page = address & ~VAddr{Core::Memory::YUZU_PAGEMASK};
+    if (const auto it = executable_pages.find(page); it != executable_pages.end()) {
+        return it->second;
+    }
+    bool executable = true; // Unknown: treat as code, so translated code never goes stale.
+    if (auto* const process = system.ApplicationProcess()) {
+        Kernel::KMemoryInfo info{};
+        Kernel::Svc::PageInfo page_info{};
+        if (process->GetPageTable().QueryInfo(&info, &page_info, page) == ResultSuccess) {
+            executable = True(info.GetPermission() & Kernel::KMemoryPermission::UserExecute);
+        }
+    }
+    executable_pages.emplace(page, executable);
+    return executable;
+}
+
+StandardVmCallbacks::StandardVmCallbacks(System& system_, const CheatProcessMetadata& metadata_,
+                                         CodePatchJournal& journal_)
+    : metadata{metadata_}, system{system_}, journal{journal_} {}
 
 StandardVmCallbacks::~StandardVmCallbacks() = default;
 
@@ -64,8 +111,24 @@ void StandardVmCallbacks::MemoryWriteUnsafe(VAddr address, const void* data, u64
     if (!IsAddressInRange(address) || !system.ApplicationMemory().IsValidVirtualAddress(address)) {
         return;
     }
+    auto& memory = system.ApplicationMemory();
 
-    if (system.ApplicationMemory().WriteBlock(address, data, size)) {
+    // The VM writes 1 to 8 bytes at a time, the same ones every tick: a write that would leave
+    // memory as it is costs nothing.
+    std::array<u8, 8> before{};
+    const bool have_before = size <= before.size() && memory.ReadBlock(address, before.data(), size);
+    if (have_before && std::memcmp(before.data(), data, size) == 0) {
+        return;
+    }
+
+    // Translated code only goes stale when code changes. Dropping it for every data write stops
+    // all cores and searches their code caches, a cost that grows the longer the game runs.
+    const bool is_code = journal.IsCode(system, address) ||
+                         journal.IsCode(system, address + size - 1);
+    if (is_code && have_before) {
+        journal.Remember(address, std::span<const u8>(before.data(), size));
+    }
+    if (memory.WriteBlock(address, data, size) && is_code) {
         Core::InvalidateInstructionCacheRange(system.ApplicationProcess(), address, size);
     }
 }
@@ -218,7 +281,7 @@ std::vector<CheatEntry> TextCheatParser::Parse(std::string_view data) const {
 
 CheatEngine::CheatEngine(System& system_, std::vector<CheatEntry> cheats_,
                          const std::array<u8, 0x20>& build_id_)
-    : vm{std::make_unique<StandardVmCallbacks>(system_, metadata)},
+    : vm{std::make_unique<StandardVmCallbacks>(system_, metadata, code_journal)},
       cheats(std::move(cheats_)), core_timing{system_.CoreTiming()}, system{system_} {
     metadata.main_nso_build_id = build_id_;
 }
@@ -277,6 +340,11 @@ MICROPROFILE_DEFINE(Cheat_Engine, "Add-Ons", "Cheat Engine", MP_RGB(70, 200, 70)
 
 void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {
     if (is_pending_reload.exchange(false)) {
+        // The list changed: put the game's code back first; the cheats still on patch it again
+        // below, on this same tick.
+        if (const std::size_t restored = code_journal.Restore(system); restored != 0) {
+            LOG_INFO(CheatEngine, "Cheats changed: {} bytes of game code put back", restored);
+        }
         std::scoped_lock lock{cheats_mutex};
         vm.LoadProgram(cheats);
     }

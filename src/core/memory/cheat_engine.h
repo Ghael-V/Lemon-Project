@@ -7,6 +7,8 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <span>
+#include <unordered_map>
 #include <vector>
 #include "common/common_types.h"
 #include "core/memory/dmnt_cheat_types.h"
@@ -23,9 +25,37 @@ struct EventType;
 
 namespace Core::Memory {
 
+/**
+ * The game's own bytes under each piece of code a cheat overwrote, so the code can be put back
+ * when the cheats change (a cheat that was turned off must stop working). Data writes are not
+ * kept: health or ammo belong to the game. Used only on the cheat engine's tick.
+ */
+class CodePatchJournal {
+public:
+    /// Keeps [original] as the game's bytes at [address], unless that range is already kept
+    /// (its first bytes are the game's; later ones would be another cheat value).
+    void Remember(VAddr address, std::span<const u8> original);
+
+    /// Writes every kept range back, newest first so overlapping ranges end with the game's
+    /// bytes, and forgets them. Returns the number of bytes written back.
+    std::size_t Restore(System& system);
+
+    /// Whether the page holding [address] is executable, cached per page until the next Restore.
+    bool IsCode(System& system, VAddr address);
+
+private:
+    struct Patch {
+        VAddr address;
+        std::vector<u8> original;
+    };
+    std::vector<Patch> patches;
+    std::unordered_map<VAddr, bool> executable_pages;
+};
+
 class StandardVmCallbacks : public DmntCheatVm::Callbacks {
 public:
-    StandardVmCallbacks(System& system_, const CheatProcessMetadata& metadata_);
+    StandardVmCallbacks(System& system_, const CheatProcessMetadata& metadata_,
+                        CodePatchJournal& journal_);
     ~StandardVmCallbacks() override;
 
     void MemoryReadUnsafe(VAddr address, void* data, u64 size) override;
@@ -41,6 +71,7 @@ private:
 
     const CheatProcessMetadata& metadata;
     Core::System& system;
+    CodePatchJournal& journal;
 };
 
 // Intermediary class that parses a text file or other disk format for storing cheats into a
@@ -75,8 +106,10 @@ public:
 private:
     void FrameCallback(std::chrono::nanoseconds ns_late);
 
-    DmntCheatVm vm;
+    // Before vm: the VM's callbacks hold references to both.
     CheatProcessMetadata metadata;
+    CodePatchJournal code_journal;
+    DmntCheatVm vm;
 
     std::vector<CheatEntry> cheats;
     // Reload() runs on another thread than FrameCallback (Lemon's cheat manager switches cheats
