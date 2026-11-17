@@ -622,6 +622,11 @@
 
     <!-- Iron Lemon UI (from Lemon) -->
     <string name="buymeacoffee_link_button">Invítame a un café</string>
+    <string name="support_prompt_title">¿Te gusta Iron Lemon?</string>
+    <string name="support_prompt_description">Iron Lemon es un proyecto independiente y pequeño. Si te gusta, puedes ayudar a mantenerlo con un Ko-fi o invitándome a un café, o unirte a la comunidad en Discord para compartir opiniones y recibir ayuda. ¡Gracias!</string>
+    <string name="join_discord_button">Unirse a nuestro Discord</string>
+    <string name="not_now">Ahora no</string>
+    <string name="dont_show_again">No volver a mostrar</string>
     <string name="check_updates_now">Buscar actualizaciones</string>
     <string name="discord_link_button">Discord</string>
     <string name="faq_link">https://lemon-emu.org/es/faq.html</string>

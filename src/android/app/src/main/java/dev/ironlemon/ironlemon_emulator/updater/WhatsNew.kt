@@ -26,11 +26,12 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 object WhatsNew {
     private const val PREF_LAST_VERSION = "whats_new_last_version"
 
-    fun showIfNew(activity: FragmentActivity) {
+    /** Returns true when the card was shown (so another notice can wait for a later launch). */
+    fun showIfNew(activity: FragmentActivity): Boolean {
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val current = BuildConfig.VERSION_NAME
         if (prefs.getString(PREF_LAST_VERSION, null) == current) {
-            return
+            return false
         }
         showIronLemonDialog(
             activity,
@@ -50,5 +51,6 @@ object WhatsNew {
                 IronLemonDialogText(stringResource(R.string.whats_new_body))
             }
         }
+        return true
     }
 }

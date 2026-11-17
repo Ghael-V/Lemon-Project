@@ -33,6 +33,7 @@ import dev.ironlemon.ironlemon_emulator.utils.Log
 import dev.ironlemon.ironlemon_emulator.utils.BundledDriver
 import dev.ironlemon.ironlemon_emulator.features.settings.model.BooleanSetting
 import dev.ironlemon.ironlemon_emulator.utils.GameLaunchUtils
+import dev.ironlemon.ironlemon_emulator.updater.SupportCard
 import dev.ironlemon.ironlemon_emulator.updater.UpdateFlow
 import dev.ironlemon.ironlemon_emulator.updater.WhatsNew
 import dev.ironlemon.ironlemon_emulator.databinding.ActivityMainBinding
@@ -173,8 +174,11 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ) {
             UpdateFlow.checkAtStart(this)
             setUpBundledDriver()
-            // Also when recreated: a card the previous instance showed went with it.
-            WhatsNew.showIfNew(this)
+            // Also when recreated: a card the previous instance showed went with it. One notice at
+            // a time: What's new first, the support card on a later launch.
+            if (!WhatsNew.showIfNew(this)) {
+                SupportCard.onAppLaunch(this, newLaunch = savedInstanceState == null)
+            }
             if (savedInstanceState == null) {
                 bootIntoQLaunchIfWanted(navHostFragment.navController)
             }
