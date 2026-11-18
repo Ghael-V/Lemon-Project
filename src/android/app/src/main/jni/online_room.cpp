@@ -41,14 +41,16 @@ std::shared_ptr<Network::RoomMember> Member() {
     return EmulationSession::GetInstance().System().GetRoomNetwork().GetRoomMember().lock();
 }
 
-// Members as "nickname<US>game name" so Kotlin gets one flat String[].
+// Members as "nickname<US>game name<US>username" so Kotlin gets one flat String[]. The
+// relay's username is "u" + the member's friend code (empty for anonymous members).
 void SendMembers(const Network::RoomMember& member) {
     JNIEnv* env = Common::Android::GetEnvForThread();
     const auto& list = member.GetMemberInformation();
     jclass string_class = env->FindClass("java/lang/String");
     jobjectArray array = env->NewObjectArray(static_cast<jsize>(list.size()), string_class, nullptr);
     for (size_t i = 0; i < list.size(); ++i) {
-        const std::string entry = list[i].nickname + '\x1f' + list[i].game_info.name;
+        const std::string entry = list[i].nickname + '\x1f' + list[i].game_info.name + '\x1f' +
+                                  list[i].username;
         jstring item = Common::Android::ToJString(env, entry);
         env->SetObjectArrayElement(array, static_cast<jsize>(i), item);
         env->DeleteLocalRef(item);

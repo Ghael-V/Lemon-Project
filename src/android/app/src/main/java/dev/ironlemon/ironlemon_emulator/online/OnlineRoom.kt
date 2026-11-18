@@ -26,7 +26,8 @@ object OnlineRoom {
         WrongPassword, CouldNotConnect, RoomIsFull, HostBanned, PermissionDenied, NoSuchUser
     }
 
-    data class Member(val nickname: String, val game: String)
+    /** [code] is the member's friend code (the relay's username "u<code>"), null for anonymous members. */
+    data class Member(val nickname: String, val game: String, val code: String? = null)
 
     private val _state = MutableStateFlow(State.Idle)
     val state: StateFlow<State> = _state
@@ -91,8 +92,13 @@ object OnlineRoom {
     @JvmStatic
     fun onNativeMembers(entries: Array<String>) {
         _members.value = entries.map {
-            val parts = it.split('\u001f', limit = 2)
-            Member(parts[0], parts.getOrElse(1) { "" })
+            val parts = it.split('\u001f', limit = 3)
+            val code = parts.getOrElse(2) { "" }.removePrefix("u")
+            Member(
+                parts[0],
+                parts.getOrElse(1) { "" },
+                code.takeIf { c -> c.length == 12 && c.all(Char::isDigit) }
+            )
         }
     }
 }

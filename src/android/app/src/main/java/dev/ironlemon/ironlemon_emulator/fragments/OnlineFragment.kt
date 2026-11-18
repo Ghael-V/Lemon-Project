@@ -48,8 +48,16 @@ class OnlineFragment : Fragment() {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val actions = OnlineActions(
             onBack = { findNavController().popBackStack() },
-            onCreate = { players, password, cheats ->
-                OnlineSession.create(players, password.ifEmpty { null }, cheats, null, null)
+            onCreate = { players, password, cheats, public, name ->
+                OnlineSession.create(
+                    players,
+                    password.ifEmpty { null },
+                    cheats,
+                    null,
+                    null,
+                    public,
+                    name.ifBlank { null }
+                )
             },
             onJoin = { code, password -> OnlineSession.join(code, password.ifEmpty { null }) },
             onLeave = { OnlineSession.leave() },
@@ -70,7 +78,10 @@ class OnlineFragment : Fragment() {
             onHideGame = { OnlineSession.setHideGame(it) },
             onInvite = { OnlineSession.inviteFriend(it) },
             onAcceptInvite = { OnlineSession.acceptInvite(it) },
-            onDeclineInvite = { OnlineSession.declineInvite(it) }
+            onDeclineInvite = { OnlineSession.declineInvite(it) },
+            onRefreshLobby = { OnlineSession.refreshLobby() },
+            onJoinPublic = { room, password -> OnlineSession.joinPublic(room, password.ifEmpty { null }) },
+            onReport = { code, block -> OnlineSession.report(code, block) }
         )
         setContent {
             val room by OnlineSession.room.collectAsState()
@@ -82,6 +93,7 @@ class OnlineFragment : Fragment() {
             val friends by OnlineSession.friends.collectAsState()
             val privacy by OnlineSession.privacy.collectAsState()
             val invites by OnlineSession.invites.collectAsState()
+            val lobby by OnlineSession.lobby.collectAsState()
             ModernOnlineScreen(
                 OnlineUiState(
                     room = room,
@@ -95,7 +107,8 @@ class OnlineFragment : Fragment() {
                     friendCode = OnlineSession.friendCode,
                     friends = friends,
                     privacy = privacy,
-                    invites = invites
+                    invites = invites,
+                    lobby = lobby
                 ),
                 actions
             )
