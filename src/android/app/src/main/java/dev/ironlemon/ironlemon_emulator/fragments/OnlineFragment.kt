@@ -6,6 +6,8 @@ package dev.ironlemon.ironlemon_emulator.fragments
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -53,7 +55,12 @@ class OnlineFragment : Fragment() {
             onLeave = { OnlineSession.leave() },
             onCopyCode = ::copyCode,
             onNickname = { OnlineSession.nickname = it },
-            onServer = { OnlineSession.serverUrl = it }
+            onServer = { OnlineSession.serverUrl = it },
+            onEnable = { OnlineSession.enable(it) },
+            onDeleteData = { OnlineSession.deleteData() },
+            onPrivacyPolicy = {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OnlineSession.PRIVACY_POLICY_URL)))
+            }
         )
         setContent {
             val room by OnlineSession.room.collectAsState()
@@ -61,6 +68,7 @@ class OnlineFragment : Fragment() {
             val notice by OnlineSession.notice.collectAsState()
             val connection by OnlineRoom.state.collectAsState()
             val members by OnlineRoom.members.collectAsState()
+            val enabled by OnlineSession.enabled.collectAsState()
             ModernOnlineScreen(
                 OnlineUiState(
                     room = room,
@@ -69,7 +77,9 @@ class OnlineFragment : Fragment() {
                     busy = busy,
                     notice = notice,
                     nickname = OnlineSession.nickname,
-                    server = OnlineSession.serverUrl
+                    server = OnlineSession.serverUrl,
+                    enabled = enabled,
+                    friendCode = OnlineSession.friendCode
                 ),
                 actions
             )
