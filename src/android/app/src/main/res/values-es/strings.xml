@@ -1670,6 +1670,17 @@
     <string name="online_friend_now_friends">Ya sois amigos.</string>
     <string name="online_friend_request_from">%1$s quiere ser tu amigo</string>
     <string name="online_friend_accepted_by">%1$s ha aceptado tu solicitud de amistad</string>
+    <string name="online_invites">Invitaciones</string>
+    <string name="online_invite_from">%1$s te invita a jugar a %2$s</string>
+    <string name="online_invite_from_room">%1$s te invita a una sala</string>
+    <string name="online_invite_friends">Invitar amigos</string>
+    <string name="online_invite">Invitar</string>
+    <string name="online_invited">Invitado</string>
+    <string name="online_invite_sent">Invitación enviada.</string>
+    <string name="online_no_friends_to_invite">Añade amigos para poder invitarlos.</string>
+    <string name="online_error_not_friends">Solo puedes invitar a tus amigos.</string>
+    <string name="online_error_invite_not_found">Esa invitación ha caducado.</string>
+    <string name="online_error_room_closed">Esa sala ya se ha cerrado.</string>
     <string name="online_your_data">Tus datos de Lemon Online</string>
     <string name="online_delete_data">Borrar mis datos de Lemon Online</string>
     <string name="online_delete_data_confirm">Se borran del servicio tu código de amigo, tu nombre, tus amigos y tus bloqueos, y se cierran las salas que creaste. Lemon Online queda desactivado hasta que lo vuelvas a activar.</string>

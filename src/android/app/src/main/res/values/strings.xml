@@ -2333,6 +2333,17 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="online_friend_now_friends">You are friends now.</string>
     <string name="online_friend_request_from">%1$s wants to be your friend</string>
     <string name="online_friend_accepted_by">%1$s accepted your friend request</string>
+    <string name="online_invites">Invitations</string>
+    <string name="online_invite_from">%1$s invites you to play %2$s</string>
+    <string name="online_invite_from_room">%1$s invites you to a room</string>
+    <string name="online_invite_friends">Invite friends</string>
+    <string name="online_invite">Invite</string>
+    <string name="online_invited">Invited</string>
+    <string name="online_invite_sent">Invitation sent.</string>
+    <string name="online_no_friends_to_invite">Add friends to invite them here.</string>
+    <string name="online_error_not_friends">You can only invite your friends.</string>
+    <string name="online_error_invite_not_found">That invitation has expired.</string>
+    <string name="online_error_room_closed">That room is already closed.</string>
     <string name="online_your_data">Your Lemon Online data</string>
     <string name="online_delete_data">Delete my Lemon Online data</string>
     <string name="online_delete_data_confirm">This deletes your friend code, your name, your friends and your blocks from the service, and closes the rooms you created. Lemon Online stays off until you turn it on again.</string>

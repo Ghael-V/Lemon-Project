@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.online.FriendLists
 import dev.lemon.lemon_emu.online.OnlineFriend
 import dev.lemon.lemon_emu.online.OnlineIdentity
+import dev.lemon.lemon_emu.online.OnlineInvite
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
 
@@ -67,7 +69,10 @@ class OnlineActions(
     val onBlock: (code: String) -> Unit,
     val onUnblock: (code: String) -> Unit,
     val onAppearOffline: (Boolean) -> Unit,
-    val onHideGame: (Boolean) -> Unit
+    val onHideGame: (Boolean) -> Unit,
+    val onInvite: (code: String) -> Unit,
+    val onAcceptInvite: (OnlineInvite) -> Unit,
+    val onDeclineInvite: (OnlineInvite) -> Unit
 )
 
 class OnlineUiState(
@@ -81,7 +86,8 @@ class OnlineUiState(
     val enabled: Boolean,
     val friendCode: String?,
     val friends: FriendLists,
-    val privacy: OnlineSession.Privacy
+    val privacy: OnlineSession.Privacy,
+    val invites: List<OnlineInvite>
 )
 
 /**
@@ -101,6 +107,9 @@ fun ModernOnlineScreen(state: OnlineUiState, actions: OnlineActions) {
         ) {
             Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 state.notice?.let { NoticeText(it) }
+                if (state.enabled && state.invites.isNotEmpty()) {
+                    InvitesSection(state.invites, actions)
+                }
                 val room = state.room
                 if (room == null && !state.enabled) {
                     ConsentContent(state, actions)
@@ -263,6 +272,58 @@ private fun FriendsSection(state: OnlineUiState, actions: OnlineActions) {
                 if (code.isNotBlank()) {
                     actions.onAddFriend(code)
                     code = ""
+                }
+            }
+        }
+    }
+}
+
+/** Friends' invitations: accept goes straight into their room. */
+@Composable
+private fun InvitesSection(invites: List<OnlineInvite>, actions: OnlineActions) {
+    val context = LocalContext.current
+    Section(stringResource(R.string.online_invites)) {
+        for (invite in invites) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BasicText(OnlineSession.inviteText(context, invite), style = LemonType.Button)
+                OnlineButtonRow {
+                    LemonButton(text = stringResource(R.string.online_decline)) {
+                        actions.onDeclineInvite(invite)
+                    }
+                    LemonButton(text = stringResource(R.string.online_accept), primary = true) {
+                        actions.onAcceptInvite(invite)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** In a room: friends to invite, those playing or online first. */
+@Composable
+private fun InviteFriendsSection(state: OnlineUiState, actions: OnlineActions) {
+    var invited by remember { mutableStateOf(setOf<String>()) }
+    Section(stringResource(R.string.online_invite_friends)) {
+        val friends = state.friends.friends.sortedWith(compareBy({ stateOrder(it.state) }, { it.nickname }))
+        if (friends.isEmpty()) {
+            BasicText(
+                stringResource(R.string.online_no_friends_to_invite),
+                style = LemonType.Body.copy(fontSize = 14.sp, color = LemonColors.TextMuted)
+            )
+        }
+        for (friend in friends) {
+            PersonRow(friend, presenceText(friend)) {
+                OnlineButtonRow {
+                    val done = friend.code in invited
+                    LemonButton(
+                        text = stringResource(if (done) R.string.online_invited else R.string.online_invite),
+                        primary = !done
+                    ) {
+                        if (!done) {
+                            invited = invited + friend.code
+                            actions.onInvite(friend.code)
+                        }
+                    }
                 }
             }
         }
@@ -466,6 +527,8 @@ private fun RoomContent(room: OnlineSession.Room, state: OnlineUiState, actions:
         }
     }
 
+    InviteFriendsSection(state, actions)
+
     BasicText(stringResource(R.string.online_room_hint), style = LemonType.Body.copy(fontSize = 14.sp))
     OnlineButtonRow {
         LemonButton(text = stringResource(R.string.online_leave), onClick = actions.onLeave)
@@ -509,6 +572,9 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             "user_not_found" -> stringResource(R.string.online_error_user_not_found)
             "blocked" -> stringResource(R.string.online_error_blocked)
             "friend_limit" -> stringResource(R.string.online_error_friend_limit)
+            "not_friends" -> stringResource(R.string.online_error_not_friends)
+            "invite_not_found" -> stringResource(R.string.online_error_invite_not_found)
+            "room_closed" -> stringResource(R.string.online_error_room_closed)
             "identity", "code_taken" -> stringResource(R.string.online_error_identity)
             else -> stringResource(R.string.online_error_service, notice.code)
         }
@@ -524,6 +590,7 @@ private fun NoticeText(notice: OnlineSession.Notice) {
         }
         is OnlineSession.Notice.Info -> when (notice.code) {
             "accepted", "already_friends" -> stringResource(R.string.online_friend_now_friends)
+            "invited" -> stringResource(R.string.online_invite_sent)
             else -> stringResource(R.string.online_friend_request_sent)
         }
     }

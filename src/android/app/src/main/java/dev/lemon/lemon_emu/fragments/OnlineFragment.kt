@@ -67,7 +67,10 @@ class OnlineFragment : Fragment() {
             onBlock = { OnlineSession.block(it) },
             onUnblock = { OnlineSession.unblock(it) },
             onAppearOffline = { OnlineSession.setAppearOffline(it) },
-            onHideGame = { OnlineSession.setHideGame(it) }
+            onHideGame = { OnlineSession.setHideGame(it) },
+            onInvite = { OnlineSession.inviteFriend(it) },
+            onAcceptInvite = { OnlineSession.acceptInvite(it) },
+            onDeclineInvite = { OnlineSession.declineInvite(it) }
         )
         setContent {
             val room by OnlineSession.room.collectAsState()
@@ -78,6 +81,7 @@ class OnlineFragment : Fragment() {
             val enabled by OnlineSession.enabled.collectAsState()
             val friends by OnlineSession.friends.collectAsState()
             val privacy by OnlineSession.privacy.collectAsState()
+            val invites by OnlineSession.invites.collectAsState()
             ModernOnlineScreen(
                 OnlineUiState(
                     room = room,
@@ -90,7 +94,8 @@ class OnlineFragment : Fragment() {
                     enabled = enabled,
                     friendCode = OnlineSession.friendCode,
                     friends = friends,
-                    privacy = privacy
+                    privacy = privacy,
+                    invites = invites
                 ),
                 actions
             )

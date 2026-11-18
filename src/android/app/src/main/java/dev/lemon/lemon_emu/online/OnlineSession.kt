@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.lemon.lemon_emu.online.OnlineApi.Companion.toInvite
 import org.json.JSONObject
 
 /**
@@ -89,6 +90,11 @@ object OnlineSession {
 
     private val _privacy = MutableStateFlow(Privacy())
     val privacy: StateFlow<Privacy> = _privacy
+
+    private val _invites = MutableStateFlow<List<OnlineInvite>>(emptyList())
+
+    /** Friends' invitations to their rooms, newest last. */
+    val invites: StateFlow<List<OnlineInvite>> = _invites
 
     // The presence socket while Lemon Online is on, and the game being played (for presence).
     private var presence: OnlinePresence? = null
@@ -311,6 +317,57 @@ object OnlineSession {
                 toast(R.string.online_friend_accepted_by, event.optString("nickname"))
                 refreshFriends()
             }
+            "invite" -> {
+                val invite = runCatching { event.toInvite() }.getOrNull() ?: return
+                // The service keeps one invite per friend and room: a new one replaces the old.
+                _invites.value = _invites.value.filterNot {
+                    it.id == invite.id || (it.fromCode == invite.fromCode && it.roomId == invite.roomId)
+                } + invite
+                mainHandler.post {
+                    val context = LemonApplication.appContext
+                    Toast.makeText(context, inviteText(context, invite), Toast.LENGTH_LONG).show()
+                }
+            }
+            "room_closed" -> {
+                val roomId = event.optString("room_id")
+                _invites.value = _invites.value.filterNot { it.roomId == roomId }
+            }
+        }
+    }
+
+    /** "Ana invites you to play Mario Kart 8 Deluxe", or to a room when the game isn't known. */
+    fun inviteText(context: Context, invite: OnlineInvite): String = if (invite.titleName.isNotEmpty()) {
+        context.getString(R.string.online_invite_from, invite.fromNickname, invite.titleName)
+    } else {
+        context.getString(R.string.online_invite_from_room, invite.fromNickname)
+    }
+
+    fun inviteFriend(code: String) {
+        val roomId = _room.value?.id ?: return
+        friendAction { api ->
+            api.invite(code, roomId)
+            _notice.value = Notice.Info("invited")
+        }
+    }
+
+    /** Leaves the room we are in, if any, and goes into the friend's. */
+    fun acceptInvite(invite: OnlineInvite) {
+        _invites.value = _invites.value.filterNot { it.id == invite.id }
+        request(null, null, false) { api ->
+            val ticket = api.acceptInvite(invite.id)
+            if (_room.value != null) OnlineRoom.leave()
+            ticket
+        }
+    }
+
+    fun declineInvite(invite: OnlineInvite) {
+        _invites.value = _invites.value.filterNot { it.id == invite.id }
+        thread(name = "OnlineDecline") {
+            try {
+                authed { it.declineInvite(invite.id) }
+            } catch (e: OnlineException) {
+                Log.warning("[Online] decline failed: ${e.code} (${e.httpStatus})")
+            }
         }
     }
 
@@ -328,6 +385,7 @@ object OnlineSession {
         thread(name = "OnlineFriends") {
             try {
                 _friends.value = authed { it.friends() }
+                _invites.value = authed { it.invites() }
                 val me = authed { it.getMe() }
                 updatePrivacy(Privacy(me.optBoolean("appear_offline"), me.optBoolean("hide_game")))
             } catch (e: OnlineException) {
@@ -519,7 +577,13 @@ object OnlineSession {
             thread(name = "OnlineRetry") {
                 try {
                     val allowed = _room.value?.cheatsAllowed ?: false
-                    connect(authed { it.joinRoom(code, joinPassword) }, allowed)
+                    val roomId = _room.value?.id
+                    // A fresh ticket for the same room; asking by code again needs the password.
+                    val ticket = authed { api ->
+                        roomId?.let { runCatching { api.renewTicket(it) }.getOrNull() }
+                            ?: api.joinRoom(code, joinPassword)
+                    }
+                    connect(ticket, allowed)
                 } catch (e: OnlineException) {
                     _room.value = null
                     _notice.value = Notice.Service(e.code)

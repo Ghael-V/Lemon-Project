@@ -42,6 +42,15 @@ data class FriendLists(
     val blocked: List<OnlineFriend> = emptyList()
 )
 
+/** A friend's invitation to a room; it lives 24 h or until the room closes. */
+data class OnlineInvite(
+    val id: String,
+    val fromCode: String,
+    val fromNickname: String,
+    val roomId: String,
+    val titleName: String
+)
+
 /** An error the service answered with ({"error":{"code":...}}), or "network" when it couldn't be reached. */
 class OnlineException(val code: String, val httpStatus: Int, val retryAfterSeconds: Int? = null) :
     IOException("Lemon Online: $code ($httpStatus)")
@@ -119,6 +128,27 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
         send("DELETE", "/blocks/$code", null)
     }
 
+    /** Invites a friend to the room we are in (we must have got in through the service). */
+    fun invite(friendCode: String, roomId: String) {
+        send("POST", "/invites", JSONObject().put("friend_code", friendCode).put("room_id", roomId))
+    }
+
+    fun invites(): List<OnlineInvite> {
+        val array = send("GET", "/invites", null).optJSONArray("invites") ?: return emptyList()
+        return (0 until array.length()).map { array.getJSONObject(it).toInvite() }
+    }
+
+    /** Accepting needs no room password: the friend who invited vouches for us. */
+    fun acceptInvite(id: String): RoomTicket = send("POST", "/invites/$id/accept", JSONObject()).toTicket()
+
+    fun declineInvite(id: String) {
+        send("POST", "/invites/$id/decline", JSONObject())
+    }
+
+    /** A fresh ticket for a room we already got into through the service. */
+    fun renewTicket(roomId: String): RoomTicket =
+        send("POST", "/rooms/$roomId/ticket", JSONObject()).toTicket()
+
     /** Erases the identity, its friends and blocks, and closes the rooms it created. */
     fun deleteMe() {
         send("DELETE", "/me", null)
@@ -183,6 +213,15 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
 
     companion object {
         private const val CLIENT = "lemon"
+
+        /** The invite object of GET /invites and of the presence socket's "invite" event. */
+        fun JSONObject.toInvite() = OnlineInvite(
+            id = getString("id"),
+            fromCode = optString("from_code"),
+            fromNickname = optString("from_nickname"),
+            roomId = optString("room_id"),
+            titleName = optString("title_name")
+        )
 
         private val client = OkHttpClient.Builder()
             .connectTimeout(8, TimeUnit.SECONDS)
