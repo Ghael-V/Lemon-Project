@@ -203,6 +203,16 @@ std::optional<NetworkInterface> GetSelectedNetworkInterface() {
         return std::nullopt;
     }
 
+    // Nothing to pick the interface on Android: with the setting empty, local wireless games
+    // (and Lemon Online rooms) would be told "airplane mode". Use the Wi-Fi interface when there
+    // is one, else the first interface that is up.
+    if (selected_network_interface.empty()) {
+        const auto wifi = std::ranges::find_if(network_interfaces, [](const auto& iface) {
+            return iface.name.starts_with("wlan");
+        });
+        return wifi != network_interfaces.end() ? *wifi : network_interfaces.front();
+    }
+
     const auto res =
         std::ranges::find_if(network_interfaces, [&selected_network_interface](const auto& iface) {
             return iface.name == selected_network_interface;
