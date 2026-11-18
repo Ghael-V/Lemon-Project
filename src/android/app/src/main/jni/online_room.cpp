@@ -8,6 +8,7 @@
 // start-up is used as is, and every game's LDN and socket services find it already there.
 // Tickets are credentials: they are never logged.
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -31,7 +32,10 @@ jclass s_class = nullptr;
 jmethodID s_on_state = nullptr;
 jmethodID s_on_error = nullptr;
 jmethodID s_on_members = nullptr;
-std::once_flag s_bind_once;
+std::once_flag s_class_once;
+std::mutex s_bind_mutex;
+// The RoomMember the callbacks are on. If it is replaced, they are bound again to the new one.
+std::weak_ptr<Network::RoomMember> s_bound;
 
 Network::RoomMember::CallbackHandle<Network::RoomMember::State> s_state_handle;
 Network::RoomMember::CallbackHandle<Network::RoomMember::Error> s_error_handle;
@@ -60,19 +64,28 @@ void SendMembers(const Network::RoomMember& member) {
     env->DeleteLocalRef(string_class);
 }
 
-void BindCallbacks(JNIEnv* env, jclass clazz) {
+void CacheClass(JNIEnv* env, jclass clazz) {
     s_class = reinterpret_cast<jclass>(env->NewGlobalRef(clazz));
     s_on_state = env->GetStaticMethodID(s_class, "onNativeState", "(I)V");
     s_on_error = env->GetStaticMethodID(s_class, "onNativeError", "(I)V");
     s_on_members = env->GetStaticMethodID(s_class, "onNativeMembers", "([Ljava/lang/String;)V");
+}
 
+// Hooks the callbacks to the current RoomMember, unless they already are. Runs again before
+// every join: a RoomMember made after the first binding would otherwise join rooms without
+// telling the app (it stayed on "Connecting" while the room showed us in).
+void BindCallbacks() {
+    std::scoped_lock lock{s_bind_mutex};
     auto member = Member();
     if (!member) {
         LOG_ERROR(Network, "Online: no room member to bind to");
         return;
     }
-    // The callbacks run on the RoomMember's network thread. The handles stay alive for the
-    // app's lifetime: the RoomMember outlives every room.
+    if (s_bound.lock() == member) {
+        return;
+    }
+    s_bound = member;
+    // The callbacks run on the RoomMember's network thread.
     s_state_handle = member->BindOnStateChanged([](const Network::RoomMember::State& state) {
         JNIEnv* jni = Common::Android::GetEnvForThread();
         jni->CallStaticVoidMethod(s_class, s_on_state, static_cast<jint>(state));
@@ -96,7 +109,8 @@ extern "C" {
 
 JNIEXPORT void JNICALL Java_dev_ironlemon_ironlemon_1emulator_online_OnlineRoom_nativeBind(
     JNIEnv* env, jclass clazz) {
-    std::call_once(s_bind_once, [&] { BindCallbacks(env, clazz); });
+    std::call_once(s_class_once, [&] { CacheClass(env, clazz); });
+    BindCallbacks();
 }
 
 // Blocks while ENet connects (up to a few seconds): call it off the UI thread.
@@ -106,6 +120,7 @@ JNIEXPORT void JNICALL Java_dev_ironlemon_ironlemon_1emulator_online_OnlineRoom_
     if (!member) {
         return;
     }
+    BindCallbacks();
     if (member->IsConnected()) {
         member->Leave();
     }
