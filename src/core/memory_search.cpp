@@ -21,6 +21,7 @@
 #include "core/hle/kernel/k_process.h"
 #include "core/memory.h"
 #include "core/memory_region_scan.h"
+#include "core/memory/cheat_engine.h"
 #include "core/memory_search.h"
 
 namespace Core::MemorySearch {
@@ -104,7 +105,8 @@ void FreezeLoop(std::stop_token stop_token, Core::System* system) {
 
     using namespace std::literals::chrono_literals;
     while (!stop_token.stop_requested()) {
-        {
+        // In a room without cheats the frozen values stay listed but aren't written.
+        if (!Core::Memory::AreCheatsBlocked()) {
             std::scoped_lock lock(g_freeze_mutex);
             for (const auto& [address, value] : g_frozen) {
                 const auto bytes = EncodeValue(value);
@@ -121,6 +123,9 @@ void FreezeLoop(std::stop_token stop_token, Core::System* system) {
 
 std::vector<Match> Search(Core::System& system, s32 needle_value, ValueType type, float tolerance,
                           size_t max_results) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return {};
+    }
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
 
@@ -205,6 +210,9 @@ std::vector<Match> Search(Core::System& system, s32 needle_value, ValueType type
 }
 
 void TakeSnapshot(Core::System& system) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return;
+    }
     const auto t_start = std::chrono::steady_clock::now();
     g_snapshot.clear();
 
@@ -255,6 +263,9 @@ void TakeSnapshot(Core::System& system) {
 
 std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison, ValueType type,
                                    size_t max_results) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return {};
+    }
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
 
@@ -314,6 +325,9 @@ std::vector<Match> CompareSnapshot(Core::System& system, Comparison comparison, 
 std::vector<Match> Refine(Core::System& system, std::span<const Match> candidates,
                           std::optional<Comparison> comparison, s32 needle_value, ValueType type,
                           float tolerance) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return {};
+    }
     const auto t_start = std::chrono::steady_clock::now();
     std::vector<Match> results;
 
@@ -364,6 +378,9 @@ std::vector<Match> Refine(Core::System& system, std::span<const Match> candidate
 }
 
 bool Read(Core::System& system, u64 address, std::span<u8> out) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return false;
+    }
     if (system.ApplicationProcess() == nullptr) {
         LOG_ERROR(Core, "MemorySearch::Read: no application process");
         return false;
@@ -373,6 +390,9 @@ bool Read(Core::System& system, u64 address, std::span<u8> out) {
 }
 
 bool Write(Core::System& system, u64 address, std::span<const u8> value) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return false;
+    }
     if (system.ApplicationProcess() == nullptr) {
         LOG_ERROR(Core, "MemorySearch::Write: no application process");
         return false;
@@ -384,6 +404,9 @@ bool Write(Core::System& system, u64 address, std::span<const u8> value) {
 }
 
 void SetFrozen(Core::System& system, u64 address, s32 value) {
+    if (Core::Memory::AreCheatsBlocked()) {
+        return;
+    }
     std::scoped_lock lock(g_freeze_mutex);
     g_frozen[address] = value;
 

@@ -1625,6 +1625,11 @@
     <string name="online_not_playing">Sin jugar</string>
     <string name="online_room_hint">Abre el mismo juego en todas las consolas y elige su modo inalámbrico local (en Mario Kart 8 Deluxe: Juego inalámbrico, no En línea). El juego encontrará a los demás por internet. Sigues en la sala entre un juego y otro.</string>
     <string name="online_leave">Salir de la sala</string>
+    <string name="online_allow_cheats">Permitir trucos</string>
+    <string name="online_allow_cheats_hint">Desactivado: los trucos y el Cheater se apagan para todos mientras estén en la sala.</string>
+    <string name="online_cheats_allowed">En esta sala se permiten trucos.</string>
+    <string name="online_cheats_blocked">En esta sala no se permiten trucos: los tuyos se apagan mientras estés en ella.</string>
+    <string name="online_cheats_blocked_toast">Trucos desactivados: tu sala online no los permite</string>
     <string name="online_error_network">No se puede conectar con Lemon Online. Revisa tu conexión.</string>
     <string name="online_error_room_not_found">No hay ninguna sala con ese código.</string>
     <string name="online_error_wrong_password">Contraseña incorrecta.</string>

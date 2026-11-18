@@ -2288,6 +2288,11 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="online_not_playing">Not playing</string>
     <string name="online_room_hint">Start the same game on every console and choose its local wireless mode (in Mario Kart 8 Deluxe: Wireless Play, not Online). The game will find the others over the internet. You stay in the room between games.</string>
     <string name="online_leave">Leave the room</string>
+    <string name="online_allow_cheats">Allow cheats</string>
+    <string name="online_allow_cheats_hint">Off: cheats and the Cheater stay switched off for everyone while they are in the room.</string>
+    <string name="online_cheats_allowed">Cheats are allowed in this room.</string>
+    <string name="online_cheats_blocked">No cheats in this room: yours are switched off while you are in it.</string>
+    <string name="online_cheats_blocked_toast">Cheats are off: your online room does not allow them</string>
     <string name="online_error_network">Lemon Online can\'t be reached. Check your connection.</string>
     <string name="online_error_room_not_found">No room has that code.</string>
     <string name="online_error_wrong_password">Wrong password.</string>

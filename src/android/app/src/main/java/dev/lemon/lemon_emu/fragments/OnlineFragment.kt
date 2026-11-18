@@ -46,8 +46,8 @@ class OnlineFragment : Fragment() {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val actions = OnlineActions(
             onBack = { findNavController().popBackStack() },
-            onCreate = { players, password ->
-                OnlineSession.create(players, password.ifEmpty { null }, null, null)
+            onCreate = { players, password, cheats ->
+                OnlineSession.create(players, password.ifEmpty { null }, cheats, null, null)
             },
             onJoin = { code, password -> OnlineSession.join(code, password.ifEmpty { null }) },
             onLeave = { OnlineSession.leave() },

@@ -7,6 +7,7 @@
 
 package dev.lemon.lemon_emu.fragments
 
+import dev.lemon.lemon_emu.online.OnlineSession
 import dev.lemon.lemon_emu.ui.modern.PerformanceInfo
 import dev.lemon.lemon_emu.overlay.model.OverlayControlData
 import dev.lemon.lemon_emu.nextendo.NextendoAccount
@@ -869,8 +870,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_lemon_cheater -> {
+                    // A Lemon Online room without cheats keeps the Cheater closed.
+                    if (OnlineSession.cheatsBlocked) showCheatsBlocked()
                     binding.cheatOverlay.visibility =
-                        if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                        if (OnlineSession.cheatsBlocked ||
+                            binding.cheatOverlay.visibility == View.VISIBLE
+                        ) {
                             View.GONE
                         } else {
                             View.VISIBLE
@@ -880,7 +885,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_cheats -> {
-                    game?.let {
+                    if (OnlineSession.cheatsBlocked) showCheatsBlocked()
+                    else game?.let {
                         CheatsDialogFragment.newInstance(it)
                             .show(childFragmentManager, CheatsDialogFragment.TAG)
                     }
@@ -2402,8 +2408,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         super.onDetach()
     }
 
+    private fun showCheatsBlocked() {
+        Toast.makeText(requireContext(), R.string.online_cheats_blocked_toast, Toast.LENGTH_SHORT)
+            .show()
+    }
+
     override fun onResume() {
         super.onResume()
+        // Joined a room without cheats while the Cheater was open: close it.
+        if (OnlineSession.cheatsBlocked && _binding != null) {
+            binding.cheatOverlay.visibility = View.GONE
+        }
         NativeLibrary.refreshThreadPolicies()
         val b = _binding ?: return
         updateStatsPosition(IntSetting.PERF_OVERLAY_POSITION.getInt())

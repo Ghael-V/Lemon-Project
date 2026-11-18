@@ -17,6 +17,7 @@
 #include "common/android/android_common.h"
 #include "common/android/id_cache.h"
 #include "common/logging.h"
+#include "core/memory/cheat_engine.h"
 #include "network/network.h"
 #include "network/room_member.h"
 
@@ -129,6 +130,12 @@ JNIEXPORT jint JNICALL Java_dev_lemon_lemon_1emu_online_OnlineRoom_nativeState(
     JNIEnv*, jclass) {
     auto member = Member();
     return member ? static_cast<jint>(member->GetState()) : 0;
+}
+
+// A room that doesn't allow cheats: stop the cheat engine and the memory cheater while in it.
+JNIEXPORT void JNICALL Java_dev_lemon_lemon_1emu_online_OnlineRoom_nativeSetCheatsBlocked(JNIEnv* env, jclass clazz,
+                                                                  jboolean blocked) {
+    Core::Memory::SetCheatsBlocked(blocked == JNI_TRUE);
 }
 
 } // extern "C"
