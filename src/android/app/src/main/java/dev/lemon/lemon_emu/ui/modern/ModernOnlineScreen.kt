@@ -5,24 +5,24 @@ package dev.lemon.lemon_emu.ui.modern
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,11 +41,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.online.FriendLists
 import dev.lemon.lemon_emu.online.OnlineFriend
@@ -54,6 +56,7 @@ import dev.lemon.lemon_emu.online.OnlineInvite
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
 import dev.lemon.lemon_emu.online.PublicRoom
+import kotlinx.coroutines.delay
 
 class OnlineActions(
     val onBack: () -> Unit,
@@ -367,15 +370,18 @@ private fun MemberRow(member: OnlineRoom.Member, state: OnlineUiState, actions: 
 }
 
 /**
- * Public rooms anyone can join, refreshed every 15 s while shown. Tapping one opens it: the
- * password field when it has one, and Join.
+ * Public rooms anyone can join, refreshed every 15 s while the screen is in front. Tapping one
+ * opens it: the password field when it has one, and Join.
  */
 @Composable
 private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
-    LaunchedEffect(Unit) {
-        while (true) {
-            actions.onRefreshLobby()
-            delay(15_000)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                actions.onRefreshLobby()
+                delay(15_000)
+            }
         }
     }
     var open by remember { mutableStateOf<String?>(null) }
