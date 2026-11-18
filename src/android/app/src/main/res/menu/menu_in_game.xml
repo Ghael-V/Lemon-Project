@@ -79,11 +79,6 @@
         android:title="@string/online_title" />
 
     <item
-        android:id="@+id/menu_multiplayer"
-        android:icon="@drawable/ic_two_users"
-        android:title="@string/multiplayer" />
-
-    <item
         android:id="@+id/menu_load_amiibo"
         android:icon="@drawable/ic_nfc"
         android:title="@string/load_amiibo" />

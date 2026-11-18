@@ -947,11 +947,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
-                R.id.menu_multiplayer -> {
-                    emulationActivity?.displayMultiplayerDialog()
-                    true
-                }
-
                 R.id.menu_load_amiibo -> handleLoadAmiiboSelection()
 
                 R.id.menu_controls -> {
