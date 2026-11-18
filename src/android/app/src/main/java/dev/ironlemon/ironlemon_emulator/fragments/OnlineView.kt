@@ -69,7 +69,10 @@ internal fun Fragment.onlineView(onBack: () -> Unit): ComposeView =
             onJoinPublic = { room, password ->
                 OnlineSession.joinPublic(room, password.ifEmpty { null })
             },
-            onReport = { code, block -> OnlineSession.report(code, block) }
+            onReport = { code, block -> OnlineSession.report(code, block) },
+            onReportRoom = { roomId, block -> OnlineSession.reportRoom(roomId, block) },
+            onBlockRoom = { OnlineSession.blockRoom(it) },
+            onUnblockRef = { OnlineSession.unblockRef(it) }
         )
         setContent {
             val room by OnlineSession.room.collectAsState()

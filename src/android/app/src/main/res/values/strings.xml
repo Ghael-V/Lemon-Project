@@ -1616,6 +1616,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="online_hide_game">Hide what I play</string>
     <string name="online_hide_game_hint">Your friends see you online, but not the game.</string>
     <string name="online_blocked">Blocked</string>
+    <string name="online_blocked_from_lobby">Blocked from the lobby (their code is not shown)</string>
     <string name="online_unblock">Unblock</string>
     <string name="online_playing_title">Playing %1$s</string>
     <string name="online_playing">Playing</string>
