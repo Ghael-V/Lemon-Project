@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import dev.lemon.lemon_emu.BuildConfig
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.online.FriendLists
 import dev.lemon.lemon_emu.online.OnlineFriend
@@ -229,12 +230,14 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
 
     PublicLobbySection(state, actions)
 
-    // Testing stage: the address of the service can still be changed by hand.
-    Section(stringResource(R.string.online_server)) {
-        OnlineTextField(server, {
-            server = it
-            actions.onServer(it)
-        })
+    // Debug builds only: point the app at a local or test service by hand.
+    if (BuildConfig.DEBUG) {
+        Section(stringResource(R.string.online_server)) {
+            OnlineTextField(server, {
+                server = it
+                actions.onServer(it)
+            })
+        }
     }
 
     PrivacySection(state, actions)
