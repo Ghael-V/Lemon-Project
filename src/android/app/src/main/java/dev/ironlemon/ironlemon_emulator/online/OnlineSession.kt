@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.core.content.edit
+import dev.ironlemon.ironlemon_emulator.BuildConfig
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.utils.Log
@@ -69,6 +70,7 @@ object OnlineSession {
     private const val PREF_HIDE_GAME = "hide_game"
     private const val PREF_OWN_PUBLIC_ROOM = "own_public_room"
 
+    /** The live service (its name says staging, but it is the one players use). */
     private const val DEFAULT_SERVER = "https://online-staging.lemon-emu.org/v1"
     private const val MAX_NICKNAME_BYTES = 24
     private const val MAX_IDENTITY_ATTEMPTS = 5
@@ -127,8 +129,13 @@ object OnlineSession {
     private val prefs
         get() = YuzuApplication.appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** The service. Only debug builds can point elsewhere (an address typed while testing is ignored). */
     var serverUrl: String
-        get() = prefs.getString(PREF_SERVER, null)?.ifBlank { null } ?: DEFAULT_SERVER
+        get() = if (BuildConfig.DEBUG) {
+            prefs.getString(PREF_SERVER, null)?.ifBlank { null } ?: DEFAULT_SERVER
+        } else {
+            DEFAULT_SERVER
+        }
         set(value) = prefs.edit { putString(PREF_SERVER, value.trim()) }
 
     var nickname: String
