@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <atomic>
 #include <chrono>
 #include <thread>
 
@@ -28,8 +29,16 @@ ProxySocket::~ProxySocket() {
 }
 
 void ProxySocket::HandleProxyPacket(const ProxyPacket& packet) {
-    if (protocol != packet.protocol || local_endpoint.portno != packet.remote_endpoint.portno ||
-        closed) {
+    if (local_endpoint.portno != packet.remote_endpoint.portno || closed) {
+        return;
+    }
+    if (protocol != packet.protocol) {
+        // Quiet drops here once left a game waiting for data it never got: say so a few times.
+        static std::atomic<int> logged{0};
+        if (logged.fetch_add(1) < 5) {
+            LOG_INFO(Network, "Proxy packet dropped: protocol {} on the wire, {} on the socket",
+                     static_cast<int>(packet.protocol), static_cast<int>(protocol));
+        }
         return;
     }
 
@@ -53,6 +62,16 @@ Errno ProxySocket::SetSockOpt(SOCKET fd_, int option, T value) {
 
 Errno ProxySocket::Initialize(Domain domain, Type type, Protocol socket_protocol) {
     protocol = socket_protocol;
+    // Protocol 0 means the type's default, as on a real system. Packets are matched by protocol,
+    // and the cores sharing a Lemon Online room label 0 differently (Unspecified here, IP in Lemon): the real
+    // protocol travels instead, so they agree.
+    if (protocol == Protocol::Unspecified) {
+        if (type == Type::DGRAM) {
+            protocol = Protocol::UDP;
+        } else if (type == Type::STREAM) {
+            protocol = Protocol::TCP;
+        }
+    }
     SetSockOpt(fd, SO_TYPE, type);
 
     return Errno::SUCCESS;
