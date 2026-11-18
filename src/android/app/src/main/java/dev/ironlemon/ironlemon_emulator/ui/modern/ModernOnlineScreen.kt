@@ -5,11 +5,17 @@ package dev.ironlemon.ironlemon_emulator.ui.modern
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ironlemon.ironlemon_emulator.R
@@ -58,10 +67,14 @@ class OnlineUiState(
     val server: String
 )
 
-/** Lemon Online, phase 1: create a room or join one with its code, then see who is in it. */
+/**
+ * Lemon Online, phase 1: create a room or join one with its code, then see who is in it.
+ * The same file lives in Lemon and Iron Lemon: it only uses each app's button, icon button,
+ * colours and type, and keeps its own page, text field and button row below.
+ */
 @Composable
 fun ModernOnlineScreen(state: OnlineUiState, actions: OnlineActions) {
-    IronLemonPage(title = stringResource(R.string.online_title), onBack = actions.onBack) {
+    OnlinePage(stringResource(R.string.online_title), actions.onBack) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -95,7 +108,7 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
     BasicText(stringResource(R.string.online_intro), style = IronLemonType.Body.copy(fontSize = 15.sp))
 
     Section(stringResource(R.string.online_nickname)) {
-        IronLemonTextField(nickname, {
+        OnlineTextField(nickname, {
             nickname = it
             actions.onNickname(it)
         })
@@ -103,22 +116,10 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
 
     Section(stringResource(R.string.online_create_room)) {
         FieldLabel(stringResource(R.string.online_players))
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            for (n in 2..8) {
-                IronLemonButton(
-                    text = n.toString(),
-                    primary = n == players,
-                    height = 42.dp,
-                    horizontalPadding = 16.dp
-                ) { players = n }
-            }
-        }
+        PlayerCountPicker(players) { players = it }
         FieldLabel(stringResource(R.string.online_password_optional))
-        IronLemonTextField(createPassword, { createPassword = it.take(64) })
-        IronLemonButtonRow {
+        OnlineTextField(createPassword, { createPassword = it.take(64) })
+        OnlineButtonRow {
             IronLemonButton(
                 text = stringResource(R.string.online_create_room),
                 primary = true,
@@ -129,12 +130,12 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
 
     Section(stringResource(R.string.online_join_with_code)) {
         FieldLabel(stringResource(R.string.online_room_code))
-        IronLemonTextField(code, { value ->
+        OnlineTextField(code, { value ->
             code = value.uppercase().filter { it.isLetterOrDigit() }.take(6)
         })
         FieldLabel(stringResource(R.string.online_password_optional))
-        IronLemonTextField(joinPassword, { joinPassword = it.take(64) })
-        IronLemonButtonRow {
+        OnlineTextField(joinPassword, { joinPassword = it.take(64) })
+        OnlineButtonRow {
             IronLemonButton(text = stringResource(R.string.online_join), primary = true) {
                 if (!state.busy && code.length == 6) actions.onJoin(code, joinPassword)
             }
@@ -147,7 +148,7 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
 
     // Testing stage: the service runs on a PC in the same network until it has its own address.
     Section(stringResource(R.string.online_server)) {
-        IronLemonTextField(server, {
+        OnlineTextField(server, {
             server = it
             actions.onServer(it)
         })
@@ -200,7 +201,7 @@ private fun RoomContent(room: OnlineSession.Room, state: OnlineUiState, actions:
     }
 
     BasicText(stringResource(R.string.online_room_hint), style = IronLemonType.Body.copy(fontSize = 14.sp))
-    IronLemonButtonRow {
+    OnlineButtonRow {
         IronLemonButton(text = stringResource(R.string.online_leave), onClick = actions.onLeave)
     }
 }
@@ -260,4 +261,85 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             .border(1.dp, IronLemonColors.Red.copy(alpha = 0.6f), shape)
             .padding(horizontal = 18.dp, vertical = 12.dp)
     )
+}
+
+@Composable
+private fun OnlinePage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(IronLemonColors.Background)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 24.dp, top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            IronLemonIconButton(R.drawable.ic_back, stringResource(R.string.back), onClick = onBack)
+            BasicText(
+                title,
+                style = IronLemonType.Display,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        content()
+    }
+}
+
+@Composable
+private fun OnlineTextField(value: String, onValueChange: (String) -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = IronLemonType.Button,
+        cursorBrush = SolidColor(IronLemonColors.Lemon),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(IronLemonColors.SurfaceRaised)
+            .border(1.dp, IronLemonColors.Outline, shape)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun OnlineButtonRow(content: @Composable () -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) { content() }
+}
+
+/** 2 to 8 players as round chips; the selected one in the accent colour. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlayerCountPicker(selected: Int, onSelect: (Int) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        for (n in 2..8) {
+            val chosen = n == selected
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (chosen) IronLemonColors.Lemon else IronLemonColors.SurfaceRaised)
+                    .border(1.dp, if (chosen) IronLemonColors.Lemon else IronLemonColors.Outline, CircleShape)
+                    .clickable { onSelect(n) },
+                contentAlignment = Alignment.Center
+            ) {
+                BasicText(
+                    n.toString(),
+                    style = IronLemonType.Button.copy(
+                        color = if (chosen) IronLemonColors.OnLemon else IronLemonColors.Text
+                    )
+                )
+            }
+        }
+    }
 }
