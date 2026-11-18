@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.online.FriendLists
 import dev.lemon.lemon_emu.online.OnlineFriend
@@ -51,10 +53,11 @@ import dev.lemon.lemon_emu.online.OnlineIdentity
 import dev.lemon.lemon_emu.online.OnlineInvite
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
+import dev.lemon.lemon_emu.online.PublicRoom
 
 class OnlineActions(
     val onBack: () -> Unit,
-    val onCreate: (maxMembers: Int, password: String, cheatsAllowed: Boolean) -> Unit,
+    val onCreate: (maxMembers: Int, password: String, cheatsAllowed: Boolean, public: Boolean, name: String) -> Unit,
     val onJoin: (code: String, password: String) -> Unit,
     val onLeave: () -> Unit,
     val onCopyCode: (String) -> Unit,
@@ -72,7 +75,10 @@ class OnlineActions(
     val onHideGame: (Boolean) -> Unit,
     val onInvite: (code: String) -> Unit,
     val onAcceptInvite: (OnlineInvite) -> Unit,
-    val onDeclineInvite: (OnlineInvite) -> Unit
+    val onDeclineInvite: (OnlineInvite) -> Unit,
+    val onRefreshLobby: () -> Unit,
+    val onJoinPublic: (PublicRoom, password: String) -> Unit,
+    val onReport: (code: String, block: Boolean) -> Unit
 )
 
 class OnlineUiState(
@@ -87,7 +93,8 @@ class OnlineUiState(
     val friendCode: String?,
     val friends: FriendLists,
     val privacy: OnlineSession.Privacy,
-    val invites: List<OnlineInvite>
+    val invites: List<OnlineInvite>,
+    val lobby: List<PublicRoom>
 )
 
 /**
@@ -130,6 +137,8 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
     var players by remember { mutableIntStateOf(8) }
     var createPassword by remember { mutableStateOf("") }
     var allowCheats by remember { mutableStateOf(false) }
+    var makePublic by remember { mutableStateOf(false) }
+    var roomName by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var joinPassword by remember { mutableStateOf("") }
     var server by remember { mutableStateOf(state.server) }
@@ -170,12 +179,21 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
             stringResource(R.string.online_allow_cheats_hint),
             allowCheats
         ) { allowCheats = it }
+        OnlineSwitchRow(
+            stringResource(R.string.online_public_room),
+            stringResource(R.string.online_public_room_hint),
+            makePublic
+        ) { makePublic = it }
+        if (makePublic) {
+            FieldLabel(stringResource(R.string.online_room_name_optional))
+            OnlineTextField(roomName, { roomName = utf8Prefix(it, 32) })
+        }
         OnlineButtonRow {
             LemonButton(
                 text = stringResource(R.string.online_create_room),
                 primary = true,
                 iconRes = R.drawable.ic_multiplayer
-            ) { if (!state.busy) actions.onCreate(players, createPassword, allowCheats) }
+            ) { if (!state.busy) actions.onCreate(players, createPassword, allowCheats, makePublic, roomName) }
         }
     }
 
@@ -196,6 +214,8 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
     if (state.busy) {
         BasicText(stringResource(R.string.online_connecting), style = LemonType.Button)
     }
+
+    PublicLobbySection(state, actions)
 
     // Testing stage: the address of the service can still be changed by hand.
     Section(stringResource(R.string.online_server)) {
@@ -276,6 +296,170 @@ private fun FriendsSection(state: OnlineUiState, actions: OnlineActions) {
             }
         }
     }
+}
+
+/**
+ * A member of the room. Tapping someone else (with a friend code) offers add as friend, block and
+ * report; report asks once more before it is sent.
+ */
+@Composable
+private fun MemberRow(member: OnlineRoom.Member, state: OnlineUiState, actions: OnlineActions) {
+    var open by remember { mutableStateOf(false) }
+    var confirmReport by remember { mutableStateOf(false) }
+    val code = member.code
+    val other = code != null && code != state.friendCode
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (other) Modifier.clickable { open = !open; confirmReport = false } else Modifier)
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(10.dp).clip(CircleShape).background(
+                    if (member.game.isEmpty()) LemonColors.TextMuted else LemonColors.Lemon
+                )
+            )
+            Column {
+                BasicText(member.nickname, style = LemonType.Button)
+                BasicText(
+                    member.game.ifEmpty { stringResource(R.string.online_not_playing) },
+                    style = LemonType.Body.copy(fontSize = 13.sp, color = LemonColors.TextMuted)
+                )
+            }
+        }
+        if (open && code != null) {
+            if (!confirmReport) {
+                OnlineButtonRow {
+                    LemonButton(text = stringResource(R.string.online_report)) { confirmReport = true }
+                    LemonButton(text = stringResource(R.string.online_block)) {
+                        actions.onBlock(code)
+                        open = false
+                    }
+                    if (state.friends.friends.none { it.code == code }) {
+                        LemonButton(text = stringResource(R.string.online_add_as_friend), primary = true) {
+                            actions.onAddFriend(code)
+                            open = false
+                        }
+                    }
+                }
+            } else {
+                BasicText(
+                    stringResource(R.string.online_report_confirm, member.nickname),
+                    style = LemonType.Body.copy(fontSize = 14.sp)
+                )
+                OnlineButtonRow {
+                    LemonButton(text = stringResource(android.R.string.cancel)) { confirmReport = false }
+                    LemonButton(text = stringResource(R.string.online_report_and_block)) {
+                        actions.onReport(code, true)
+                        open = false
+                    }
+                    LemonButton(text = stringResource(R.string.online_report), primary = true) {
+                        actions.onReport(code, false)
+                        open = false
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Public rooms anyone can join, refreshed every 15 s while shown. Tapping one opens it: the
+ * password field when it has one, and Join.
+ */
+@Composable
+private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
+    LaunchedEffect(Unit) {
+        while (true) {
+            actions.onRefreshLobby()
+            delay(15_000)
+        }
+    }
+    var open by remember { mutableStateOf<String?>(null) }
+    var password by remember { mutableStateOf("") }
+    Section(stringResource(R.string.online_public_rooms)) {
+        if (state.lobby.isEmpty()) {
+            BasicText(
+                stringResource(R.string.online_no_public_rooms),
+                style = LemonType.Body.copy(fontSize = 14.sp, color = LemonColors.TextMuted)
+            )
+        }
+        for (room in state.lobby) {
+            val expanded = open == room.roomId
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable {
+                        open = if (expanded) null else room.roomId
+                        password = ""
+                    }
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        BasicText(
+                            room.name.ifEmpty { stringResource(R.string.online_room_of, room.hostNickname) },
+                            style = LemonType.Button,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        BasicText(
+                            listOfNotNull(
+                                room.titleName.ifEmpty { null },
+                                if (room.hasPassword) stringResource(R.string.online_has_password) else null,
+                                if (room.cheatsAllowed) stringResource(R.string.online_cheats_on_short) else null
+                            ).joinToString(" · ").ifEmpty { stringResource(R.string.online_any_game) },
+                            style = LemonType.Body.copy(fontSize = 13.sp, color = LemonColors.TextMuted),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    BasicText(
+                        if (room.full) {
+                            stringResource(R.string.online_room_full_short)
+                        } else {
+                            "${room.members}/${room.maxMembers}"
+                        },
+                        style = LemonType.Button.copy(
+                            color = if (room.full) LemonColors.TextMuted else LemonColors.Lemon
+                        )
+                    )
+                }
+                if (expanded && !room.full) {
+                    if (room.hasPassword) {
+                        FieldLabel(stringResource(R.string.online_password))
+                        OnlineTextField(password, { password = it.take(64) })
+                    }
+                    OnlineButtonRow {
+                        LemonButton(text = stringResource(R.string.online_join), primary = true) {
+                            if (!state.busy) actions.onJoinPublic(room, password)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The longest start of [text] that fits in [max] bytes of UTF-8 (the service's limit for names). */
+private fun utf8Prefix(text: String, max: Int): String {
+    val out = StringBuilder()
+    var bytes = 0
+    var i = 0
+    while (i < text.length) {
+        val cp = text.codePointAt(i)
+        val size = String(Character.toChars(cp)).toByteArray(Charsets.UTF_8).size
+        if (bytes + size > max) break
+        out.appendCodePoint(cp)
+        bytes += size
+        i += Character.charCount(cp)
+    }
+    return out.toString()
 }
 
 /** Friends' invitations: accept goes straight into their room. */
@@ -503,6 +687,12 @@ private fun RoomContent(room: OnlineSession.Room, state: OnlineUiState, actions:
             ),
             style = LemonType.Body.copy(fontSize = 14.sp, color = LemonColors.TextMuted)
         )
+        if (room.public) {
+            BasicText(
+                stringResource(R.string.online_room_is_public),
+                style = LemonType.Body.copy(fontSize = 14.sp, color = LemonColors.TextMuted)
+            )
+        }
     }
 
     Section(stringResource(R.string.online_members, state.members.size, room.maxMembers)) {
@@ -510,20 +700,7 @@ private fun RoomContent(room: OnlineSession.Room, state: OnlineUiState, actions:
             BasicText(stringResource(R.string.online_connecting), style = LemonType.Body)
         }
         for (member in state.members) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    Modifier.size(10.dp).clip(CircleShape).background(
-                        if (member.game.isEmpty()) LemonColors.TextMuted else LemonColors.Lemon
-                    )
-                )
-                Column {
-                    BasicText(member.nickname, style = LemonType.Button)
-                    BasicText(
-                        member.game.ifEmpty { stringResource(R.string.online_not_playing) },
-                        style = LemonType.Body.copy(fontSize = 13.sp, color = LemonColors.TextMuted)
-                    )
-                }
-            }
+            MemberRow(member, state, actions)
         }
     }
 
@@ -575,6 +752,9 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             "not_friends" -> stringResource(R.string.online_error_not_friends)
             "invite_not_found" -> stringResource(R.string.online_error_invite_not_found)
             "room_closed" -> stringResource(R.string.online_error_room_closed)
+            "identity_required" -> stringResource(R.string.online_error_unauthorized)
+            "too_many_public_rooms" -> stringResource(R.string.online_error_too_many_public_rooms)
+            "suspended" -> stringResource(R.string.online_error_suspended)
             "identity", "code_taken" -> stringResource(R.string.online_error_identity)
             else -> stringResource(R.string.online_error_service, notice.code)
         }
@@ -591,6 +771,7 @@ private fun NoticeText(notice: OnlineSession.Notice) {
         is OnlineSession.Notice.Info -> when (notice.code) {
             "accepted", "already_friends" -> stringResource(R.string.online_friend_now_friends)
             "invited" -> stringResource(R.string.online_invite_sent)
+            "reported" -> stringResource(R.string.online_reported)
             else -> stringResource(R.string.online_friend_request_sent)
         }
     }

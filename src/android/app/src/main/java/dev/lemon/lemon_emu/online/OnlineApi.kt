@@ -22,7 +22,9 @@ data class RoomTicket(
     val maxMembers: Int,
     val titleName: String,
     /** Whether the room lets its players use cheats; null when the service didn't say. */
-    val cheatsAllowed: Boolean?
+    val cheatsAllowed: Boolean?,
+    /** Listed in the public lobby. */
+    val public: Boolean = false
 )
 
 /** Another player as the friends list shows them. [state] is offline, online or playing. */
@@ -40,6 +42,19 @@ data class FriendLists(
     val incoming: List<OnlineFriend> = emptyList(),
     val outgoing: List<OnlineFriend> = emptyList(),
     val blocked: List<OnlineFriend> = emptyList()
+)
+
+/** A room in the public lobby. The code is never listed: rooms are joined by id. */
+data class PublicRoom(
+    val roomId: String,
+    val name: String,
+    val titleName: String,
+    val hostNickname: String,
+    val members: Int,
+    val maxMembers: Int,
+    val full: Boolean,
+    val hasPassword: Boolean,
+    val cheatsAllowed: Boolean
 )
 
 /** A friend's invitation to a room; it lives 24 h or until the room closes. */
@@ -128,6 +143,40 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
         send("DELETE", "/blocks/$code", null)
     }
 
+    /** The lobby, newest first; [titleId] narrows it to one game. */
+    fun publicRooms(titleId: String? = null): List<PublicRoom> {
+        val query = if (titleId.isNullOrEmpty()) "?limit=50" else "?limit=50&title_id=$titleId"
+        val array = send("GET", "/rooms/public$query", null).optJSONArray("rooms") ?: return emptyList()
+        return (0 until array.length()).map { i ->
+            val item = array.getJSONObject(i)
+            PublicRoom(
+                roomId = item.getString("room_id"),
+                name = item.optString("name"),
+                titleName = item.optString("title_name"),
+                hostNickname = item.optString("host_nickname"),
+                members = item.optInt("members"),
+                maxMembers = item.optInt("max_members", 8),
+                full = item.optBoolean("full"),
+                hasPassword = item.optBoolean("has_password"),
+                cheatsAllowed = item.optBoolean("cheats_allowed")
+            )
+        }
+    }
+
+    /** Joins a public room from the lobby (by id, not by code). */
+    fun joinPublicRoom(roomId: String, password: String?): RoomTicket {
+        val body = JSONObject().put("room_id", roomId)
+        if (!password.isNullOrEmpty()) body.put("password", password)
+        return send("POST", "/rooms/join", body).toTicket()
+    }
+
+    /** Reports a player to the operators; three reporters in a day suspend their public rooms. */
+    fun report(code: String, roomId: String?) {
+        val body = JSONObject().put("code", code)
+        if (!roomId.isNullOrEmpty()) body.put("room_id", roomId)
+        send("POST", "/reports", body)
+    }
+
     /** Invites a friend to the room we are in (we must have got in through the service). */
     fun invite(friendCode: String, roomId: String) {
         send("POST", "/invites", JSONObject().put("friend_code", friendCode).put("room_id", roomId))
@@ -159,9 +208,13 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
         password: String?,
         cheatsAllowed: Boolean,
         titleId: String?,
-        titleName: String?
+        titleName: String?,
+        public: Boolean = false,
+        name: String? = null
     ): RoomTicket {
         val body = JSONObject().put("max_members", maxMembers).put("cheats_allowed", cheatsAllowed)
+            .put("visibility", if (public) "public" else "private")
+        if (public && !name.isNullOrBlank()) body.put("name", name.trim())
         if (!password.isNullOrEmpty()) body.put("password", password)
         if (!titleId.isNullOrEmpty()) body.put("title_id", titleId)
         if (!titleName.isNullOrEmpty()) body.put("title_name", titleName)
@@ -208,7 +261,8 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
         ticket = getString("ticket"),
         maxMembers = optInt("max_members", 8),
         titleName = optString("title_name"),
-        cheatsAllowed = if (has("cheats_allowed")) optBoolean("cheats_allowed") else null
+        cheatsAllowed = if (has("cheats_allowed")) optBoolean("cheats_allowed") else null,
+        public = optBoolean("public")
     )
 
     companion object {

@@ -39,7 +39,8 @@ object OnlineSession {
         val code: String,
         val maxMembers: Int,
         val titleName: String,
-        val cheatsAllowed: Boolean
+        val cheatsAllowed: Boolean,
+        val public: Boolean = false
     )
 
     /** What the screen shows while nothing is connected: null, or an error code to explain. */
@@ -90,6 +91,11 @@ object OnlineSession {
 
     private val _privacy = MutableStateFlow(Privacy())
     val privacy: StateFlow<Privacy> = _privacy
+
+    private val _lobby = MutableStateFlow<List<PublicRoom>>(emptyList())
+
+    /** The public rooms the lobby shows; refreshed while the screen is open. */
+    val lobby: StateFlow<List<PublicRoom>> = _lobby
 
     private val _invites = MutableStateFlow<List<OnlineInvite>>(emptyList())
 
@@ -457,9 +463,37 @@ object OnlineSession {
         password: String?,
         cheatsAllowed: Boolean,
         titleId: String?,
-        titleName: String?
+        titleName: String?,
+        public: Boolean = false,
+        name: String? = null
     ) = request(null, password, cheatsAllowed) {
-        it.createRoom(maxMembers, password, cheatsAllowed, titleId, titleName)
+        it.createRoom(maxMembers, password, cheatsAllowed, titleId, titleName, public, name)
+    }
+
+    /** Loads the lobby; quietly keeps the old list when the service can't be reached. */
+    fun refreshLobby() {
+        if (!_enabled.value) return
+        thread(name = "OnlineLobby") {
+            try {
+                _lobby.value = authed { it.publicRooms(playingTitleId) }
+            } catch (e: OnlineException) {
+                Log.warning("[Online] lobby not loaded: ${e.code} (${e.httpStatus})")
+            }
+        }
+    }
+
+    // A public room says whether it allows cheats; the join reply says it again.
+    fun joinPublic(room: PublicRoom, password: String?) =
+        request(null, password, room.cheatsAllowed) { it.joinPublicRoom(room.roomId, password) }
+
+    /** Reports a member of our room; also blocks them when [block] is set. */
+    fun report(code: String, block: Boolean) {
+        val roomId = _room.value?.id
+        friendAction { api ->
+            api.report(code, roomId)
+            if (block) api.block(code)
+            _notice.value = Notice.Info("reported")
+        }
     }
 
     // Joining: a room that doesn't say whether it allows cheats doesn't allow them.
@@ -563,7 +597,8 @@ object OnlineSession {
             ticket.roomCode,
             ticket.maxMembers,
             ticket.titleName,
-            ticket.cheatsAllowed ?: cheatsIfUnsaid
+            ticket.cheatsAllowed ?: cheatsIfUnsaid,
+            ticket.public
         )
         OnlineRoom.join(ticket.host, ticket.port, safeNickname(nickname), ticket.ticket)
     }
