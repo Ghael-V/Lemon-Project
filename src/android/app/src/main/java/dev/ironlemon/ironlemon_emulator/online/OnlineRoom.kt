@@ -53,6 +53,9 @@ object OnlineRoom {
 
     fun leave() = nativeLeave()
 
+    /** While true the core runs no cheats and the memory cheater does nothing. */
+    fun setCheatsBlocked(blocked: Boolean) = nativeSetCheatsBlocked(blocked)
+
     @JvmStatic
     private external fun nativeBind()
 
@@ -64,6 +67,9 @@ object OnlineRoom {
 
     @JvmStatic
     private external fun nativeState(): Int
+
+    @JvmStatic
+    private external fun nativeSetCheatsBlocked(blocked: Boolean)
 
     @Keep
     @JvmStatic

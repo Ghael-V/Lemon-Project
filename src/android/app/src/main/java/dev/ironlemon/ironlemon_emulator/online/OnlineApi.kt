@@ -20,7 +20,9 @@ data class RoomTicket(
     val port: Int,
     val ticket: String,
     val maxMembers: Int,
-    val titleName: String
+    val titleName: String,
+    /** Whether the room lets its players use cheats; null when the service didn't say. */
+    val cheatsAllowed: Boolean?
 )
 
 /** An error the service answered with ({"error":{"code":...}}), or "network" when it couldn't be reached. */
@@ -35,8 +37,14 @@ class OnlineApi(private val baseUrl: String) {
     private val json = "application/json; charset=utf-8".toMediaType()
 
     /** Phase 1: anonymous room. Every field is optional on the service side. */
-    fun createRoom(maxMembers: Int, password: String?, titleId: String?, titleName: String?): RoomTicket {
-        val body = JSONObject().put("max_members", maxMembers)
+    fun createRoom(
+        maxMembers: Int,
+        password: String?,
+        cheatsAllowed: Boolean,
+        titleId: String?,
+        titleName: String?
+    ): RoomTicket {
+        val body = JSONObject().put("max_members", maxMembers).put("cheats_allowed", cheatsAllowed)
         if (!password.isNullOrEmpty()) body.put("password", password)
         if (!titleId.isNullOrEmpty()) body.put("title_id", titleId)
         if (!titleName.isNullOrEmpty()) body.put("title_name", titleName)
@@ -79,7 +87,8 @@ class OnlineApi(private val baseUrl: String) {
         port = getInt("port"),
         ticket = getString("ticket"),
         maxMembers = optInt("max_members", 8),
-        titleName = optString("title_name")
+        titleName = optString("title_name"),
+        cheatsAllowed = if (has("cheats_allowed")) optBoolean("cheats_allowed") else null
     )
 
     companion object {

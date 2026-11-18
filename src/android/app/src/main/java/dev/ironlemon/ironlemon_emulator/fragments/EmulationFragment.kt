@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import dev.ironlemon.ironlemon_emulator.online.OnlineSession
 import dev.ironlemon.ironlemon_emulator.utils.PerGameOverlay
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -368,8 +369,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_lemon_cheater -> {
+                    // A Lemon Online room without cheats keeps the Cheater closed.
+                    if (OnlineSession.cheatsBlocked) showCheatsBlocked()
                     binding.cheatOverlay.visibility =
-                        if (binding.cheatOverlay.visibility == View.VISIBLE) {
+                        if (OnlineSession.cheatsBlocked ||
+                            binding.cheatOverlay.visibility == View.VISIBLE
+                        ) {
                             View.GONE
                         } else {
                             View.VISIBLE
@@ -379,7 +384,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 }
 
                 R.id.menu_cheats -> {
-                    game?.let {
+                    if (OnlineSession.cheatsBlocked) showCheatsBlocked()
+                    else game?.let {
                         CheatsDialogFragment.newInstance(it)
                             .show(childFragmentManager, CheatsDialogFragment.TAG)
                     }
@@ -1031,8 +1037,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         binding.inGameMenu.setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
 
+    private fun showCheatsBlocked() {
+        Toast.makeText(requireContext(), R.string.online_cheats_blocked_toast, Toast.LENGTH_SHORT)
+            .show()
+    }
+
     override fun onResume() {
         super.onResume()
+        // Joined a room without cheats while the Cheater was open: close it.
+        if (OnlineSession.cheatsBlocked && _binding != null) {
+            binding.cheatOverlay.visibility = View.GONE
+        }
         // Play time counts while the game is on screen (shown in the library).
         if (::game.isInitialized) {
             GameStatsUtils.startSession(game)

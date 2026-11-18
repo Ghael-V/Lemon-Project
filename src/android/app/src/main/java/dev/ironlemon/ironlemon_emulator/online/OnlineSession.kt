@@ -23,7 +23,13 @@ import kotlinx.coroutines.launch
  */
 object OnlineSession {
     /** The room we are in or getting into. Null when not in a room. */
-    data class Room(val id: String, val code: String, val maxMembers: Int, val titleName: String)
+    data class Room(
+        val id: String,
+        val code: String,
+        val maxMembers: Int,
+        val titleName: String,
+        val cheatsAllowed: Boolean
+    )
 
     /** What the screen shows while nothing is connected: null, or an error code to explain. */
     sealed interface Notice {
@@ -47,6 +53,10 @@ object OnlineSession {
 
     private val _notice = MutableStateFlow<Notice?>(null)
     val notice: StateFlow<Notice?> = _notice
+
+    /** In a room that doesn't allow cheats: the game's cheat menus stay closed. */
+    val cheatsBlocked: Boolean
+        get() = _room.value?.let { !it.cheatsAllowed } ?: false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -75,6 +85,10 @@ object OnlineSession {
         scope.launch {
             OnlineRoom.errors.collect { onConnectionError(it) }
         }
+        // Cheats follow the room: off while in one that doesn't allow them, back when leaving it.
+        scope.launch {
+            _room.collect { room -> OnlineRoom.setCheatsBlocked(room != null && !room.cheatsAllowed) }
+        }
         scope.launch {
             OnlineRoom.state.collect { state ->
                 if (state == OnlineRoom.State.Idle && _room.value != null && !_busy.value) {
@@ -88,13 +102,20 @@ object OnlineSession {
         _notice.value = null
     }
 
-    fun create(maxMembers: Int, password: String?, titleId: String?, titleName: String?) =
-        request(null, password) {
-            OnlineApi(serverUrl).createRoom(maxMembers, password, titleId, titleName)
-        }
+    fun create(
+        maxMembers: Int,
+        password: String?,
+        cheatsAllowed: Boolean,
+        titleId: String?,
+        titleName: String?
+    ) = request(null, password, cheatsAllowed) {
+        OnlineApi(serverUrl).createRoom(maxMembers, password, cheatsAllowed, titleId, titleName)
+    }
 
-    fun join(code: String, password: String?) =
-        request(code.trim().uppercase(), password) { OnlineApi(serverUrl).joinRoom(code, password) }
+    // Joining: a room that doesn't say whether it allows cheats doesn't allow them.
+    fun join(code: String, password: String?) = request(code.trim().uppercase(), password, false) {
+        OnlineApi(serverUrl).joinRoom(code, password)
+    }
 
     fun leave() {
         joinCode = null
@@ -103,7 +124,12 @@ object OnlineSession {
         thread(name = "OnlineLeave") { OnlineRoom.leave() }
     }
 
-    private fun request(code: String?, password: String?, call: () -> RoomTicket) {
+    private fun request(
+        code: String?,
+        password: String?,
+        cheatsIfUnsaid: Boolean,
+        call: () -> RoomTicket
+    ) {
         if (_busy.value) return
         _busy.value = true
         _notice.value = null
@@ -113,7 +139,7 @@ object OnlineSession {
                 val ticket = call()
                 joinCode = ticket.roomCode
                 joinPassword = password
-                connect(ticket)
+                connect(ticket, cheatsIfUnsaid)
             } catch (e: OnlineException) {
                 Log.warning("[Online] service answered ${e.code} (${e.httpStatus})")
                 _notice.value = Notice.Service(e.code)
@@ -126,8 +152,14 @@ object OnlineSession {
         }
     }
 
-    private fun connect(ticket: RoomTicket) {
-        _room.value = Room(ticket.roomId, ticket.roomCode, ticket.maxMembers, ticket.titleName)
+    private fun connect(ticket: RoomTicket, cheatsIfUnsaid: Boolean) {
+        _room.value = Room(
+            ticket.roomId,
+            ticket.roomCode,
+            ticket.maxMembers,
+            ticket.titleName,
+            ticket.cheatsAllowed ?: cheatsIfUnsaid
+        )
         OnlineRoom.join(ticket.host, ticket.port, safeNickname(nickname), ticket.ticket)
     }
 
@@ -139,7 +171,8 @@ object OnlineSession {
             Log.info("[Online] ticket refused, asking for a new one")
             thread(name = "OnlineRetry") {
                 try {
-                    connect(OnlineApi(serverUrl).joinRoom(code, joinPassword))
+                    val allowed = _room.value?.cheatsAllowed ?: false
+                    connect(OnlineApi(serverUrl).joinRoom(code, joinPassword), allowed)
                 } catch (e: OnlineException) {
                     _room.value = null
                     _notice.value = Notice.Service(e.code)

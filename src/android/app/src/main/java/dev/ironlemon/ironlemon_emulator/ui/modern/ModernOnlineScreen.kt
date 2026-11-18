@@ -49,7 +49,7 @@ import dev.ironlemon.ironlemon_emulator.online.OnlineSession
 
 class OnlineActions(
     val onBack: () -> Unit,
-    val onCreate: (maxMembers: Int, password: String) -> Unit,
+    val onCreate: (maxMembers: Int, password: String, cheatsAllowed: Boolean) -> Unit,
     val onJoin: (code: String, password: String) -> Unit,
     val onLeave: () -> Unit,
     val onCopyCode: (String) -> Unit,
@@ -101,6 +101,7 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
     var nickname by remember { mutableStateOf(state.nickname) }
     var players by remember { mutableIntStateOf(8) }
     var createPassword by remember { mutableStateOf("") }
+    var allowCheats by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf("") }
     var joinPassword by remember { mutableStateOf("") }
     var server by remember { mutableStateOf(state.server) }
@@ -119,12 +120,17 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
         PlayerCountPicker(players) { players = it }
         FieldLabel(stringResource(R.string.online_password_optional))
         OnlineTextField(createPassword, { createPassword = it.take(64) })
+        OnlineSwitchRow(
+            stringResource(R.string.online_allow_cheats),
+            stringResource(R.string.online_allow_cheats_hint),
+            allowCheats
+        ) { allowCheats = it }
         OnlineButtonRow {
             IronLemonButton(
                 text = stringResource(R.string.online_create_room),
                 primary = true,
                 iconRes = R.drawable.ic_multiplayer
-            ) { if (!state.busy) actions.onCreate(players, createPassword) }
+            ) { if (!state.busy) actions.onCreate(players, createPassword, allowCheats) }
         }
     }
 
@@ -175,6 +181,12 @@ private fun RoomContent(room: OnlineSession.Room, state: OnlineUiState, actions:
             style = IronLemonType.Body.copy(
                 color = if (connected) IronLemonColors.Lemon else IronLemonColors.TextMuted
             )
+        )
+        BasicText(
+            stringResource(
+                if (room.cheatsAllowed) R.string.online_cheats_allowed else R.string.online_cheats_blocked
+            ),
+            style = IronLemonType.Body.copy(fontSize = 14.sp, color = IronLemonColors.TextMuted)
         )
     }
 
@@ -315,6 +327,46 @@ private fun OnlineButtonRow(content: @Composable () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) { content() }
+}
+
+/** A label with a short explanation and an on/off switch; the whole row toggles it. */
+@Composable
+private fun OnlineSwitchRow(
+    label: String,
+    hint: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText(label, style = IronLemonType.Button)
+            BasicText(hint, style = IronLemonType.Body.copy(fontSize = 13.sp, color = IronLemonColors.TextMuted))
+        }
+        Box(
+            Modifier
+                .size(width = 52.dp, height = 30.dp)
+                .clip(CircleShape)
+                .background(if (checked) IronLemonColors.Lemon else IronLemonColors.SurfaceRaised)
+                .border(1.dp, if (checked) IronLemonColors.Lemon else IronLemonColors.Outline, CircleShape)
+                .padding(3.dp),
+            contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
+        ) {
+            Box(
+                Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (checked) IronLemonColors.OnLemon else IronLemonColors.TextMuted)
+            )
+        }
+    }
 }
 
 /** 2 to 8 players as round chips; the selected one in the accent colour. */

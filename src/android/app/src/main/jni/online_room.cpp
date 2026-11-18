@@ -19,6 +19,7 @@
 #include "common/logging/log.h"
 #include "core/core.h"
 #include "network/network.h"
+#include "core/memory/cheat_engine.h"
 #include "network/room_member.h"
 #include "native.h"
 
@@ -127,6 +128,12 @@ JNIEXPORT jint JNICALL Java_dev_ironlemon_ironlemon_1emulator_online_OnlineRoom_
     JNIEnv*, jclass) {
     auto member = Member();
     return member ? static_cast<jint>(member->GetState()) : 0;
+}
+
+// A room that doesn't allow cheats: stop the cheat engine and the memory cheater while in it.
+JNIEXPORT void JNICALL Java_dev_ironlemon_ironlemon_1emulator_online_OnlineRoom_nativeSetCheatsBlocked(JNIEnv* env, jclass clazz,
+                                                                  jboolean blocked) {
+    Core::Memory::SetCheatsBlocked(blocked == JNI_TRUE);
 }
 
 } // extern "C"

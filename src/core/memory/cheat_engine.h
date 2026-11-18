@@ -91,6 +91,12 @@ public:
     [[nodiscard]] std::vector<CheatEntry> Parse(std::string_view data) const override;
 };
 
+/// Lemon Online: while true (the player is in a room that doesn't allow cheats) no cheat runs, the
+/// code they patched is put back, and the memory cheater neither searches nor writes. Process-wide,
+/// so it holds across games until the player leaves the room.
+void SetCheatsBlocked(bool blocked);
+bool AreCheatsBlocked();
+
 // Class that encapsulates a CheatList and manages its interaction with memory and CoreTiming
 class CheatEngine final {
 public:
@@ -116,6 +122,8 @@ private:
     // while the game runs).
     std::mutex cheats_mutex;
     std::atomic_bool is_pending_reload{false};
+    // Only touched by FrameCallback: the block's restore already happened.
+    bool blocked_applied{false};
 
     std::shared_ptr<Core::Timing::EventType> event;
     Core::Timing::CoreTiming& core_timing;
