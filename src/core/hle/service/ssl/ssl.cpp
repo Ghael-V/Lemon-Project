@@ -156,7 +156,9 @@ private:
     std::shared_ptr<Network::SocketBase> socket;
     std::vector<u8> next_alpn_proto;
     bool did_handshake = false;
-    u32 verify_option = 0;
+    // Verify the peer until the game says otherwise (0 turns the check off). Connections that
+    // Nextendo Network answers for skip it in the backend.
+    u32 verify_option = 1;
 
     Result SetSocketDescriptorImpl(s32* out_fd, s32 fd) {
         LOG_DEBUG(Service_SSL, "called, fd={}", fd);
@@ -196,9 +198,9 @@ private:
 
     Result SetVerifyOptionImpl(u32 option) {
         ASSERT(!did_handshake);
-        LOG_DEBUG(Service_SSL, "called. option={} (forcing 0)", option);
-        verify_option = 0;
-        backend->SetVerifyOption(0);
+        LOG_DEBUG(Service_SSL, "called. option={}", option);
+        verify_option = option;
+        backend->SetVerifyOption(option);
         return ResultSuccess;
     }
 
