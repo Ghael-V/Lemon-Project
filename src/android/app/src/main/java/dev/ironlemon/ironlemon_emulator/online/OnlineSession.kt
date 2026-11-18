@@ -67,6 +67,7 @@ object OnlineSession {
     private const val PREF_REGISTERED_AT = "registered_server"
     private const val PREF_APPEAR_OFFLINE = "appear_offline"
     private const val PREF_HIDE_GAME = "hide_game"
+    private const val PREF_OWN_PUBLIC_ROOM = "own_public_room"
 
     private const val DEFAULT_SERVER = "https://online-staging.lemon-emu.org/v1"
     private const val MAX_NICKNAME_BYTES = 24
@@ -472,9 +473,9 @@ object OnlineSession {
         titleName: String?,
         public: Boolean = false,
         name: String? = null
-    ) = request(null, password, cheatsAllowed, own = true) {
+    ) = request(null, password, cheatsAllowed, own = true) { api ->
         // Created from inside a game (in-game menu): the room is for that game.
-        it.createRoom(
+        fun createRoom() = api.createRoom(
             maxMembers,
             password,
             cheatsAllowed,
@@ -483,6 +484,48 @@ object OnlineSession {
             public,
             name
         )
+        val ticket = try {
+            createRoom()
+        } catch (e: OnlineException) {
+            // Our last public room outlived the app (it closed without leaving, e.g. reinstalled):
+            // the service still counts it, so close it and try again instead of making the user wait.
+            val stale = prefs.getString(PREF_OWN_PUBLIC_ROOM, null)
+            if (e.code != "too_many_public_rooms" || stale == null) throw e
+            closeStalePublicRoom(api, stale)
+            createAfterClose(::createRoom)
+        }
+        if (ticket.public) prefs.edit { putString(PREF_OWN_PUBLIC_ROOM, ticket.roomId) }
+        ticket
+    }
+
+    private fun closeStalePublicRoom(api: OnlineApi, roomId: String) {
+        Log.info("[Online] closing our previous public room")
+        val gone = try {
+            api.closeRoom(roomId)
+            true
+        } catch (e: OnlineException) {
+            Log.warning("[Online] previous public room not closed: ${e.code} (${e.httpStatus})")
+            e.code == "room_not_found"
+        }
+        if (gone) prefs.edit { remove(PREF_OWN_PUBLIC_ROOM) }
+    }
+
+    /**
+     * The service stops the old room's relay and only stops counting it once the relay has exited,
+     * a moment later: try a few times before giving up with its answer.
+     */
+    private fun createAfterClose(create: () -> RoomTicket): RoomTicket {
+        var last: OnlineException? = null
+        repeat(6) {
+            Thread.sleep(500)
+            try {
+                return create()
+            } catch (e: OnlineException) {
+                if (e.code != "too_many_public_rooms") throw e
+                last = e
+            }
+        }
+        throw last!!
     }
 
     /** Loads the lobby; quietly keeps the old list when the service can't be reached. */
@@ -490,7 +533,9 @@ object OnlineSession {
         if (!_enabled.value) return
         thread(name = "OnlineLobby") {
             try {
-                _lobby.value = authed { it.publicRooms(playingTitleId) }
+                // An empty room is one whose players all left: the service keeps it ~10 min before
+                // closing it, and nobody is there to play with.
+                _lobby.value = authed { it.publicRooms(playingTitleId) }.filter { it.members > 0 }
             } catch (e: OnlineException) {
                 Log.warning("[Online] lobby not loaded: ${e.code} (${e.httpStatus})")
             }
@@ -547,6 +592,9 @@ object OnlineSession {
     private fun closeRoom(roomId: String) {
         try {
             authed { it.closeRoom(roomId) }
+            if (prefs.getString(PREF_OWN_PUBLIC_ROOM, null) == roomId) {
+                prefs.edit { remove(PREF_OWN_PUBLIC_ROOM) }
+            }
         } catch (e: OnlineException) {
             Log.warning("[Online] room not closed: ${e.code} (${e.httpStatus})")
         } catch (e: Exception) {
