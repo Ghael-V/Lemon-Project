@@ -1592,7 +1592,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="online_cheats_blocked">No cheats in this room: yours are switched off while you are in it.</string>
     <string name="online_cheats_blocked_toast">Cheats are off: your online room does not allow them</string>
     <string name="online_enable_title">Turn on Lemon Online</string>
-    <string name="online_enable_body">Lemon Online needs no account. This device gets a friend code and a secret key worked out from an identifier that never leaves it. The service keeps only your friend code, a fingerprint of that key, the name you choose and, later on, your friends and the players you block. Nothing is sent until you turn it on, and you can erase it all from this screen at any time.</string>
+    <string name="online_enable_body">Lemon Online needs no account. This device gets a friend code and a secret key worked out from an identifier that never leaves it. The service keeps only your friend code, a fingerprint of that key, the name you choose and, later on, your friends and the players you block. Nothing is sent until you turn it on, and you can delete it all from this screen at any time.</string>
     <string name="online_enable_button">Turn on</string>
     <string name="online_enable_busy">Preparing your identity…</string>
     <string name="online_privacy_policy">Privacy policy</string>
@@ -1600,9 +1600,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="online_friend_code">Your friend code</string>
     <string name="online_copy_friend_code">Copy the friend code</string>
     <string name="online_your_data">Your Lemon Online data</string>
-    <string name="online_delete_data">Erase my Lemon Online data</string>
-    <string name="online_delete_data_confirm">This erases your friend code, your name, your friends and your blocks from the service, and closes the rooms you created. Lemon Online stays off until you turn it on again.</string>
-    <string name="online_delete_data_yes">Erase</string>
+    <string name="online_delete_data">Delete my Lemon Online data</string>
+    <string name="online_delete_data_confirm">This deletes your friend code, your name, your friends and your blocks from the service, and closes the rooms you created. Lemon Online stays off until you turn it on again.</string>
+    <string name="online_delete_data_yes">Delete</string>
     <string name="online_error_unauthorized">Lemon Online didn\'t recognise this device. Try again.</string>
     <string name="online_error_identity">Your Lemon Online identity couldn\'t be created. Try again.</string>
     <string name="online_error_network">Lemon Online can\'t be reached. Check your connection.</string>
