@@ -40,7 +40,9 @@ object OnlineSession {
         val maxMembers: Int,
         val titleName: String,
         val cheatsAllowed: Boolean,
-        val public: Boolean = false
+        val public: Boolean = false,
+        /** We created it: leaving closes it. */
+        val own: Boolean = false
     )
 
     /** What the screen shows while nothing is connected: null, or an error code to explain. */
@@ -359,9 +361,13 @@ object OnlineSession {
     /** Leaves the room we are in, if any, and goes into the friend's. */
     fun acceptInvite(invite: OnlineInvite) {
         _invites.value = _invites.value.filterNot { it.id == invite.id }
+        val left = _room.value
         request(null, null, false) { api ->
             val ticket = api.acceptInvite(invite.id)
-            if (_room.value != null) OnlineRoom.leave()
+            if (left != null) {
+                OnlineRoom.leave()
+                if (left.own) runCatching { api.closeRoom(left.id) }
+            }
             ticket
         }
     }
@@ -466,7 +472,7 @@ object OnlineSession {
         titleName: String?,
         public: Boolean = false,
         name: String? = null
-    ) = request(null, password, cheatsAllowed) {
+    ) = request(null, password, cheatsAllowed, own = true) {
         // Created from inside a game (in-game menu): the room is for that game.
         it.createRoom(
             maxMembers,
@@ -496,6 +502,22 @@ object OnlineSession {
         request(null, password, room.cheatsAllowed) { it.joinPublicRoom(room.roomId, password) }
 
     /** Reports a member of our room; also blocks them when [block] is set. */
+    /** Reports the host of a public room from the lobby; also blocks them when [block] is set. */
+    fun reportRoom(roomId: String, block: Boolean) = friendAction { api ->
+        api.reportRoom(roomId)
+        if (block) api.blockRoom(roomId)
+        _notice.value = Notice.Info("reported")
+        if (block) refreshLobby()
+    }
+
+    /** Blocks the host of a public room from the lobby: their rooms disappear from it. */
+    fun blockRoom(roomId: String) = friendAction { api ->
+        api.blockRoom(roomId)
+        refreshLobby()
+    }
+
+    fun unblockRef(ref: String) = friendAction { it.unblockRef(ref) }
+
     fun report(code: String, block: Boolean) {
         val roomId = _room.value?.id
         friendAction { api ->
@@ -511,10 +533,25 @@ object OnlineSession {
     }
 
     fun leave() {
+        val left = _room.value
         joinCode = null
         joinPassword = null
         _room.value = null
-        thread(name = "OnlineLeave") { OnlineRoom.leave() }
+        thread(name = "OnlineLeave") {
+            OnlineRoom.leave()
+            // Our own room closes now, not ~10 min later, and stops counting as our public room.
+            if (left?.own == true) closeRoom(left.id)
+        }
+    }
+
+    private fun closeRoom(roomId: String) {
+        try {
+            authed { it.closeRoom(roomId) }
+        } catch (e: OnlineException) {
+            Log.warning("[Online] room not closed: ${e.code} (${e.httpStatus})")
+        } catch (e: Exception) {
+            Log.warning("[Online] room not closed: ${e.javaClass.simpleName}")
+        }
     }
 
     private fun storedIdentity(): OnlineIdentity.Identity? {
@@ -576,6 +613,7 @@ object OnlineSession {
         code: String?,
         password: String?,
         cheatsIfUnsaid: Boolean,
+        own: Boolean = false,
         call: (OnlineApi) -> RoomTicket
     ) {
         if (_busy.value || !_enabled.value) return
@@ -587,7 +625,7 @@ object OnlineSession {
                 val ticket = authed(call)
                 joinCode = ticket.roomCode
                 joinPassword = password
-                connect(ticket, cheatsIfUnsaid)
+                connect(ticket, cheatsIfUnsaid, own)
             } catch (e: OnlineException) {
                 Log.warning("[Online] service answered ${e.code} (${e.httpStatus})")
                 _notice.value = Notice.Service(e.code)
@@ -600,14 +638,15 @@ object OnlineSession {
         }
     }
 
-    private fun connect(ticket: RoomTicket, cheatsIfUnsaid: Boolean) {
+    private fun connect(ticket: RoomTicket, cheatsIfUnsaid: Boolean, own: Boolean) {
         _room.value = Room(
             ticket.roomId,
             ticket.roomCode,
             ticket.maxMembers,
             ticket.titleName,
             ticket.cheatsAllowed ?: cheatsIfUnsaid,
-            ticket.public
+            ticket.public,
+            own
         )
         OnlineRoom.join(ticket.host, ticket.port, safeNickname(nickname), ticket.ticket)
     }
@@ -621,13 +660,14 @@ object OnlineSession {
             thread(name = "OnlineRetry") {
                 try {
                     val allowed = _room.value?.cheatsAllowed ?: false
+                    val own = _room.value?.own ?: false
                     val roomId = _room.value?.id
                     // A fresh ticket for the same room; asking by code again needs the password.
                     val ticket = authed { api ->
                         roomId?.let { runCatching { api.renewTicket(it) }.getOrNull() }
                             ?: api.joinRoom(code, joinPassword)
                     }
-                    connect(ticket, allowed)
+                    connect(ticket, allowed, own)
                 } catch (e: OnlineException) {
                     _room.value = null
                     _notice.value = Notice.Service(e.code)

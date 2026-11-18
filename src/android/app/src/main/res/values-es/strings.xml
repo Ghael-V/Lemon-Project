@@ -1655,6 +1655,7 @@
     <string name="online_hide_game">Ocultar a qué juego</string>
     <string name="online_hide_game_hint">Tus amigos te ven en línea, pero no el juego.</string>
     <string name="online_blocked">Bloqueados</string>
+    <string name="online_blocked_from_lobby">Bloqueado desde el lobby (sin mostrar su código)</string>
     <string name="online_unblock">Desbloquear</string>
     <string name="online_playing_title">Jugando a %1$s</string>
     <string name="online_playing">Jugando</string>

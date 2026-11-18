@@ -33,7 +33,9 @@ data class OnlineFriend(
     val nickname: String,
     val state: String = "offline",
     val titleName: String = "",
-    val roomId: String = ""
+    val roomId: String = "",
+    /** Only for a block made from the lobby: no code, this reference lifts it. */
+    val ref: String = ""
 )
 
 /** Everything GET /friends answers: friends with their presence, requests both ways, blocks. */
@@ -111,11 +113,12 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
                 val item = array.getJSONObject(i)
                 val presence = item.optJSONObject("presence")
                 OnlineFriend(
-                    code = item.getString("code"),
+                    code = item.optString("code"),
                     nickname = item.optString("nickname"),
                     state = presence?.optString("state")?.ifEmpty { null } ?: "offline",
                     titleName = presence?.optString("title_name").orEmpty(),
-                    roomId = presence?.optString("room_id").orEmpty()
+                    roomId = presence?.optString("room_id").orEmpty(),
+                    ref = item.optString("ref")
                 )
             }
         }
@@ -141,6 +144,26 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
 
     fun unblock(code: String) {
         send("DELETE", "/blocks/$code", null)
+    }
+
+    /** Closes a room we created at once (403 not_owner for anyone else's). */
+    fun closeRoom(roomId: String) {
+        send("DELETE", "/rooms/$roomId", null)
+    }
+
+    /** Reports the owner of an open public room from the lobby, where their code is unknown. */
+    fun reportRoom(roomId: String) {
+        send("POST", "/reports", JSONObject().put("room_id", roomId))
+    }
+
+    /** Blocks the owner of an open public room without learning their code (a hidden block). */
+    fun blockRoom(roomId: String) {
+        send("PUT", "/blocks/room/$roomId", JSONObject())
+    }
+
+    /** Lifts a hidden block, which has no code to name it by. */
+    fun unblockRef(ref: String) {
+        send("DELETE", "/blocks/ref/$ref", null)
     }
 
     /** The lobby, newest first; [titleId] narrows it to one game. */

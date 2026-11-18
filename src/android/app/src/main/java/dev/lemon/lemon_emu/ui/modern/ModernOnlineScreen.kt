@@ -81,7 +81,10 @@ class OnlineActions(
     val onDeclineInvite: (OnlineInvite) -> Unit,
     val onRefreshLobby: () -> Unit,
     val onJoinPublic: (PublicRoom, password: String) -> Unit,
-    val onReport: (code: String, block: Boolean) -> Unit
+    val onReport: (code: String, block: Boolean) -> Unit,
+    val onReportRoom: (roomId: String, block: Boolean) -> Unit,
+    val onBlockRoom: (roomId: String) -> Unit,
+    val onUnblockRef: (ref: String) -> Unit
 )
 
 class OnlineUiState(
@@ -377,7 +380,7 @@ private fun MemberRow(member: OnlineRoom.Member, state: OnlineUiState, actions: 
 
 /**
  * Public rooms anyone can join, refreshed every 15 s while the screen is in front. Tapping one
- * opens it: the password field when it has one, and Join.
+ * opens it: the password field when it has one, Join, and Report or Block for its host.
  */
 @Composable
 private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
@@ -392,6 +395,7 @@ private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
     }
     var open by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
+    var confirmReport by remember { mutableStateOf(false) }
     Section(stringResource(R.string.online_public_rooms)) {
         if (state.lobby.isEmpty()) {
             BasicText(
@@ -408,6 +412,7 @@ private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
                     .clickable {
                         open = if (expanded) null else room.roomId
                         password = ""
+                        confirmReport = false
                     }
                     .padding(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -442,14 +447,44 @@ private fun PublicLobbySection(state: OnlineUiState, actions: OnlineActions) {
                         )
                     )
                 }
-                if (expanded && !room.full) {
-                    if (room.hasPassword) {
+                if (expanded && confirmReport) {
+                    BasicText(
+                        stringResource(
+                            R.string.online_report_confirm,
+                            room.hostNickname.ifEmpty { room.name }
+                        ),
+                        style = LemonType.Body.copy(fontSize = 14.sp)
+                    )
+                    OnlineButtonRow {
+                        LemonButton(text = stringResource(android.R.string.cancel)) {
+                            confirmReport = false
+                        }
+                        LemonButton(text = stringResource(R.string.online_report_and_block)) {
+                            actions.onReportRoom(room.roomId, true)
+                            open = null
+                        }
+                        LemonButton(text = stringResource(R.string.online_report), primary = true) {
+                            actions.onReportRoom(room.roomId, false)
+                            open = null
+                        }
+                    }
+                } else if (expanded) {
+                    if (room.hasPassword && !room.full) {
                         FieldLabel(stringResource(R.string.online_password))
                         OnlineTextField(password, { password = it.take(64) })
                     }
                     OnlineButtonRow {
-                        LemonButton(text = stringResource(R.string.online_join), primary = true) {
-                            if (!state.busy) actions.onJoinPublic(room, password)
+                        LemonButton(text = stringResource(R.string.online_report)) {
+                            confirmReport = true
+                        }
+                        LemonButton(text = stringResource(R.string.online_block)) {
+                            actions.onBlockRoom(room.roomId)
+                            open = null
+                        }
+                        if (!room.full) {
+                            LemonButton(text = stringResource(R.string.online_join), primary = true) {
+                                if (!state.busy) actions.onJoinPublic(room, password)
+                            }
                         }
                     }
                 }
@@ -552,10 +587,18 @@ private fun PrivacySection(state: OnlineUiState, actions: OnlineActions) {
         if (state.friends.blocked.isNotEmpty()) {
             FieldLabel(stringResource(R.string.online_blocked))
             for (person in state.friends.blocked) {
-                PersonRow(person, OnlineIdentity.display(person.code)) {
+                val hidden = person.code.isEmpty()
+                PersonRow(
+                    person,
+                    if (hidden) {
+                        stringResource(R.string.online_blocked_from_lobby)
+                    } else {
+                        OnlineIdentity.display(person.code)
+                    }
+                ) {
                     OnlineButtonRow {
                         LemonButton(text = stringResource(R.string.online_unblock)) {
-                            actions.onUnblock(person.code)
+                            if (hidden) actions.onUnblockRef(person.ref) else actions.onUnblock(person.code)
                         }
                     }
                 }
