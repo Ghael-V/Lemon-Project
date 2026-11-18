@@ -16,6 +16,37 @@ namespace Network {
 
 constexpr u32 ConnectionTimeoutMs = 5000;
 
+namespace {
+// Lemon Online rooms are shared with Lemon, whose socket protocol numbers are IP=1, ICMP=2,
+// TCP=3, UDP=4; this core numbers them ICMP=1, TCP=2, UDP=3. A proxy socket drops packets whose
+// protocol doesn't match its own, so the wire carries Lemon's numbers and each side converts.
+u8 ProtocolToWire(Protocol protocol) {
+    switch (protocol) {
+    case Protocol::ICMP:
+        return 2;
+    case Protocol::TCP:
+        return 3;
+    case Protocol::UDP:
+        return 4;
+    default:
+        return 0;
+    }
+}
+
+Protocol ProtocolFromWire(u8 value) {
+    switch (value) {
+    case 2:
+        return Protocol::ICMP;
+    case 3:
+        return Protocol::TCP;
+    case 4:
+        return Protocol::UDP;
+    default:
+        return Protocol::Unspecified;
+    }
+}
+} // namespace
+
 class RoomMember::RoomMemberImpl {
 public:
     ENetHost* client = nullptr; ///< ENet network interface.
@@ -374,7 +405,7 @@ void RoomMember::RoomMemberImpl::HandleProxyPackets(const ENetEvent* event) {
 
     u8 protocol_type;
     packet.Read(protocol_type);
-    proxy_packet.protocol = static_cast<Protocol>(protocol_type);
+    proxy_packet.protocol = ProtocolFromWire(protocol_type);
 
     packet.Read(proxy_packet.broadcast);
     packet.Read(proxy_packet.data);
@@ -636,7 +667,7 @@ void RoomMember::SendProxyPacket(const ProxyPacket& proxy_packet) {
     packet.Write(proxy_packet.remote_endpoint.ip);
     packet.Write(proxy_packet.remote_endpoint.portno);
 
-    packet.Write(static_cast<u8>(proxy_packet.protocol));
+    packet.Write(ProtocolToWire(proxy_packet.protocol));
     packet.Write(proxy_packet.broadcast);
     packet.Write(proxy_packet.data);
 
