@@ -55,9 +55,6 @@ object OnlineSession {
     private const val MAX_NICKNAME_BYTES = 24
     private const val MAX_IDENTITY_ATTEMPTS = 5
 
-    /** Empty until the policy is published; the consent screen links it when set. */
-    const val PRIVACY_POLICY_URL = ""
-
     private val _room = MutableStateFlow<Room?>(null)
     val room: StateFlow<Room?> = _room
 

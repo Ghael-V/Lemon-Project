@@ -59,7 +59,7 @@ class OnlineFragment : Fragment() {
             onEnable = { OnlineSession.enable(it) },
             onDeleteData = { OnlineSession.deleteData() },
             onPrivacyPolicy = {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OnlineSession.PRIVACY_POLICY_URL)))
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.online_privacy_policy_url))))
             }
         )
         setContent {

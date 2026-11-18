@@ -198,12 +198,10 @@ private fun ConsentContent(state: OnlineUiState, actions: OnlineActions) {
         FieldLabel(stringResource(R.string.online_nickname))
         OnlineTextField(nickname, { nickname = it })
         OnlineButtonRow {
-            if (OnlineSession.PRIVACY_POLICY_URL.isNotEmpty()) {
-                IronLemonButton(
-                    text = stringResource(R.string.online_privacy_policy),
-                    onClick = actions.onPrivacyPolicy
-                )
-            }
+            IronLemonButton(
+                text = stringResource(R.string.online_privacy_policy),
+                onClick = actions.onPrivacyPolicy
+            )
             IronLemonButton(text = stringResource(R.string.online_enable_button), primary = true) {
                 if (!state.busy) actions.onEnable(nickname)
             }
