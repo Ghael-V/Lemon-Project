@@ -71,18 +71,18 @@ void BindCallbacks(JNIEnv* env, jclass clazz) {
     // The callbacks run on the RoomMember's network thread. The handles stay alive for the
     // app's lifetime: the RoomMember outlives every room.
     s_state_handle = member->BindOnStateChanged([](const Network::RoomMember::State& state) {
-        JNIEnv* env = Common::Android::GetEnvForThread();
-        env->CallStaticVoidMethod(s_class, s_on_state, static_cast<jint>(state));
+        JNIEnv* jni = Common::Android::GetEnvForThread();
+        jni->CallStaticVoidMethod(s_class, s_on_state, static_cast<jint>(state));
     });
     s_error_handle = member->BindOnError([](const Network::RoomMember::Error& error) {
         LOG_INFO(Network, "Online: room error {}", static_cast<int>(error));
-        JNIEnv* env = Common::Android::GetEnvForThread();
-        env->CallStaticVoidMethod(s_class, s_on_error, static_cast<jint>(error));
+        JNIEnv* jni = Common::Android::GetEnvForThread();
+        jni->CallStaticVoidMethod(s_class, s_on_error, static_cast<jint>(error));
     });
     s_info_handle = member->BindOnRoomInformationChanged([](const Network::RoomInformation&) {
         // Called right after the member list was rewritten, on the same thread: safe to read.
-        if (auto member = Member()) {
-            SendMembers(*member);
+        if (auto room_member = Member()) {
+            SendMembers(*room_member);
         }
     });
 }
