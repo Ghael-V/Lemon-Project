@@ -714,15 +714,6 @@ class SettingsFragmentPresenter(
             sl.add(HeaderSetting(R.string.nextendo_network))
             addNextendoSettings(sl)
 
-            sl.add(HeaderSetting(R.string.settings_local_multiplayer))
-            sl.add(
-                actionSetting(
-                    R.string.multiplayer,
-                    R.string.multiplayer_description,
-                    R.drawable.ic_two_users
-                ) { SettingsActions.openMultiplayer(it) }
-            )
-
             sl.add(HeaderSetting(R.string.settings_console))
         }
         sl.add(BooleanSetting.AIRPLANE_MODE.key)

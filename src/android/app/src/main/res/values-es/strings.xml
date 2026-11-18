@@ -1290,7 +1290,7 @@
     <string name="settings_console">Consola</string>
     <string name="settings_console_description">Idioma, región, hora, audio y perfiles de usuario</string>
     <string name="settings_online">En línea</string>
-    <string name="settings_online_description">Nextendo Network, multijugador local y modo avión</string>
+    <string name="settings_online_description">Nextendo Network y modo avión</string>
     <string name="settings_content">Contenido y datos</string>
     <string name="settings_content_description">Carpetas de juegos, claves y firmware, partidas guardadas y rutas</string>
     <string name="settings_lemon">Lemon</string>

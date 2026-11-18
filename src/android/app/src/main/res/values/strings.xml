@@ -1625,7 +1625,7 @@
     <string name="settings_console">Console</string>
     <string name="settings_console_description">Language, region, clock, audio and user profiles</string>
     <string name="settings_online">Online</string>
-    <string name="settings_online_description">Nextendo Network, local multiplayer and airplane mode</string>
+    <string name="settings_online_description">Nextendo Network and airplane mode</string>
     <string name="settings_content">Content and data</string>
     <string name="settings_content_description">Game folders, keys and firmware, saves and storage paths</string>
     <string name="settings_lemon">Lemon</string>

@@ -34,7 +34,6 @@ import java.io.File
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.ActivityMainBinding
-import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
@@ -381,11 +380,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         progressMessage = null
     }
 
-
-    fun displayMultiplayerDialog() {
-        val dialog = NetPlayDialog(this)
-        dialog.show()
-    }
 
     private fun checkKeys() {
         if (!NativeLibrary.areKeysPresent()) {
