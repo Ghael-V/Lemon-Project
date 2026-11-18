@@ -467,7 +467,16 @@ object OnlineSession {
         public: Boolean = false,
         name: String? = null
     ) = request(null, password, cheatsAllowed) {
-        it.createRoom(maxMembers, password, cheatsAllowed, titleId, titleName, public, name)
+        // Created from inside a game (in-game menu): the room is for that game.
+        it.createRoom(
+            maxMembers,
+            password,
+            cheatsAllowed,
+            titleId ?: playingTitleId,
+            titleName ?: playingTitleName,
+            public,
+            name
+        )
     }
 
     /** Loads the lobby; quietly keeps the old list when the service can't be reached. */

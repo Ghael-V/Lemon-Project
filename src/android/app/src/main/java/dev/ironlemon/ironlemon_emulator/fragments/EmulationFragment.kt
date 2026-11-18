@@ -392,6 +392,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_lemon_online -> {
+                    if (childFragmentManager.findFragmentByTag(OnlineDialogFragment.TAG) == null) {
+                        OnlineDialogFragment().show(childFragmentManager, OnlineDialogFragment.TAG)
+                    }
+                    true
+                }
+
                 R.id.menu_lemon_macro -> {
                     binding.macroOverlay.visibility =
                         if (binding.macroOverlay.visibility == View.VISIBLE) {
