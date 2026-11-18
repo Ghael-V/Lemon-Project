@@ -31,12 +31,32 @@ class OnlineException(val code: String, val httpStatus: Int, val retryAfterSecon
 
 /**
  * The Lemon Online service, docs/PROTOCOL.md in LemonNetwork. Blocking calls: use them off the UI
- * thread. Tickets are credentials: never log a response body.
+ * thread. With [auth] every request carries the identity headers. Tickets and secrets are
+ * credentials: never log a request or a response body.
  */
-class OnlineApi(private val baseUrl: String) {
+class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Identity? = null) {
     private val json = "application/json; charset=utf-8".toMediaType()
 
-    /** Phase 1: anonymous room. Every field is optional on the service side. */
+    /** Tells the service about this identity. Same code and secret again is fine; 409 code_taken when not. */
+    fun register(identity: OnlineIdentity.Identity, nickname: String) {
+        val body = JSONObject()
+            .put("code", identity.code)
+            .put("secret", identity.secret)
+            .put("nickname", nickname)
+            .put("client", CLIENT)
+            .put("app_version", BuildConfig.VERSION_NAME)
+        send("POST", "/register", body)
+    }
+
+    fun updateNickname(nickname: String) {
+        send("PATCH", "/me", JSONObject().put("nickname", nickname))
+    }
+
+    /** Erases the identity, its friends and blocks, and closes the rooms it created. */
+    fun deleteMe() {
+        send("DELETE", "/me", null)
+    }
+
     fun createRoom(
         maxMembers: Int,
         password: String?,
@@ -48,23 +68,26 @@ class OnlineApi(private val baseUrl: String) {
         if (!password.isNullOrEmpty()) body.put("password", password)
         if (!titleId.isNullOrEmpty()) body.put("title_id", titleId)
         if (!titleName.isNullOrEmpty()) body.put("title_name", titleName)
-        return post("/rooms", body).toTicket()
+        return send("POST", "/rooms", body).toTicket()
     }
 
     fun joinRoom(code: String, password: String?): RoomTicket {
         val body = JSONObject().put("room_code", code.trim().uppercase())
         if (!password.isNullOrEmpty()) body.put("password", password)
-        return post("/rooms/join", body).toTicket()
+        return send("POST", "/rooms/join", body).toTicket()
     }
 
-    private fun post(path: String, body: JSONObject): JSONObject {
-        val request = Request.Builder()
+    private fun send(method: String, path: String, body: JSONObject?): JSONObject {
+        val builder = Request.Builder()
             .url(baseUrl.trimEnd('/') + path)
-            .header("X-Lemon-Client", "lemon/${BuildConfig.VERSION_NAME}")
-            .post(body.toString().toRequestBody(json))
-            .build()
+            .header("X-Lemon-Client", "$CLIENT/${BuildConfig.VERSION_NAME}")
+            .method(method, body?.toString()?.toRequestBody(json))
+        auth?.let {
+            builder.header("X-Lemon-Code", it.code)
+            builder.header("X-Lemon-Secret", it.secret)
+        }
         val response = try {
-            client.newCall(request).execute()
+            client.newCall(builder.build()).execute()
         } catch (e: IOException) {
             throw OnlineException("network", 0)
         }
@@ -76,7 +99,7 @@ class OnlineApi(private val baseUrl: String) {
                 }.getOrDefault("http_${it.code}")
                 throw OnlineException(code, it.code, it.header("Retry-After")?.toIntOrNull())
             }
-            return JSONObject(text)
+            return if (text.isBlank()) JSONObject() else JSONObject(text)
         }
     }
 
@@ -92,6 +115,8 @@ class OnlineApi(private val baseUrl: String) {
     )
 
     companion object {
+        private const val CLIENT = "lemon"
+
         private val client = OkHttpClient.Builder()
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)

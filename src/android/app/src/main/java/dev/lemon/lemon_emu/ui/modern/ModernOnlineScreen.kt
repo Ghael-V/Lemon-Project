@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.lemon.lemon_emu.R
+import dev.lemon.lemon_emu.online.OnlineIdentity
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
 
@@ -54,7 +55,10 @@ class OnlineActions(
     val onLeave: () -> Unit,
     val onCopyCode: (String) -> Unit,
     val onNickname: (String) -> Unit,
-    val onServer: (String) -> Unit
+    val onServer: (String) -> Unit,
+    val onEnable: (nickname: String) -> Unit,
+    val onDeleteData: () -> Unit,
+    val onPrivacyPolicy: () -> Unit
 )
 
 class OnlineUiState(
@@ -64,7 +68,9 @@ class OnlineUiState(
     val busy: Boolean,
     val notice: OnlineSession.Notice?,
     val nickname: String,
-    val server: String
+    val server: String,
+    val enabled: Boolean,
+    val friendCode: String?
 )
 
 /**
@@ -85,7 +91,9 @@ fun ModernOnlineScreen(state: OnlineUiState, actions: OnlineActions) {
             Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 state.notice?.let { NoticeText(it) }
                 val room = state.room
-                if (room == null) {
+                if (room == null && !state.enabled) {
+                    ConsentContent(state, actions)
+                } else if (room == null) {
                     LobbyContent(state, actions)
                 } else {
                     RoomContent(room, state, actions)
@@ -107,6 +115,21 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
     var server by remember { mutableStateOf(state.server) }
 
     BasicText(stringResource(R.string.online_intro), style = LemonType.Body.copy(fontSize = 15.sp))
+
+    state.friendCode?.let { friendCode ->
+        Section(stringResource(R.string.online_friend_code)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                BasicText(
+                    OnlineIdentity.display(friendCode),
+                    style = LemonType.Display.copy(fontSize = 26.sp, letterSpacing = 2.sp),
+                    modifier = Modifier.weight(1f)
+                )
+                LemonIconButton(R.drawable.ic_share, stringResource(R.string.online_copy_friend_code)) {
+                    actions.onCopyCode(OnlineIdentity.display(friendCode))
+                }
+            }
+        }
+    }
 
     Section(stringResource(R.string.online_nickname)) {
         OnlineTextField(nickname, {
@@ -152,12 +175,66 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
         BasicText(stringResource(R.string.online_connecting), style = LemonType.Button)
     }
 
-    // Testing stage: the service runs on a PC in the same network until it has its own address.
+    // Testing stage: the address of the service can still be changed by hand.
     Section(stringResource(R.string.online_server)) {
         OnlineTextField(server, {
             server = it
             actions.onServer(it)
         })
+    }
+
+    DeleteDataSection(state, actions)
+}
+
+/** First run: what Lemon Online keeps, and nothing goes to the service until the button. */
+@Composable
+private fun ConsentContent(state: OnlineUiState, actions: OnlineActions) {
+    var nickname by remember { mutableStateOf(state.nickname) }
+
+    BasicText(stringResource(R.string.online_intro), style = LemonType.Body.copy(fontSize = 15.sp))
+
+    Section(stringResource(R.string.online_enable_title)) {
+        BasicText(stringResource(R.string.online_enable_body), style = LemonType.Body.copy(fontSize = 15.sp))
+        FieldLabel(stringResource(R.string.online_nickname))
+        OnlineTextField(nickname, { nickname = it })
+        OnlineButtonRow {
+            if (OnlineSession.PRIVACY_POLICY_URL.isNotEmpty()) {
+                LemonButton(
+                    text = stringResource(R.string.online_privacy_policy),
+                    onClick = actions.onPrivacyPolicy
+                )
+            }
+            LemonButton(text = stringResource(R.string.online_enable_button), primary = true) {
+                if (!state.busy) actions.onEnable(nickname)
+            }
+        }
+        if (state.busy) {
+            BasicText(stringResource(R.string.online_enable_busy), style = LemonType.Button)
+        }
+    }
+}
+
+/** The privacy policy's promise: everything the service keeps can be erased from here. */
+@Composable
+private fun DeleteDataSection(state: OnlineUiState, actions: OnlineActions) {
+    var confirming by remember { mutableStateOf(false) }
+    Section(stringResource(R.string.online_your_data)) {
+        if (!confirming) {
+            OnlineButtonRow {
+                LemonButton(text = stringResource(R.string.online_delete_data)) { confirming = true }
+            }
+        } else {
+            BasicText(stringResource(R.string.online_delete_data_confirm), style = LemonType.Body)
+            OnlineButtonRow {
+                LemonButton(text = stringResource(android.R.string.cancel)) { confirming = false }
+                LemonButton(text = stringResource(R.string.online_delete_data_yes), primary = true) {
+                    if (!state.busy) {
+                        confirming = false
+                        actions.onDeleteData()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -249,6 +326,8 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             "wrong_password" -> stringResource(R.string.online_error_wrong_password)
             "rate_limited" -> stringResource(R.string.online_error_rate_limited)
             "no_capacity" -> stringResource(R.string.online_error_no_capacity)
+            "unauthorized" -> stringResource(R.string.online_error_unauthorized)
+            "identity", "code_taken" -> stringResource(R.string.online_error_identity)
             else -> stringResource(R.string.online_error_service, notice.code)
         }
         is OnlineSession.Notice.Connection -> when (notice.error) {
