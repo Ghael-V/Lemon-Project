@@ -29,7 +29,7 @@ class OnlineDialogFragment : DialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View = onlineView { dismiss() }
+    ): View = onlineView(inGame = true) { dismiss() }
 
     override fun onStart() {
         super.onStart()

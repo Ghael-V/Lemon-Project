@@ -837,6 +837,8 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             "accepted", "already_friends" -> stringResource(R.string.online_friend_now_friends)
             "invited" -> stringResource(R.string.online_invite_sent)
             "reported" -> stringResource(R.string.online_reported)
+            "open_game" -> stringResource(R.string.online_invite_open_game, notice.detail)
+            "game_missing" -> stringResource(R.string.online_invite_game_missing, notice.detail)
             else -> stringResource(R.string.online_friend_request_sent)
         }
     }

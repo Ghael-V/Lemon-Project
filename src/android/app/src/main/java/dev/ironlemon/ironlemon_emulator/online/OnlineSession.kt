@@ -52,7 +52,7 @@ object OnlineSession {
         data class Connection(val error: OnlineRoom.Error) : Notice
 
         /** Good news, shown without the error colour: "sent", "accepted", "already_friends". */
-        data class Info(val code: String) : Notice
+        data class Info(val code: String, val detail: String = "") : Notice
     }
 
     /** The two privacy switches; the service applies them to what friends see. */
@@ -366,11 +366,23 @@ object OnlineSession {
         }
     }
 
-    /** Leaves the room we are in, if any, and goes into the friend's. */
-    fun acceptInvite(invite: OnlineInvite) {
+    /** The program id (hex) of the game running now, if any. */
+    val playingTitle: String?
+        get() = playingTitleId
+
+    /** Shows a piece of good news, such as which game to open now. */
+    fun inform(code: String, detail: String = "") {
+        _notice.value = Notice.Info(code, detail)
+    }
+
+    /**
+     * Leaves the room we are in, if any, and goes into the friend's. [onJoined] runs on the main
+     * thread once the service let us in (the relay connection is still being made).
+     */
+    fun acceptInvite(invite: OnlineInvite, onJoined: (() -> Unit)? = null) {
         _invites.value = _invites.value.filterNot { it.id == invite.id }
         val left = _room.value
-        request(null, null, false) { api ->
+        request(null, null, false, then = onJoined) { api ->
             val ticket = api.acceptInvite(invite.id)
             if (left != null) {
                 OnlineRoom.leave()
@@ -669,6 +681,7 @@ object OnlineSession {
         password: String?,
         cheatsIfUnsaid: Boolean,
         own: Boolean = false,
+        then: (() -> Unit)? = null,
         call: (OnlineApi) -> RoomTicket
     ) {
         if (_busy.value || !_enabled.value) return
@@ -681,6 +694,7 @@ object OnlineSession {
                 joinCode = ticket.roomCode
                 joinPassword = password
                 connect(ticket, cheatsIfUnsaid, own)
+                then?.let { Handler(Looper.getMainLooper()).post(it) }
             } catch (e: OnlineException) {
                 Log.warning("[Online] service answered ${e.code} (${e.httpStatus})")
                 _notice.value = Notice.Service(e.code)

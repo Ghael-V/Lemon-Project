@@ -1635,6 +1635,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="online_invites">Invitations</string>
     <string name="online_invite_from">%1$s invites you to play %2$s</string>
     <string name="online_invite_from_room">%1$s invites you to a room</string>
+    <string name="online_invite_open_game">You are in the room. Close this game and open %1$s to play together.</string>
+    <string name="online_invite_game_missing">You are in the room, but %1$s is not in your library: add it to play together.</string>
     <string name="online_invite_friends">Invite friends</string>
     <string name="online_invite">Invite</string>
     <string name="online_invited">Invited</string>
