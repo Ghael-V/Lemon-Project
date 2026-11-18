@@ -1609,7 +1609,7 @@
 
     <!-- Lemon Online -->
     <string name="online_title">Lemon Online</string>
-    <string name="online_intro">Juega por internet con tus amigos a los juegos con modo inalámbrico local. Crea una sala y comparte su código, o entra en una con un código. Después abre el mismo juego en todas las consolas y usa su modo inalámbrico local.</string>
+    <string name="online_intro">Juega por internet con tus amigos a cualquier juego que tenga modo inalámbrico local. Crea una sala y comparte su código, o entra en una con un código: Lemon Online lleva el modo inalámbrico local del juego por internet, como si estuvierais en la misma habitación.</string>
     <string name="online_nickname">Tu nombre en las salas</string>
     <string name="online_create_room">Crear una sala</string>
     <string name="online_players">Jugadores</string>
@@ -1623,7 +1623,7 @@
     <string name="online_copy_code">Copiar el código</string>
     <string name="online_members">En la sala: %1$d de %2$d</string>
     <string name="online_not_playing">Sin jugar</string>
-    <string name="online_room_hint">Abre el mismo juego en todas las consolas y entra en su modo inalámbrico local (en Mario Kart 8 Deluxe: Juego inalámbrico). Sigues en la sala entre un juego y otro.</string>
+    <string name="online_room_hint">Abre el mismo juego en todas las consolas y elige su modo inalámbrico local (en Mario Kart 8 Deluxe: Juego inalámbrico, no En línea). El juego encontrará a los demás por internet. Sigues en la sala entre un juego y otro.</string>
     <string name="online_leave">Salir de la sala</string>
     <string name="online_error_network">No se puede conectar con Lemon Online. Revisa tu conexión.</string>
     <string name="online_error_room_not_found">No hay ninguna sala con ese código.</string>

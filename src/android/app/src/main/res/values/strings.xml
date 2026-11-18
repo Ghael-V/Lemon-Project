@@ -2272,7 +2272,7 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
 
     <!-- Lemon Online -->
     <string name="online_title">Lemon Online</string>
-    <string name="online_intro">Play local wireless games with friends over the internet. Create a room and share its code, or join one with a code. Then start the same game on every console and use its local wireless mode.</string>
+    <string name="online_intro">Play with friends over the internet in any game that has local wireless play. Create a room and share its code, or join one with a code: Lemon Online carries the game's local wireless mode over the internet, as if you were all in the same room.</string>
     <string name="online_nickname">Your name in rooms</string>
     <string name="online_create_room">Create a room</string>
     <string name="online_players">Players</string>
@@ -2286,7 +2286,7 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="online_copy_code">Copy the code</string>
     <string name="online_members">In the room: %1$d of %2$d</string>
     <string name="online_not_playing">Not playing</string>
-    <string name="online_room_hint">Start the same game on every console and open its local wireless mode (in Mario Kart 8 Deluxe: Wireless Play). You stay in the room between games.</string>
+    <string name="online_room_hint">Start the same game on every console and choose its local wireless mode (in Mario Kart 8 Deluxe: Wireless Play, not Online). The game will find the others over the internet. You stay in the room between games.</string>
     <string name="online_leave">Leave the room</string>
     <string name="online_error_network">Lemon Online can\'t be reached. Check your connection.</string>
     <string name="online_error_room_not_found">No room has that code.</string>
