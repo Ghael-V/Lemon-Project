@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.lemon.lemon_emu.R
+import dev.lemon.lemon_emu.online.FriendLists
+import dev.lemon.lemon_emu.online.OnlineFriend
 import dev.lemon.lemon_emu.online.OnlineIdentity
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
@@ -58,7 +60,14 @@ class OnlineActions(
     val onServer: (String) -> Unit,
     val onEnable: (nickname: String) -> Unit,
     val onDeleteData: () -> Unit,
-    val onPrivacyPolicy: () -> Unit
+    val onPrivacyPolicy: () -> Unit,
+    val onAddFriend: (code: String) -> Unit,
+    val onAnswerRequest: (code: String, accept: Boolean) -> Unit,
+    val onRemoveFriend: (code: String) -> Unit,
+    val onBlock: (code: String) -> Unit,
+    val onUnblock: (code: String) -> Unit,
+    val onAppearOffline: (Boolean) -> Unit,
+    val onHideGame: (Boolean) -> Unit
 )
 
 class OnlineUiState(
@@ -70,7 +79,9 @@ class OnlineUiState(
     val nickname: String,
     val server: String,
     val enabled: Boolean,
-    val friendCode: String?
+    val friendCode: String?,
+    val friends: FriendLists,
+    val privacy: OnlineSession.Privacy
 )
 
 /**
@@ -138,6 +149,8 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
         })
     }
 
+    FriendsSection(state, actions)
+
     Section(stringResource(R.string.online_create_room)) {
         FieldLabel(stringResource(R.string.online_players))
         PlayerCountPicker(players) { players = it }
@@ -183,7 +196,173 @@ private fun LobbyContent(state: OnlineUiState, actions: OnlineActions) {
         })
     }
 
+    PrivacySection(state, actions)
+
     DeleteDataSection(state, actions)
+}
+
+/** Requests to answer, friends with what they are doing, requests we sent, and "add a friend". */
+@Composable
+private fun FriendsSection(state: OnlineUiState, actions: OnlineActions) {
+    val lists = state.friends
+    var code by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf<String?>(null) }
+
+    Section(stringResource(R.string.online_friends, lists.friends.size)) {
+        for (request in lists.incoming) {
+            PersonRow(request, stringResource(R.string.online_friend_wants_you)) {
+                OnlineButtonRow {
+                    LemonButton(text = stringResource(R.string.online_decline)) {
+                        actions.onAnswerRequest(request.code, false)
+                    }
+                    LemonButton(text = stringResource(R.string.online_accept), primary = true) {
+                        actions.onAnswerRequest(request.code, true)
+                    }
+                }
+            }
+        }
+
+        if (lists.friends.isEmpty() && lists.incoming.isEmpty()) {
+            BasicText(
+                stringResource(R.string.online_no_friends),
+                style = LemonType.Body.copy(fontSize = 14.sp, color = LemonColors.TextMuted)
+            )
+        }
+        for (friend in lists.friends.sortedWith(compareBy({ stateOrder(it.state) }, { it.nickname }))) {
+            val open = expanded == friend.code
+            PersonRow(friend, presenceText(friend), onClick = {
+                expanded = if (open) null else friend.code
+            }) {
+                if (open) {
+                    OnlineButtonRow {
+                        LemonButton(text = stringResource(R.string.online_block)) {
+                            actions.onBlock(friend.code)
+                        }
+                        LemonButton(text = stringResource(R.string.online_remove_friend)) {
+                            actions.onRemoveFriend(friend.code)
+                        }
+                    }
+                }
+            }
+        }
+
+        for (sent in lists.outgoing) {
+            PersonRow(sent, stringResource(R.string.online_request_pending)) {
+                OnlineButtonRow {
+                    LemonButton(text = stringResource(R.string.online_cancel_request)) {
+                        actions.onRemoveFriend(sent.code)
+                    }
+                }
+            }
+        }
+
+        FieldLabel(stringResource(R.string.online_add_friend))
+        OnlineTextField(code, { value -> code = value.filter { it.isDigit() || it == '-' || it.isLetter() }.take(20) })
+        OnlineButtonRow {
+            LemonButton(text = stringResource(R.string.online_send_request), primary = true) {
+                if (code.isNotBlank()) {
+                    actions.onAddFriend(code)
+                    code = ""
+                }
+            }
+        }
+    }
+}
+
+/** What friends see of us, and the people we blocked. */
+@Composable
+private fun PrivacySection(state: OnlineUiState, actions: OnlineActions) {
+    Section(stringResource(R.string.online_privacy)) {
+        OnlineSwitchRow(
+            stringResource(R.string.online_appear_offline),
+            stringResource(R.string.online_appear_offline_hint),
+            state.privacy.appearOffline,
+            actions.onAppearOffline
+        )
+        OnlineSwitchRow(
+            stringResource(R.string.online_hide_game),
+            stringResource(R.string.online_hide_game_hint),
+            state.privacy.hideGame,
+            actions.onHideGame
+        )
+        if (state.friends.blocked.isNotEmpty()) {
+            FieldLabel(stringResource(R.string.online_blocked))
+            for (person in state.friends.blocked) {
+                PersonRow(person, OnlineIdentity.display(person.code)) {
+                    OnlineButtonRow {
+                        LemonButton(text = stringResource(R.string.online_unblock)) {
+                            actions.onUnblock(person.code)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun stateOrder(state: String) = when (state) {
+    "playing" -> 0
+    "online" -> 1
+    else -> 2
+}
+
+@Composable
+private fun presenceText(friend: OnlineFriend): String {
+    val base = when (friend.state) {
+        "playing" -> if (friend.titleName.isNotEmpty()) {
+            stringResource(R.string.online_playing_title, friend.titleName)
+        } else {
+            stringResource(R.string.online_playing)
+        }
+        "online" -> stringResource(R.string.online_state_online)
+        else -> stringResource(R.string.online_state_offline)
+    }
+    return if (friend.roomId.isNotEmpty()) base + " · " + stringResource(R.string.online_in_a_room) else base
+}
+
+/** A person: presence dot, nickname, one line under it, and whatever [below] adds. */
+@Composable
+private fun PersonRow(
+    person: OnlineFriend,
+    detail: String,
+    onClick: (() -> Unit)? = null,
+    below: @Composable () -> Unit = {}
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(10.dp).clip(CircleShape).background(
+                    when (person.state) {
+                        "playing" -> LemonColors.Lemon
+                        "online" -> LemonColors.Text
+                        else -> LemonColors.TextMuted.copy(alpha = 0.5f)
+                    }
+                )
+            )
+            Column(Modifier.weight(1f)) {
+                BasicText(
+                    person.nickname.ifEmpty { OnlineIdentity.display(person.code) },
+                    style = LemonType.Button,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                BasicText(
+                    detail,
+                    style = LemonType.Body.copy(fontSize = 13.sp, color = LemonColors.TextMuted),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        below()
+    }
 }
 
 /** First run: what Lemon Online keeps, and nothing goes to the service until the button. */
@@ -325,6 +504,11 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             "rate_limited" -> stringResource(R.string.online_error_rate_limited)
             "no_capacity" -> stringResource(R.string.online_error_no_capacity)
             "unauthorized" -> stringResource(R.string.online_error_unauthorized)
+            "bad_friend_code" -> stringResource(R.string.online_error_bad_friend_code)
+            "own_friend_code" -> stringResource(R.string.online_error_own_friend_code)
+            "user_not_found" -> stringResource(R.string.online_error_user_not_found)
+            "blocked" -> stringResource(R.string.online_error_blocked)
+            "friend_limit" -> stringResource(R.string.online_error_friend_limit)
             "identity", "code_taken" -> stringResource(R.string.online_error_identity)
             else -> stringResource(R.string.online_error_service, notice.code)
         }
@@ -338,7 +522,12 @@ private fun NoticeText(notice: OnlineSession.Notice) {
             OnlineRoom.Error.WrongVersion -> stringResource(R.string.online_error_version)
             else -> stringResource(R.string.online_error_service, notice.error.name)
         }
+        is OnlineSession.Notice.Info -> when (notice.code) {
+            "accepted", "already_friends" -> stringResource(R.string.online_friend_now_friends)
+            else -> stringResource(R.string.online_friend_request_sent)
+        }
     }
+    val good = notice is OnlineSession.Notice.Info
     val shape = RoundedCornerShape(18.dp)
     BasicText(
         text,
@@ -346,8 +535,8 @@ private fun NoticeText(notice: OnlineSession.Notice) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(LemonColors.Red.copy(alpha = 0.22f))
-            .border(1.dp, LemonColors.Red.copy(alpha = 0.6f), shape)
+            .background((if (good) LemonColors.Lemon else LemonColors.Red).copy(alpha = 0.18f))
+            .border(1.dp, (if (good) LemonColors.Lemon else LemonColors.Red).copy(alpha = 0.6f), shape)
             .padding(horizontal = 18.dp, vertical = 12.dp)
     )
 }

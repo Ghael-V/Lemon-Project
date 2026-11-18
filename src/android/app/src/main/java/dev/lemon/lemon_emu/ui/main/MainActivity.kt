@@ -5,6 +5,7 @@
 package dev.lemon.lemon_emu.ui.main
 
 import android.content.Intent
+import dev.lemon.lemon_emu.online.OnlineSession
 import dev.lemon.lemon_emu.utils.GameLaunchUtils
 import dev.lemon.lemon_emu.BuildConfig
 import dev.lemon.lemon_emu.HomeNavigationDirections
@@ -92,6 +93,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        // Lemon Online: friends see us online while the app runs (only once it is turned on).
+        OnlineSession.start()
         splashScreen.setKeepOnScreenCondition { !DirectoryInitialization.areDirectoriesReady }
 
         ThemeHelper.ThemeChangeListener(this)

@@ -1187,6 +1187,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
                 updateScreenLayout()
 
+                game?.let { OnlineSession.setPlaying(it.programIdHex, it.title) }
                 emulationState.run(emulationActivity!!.isActivityRecreated)
             }
         }
@@ -2182,6 +2183,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         if (toast != null && shownMs > 0) {
             quickStateToastHandler.postDelayed({ toast.cancel() }, shownMs)
         }
+    }
+
+    override fun onDestroy() {
+        OnlineSession.setPlaying(null, null)
+        super.onDestroy()
     }
 
     override fun onDestroyView() {
