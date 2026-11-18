@@ -150,6 +150,7 @@ class ModernGamesFragment : Fragment() {
             }
         },
         onSettings = { navigateFromLibrary(R.id.homeSettingsFragment) },
+        onOnline = { navigateFromLibrary(R.id.onlineFragment) },
         onStatistics = { navigateFromLibrary(R.id.statisticsFragment) },
         onAddGames = {
             (requireActivity() as MainActivity).getGamesDirectory

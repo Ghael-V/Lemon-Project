@@ -13,6 +13,7 @@ add_library(yuzu-android SHARED
     android_config.cpp
     android_config.h
     native_input.cpp
+    online_room.cpp
 )
 
 set_property(TARGET yuzu-android PROPERTY IMPORTED_LOCATION ${FFmpeg_LIBRARY_DIR})

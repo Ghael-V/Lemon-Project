@@ -10,6 +10,11 @@
         android:label="PlatformGamesFragment" />
 
     <fragment
+        android:id="@+id/onlineFragment"
+        android:name="dev.ironlemon.ironlemon_emulator.fragments.OnlineFragment"
+        android:label="OnlineFragment" />
+
+    <fragment
         android:id="@+id/homeSettingsFragment"
         android:name="dev.ironlemon.ironlemon_emulator.fragments.HomeSettingsFragment"
         android:label="HomeSettingsFragment" >

@@ -1034,4 +1034,36 @@
     <string name="frame_generation_switch">Generar fotogramas</string>
     <string name="frame_generation_off">Desactivada</string>
     <string name="frame_generation_auto_summary">Auto · %1$d FPS</string>
+
+    <!-- Lemon Online -->
+    <string name="online_title">Lemon Online</string>
+    <string name="online_intro">Juega por internet con tus amigos a los juegos con modo inalámbrico local. Crea una sala y comparte su código, o entra en una con un código. Después abre el mismo juego en todas las consolas y usa su modo inalámbrico local.</string>
+    <string name="online_nickname">Tu nombre en las salas</string>
+    <string name="online_create_room">Crear una sala</string>
+    <string name="online_players">Jugadores</string>
+    <string name="online_password_optional">Contraseña (opcional)</string>
+    <string name="online_join_with_code">Entrar con un código</string>
+    <string name="online_room_code">Código de la sala</string>
+    <string name="online_join">Entrar</string>
+    <string name="online_connecting">Conectando…</string>
+    <string name="online_connected">Conectado</string>
+    <string name="online_server">Servidor (pruebas)</string>
+    <string name="online_copy_code">Copiar el código</string>
+    <string name="online_members">En la sala: %1$d de %2$d</string>
+    <string name="online_not_playing">Sin jugar</string>
+    <string name="online_room_hint">Abre el mismo juego en todas las consolas y entra en su modo inalámbrico local (en Mario Kart 8 Deluxe: Juego inalámbrico). Sigues en la sala entre un juego y otro.</string>
+    <string name="online_leave">Salir de la sala</string>
+    <string name="online_error_network">No se puede conectar con Lemon Online. Revisa tu conexión.</string>
+    <string name="online_error_room_not_found">No hay ninguna sala con ese código.</string>
+    <string name="online_error_wrong_password">Contraseña incorrecta.</string>
+    <string name="online_error_rate_limited">Demasiados intentos. Espera un momento y vuelve a probar.</string>
+    <string name="online_error_no_capacity">Lemon Online está lleno ahora mismo. Prueba dentro de unos minutos.</string>
+    <string name="online_error_service">Lemon Online ha respondido: %1$s</string>
+    <string name="online_error_could_not_connect">La sala no responde. Vuelve a intentarlo.</string>
+    <string name="online_error_room_full">La sala está llena.</string>
+    <string name="online_error_lost_connection">Se ha perdido la conexión con la sala.</string>
+    <string name="online_error_removed">Te han sacado de la sala.</string>
+    <string name="online_error_ticket">La sala ha rechazado la entrada. Vuelve a entrar.</string>
+    <string name="online_error_version">Esta sala necesita otra versión de la app.</string>
+
 </resources>

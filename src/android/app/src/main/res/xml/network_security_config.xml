@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lemon Online testing stage: the service runs on the developer's PC over plain HTTP until it
+     has its own address with TLS. Only that host may use cleartext; everything else stays HTTPS.
+     Remove the domain-config before any public release. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.17</domain>
+    </domain-config>
+</network-security-config>
