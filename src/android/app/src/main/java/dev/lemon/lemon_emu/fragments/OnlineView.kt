@@ -15,7 +15,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
+import dev.lemon.lemon_emu.HomeNavigationDirections
 import dev.lemon.lemon_emu.R
+import dev.lemon.lemon_emu.model.GamesViewModel
+import dev.lemon.lemon_emu.online.OnlineInvite
 import dev.lemon.lemon_emu.online.OnlineRoom
 import dev.lemon.lemon_emu.online.OnlineSession
 import dev.lemon.lemon_emu.ui.modern.ModernOnlineScreen
@@ -24,9 +29,10 @@ import dev.lemon.lemon_emu.ui.modern.OnlineUiState
 
 /**
  * The Lemon Online screen, wired to [OnlineSession]. Shared by the library's Online screen
- * ([OnlineFragment]) and the in-game one ([OnlineDialogFragment]); [onBack] closes whichever it is.
+ * ([OnlineFragment]) and the in-game one ([OnlineDialogFragment], [inGame]); [onBack] closes whichever
+ * it is.
  */
-internal fun Fragment.onlineView(onBack: () -> Unit): ComposeView =
+internal fun Fragment.onlineView(inGame: Boolean = false, onBack: () -> Unit): ComposeView =
     ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val actions = OnlineActions(
@@ -63,7 +69,7 @@ internal fun Fragment.onlineView(onBack: () -> Unit): ComposeView =
             onAppearOffline = { OnlineSession.setAppearOffline(it) },
             onHideGame = { OnlineSession.setHideGame(it) },
             onInvite = { OnlineSession.inviteFriend(it) },
-            onAcceptInvite = { OnlineSession.acceptInvite(it) },
+            onAcceptInvite = { acceptInvite(it, inGame) },
             onDeclineInvite = { OnlineSession.declineInvite(it) },
             onRefreshLobby = { OnlineSession.refreshLobby() },
             onJoinPublic = { room, password ->
@@ -105,6 +111,33 @@ internal fun Fragment.onlineView(onBack: () -> Unit): ComposeView =
             )
         }
     }
+
+/**
+ * Accepting an invite also opens its game. From the library the game starts once the service let us
+ * into the room; in a game already, or without the game installed, the user is told which one to open.
+ */
+private fun Fragment.acceptInvite(invite: OnlineInvite, inGame: Boolean) {
+    val titleId = invite.titleId
+    if (titleId.isEmpty() || OnlineSession.playingTitle.equals(titleId, ignoreCase = true)) {
+        OnlineSession.acceptInvite(invite)
+        return
+    }
+    if (inGame) {
+        OnlineSession.acceptInvite(invite) { OnlineSession.inform("open_game", invite.titleName) }
+        return
+    }
+    val game = ViewModelProvider(requireActivity())[GamesViewModel::class.java].games.value
+        .firstOrNull { it.programIdHex.equals(titleId, ignoreCase = true) }
+    if (game == null) {
+        OnlineSession.acceptInvite(invite) { OnlineSession.inform("game_missing", invite.titleName) }
+        return
+    }
+    OnlineSession.acceptInvite(invite) {
+        if (isAdded) {
+            findNavController().navigate(HomeNavigationDirections.actionGlobalEmulationActivity(game, true))
+        }
+    }
+}
 
 private fun Fragment.copyRoomCode(code: String) {
     val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

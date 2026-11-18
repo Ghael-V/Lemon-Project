@@ -65,7 +65,9 @@ data class OnlineInvite(
     val fromCode: String,
     val fromNickname: String,
     val roomId: String,
-    val titleName: String
+    val titleName: String,
+    /** The game's program id in hex, when the room is for one game. */
+    val titleId: String = ""
 )
 
 /** An error the service answered with ({"error":{"code":...}}), or "network" when it couldn't be reached. */
@@ -297,7 +299,8 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
             fromCode = optString("from_code"),
             fromNickname = optString("from_nickname"),
             roomId = optString("room_id"),
-            titleName = optString("title_name")
+            titleName = optString("title_name"),
+            titleId = optString("title_id")
         )
 
         private val client = OkHttpClient.Builder()

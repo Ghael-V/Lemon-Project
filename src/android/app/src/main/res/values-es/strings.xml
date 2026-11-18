@@ -1674,6 +1674,8 @@
     <string name="online_invites">Invitaciones</string>
     <string name="online_invite_from">%1$s te invita a jugar a %2$s</string>
     <string name="online_invite_from_room">%1$s te invita a una sala</string>
+    <string name="online_invite_open_game">Ya estás en la sala. Cierra este juego y abre %1$s para jugar juntos.</string>
+    <string name="online_invite_game_missing">Ya estás en la sala, pero %1$s no está en tu biblioteca: añádelo para jugar juntos.</string>
     <string name="online_invite_friends">Invitar amigos</string>
     <string name="online_invite">Invitar</string>
     <string name="online_invited">Invitado</string>
