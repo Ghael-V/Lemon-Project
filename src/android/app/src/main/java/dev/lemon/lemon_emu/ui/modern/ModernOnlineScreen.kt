@@ -107,11 +107,17 @@ class OnlineUiState(
  */
 @Composable
 fun ModernOnlineScreen(state: OnlineUiState, actions: OnlineActions) {
+    val scroll = rememberScrollState()
+    // Notices are drawn at the top: bring them into view, or an error after pressing a button
+    // further down (create, join) would go unseen.
+    LaunchedEffect(state.notice) {
+        if (state.notice != null) scroll.animateScrollTo(0)
+    }
     OnlinePage(stringResource(R.string.online_title), actions.onBack) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
