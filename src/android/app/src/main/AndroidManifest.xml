@@ -54,7 +54,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
         android:fullBackupContent="@xml/data_extraction_rules"
         android:dataExtractionRules="@xml/data_extraction_rules_api_31"
         tools:targetApi="33"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <meta-data android:name="com.samsung.android.gamehub" android:value="true" />
         <meta-data android:name="com.xiaomi.gamecenter.sdk.service.enabled" android:value="true" />

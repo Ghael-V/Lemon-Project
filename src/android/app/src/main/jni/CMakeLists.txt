@@ -17,6 +17,7 @@ add_library(lemon-android SHARED
     android_config.cpp
     android_config.h
     native_input.cpp
+    online_room.cpp
     native_post_processing.cpp
 )
 

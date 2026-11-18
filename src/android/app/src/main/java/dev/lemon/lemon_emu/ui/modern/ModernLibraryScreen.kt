@@ -83,6 +83,7 @@ class LibraryActions(
     val onDetails: (Game) -> Unit,
     val onToggleFavorite: (Game) -> Unit,
     val onSettings: () -> Unit,
+    val onOnline: () -> Unit,
     val onStatistics: () -> Unit,
     val onAddGames: () -> Unit,
     val onManageFolders: () -> Unit,
@@ -457,6 +458,7 @@ internal fun TopBar(
         LemonIconButton(R.drawable.ic_view_grid, stringResource(R.string.library_view), onClick = onViews)
         LemonIconButton(R.drawable.ic_filter, stringResource(R.string.statistics_sort_by), onClick = onSort)
         LemonIconButton(R.drawable.ic_bar_chart, stringResource(R.string.statistics), onClick = actions.onStatistics)
+        LemonIconButton(R.drawable.ic_multiplayer, stringResource(R.string.online_title), onClick = actions.onOnline)
         LemonIconButton(R.drawable.ic_settings, stringResource(R.string.preferences_settings), onClick = actions.onSettings)
     }
     val searchBar = @Composable { modifier: Modifier ->

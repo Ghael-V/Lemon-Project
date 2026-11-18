@@ -18,6 +18,11 @@
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
 
     <fragment
+        android:id="@+id/onlineFragment"
+        android:name="dev.lemon.lemon_emu.fragments.OnlineFragment"
+        android:label="OnlineFragment" />
+
+    <fragment
         android:id="@+id/homeSettingsFragment"
         android:name="dev.lemon.lemon_emu.fragments.HomeSettingsFragment"
         android:label="HomeSettingsFragment" />

@@ -2269,4 +2269,36 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
         <item quantity="one">%d cheat downloaded, new ones off</item>
         <item quantity="other">%d cheats downloaded, new ones off</item>
     </plurals>
+
+    <!-- Lemon Online -->
+    <string name="online_title">Lemon Online</string>
+    <string name="online_intro">Play local wireless games with friends over the internet. Create a room and share its code, or join one with a code. Then start the same game on every console and use its local wireless mode.</string>
+    <string name="online_nickname">Your name in rooms</string>
+    <string name="online_create_room">Create a room</string>
+    <string name="online_players">Players</string>
+    <string name="online_password_optional">Password (optional)</string>
+    <string name="online_join_with_code">Join with a code</string>
+    <string name="online_room_code">Room code</string>
+    <string name="online_join">Join</string>
+    <string name="online_connecting">Connecting…</string>
+    <string name="online_connected">Connected</string>
+    <string name="online_server">Server (testing)</string>
+    <string name="online_copy_code">Copy the code</string>
+    <string name="online_members">In the room: %1$d of %2$d</string>
+    <string name="online_not_playing">Not playing</string>
+    <string name="online_room_hint">Start the same game on every console and open its local wireless mode (in Mario Kart 8 Deluxe: Wireless Play). You stay in the room between games.</string>
+    <string name="online_leave">Leave the room</string>
+    <string name="online_error_network">Lemon Online can\'t be reached. Check your connection.</string>
+    <string name="online_error_room_not_found">No room has that code.</string>
+    <string name="online_error_wrong_password">Wrong password.</string>
+    <string name="online_error_rate_limited">Too many tries. Wait a moment and try again.</string>
+    <string name="online_error_no_capacity">Lemon Online is full right now. Try again in a few minutes.</string>
+    <string name="online_error_service">Lemon Online answered: %1$s</string>
+    <string name="online_error_could_not_connect">The room didn\'t answer. Try again.</string>
+    <string name="online_error_room_full">The room is full.</string>
+    <string name="online_error_lost_connection">The connection to the room was lost.</string>
+    <string name="online_error_removed">You were removed from the room.</string>
+    <string name="online_error_ticket">The room refused the entry. Join again.</string>
+    <string name="online_error_version">This room needs a different version of the app.</string>
+
 </resources>
