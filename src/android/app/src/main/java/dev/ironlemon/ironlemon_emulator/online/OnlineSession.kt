@@ -5,7 +5,11 @@ package dev.ironlemon.ironlemon_emulator.online
 
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import androidx.core.content.edit
+import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.utils.Log
 import kotlin.concurrent.thread
@@ -19,6 +23,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * Lemon Online: an identity with no account (see [OnlineIdentity]) and rooms. Create a room or
@@ -40,7 +45,13 @@ object OnlineSession {
     sealed interface Notice {
         data class Service(val code: String) : Notice
         data class Connection(val error: OnlineRoom.Error) : Notice
+
+        /** Good news, shown without the error colour: "sent", "accepted", "already_friends". */
+        data class Info(val code: String) : Notice
     }
+
+    /** The two privacy switches; the service applies them to what friends see. */
+    data class Privacy(val appearOffline: Boolean = false, val hideGame: Boolean = false)
 
     private const val PREFS = "lemon_online"
     private const val PREF_SERVER = "server_url"
@@ -50,6 +61,8 @@ object OnlineSession {
     private const val PREF_CODE = "identity_code"
     private const val PREF_SECRET = "identity_secret"
     private const val PREF_REGISTERED_AT = "registered_server"
+    private const val PREF_APPEAR_OFFLINE = "appear_offline"
+    private const val PREF_HIDE_GAME = "hide_game"
 
     private const val DEFAULT_SERVER = "https://online-staging.lemon-emu.org/v1"
     private const val MAX_NICKNAME_BYTES = 24
@@ -68,6 +81,20 @@ object OnlineSession {
 
     /** Lemon Online is off until the player accepts the consent screen. */
     val enabled: StateFlow<Boolean> = _enabled
+
+    private val _friends = MutableStateFlow(FriendLists())
+
+    /** Friends with their presence, requests both ways and blocks; refreshed by the screen and by events. */
+    val friends: StateFlow<FriendLists> = _friends
+
+    private val _privacy = MutableStateFlow(Privacy())
+    val privacy: StateFlow<Privacy> = _privacy
+
+    // The presence socket while Lemon Online is on, and the game being played (for presence).
+    private var presence: OnlinePresence? = null
+    private var playingTitleId: String? = null
+    private var playingTitleName: String? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /** In a room that doesn't allow cheats: the game's cheat menus stay closed. */
     val cheatsBlocked: Boolean
@@ -104,15 +131,26 @@ object OnlineSession {
     @OptIn(FlowPreview::class)
     fun start() {
         OnlineRoom.bind()
-        if (started) return
+        if (started) {
+            presence?.resume()
+            return
+        }
         started = true
         _enabled.value = prefs.getBoolean(PREF_ENABLED, false) && storedIdentity() != null
+        _privacy.value = Privacy(
+            prefs.getBoolean(PREF_APPEAR_OFFLINE, false),
+            prefs.getBoolean(PREF_HIDE_GAME, false)
+        )
+        if (_enabled.value) openPresence()
         scope.launch {
             OnlineRoom.errors.collect { onConnectionError(it) }
         }
         // Cheats follow the room: off while in one that doesn't allow them, back when leaving it.
         scope.launch {
-            _room.collect { room -> OnlineRoom.setCheatsBlocked(room != null && !room.cheatsAllowed) }
+            _room.collect { room ->
+                OnlineRoom.setCheatsBlocked(room != null && !room.cheatsAllowed)
+                sendPresence()
+            }
         }
         scope.launch {
             OnlineRoom.state.collect { state ->
@@ -151,6 +189,8 @@ object OnlineSession {
                 register()
                 prefs.edit { putBoolean(PREF_ENABLED, true) }
                 _enabled.value = true
+                openPresence()
+                refreshFriends()
                 Log.info("[Online] Lemon Online turned on")
             } catch (e: OnlineException) {
                 Log.warning("[Online] turning on failed: ${e.code} (${e.httpStatus})")
@@ -189,6 +229,9 @@ object OnlineSession {
 
     private fun forget() {
         leave()
+        presence?.close()
+        presence = null
+        _friends.value = FriendLists()
         // The attempt number stays: the codes before it belong to other devices.
         prefs.edit {
             remove(PREF_ENABLED)
@@ -198,6 +241,157 @@ object OnlineSession {
         }
         _enabled.value = false
         Log.info("[Online] Lemon Online data erased")
+    }
+
+    /** Called when a game starts (with its title) and when it stops (nulls). */
+    fun setPlaying(titleId: String?, titleName: String?) {
+        playingTitleId = titleId
+        playingTitleName = titleName
+        // The app with a game running is the one friends should see.
+        if (titleId != null) presence?.resume()
+        sendPresence()
+    }
+
+    private fun sendPresence() {
+        val socket = presence ?: return
+        val playing = playingTitleId != null
+        socket.setPresence(
+            JSONObject()
+                .put("t", "presence")
+                .put("state", if (playing) "playing" else "online")
+                .put("title_id", playingTitleId.orEmpty())
+                .put("title_name", playingTitleName.orEmpty())
+                .put("room_id", _room.value?.id ?: JSONObject.NULL)
+        )
+    }
+
+    private fun openPresence() {
+        if (presence != null) return
+        val identity = storedIdentity() ?: return
+        presence = OnlinePresence(serverUrl, identity, ::onPresenceEvent) {
+            // A server that lost us: register again on a worker thread, then reopen.
+            thread(name = "OnlineReRegister") {
+                try {
+                    presence = null
+                    register()
+                    openPresence()
+                } catch (e: OnlineException) {
+                    Log.warning("[Online] presence refused: ${e.code} (${e.httpStatus})")
+                }
+            }
+        }.also {
+            it.open()
+        }
+        sendPresence()
+    }
+
+    private fun onPresenceEvent(event: JSONObject) {
+        when (event.optString("t")) {
+            "presence" -> {
+                val code = event.optString("code")
+                val lists = _friends.value
+                if (lists.friends.none { it.code == code }) {
+                    refreshFriends()
+                    return
+                }
+                _friends.value = lists.copy(friends = lists.friends.map {
+                    if (it.code != code) it else it.copy(
+                        nickname = event.optString("nickname").ifEmpty { it.nickname },
+                        state = event.optString("state", "offline"),
+                        titleName = event.optString("title_name"),
+                        roomId = event.optString("room_id")
+                    )
+                })
+            }
+            "friend_request" -> {
+                toast(R.string.online_friend_request_from, event.optString("nickname"))
+                refreshFriends()
+            }
+            "friend_accepted" -> {
+                toast(R.string.online_friend_accepted_by, event.optString("nickname"))
+                refreshFriends()
+            }
+        }
+    }
+
+    private fun toast(resId: Int, name: String) {
+        mainHandler.post {
+            val context = YuzuApplication.appContext
+            Toast.makeText(context, context.getString(resId, name), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Reloads friends, requests, blocks and the privacy switches from the service. */
+    fun refreshFriends() {
+        if (!_enabled.value) return
+        presence?.resume() ?: openPresence()
+        thread(name = "OnlineFriends") {
+            try {
+                _friends.value = authed { it.friends() }
+                val me = authed { it.getMe() }
+                updatePrivacy(Privacy(me.optBoolean("appear_offline"), me.optBoolean("hide_game")))
+            } catch (e: OnlineException) {
+                Log.warning("[Online] friends not loaded: ${e.code} (${e.httpStatus})")
+            }
+        }
+    }
+
+    /** Sends a friend request to a code typed as LM-1234-5678-9012 or as its 12 digits. */
+    fun addFriend(input: String) {
+        val code = input.filter { it.isDigit() }
+        when {
+            code.length != 12 -> _notice.value = Notice.Service("bad_friend_code")
+            code == prefs.getString(PREF_CODE, null) -> _notice.value = Notice.Service("own_friend_code")
+            else -> friendAction { api -> _notice.value = Notice.Info(api.requestFriend(code)) }
+        }
+    }
+
+    fun answerFriendRequest(code: String, accept: Boolean) =
+        friendAction { it.answerFriendRequest(code, accept) }
+
+    fun removeFriend(code: String) = friendAction { it.removeFriend(code) }
+
+    fun block(code: String) = friendAction { it.block(code) }
+
+    fun unblock(code: String) = friendAction { it.unblock(code) }
+
+    fun setAppearOffline(value: Boolean) = changePrivacy(_privacy.value.copy(appearOffline = value))
+
+    fun setHideGame(value: Boolean) = changePrivacy(_privacy.value.copy(hideGame = value))
+
+    private fun changePrivacy(wanted: Privacy) {
+        val before = _privacy.value
+        updatePrivacy(wanted)
+        thread(name = "OnlinePrivacy") {
+            try {
+                authed { it.setPrivacy(wanted.appearOffline, wanted.hideGame) }
+            } catch (e: OnlineException) {
+                updatePrivacy(before)
+                _notice.value = Notice.Service(e.code)
+            }
+        }
+    }
+
+    private fun updatePrivacy(value: Privacy) {
+        _privacy.value = value
+        prefs.edit {
+            putBoolean(PREF_APPEAR_OFFLINE, value.appearOffline)
+            putBoolean(PREF_HIDE_GAME, value.hideGame)
+        }
+    }
+
+    private fun friendAction(action: (OnlineApi) -> Unit) {
+        if (!_enabled.value) return
+        _notice.value = null
+        thread(name = "OnlineFriendAction") {
+            try {
+                authed(action)
+                _friends.value = authed { it.friends() }
+            } catch (e: OnlineException) {
+                Log.warning("[Online] friend action failed: ${e.code} (${e.httpStatus})")
+                _notice.value = Notice.Service(e.code)
+            }
+        }
     }
 
     fun create(

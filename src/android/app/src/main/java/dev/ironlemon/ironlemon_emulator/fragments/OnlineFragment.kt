@@ -60,7 +60,14 @@ class OnlineFragment : Fragment() {
             onDeleteData = { OnlineSession.deleteData() },
             onPrivacyPolicy = {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.online_privacy_policy_url))))
-            }
+            },
+            onAddFriend = { OnlineSession.addFriend(it) },
+            onAnswerRequest = { code, accept -> OnlineSession.answerFriendRequest(code, accept) },
+            onRemoveFriend = { OnlineSession.removeFriend(it) },
+            onBlock = { OnlineSession.block(it) },
+            onUnblock = { OnlineSession.unblock(it) },
+            onAppearOffline = { OnlineSession.setAppearOffline(it) },
+            onHideGame = { OnlineSession.setHideGame(it) }
         )
         setContent {
             val room by OnlineSession.room.collectAsState()
@@ -69,6 +76,8 @@ class OnlineFragment : Fragment() {
             val connection by OnlineRoom.state.collectAsState()
             val members by OnlineRoom.members.collectAsState()
             val enabled by OnlineSession.enabled.collectAsState()
+            val friends by OnlineSession.friends.collectAsState()
+            val privacy by OnlineSession.privacy.collectAsState()
             ModernOnlineScreen(
                 OnlineUiState(
                     room = room,
@@ -79,11 +88,18 @@ class OnlineFragment : Fragment() {
                     nickname = OnlineSession.nickname,
                     server = OnlineSession.serverUrl,
                     enabled = enabled,
-                    friendCode = OnlineSession.friendCode
+                    friendCode = OnlineSession.friendCode,
+                    friends = friends,
+                    privacy = privacy
                 ),
                 actions
             )
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        OnlineSession.refreshFriends()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

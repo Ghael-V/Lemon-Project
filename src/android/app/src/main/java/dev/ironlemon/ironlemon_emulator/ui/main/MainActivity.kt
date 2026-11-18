@@ -25,6 +25,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.color.MaterialColors
 import java.io.File
 import java.io.FilenameFilter
+import dev.ironlemon.ironlemon_emulator.online.OnlineSession
 import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.R
@@ -92,6 +93,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        // Lemon Online: friends see us online while the app runs (only once it is turned on).
+        OnlineSession.start()
         splashScreen.setKeepOnScreenCondition { !DirectoryInitialization.areDirectoriesReady }
 
         ThemeHelper.setTheme(this)

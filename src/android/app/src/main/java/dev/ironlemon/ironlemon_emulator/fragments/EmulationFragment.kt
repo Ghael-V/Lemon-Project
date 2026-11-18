@@ -604,6 +604,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
             updateScreenLayout()
 
+            OnlineSession.setPlaying(game.programIdHex, game.title)
             emulationState.run(emulationActivity!!.isActivityRecreated, programIndex)
         }
     }
@@ -1389,6 +1390,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
         val item = binding.inGameMenu.menu.findItem(R.id.menu_pause_emulation)
         if (emulationState.isPaused) {
+            OnlineSession.setPlaying(game.programIdHex, game.title)
             emulationState.run(false)
             item?.title = resources.getString(R.string.emulation_pause)
             item?.icon =
@@ -1551,6 +1553,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         if (toast != null && shownMs > 0) {
             quickStateToastHandler.postDelayed({ toast.cancel() }, shownMs)
         }
+    }
+
+    override fun onDestroy() {
+        OnlineSession.setPlaying(null, null)
+        super.onDestroy()
     }
 
     override fun onDestroyView() {
