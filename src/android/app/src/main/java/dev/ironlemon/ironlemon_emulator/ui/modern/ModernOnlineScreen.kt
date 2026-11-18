@@ -489,12 +489,19 @@ private fun InvitesSection(invites: List<OnlineInvite>, actions: OnlineActions) 
     }
 }
 
-/** In a room: friends to invite, those playing or online first. */
+/**
+ * In a room: friends to invite, those playing or online first. Friends already in the room are
+ * left out, and the section with them when all of them are.
+ */
 @Composable
 private fun InviteFriendsSection(state: OnlineUiState, actions: OnlineActions) {
     var invited by remember { mutableStateOf(setOf<String>()) }
+    val inRoom = state.members.mapNotNull { it.code }.toSet()
+    val friends = state.friends.friends
+        .filter { it.code !in inRoom }
+        .sortedWith(compareBy({ stateOrder(it.state) }, { it.nickname }))
+    if (friends.isEmpty() && state.friends.friends.isNotEmpty()) return
     Section(stringResource(R.string.online_invite_friends)) {
-        val friends = state.friends.friends.sortedWith(compareBy({ stateOrder(it.state) }, { it.nickname }))
         if (friends.isEmpty()) {
             BasicText(
                 stringResource(R.string.online_no_friends_to_invite),
