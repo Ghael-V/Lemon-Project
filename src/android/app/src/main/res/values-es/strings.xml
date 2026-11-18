@@ -1635,6 +1635,7 @@
     <string name="online_enable_button">Activar</string>
     <string name="online_enable_busy">Preparando tu identidad…</string>
     <string name="online_privacy_policy">Política de privacidad</string>
+    <string name="online_privacy_policy_url">https://lemon-emu.org/es/privacidad.html</string>
     <string name="online_friend_code">Tu código de amigo</string>
     <string name="online_copy_friend_code">Copiar el código de amigo</string>
     <string name="online_your_data">Tus datos de Lemon Online</string>

@@ -2298,6 +2298,7 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="online_enable_button">Turn on</string>
     <string name="online_enable_busy">Preparing your identity…</string>
     <string name="online_privacy_policy">Privacy policy</string>
+    <string name="online_privacy_policy_url">https://lemon-emu.org/privacy.html</string>
     <string name="online_friend_code">Your friend code</string>
     <string name="online_copy_friend_code">Copy the friend code</string>
     <string name="online_your_data">Your Lemon Online data</string>
