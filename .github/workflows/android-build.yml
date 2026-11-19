@@ -91,16 +91,15 @@ jobs:
           export CCACHE_DIR="$HOME/.cache/ccache"
           mkdir -p "$CCACHE_DIR"
           ccache --max-size=5G
-          cd src/android
-          chmod +x ./gradlew
-          CCACHE=true ./gradlew --no-daemon --stacktrace :app:assembleAstraRelease
+          chmod +x .ci/android/build.sh
+          CCACHE=true .ci/android/build.sh -t astra -b Release
           ccache --show-stats
 
-      - name: Upload Astra APK
+      - name: Upload Astra APK and AAB
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: astra-emulator-${{ github.ref_name }}-${{ github.run_number }}
-          path: src/android/app/build/outputs/apk/astra/release/*.apk
+          path: artifacts/
           retention-days: 14
           if-no-files-found: error
