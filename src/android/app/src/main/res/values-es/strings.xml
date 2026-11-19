@@ -1676,6 +1676,8 @@
     <string name="online_invite_from_room">%1$s te invita a una sala</string>
     <string name="online_invite_open_game">Ya estás en la sala. Cierra este juego y abre %1$s para jugar juntos.</string>
     <string name="online_invite_game_missing">Ya estás en la sala, pero %1$s no está en tu biblioteca: añádelo para jugar juntos.</string>
+    <string name="online_room_now_yours">El anfitrión se ha ido: ahora la sala es tuya. Si sales de ella, se cierra para todos.</string>
+    <string name="online_room_handed_over">Estuviste fuera un rato: la sala ha pasado a otro jugador.</string>
     <string name="online_invite_friends">Invitar amigos</string>
     <string name="online_invite">Invitar</string>
     <string name="online_invited">Invitado</string>

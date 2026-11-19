@@ -42,7 +42,7 @@ object OnlineSession {
         val titleName: String,
         val cheatsAllowed: Boolean,
         val public: Boolean = false,
-        /** We created it: leaving closes it. */
+        /** We created it, or the service handed it to us: leaving closes it. */
         val own: Boolean = false
     )
 
@@ -348,6 +348,34 @@ object OnlineSession {
                 val roomId = event.optString("room_id")
                 _invites.value = _invites.value.filterNot { it.roomId == roomId }
             }
+            "room_owner" -> onRoomOwner(event.optString("room_id"), event.optBoolean("owner"))
+        }
+    }
+
+    /**
+     * The service moved a room's ownership: its owner was away for a minute while others played on.
+     * The new owner closes it on leaving, like one it created; the old one is a normal member now.
+     */
+    private fun onRoomOwner(roomId: String, owner: Boolean) {
+        if (roomId.isEmpty()) return
+        val current = _room.value
+        if (current?.id == roomId) _room.value = current.copy(own = owner)
+        if (owner) {
+            if (current?.id == roomId && current.public) {
+                prefs.edit { putString(PREF_OWN_PUBLIC_ROOM, roomId) }
+            }
+        } else if (prefs.getString(PREF_OWN_PUBLIC_ROOM, null) == roomId) {
+            prefs.edit { remove(PREF_OWN_PUBLIC_ROOM) }
+        }
+        // Only news for whoever is still in that room.
+        if (current?.id != roomId) return
+        Log.info("[Online] room ownership ${if (owner) "received" else "handed over"}")
+        mainHandler.post {
+            val context = LemonApplication.appContext
+            val text = context.getString(
+                if (owner) R.string.online_room_now_yours else R.string.online_room_handed_over
+            )
+            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -508,7 +536,8 @@ object OnlineSession {
         } catch (e: OnlineException) {
             // Our last public room outlived the app (it closed without leaving, e.g. reinstalled):
             // the service still counts it, so close it and try again instead of making the user wait.
-            val stale = prefs.getString(PREF_OWN_PUBLIC_ROOM, null)
+            // The service names it in the 409; the remembered id covers an older server.
+            val stale = e.roomId ?: prefs.getString(PREF_OWN_PUBLIC_ROOM, null)
             if (e.code != "too_many_public_rooms" || stale == null) throw e
             closeStalePublicRoom(api, stale)
             createAfterClose(::createRoom)
@@ -530,8 +559,8 @@ object OnlineSession {
     }
 
     /**
-     * The service stops the old room's relay and only stops counting it once the relay has exited,
-     * a moment later: try a few times before giving up with its answer.
+     * The service stops counting a closed room at once (older servers waited for its relay to exit,
+     * a moment later): try a few times before giving up with its answer.
      */
     private fun createAfterClose(create: () -> RoomTicket): RoomTicket {
         var last: OnlineException? = null
@@ -616,6 +645,10 @@ object OnlineSession {
             }
         } catch (e: OnlineException) {
             Log.warning("[Online] room not closed: ${e.code} (${e.httpStatus})")
+            // Handed to another member while we were away: no longer ours to remember.
+            if (e.code == "not_owner" && prefs.getString(PREF_OWN_PUBLIC_ROOM, null) == roomId) {
+                prefs.edit { remove(PREF_OWN_PUBLIC_ROOM) }
+            }
         } catch (e: Exception) {
             Log.warning("[Online] room not closed: ${e.javaClass.simpleName}")
         }
