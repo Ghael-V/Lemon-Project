@@ -1,14 +1,19 @@
 # SPDX-FileCopyrightText: Copyright 2026 Lemon-Project
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-name: Android build
-
-# Verifies the Android-only trim actually configures & compiles.
-# This exists because the dev sandbox that trims this repo has no
-# Android SDK/NDK/device available to test against locally.
+name: Astra Emulator Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - mali-g57-optimization
+    paths:
+      - ".github/workflows/android-build.yml"
+      - "src/android/**"
+      - "src/**"
+      - ".ci/android/**"
+      - "CMakeLists.txt"
 
 env:
   NDK_VERSION: "28.2.13676358"
@@ -16,8 +21,9 @@ env:
 
 jobs:
   build:
+    name: Build Astra Emulator APK
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -25,7 +31,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "Free disk space (needed for a full C++ build: ffmpeg/boost/etc.)"
+      - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
             /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/emulator \
@@ -56,7 +62,7 @@ jobs:
           restore-keys: |
             cpm-${{ runner.os }}-
 
-      - name: Install host build tools (glslangValidator, ccache)
+      - name: Install host build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y glslang-tools ccache
@@ -70,7 +76,7 @@ jobs:
             ccache-${{ runner.os }}-${{ github.ref_name }}-
             ccache-${{ runner.os }}-
 
-      - name: Install Android SDK components (NDK + CMake)
+      - name: Install Android SDK components
         run: |
           SDK_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDK_MANAGER" --licenses > /dev/null
@@ -79,36 +85,22 @@ jobs:
             "ndk;${NDK_VERSION}" \
             "cmake;${CMAKE_VERSION}"
 
-      - name: Pick build channel flag from branch name
-        id: channel
-        run: |
-          case "${{ github.ref_name }}" in
-            nightly) echo "flag=-n" >> "$GITHUB_OUTPUT"; echo "name=nightly" >> "$GITHUB_OUTPUT" ;;
-            experimental) echo "flag=-e" >> "$GITHUB_OUTPUT"; echo "name=experimental" >> "$GITHUB_OUTPUT" ;;
-            *) echo "flag=" >> "$GITHUB_OUTPUT"; echo "name=standard" >> "$GITHUB_OUTPUT" ;;
-          esac
-
-      - name: Build APK (standard flavor, Release)
+      - name: Build Astra Emulator Release APK
         run: |
           export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
           export CCACHE_DIR="$HOME/.cache/ccache"
           mkdir -p "$CCACHE_DIR"
           ccache --max-size=5G
-          chmod +x .ci/android/build.sh
-          CCACHE=true .ci/android/build.sh -t standard -b Release ${{ steps.channel.outputs.flag }}
+          cd src/android
+          chmod +x ./gradlew
+          CCACHE=true ./gradlew --no-daemon --stacktrace :app:assembleAstraRelease
           ccache --show-stats
 
-      - name: Build Astra Emulator variant
-        run: |
-          export ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
-          cd src/android
-          ./gradlew assembleAstraRelWithDebInfo
-
-      - name: Upload APK/AAB artifacts
+      - name: Upload Astra APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lemon-project-${{ steps.channel.outputs.name }}-release
-          path: |\n            artifacts/\n            src/android/app/build/outputs/apk/astra/relWithDebInfo/*.apk
+          name: astra-emulator-${{ github.ref_name }}-${{ github.run_number }}
+          path: src/android/app/build/outputs/apk/astra/release/*.apk
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
