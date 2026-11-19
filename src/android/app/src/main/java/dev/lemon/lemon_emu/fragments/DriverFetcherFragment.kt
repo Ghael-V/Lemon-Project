@@ -56,13 +56,19 @@ class DriverFetcherFragment : Fragment() {
     private val adrenoModel: Int
         get() = parseAdrenoModel()
 
-    // Mali (Lemon Lite) has no tested recommendation yet: the badge names the experimental PanVK
-    // builds listed below, and "install recommended" stays off (findRecommendedInstall).
+    // Match PanVK only to a GPU family actually identified by the Vulkan driver.
+    // Unknown and non-Adreno/non-Mali GPUs must not be treated as Mali.
+    private val isMaliGpu: Boolean
+        get() = gpuModel?.contains("Mali", ignoreCase = true) == true
+
     private val recommendedDriver: String
-        get() = if (!GpuDriverHelper.isAdrenoGpu()) {
-            if (visibleRepos.isEmpty()) "No PanVK build for this GPU yet" else "PanVK (experimental)"
-        } else {
-            driverMap.firstOrNull { adrenoModel in it.first }?.second ?: "Unsupported"
+        get() = when {
+            isMaliGpu -> {
+                if (visibleRepos.isEmpty()) "No PanVK build for this GPU yet" else "PanVK (experimental)"
+            }
+            GpuDriverHelper.isAdrenoGpu() ->
+                driverMap.firstOrNull { adrenoModel in it.first }?.second ?: "Unsupported"
+            else -> "Unsupported GPU"
         }
 
     enum class SortMode {
@@ -111,13 +117,18 @@ class DriverFetcherFragment : Fragment() {
         ),
     )
 
-    // Adreno devices get the Turnip builds, Mali devices (Lemon Lite) the PanVK builds made for their
-    // GPU: a build for another Mali installs but doesn't start games.
+    // Only expose drivers for a positively identified GPU family. In particular, an unknown
+    // GPU must not receive Mali PanVK packages just because it is not Adreno.
+    // A PanVK build for a different Mali model can install but may not start games.
     private val visibleRepos: List<DriverRepo> by lazy {
-        val mali = !GpuDriverHelper.isAdrenoGpu()
+        val adreno = GpuDriverHelper.isAdrenoGpu()
+        val mali = isMaliGpu
         val gpu = gpuModel.orEmpty()
         repoList.filter { repo ->
-            repo.forMali == mali && (repo.forGpu == null || gpu.contains(repo.forGpu, ignoreCase = true))
+            when {
+                repo.forMali -> mali && (repo.forGpu == null || gpu.contains(repo.forGpu, ignoreCase = true))
+                else -> adreno
+            }
         }
     }
 
