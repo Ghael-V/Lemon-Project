@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <utility>
 
@@ -100,8 +102,25 @@ public:
         return fd;
     }
 
+    /// Input a layer above this socket (TLS) already took off the wire and still holds for the
+    /// game, which a poll of the socket itself cannot see. The layer sets this check while it
+    /// uses the socket and clears it before it goes away.
+    void SetHeldInputCheck(std::function<bool()> check) {
+        std::scoped_lock lock{held_input_mutex};
+        held_input_check = std::move(check);
+    }
+
+    [[nodiscard]] bool HasHeldInput() {
+        std::scoped_lock lock{held_input_mutex};
+        return held_input_check && held_input_check();
+    }
+
 protected:
     SOCKET fd = INVALID_SOCKET;
+
+private:
+    std::mutex held_input_mutex;
+    std::function<bool()> held_input_check;
 };
 
 class Socket : public SocketBase {

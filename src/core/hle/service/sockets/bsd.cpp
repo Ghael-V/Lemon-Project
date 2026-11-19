@@ -19,7 +19,6 @@
 #include "core/hle/service/ipc_helpers.h"
 #include "core/hle/service/sockets/bsd.h"
 #include "core/hle/service/sockets/sockets_translate.h"
-#include "core/hle/service/ssl/ssl_pending_registry.h"
 #include "core/internal_network/network.h"
 #include "core/internal_network/socket_proxy.h"
 #include "core/internal_network/sockets.h"
@@ -753,29 +752,33 @@ std::pair<s32, Errno> BSD::PollImpl(std::vector<u8>& write_buffer, std::span<con
         return result;
     });
 
-    // Plaintext a TLS connection already decrypted no longer shows on the raw socket; count it
-    // as readable, and don't block waiting for the wire when some is there.
-    std::vector<bool> ssl_pending(host_pollfds.size());
-    bool any_ssl_pending = false;
-    for (size_t i = 0; i < host_pollfds.size(); ++i) {
-        ssl_pending[i] = True(host_pollfds[i].events & Network::PollEvents::In) &&
-                         Service::SSL::HasSslPendingData(host_pollfds[i].socket);
-        any_ssl_pending |= ssl_pending[i];
+    // Some input is no longer on the wire: TLS already decrypted it and holds it for the game
+    // (Socket::HasHeldInput). The host poll cannot see it, so we report it, and the host poll
+    // must not sit waiting while it is there.
+    std::vector<u8> held(host_pollfds.size());
+    for (size_t i = 0; i < held.size(); ++i) {
+        const Network::PollFD& host = host_pollfds[i];
+        held[i] = host.socket != nullptr && True(host.events & Network::PollEvents::In) &&
+                  host.socket->HasHeldInput();
     }
+    const bool any_held = std::find(held.begin(), held.end(), u8{1}) != held.end();
 
-    auto result = Network::Poll(host_pollfds, any_ssl_pending ? 0 : timeout);
+    auto result = Network::Poll(host_pollfds, any_held ? 0 : timeout);
 
-    const size_t num = host_pollfds.size();
-    for (size_t i = 0; i < num; ++i) {
-        if (ssl_pending[i] && False(host_pollfds[i].revents & Network::PollEvents::In)) {
-            if (result.first < 0) {
-                result = {0, Network::Errno::SUCCESS};
+    if (any_held) {
+        // Whatever the host poll said, these descriptors are readable: recount the ready ones.
+        s32 ready = 0;
+        for (size_t i = 0; i < held.size(); ++i) {
+            if (held[i]) {
+                host_pollfds[i].revents |= Network::PollEvents::In;
             }
-            if (host_pollfds[i].revents == Network::PollEvents{}) {
-                ++result.first;
+            if (host_pollfds[i].revents != Network::PollEvents{}) {
+                ++ready;
             }
-            host_pollfds[i].revents |= Network::PollEvents::In;
         }
+        result = {ready, Network::Errno::SUCCESS};
+    }
+    for (size_t i = 0; i < host_pollfds.size(); ++i) {
         fds[i].revents = Translate(host_pollfds[i].revents);
     }
     std::memcpy(write_buffer.data(), fds.data(), nfds * sizeof(PollFD));

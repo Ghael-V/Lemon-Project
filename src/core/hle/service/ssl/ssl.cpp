@@ -14,7 +14,6 @@
 #include "core/hle/service/ssl/cert_store.h"
 #include "core/hle/service/ssl/ssl.h"
 #include "core/hle/service/ssl/ssl_backend.h"
-#include "core/hle/service/ssl/ssl_pending_registry.h"
 #include "core/internal_network/network.h"
 #include "core/internal_network/sockets.h"
 
@@ -121,7 +120,7 @@ public:
     ~ISslConnection() {
         shared_data->connection_count--;
         if (socket) {
-            UnregisterPendingCheck(socket.get());
+            socket->SetHeldInputCheck({});
         }
         if (fd_to_close.has_value()) {
             const s32 fd = *fd_to_close;
@@ -176,9 +175,8 @@ private:
         }
         socket = std::move(*sock);
         backend->SetSocket(socket);
-        // bsd Poll asks this whether the connection already holds decrypted data.
-        RegisterPendingCheck(socket.get(),
-                             [this] { return did_handshake && backend->Pending() > 0; });
+        // Decrypted data TLS holds is readable for bsd's Poll too.
+        socket->SetHeldInputCheck([this] { return did_handshake && backend->Pending() > 0; });
         return ResultSuccess;
     }
 
