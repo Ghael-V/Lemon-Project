@@ -325,6 +325,20 @@ android {
             }
         }
 
+        // Independent branded build variant. This keeps the upstream variants intact while
+        // allowing the project to ship under its own application ID and display name.
+        create("astra") {
+            dimension = "version"
+            minSdk = 31
+            manifestPlaceholders += mapOf("appNameBase" to "Astra Emulator")
+            resValue("string", "app_name_suffixed", "Astra Emulator")
+            applicationId = "id.suksesjt12.astraemu"
+
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
+
         create("legacy") {
             dimension = "version"
             minSdk = 29
@@ -364,7 +378,7 @@ android {
 
         // apply nightly/experimental suffix I/A
         resValue("string", "app_name_suffixed", "$currentName$suffix")
-        resValue("string", "app_name", "Lemon$suffix")
+        resValue("string", "app_name", "$currentName$suffix")
     }
 
     sourceSets {
