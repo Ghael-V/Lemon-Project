@@ -308,8 +308,11 @@ consolidated build going forward instead of splitting fixes across three branche
 ## Scope
 
 - **Android only.** Every desktop/CLI build target from upstream has been removed.
-- **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested; the app may start on them,
-  but they are not supported (see the [FAQ](https://lemon-emu.org/faq.html)).
+- **GPU support varies by family and driver.** The Vulkan renderer includes Mali-specific BCn texture handling,
+  but custom PanVK packages are experimental and are listed only for matching Mali-G615, Mali-G720 and Mali-G52
+  models. There is currently no matching PanVK package for Mali-G57; use the device's system Vulkan driver and
+  treat compatibility as unverified until tested on that hardware. Do not install a PanVK build made for another
+  Mali model. PowerVR is not a supported target (see the [FAQ](https://lemon-emu.org/faq.html)).
 - **No keys, no firmware.** `prod.keys` and Switch firmware are not part of this repository and never will be —
   sourcing them from your own legally owned console is entirely on you. Lemon does not touch key derivation,
   decryption, or DRM in any way; it only builds the emulator app.
