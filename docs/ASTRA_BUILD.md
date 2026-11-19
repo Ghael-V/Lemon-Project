@@ -12,21 +12,17 @@ The `debug` and `relWithDebInfo` build types append their own application ID suf
 
 ## Build
 
-From `src/android`:
+From the repository root:
 
 ```sh
-./gradlew :app:assembleAstraRelease
+CCACHE=true .ci/android/build.sh -t astra -b Release
 ```
 
-Expected APK output:
-
-```
-app/build/outputs/apk/astra/release/app-astra-release.apk
-```
+The build helper creates the APK and AAB in the repository's `artifacts/` directory. The corresponding Gradle task is `copyAstraReleaseOutputs`.
 
 Without release signing secrets, the existing Gradle configuration signs the Release APK with the repository's default debug keystore. It can be sideloaded for testing, but it is not a production Play Store signing setup.
 
-GitHub Actions builds this Astra Release variant on pushes to `mali-g57-optimization` that touch the Android source/build files, and can also be started manually. It uploads the APK as an artifact.
+GitHub Actions builds this Astra Release variant on pushes to `mali-g57-optimization` that touch the Android source/build files, and can also be started manually. It uploads the APK and AAB as a workflow artifact.
 
 ## Important compatibility boundary
 
