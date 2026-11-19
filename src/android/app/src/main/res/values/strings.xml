@@ -1637,6 +1637,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="online_invite_from_room">%1$s invites you to a room</string>
     <string name="online_invite_open_game">You are in the room. Close this game and open %1$s to play together.</string>
     <string name="online_invite_game_missing">You are in the room, but %1$s is not in your library: add it to play together.</string>
+    <string name="online_room_now_yours">The host left the room: it is yours now. If you leave it, it closes for everyone.</string>
+    <string name="online_room_handed_over">You were away for a while: the room passed to another player.</string>
     <string name="online_invite_friends">Invite friends</string>
     <string name="online_invite">Invite</string>
     <string name="online_invited">Invited</string>

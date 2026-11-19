@@ -70,8 +70,16 @@ data class OnlineInvite(
     val titleId: String = ""
 )
 
-/** An error the service answered with ({"error":{"code":...}}), or "network" when it couldn't be reached. */
-class OnlineException(val code: String, val httpStatus: Int, val retryAfterSeconds: Int? = null) :
+/**
+ * An error the service answered with ({"error":{"code":...}}), or "network" when it couldn't be reached.
+ * [roomId] is the room the error is about when the service names one (409 too_many_public_rooms: our own).
+ */
+class OnlineException(
+    val code: String,
+    val httpStatus: Int,
+    val retryAfterSeconds: Int? = null,
+    val roomId: String? = null
+) :
     IOException("Lemon Online: $code ($httpStatus)")
 
 /**
@@ -269,10 +277,16 @@ class OnlineApi(private val baseUrl: String, private val auth: OnlineIdentity.Id
         response.use {
             val text = it.body?.string().orEmpty()
             if (!it.isSuccessful) {
+                val error = runCatching { JSONObject(text) }.getOrNull()
                 val code = runCatching {
-                    JSONObject(text).getJSONObject("error").getString("code")
+                    error!!.getJSONObject("error").getString("code")
                 }.getOrDefault("http_${it.code}")
-                throw OnlineException(code, it.code, it.header("Retry-After")?.toIntOrNull())
+                throw OnlineException(
+                    code,
+                    it.code,
+                    it.header("Retry-After")?.toIntOrNull(),
+                    error?.optString("room_id")?.ifEmpty { null }
+                )
             }
             return if (text.isBlank()) JSONObject() else JSONObject(text)
         }
