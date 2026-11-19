@@ -25,7 +25,7 @@ Options:
     -r, --release        	Enable update checker. If set, sets the DEVEL bool variable to false.
                          	By default, DEVEL is true.
     -t, --target <FLAVOR> 	Build flavor (variable: TARGET)
-                          	Valid values are: standard, spoofed, lite (its last release), legacy,
+                          	Valid values are: standard, spoofed, lite (its last release), legacy, astra,
                           	optimized, or all (standard, spoofed and lite, what a release ships)
                           	Default: standard
     -b, --build-type <TYPE>	Build type (variable: TYPE)
@@ -107,6 +107,7 @@ flavor_of() {
 		lite) echo Lite ;;
 		spoofed) echo Spoofed ;;
 		legacy) echo Legacy ;;
+		astra) echo Astra ;;
 		optimized) echo GenshinSpoof ;;
 		standard) echo Mainline ;;
 		*) return 1 ;;
@@ -191,6 +192,7 @@ for t in $TARGETS; do
         standard) RELEASE_PREFIX=Lemon; RELEASE_SUFFIX=standard ;;
         lite) RELEASE_PREFIX=Lemon-Lite; RELEASE_SUFFIX=lite ;;
         spoofed) RELEASE_PREFIX=Lemon-Spoofed; RELEASE_SUFFIX=spoofed ;;
+        astra) RELEASE_PREFIX=Astra; RELEASE_SUFFIX=android ;;
         *) continue ;;
     esac
     [ "$DEVEL" != "true" ] || continue
