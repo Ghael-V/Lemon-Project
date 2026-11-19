@@ -15,6 +15,10 @@ on:
       - ".ci/android/**"
       - "CMakeLists.txt"
 
+concurrency:
+  group: astra-android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NDK_VERSION: "28.2.13676358"
   CMAKE_VERSION: "3.31.6"
