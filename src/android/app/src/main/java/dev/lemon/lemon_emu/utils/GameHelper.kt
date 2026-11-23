@@ -297,16 +297,33 @@ object GameHelper {
         }
     }
 
+    /**
+     * The folder holding [uri], as a URI Lemon may list. A frontend hands over a plain document
+     * whose grant covers that file only, so its folder is reached through the library folder that
+     * holds it; a tree URI gives its parent directly.
+     */
     private fun getParentDocumentUri(uri: Uri): Uri? {
         return try {
             val documentId = DocumentsContract.getDocumentId(uri)
             val separatorIndex = documentId.lastIndexOf('/')
             if (separatorIndex == -1) {
-                null
-            } else {
-                val parentDocumentId = documentId.substring(0, separatorIndex)
-                DocumentsContract.buildDocumentUriUsingTree(uri, parentDocumentId)
+                return null
             }
+            val parentDocumentId = documentId.substring(0, separatorIndex)
+            if (DocumentsContract.isTreeUri(uri)) {
+                return DocumentsContract.buildDocumentUriUsingTree(uri, parentDocumentId)
+            }
+            val library = NativeConfig.getGameDirs()
+                .map { it.uriString.toUri() }
+                .firstOrNull { tree ->
+                    tree.authority == uri.authority && DocumentsContract.isTreeUri(tree) &&
+                        FileUtil.isTreeUriValid(tree) &&
+                        DocumentsContract.getTreeDocumentId(tree).let { root ->
+                            parentDocumentId == root ||
+                                parentDocumentId.startsWith(if (root.endsWith(":")) root else "$root/")
+                        }
+                } ?: return null
+            DocumentsContract.buildDocumentUriUsingTree(library, parentDocumentId)
         } catch (_: Exception) {
             null
         }
