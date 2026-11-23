@@ -8,6 +8,7 @@
 #include "common/fs/file.h"
 #include "common/fs/fs.h"
 #include "common/fs/path_util.h"
+#include "common/logging.h"
 #include "common/settings.h"
 #include "video_core/renderer_vulkan/present/frame_gen.h"
 #include "video_core/renderer_vulkan/present/util.h"
@@ -215,6 +216,8 @@ void FrameGen::Process(const Device& device, Frame* frame, VkFormat format,
     }
     use_native = !wants_lossless || !shaders->IsValid();
     if (use_native && !LemonFgChain::IsSupported(device, format)) {
+        LOG_WARNING(Render_Vulkan, "Lemon FG is not available here (frame format {})",
+                    static_cast<int>(format));
         unavailable = true;
         return;
     }

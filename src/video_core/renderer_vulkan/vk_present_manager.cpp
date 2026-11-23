@@ -127,7 +127,9 @@ PresentManager::PresentManager(const vk::Instance& instance_,
     , swapchain{swapchain_}
     , surface{surface_}
     , blit_supported{CanBlitToSwapchain(device.GetPhysical(), swapchain.GetImageViewFormat())}
-    , storage_supported{CanStoreToFrame(device.GetPhysical(), swapchain.GetImageFormat())}
+    // Frames are drawn through views of the swapchain's view format (rgba8 on Android) on images
+    // of the surface's format, which may be bgra8: frame generation writes through such a view.
+    , storage_supported{CanStoreToFrame(device.GetPhysical(), swapchain.GetImageViewFormat())}
     , use_present_thread{Settings::values.async_presentation.GetValue()}
 {
     SetImageCount();
@@ -270,13 +272,15 @@ void PresentManager::RecreateFrame(Frame* frame, u32 width, u32 height, VkFormat
 
     frame->storage_view = vk::ImageView{};
     if (with_storage) {
+        // Same format as the view the frame is drawn through: Mali surfaces are often bgra8,
+        // which Mali cannot store to, while the image is mutable with extended usage.
         frame->storage_view = dld.CreateImageView({
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
             .image = *frame->image,
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = swapchain.GetImageFormat(),
+            .format = image_view_format,
             .components =
                 {
                     .r = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -366,12 +370,18 @@ void PresentManager::SetImageCount() {
 #ifdef HAS_LSFG
     const size_t generations = Settings::FrameGenMaxGenerations();
     const size_t queued_composites = Settings::values.frame_gen_queue_target.GetValue() + 1;
-    image_count =
-        std::clamp<size_t>((generations + 1) * queued_composites, swapchain.GetImageCount(),
-                           MAX_FRAMES_IN_FLIGHT);
+    // At least as many frames as the swapchain has images, never more than MAX_FRAMES_IN_FLIGHT:
+    // a swapchain with more images (Mali can give 8) made std::clamp's low bound exceed its high
+    // one, which let the count pass the limit, and frame generation then indexed past its
+    // per-frame descriptor sets.
+    image_count = std::min<size_t>(
+        std::max<size_t>((generations + 1) * queued_composites, swapchain.GetImageCount()),
+        MAX_FRAMES_IN_FLIGHT);
 #else
     image_count = std::min<size_t>(swapchain.GetImageCount(), MAX_FRAMES_IN_FLIGHT);
 #endif
+    LOG_INFO(Render_Vulkan, "Presentation frames: {} (swapchain images: {})", image_count,
+             swapchain.GetImageCount());
 }
 
 void PresentManager::CopyToSwapchain(Frame* frame) {
