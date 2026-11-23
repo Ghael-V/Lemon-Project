@@ -768,6 +768,13 @@ abstract class SettingsItem(
             )
             put(
                 SwitchSetting(
+                    BooleanSetting.GPU_FENCE_IMMEDIATE,
+                    titleId = R.string.gpu_fence_immediate,
+                    descriptionId = R.string.gpu_fence_immediate_description
+                )
+            )
+            put(
+                SwitchSetting(
                     BooleanSetting.RENDERER_ASYNCHRONOUS_GPU_EMULATION,
                     titleId = R.string.renderer_asynchronous_gpu_emulation,
                     descriptionId = R.string.renderer_asynchronous_gpu_emulation_description

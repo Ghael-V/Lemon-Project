@@ -75,7 +75,9 @@ public:
     /// the work before it: telling it earlier let games reuse what was still being drawn or read
     /// data not yet written back, and they flickered (Garfield, Dragon Ball). What made waiting
     /// costly was a fence acquire draining the host GPU; see Puller::ProcessFenceActionMethod.
+    /// The opt-in gpu_fence_immediate setting signals at once instead.
     void SignalFence(std::function<void()>&& func) {
+        const bool immediate = Settings::values.gpu_fence_immediate.GetValue();
         const bool should_flush = ShouldFlush();
         if constexpr (!can_async_check) {
             TryReleasePendingFences<false>();
@@ -85,9 +87,14 @@ public:
         if constexpr (can_async_check) {
             guard.lock();
         }
-        uncommitted_operations.emplace_back(std::move(func));
+        if (!immediate) {
+            uncommitted_operations.emplace_back(std::move(func));
+        }
         pending_operations.emplace_back(std::move(uncommitted_operations));
         QueueFence(new_fence);
+        if (immediate) {
+            func();
+        }
         fences.push(std::move(new_fence));
         if (should_flush) {
             rasterizer.FlushCommands();

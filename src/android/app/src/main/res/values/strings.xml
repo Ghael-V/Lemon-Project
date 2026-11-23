@@ -690,6 +690,8 @@
     <string name="sync_memory_operations_description">Ensures data consistency between compute and memory operations. This option should fix issues in some games, but may also reduce performance in some cases. Unreal Engine 4 games often see the most significant changes thereof.</string>
     <string name="use_disk_shader_cache">Disk shader cache</string>
     <string name="use_disk_shader_cache_description">Reduces stuttering by locally storing and loading generated shaders.</string>
+    <string name="gpu_fence_immediate">Immediate GPU fences</string>
+    <string name="gpu_fence_immediate_description">For advanced users. Tells the game its GPU work is done as soon as it is queued, without waiting for the GPU. Can raise FPS in some games, but others flicker or show broken objects. Turn it on only for the game that needs it, from its own settings.</string>
     <string name="renderer_force_max_clock">Force maximum clocks (Adreno only)</string>
     <string name="renderer_force_max_clock_description">Forces the GPU to run at the maximum possible clocks (thermal constraints will still be applied).</string>
     <string name="renderer_asynchronous_gpu_emulation">GPU async emulation</string>

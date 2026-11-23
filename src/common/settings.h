@@ -580,6 +580,12 @@ struct Values {
     SwitchableSetting<bool> renderer_force_max_clock{linkage, false, "force_max_clock",
                                                      Category::RendererAdvanced};
 
+    // Opt-in: hand GPU signals (syncpoints, semaphores, fence queries) to the game as soon as
+    // they are queued instead of when the host GPU finishes the work before them. Faster in some
+    // games, flickering or broken objects in others (Garfield, Dragon Ball).
+    SwitchableSetting<bool> gpu_fence_immediate{linkage, false, "gpu_fence_immediate",
+                                                Category::RendererAdvanced};
+
     SwitchableSetting<bool> use_disk_shader_cache{linkage, true, "use_disk_shader_cache",
                                                   Category::RendererAdvanced};
 
