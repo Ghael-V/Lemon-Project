@@ -38,22 +38,29 @@ ImageViewInfo::ImageViewInfo(const TICEntry& config, s32 base_layer) noexcept
 
     switch (config.texture_type) {
     case TextureType::Texture1D:
-        ASSERT(config.Height() == 1);
-        ASSERT(config.Depth() == 1);
-        type = ImageViewType::e1D;
+        // A depth above one makes the non-array types layered (see ImageInfo).
+        if (config.Depth() > 1) {
+            type = ImageViewType::e1DArray;
+            range.extent.layers = config.Depth();
+        } else {
+            type = ImageViewType::e1D;
+        }
         break;
     case TextureType::Texture2D:
     case TextureType::Texture2DNoMipmap:
-        ASSERT(config.Depth() == 1);
-        type = config.normalized_coords ? ImageViewType::e2D : ImageViewType::Rect;
+        if (config.Depth() > 1 && !config.IsPitchLinear()) {
+            type = ImageViewType::e2DArray;
+            range.extent.layers = config.Depth();
+        } else {
+            type = config.normalized_coords ? ImageViewType::e2D : ImageViewType::Rect;
+        }
         break;
     case TextureType::Texture3D:
         type = ImageViewType::e3D;
         break;
     case TextureType::TextureCubemap:
-        ASSERT(config.Depth() == 1);
-        type = ImageViewType::Cube;
-        range.extent.layers = 6;
+        type = config.Depth() > 1 ? ImageViewType::CubeArray : ImageViewType::Cube;
+        range.extent.layers = config.Depth() * 6;
         break;
     case TextureType::Texture1DArray:
         type = ImageViewType::e1DArray;

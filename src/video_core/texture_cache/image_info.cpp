@@ -48,27 +48,23 @@ ImageInfo::ImageInfo(const TICEntry& config) noexcept {
         config.texture_type != TextureType::Texture2DNoMipmap) {
         ASSERT(!config.IsPitchLinear());
     }
+    // Games bind layered images through the non-array 1D, 2D and cube types too, with a depth
+    // above one or a base layer. The image has to hold every layer up to the last one used, or
+    // the view lands outside it.
     switch (config.texture_type) {
     case TextureType::Texture1D:
-        ASSERT(config.BaseLayer() == 0);
-        type = ImageType::e1D;
-        size.width = config.Width();
-        resources.layers = 1;
-        break;
     case TextureType::Texture1DArray:
-        UNIMPLEMENTED_IF(config.BaseLayer() != 0);
         type = ImageType::e1D;
         size.width = config.Width();
-        resources.layers = config.Depth();
+        resources.layers = config.BaseLayer() + config.Depth();
         break;
     case TextureType::Texture2D:
     case TextureType::Texture2DNoMipmap:
-        ASSERT(config.Depth() == 1);
         type = config.IsPitchLinear() ? ImageType::Linear : ImageType::e2D;
         rescaleable = !config.IsPitchLinear();
         size.width = config.Width();
         size.height = config.Height();
-        resources.layers = config.BaseLayer() + 1;
+        resources.layers = config.BaseLayer() + (config.IsPitchLinear() ? 1 : config.Depth());
         break;
     case TextureType::Texture2DArray:
         type = ImageType::e2D;
@@ -78,11 +74,10 @@ ImageInfo::ImageInfo(const TICEntry& config) noexcept {
         resources.layers = config.BaseLayer() + config.Depth();
         break;
     case TextureType::TextureCubemap:
-        ASSERT(config.Depth() == 1);
         type = ImageType::e2D;
         size.width = config.Width();
         size.height = config.Height();
-        resources.layers = config.BaseLayer() + 6;
+        resources.layers = config.BaseLayer() + config.Depth() * 6;
         break;
     case TextureType::TextureCubeArray:
         UNIMPLEMENTED_IF(config.load_store_hint != 0);
