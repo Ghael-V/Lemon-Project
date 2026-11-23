@@ -155,6 +155,12 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.5.1** — **Frame generation no longer crashes on Mali**: Mali gives 11 swapchain images and Lemon FG kept
+  descriptor sets for 7 frames (RG 477V: MK8D 45.8 fps, 88.7 with Lemon FG). Coarse derivatives that Maxwell builds
+  from quad broadcasts become native ones (Advance Wars 1+2 on Adreno). Copies between formats of different sizes
+  use the right layout and stay inside the source (Mario + Rabbids Sparks of Hope). BCAT names end at their null
+  character (Splatoon 2), no GPU wait after ASTC decoding, and launching a game by title id from a frontend no
+  longer freezes the screen while the library is scanned.
 - **v1.5.0** — **Speed, Normal and Quality modes**, first in Settings. **Lemon Lite becomes the Speed mode** and
   Lemon Lite & Spoofed becomes **Lemon Spoofed** (package name only); the last Lite tells its users and updates to
   Lemon. **Asynchronous GPU emulation on by default**: building a shader no longer stalls the emulated CPU (BOTW on
