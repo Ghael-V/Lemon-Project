@@ -605,8 +605,8 @@
     <string name="update_checking">Checking for updates…</string>
     <string name="update_none">No newer version found, or the update server could not be reached.</string>
     <string name="update_open_page">Open download page</string>
-    <string name="whats_new_title">What\'s new in Lemon 1.5</string>
-    <string name="whats_new_body">• Three modes, first in Settings: Speed, Normal and Quality. Pick one and Lemon sets the rest. Normal is the default.\n• Lemon Lite is now the Speed mode, so there is one Lemon for everyone. Lite &amp; Spoofed users move to Lemon Spoofed.\n• Fewer drops while you play: the GPU is emulated on its own thread by default, so building a shader no longer stalls the game.\n• Mali: HDR textures (BC6H) are decoded on the GPU, and the experimental PanVK drivers are offered in every build.\n• Cheats: turning one off puts the game\'s code back, and stopping a game with cheats no longer crashes.</string>
+    <string name="whats_new_title">What\'s new in Lemon 1.6</string>
+    <string name="whats_new_body">• Button layout, in Controls: Nintendo swaps A↔B and X↔Y of your controller in games, for handhelds and controllers with the buttons the other way round.\n• Games opened from a frontend now load their update, DLC and custom settings.\n• Frame generation works on Mali.\n• Mali: effects drawn with geometry shaders are back.\n• Immediate GPU fences, for advanced users in Graphics → Advanced: faster in some games, flickering in others.\n• The firmware 23.5 home menu starts, and the app icon fits round icons.</string>
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_read_more">Read more</string>
     <string name="whats_new_link">https://lemon-emu.org/#features</string>

@@ -155,7 +155,7 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
-- **v1.5.1** — **Frame generation no longer crashes on Mali**: Mali gives 11 swapchain images and Lemon FG kept
+- **v1.6.0** — **Frame generation no longer crashes on Mali**: Mali gives 11 swapchain images and Lemon FG kept
   descriptor sets for 7 frames (RG 477V: MK8D 45.8 fps, 88.7 with Lemon FG). Coarse derivatives that Maxwell builds
   from quad broadcasts become native ones (Advance Wars 1+2 on Adreno). Copies between formats of different sizes
   use the right layout and stay inside the source (Mario + Rabbids Sparks of Hope). BCAT names end at their null
