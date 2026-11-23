@@ -565,6 +565,15 @@
         <item>2</item>
     </integer-array>
 
+    <string-array name="buttonLayoutNames">
+        <item>@string/button_layout_standard</item>
+        <item>@string/button_layout_nintendo</item>
+    </string-array>
+    <integer-array name="buttonLayoutValues">
+        <item>0</item>
+        <item>1</item>
+    </integer-array>
+
     <string-array name="dmaAccuracyNames">
         <item>@string/dma_accuracy_default</item>
         <item>@string/dma_accuracy_unsafe</item>

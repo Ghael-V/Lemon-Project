@@ -985,6 +985,8 @@ class SettingsFragmentPresenter(
                 )
             )
 
+            add(IntSetting.BUTTON_LAYOUT.key)
+
             add(HeaderSetting(R.string.input_overlay_options))
             add(
                 SubmenuSetting(

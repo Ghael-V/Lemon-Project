@@ -122,6 +122,10 @@ namespace AndroidSettings {
         Settings::Setting<s32> overlay_opacity{linkage, 100, "control_opacity",
                                                Settings::Category::Overlay};
 
+        // Physical controllers' face buttons: 0 as labelled, 1 Nintendo (A<->B and X<->Y swapped).
+        Settings::Setting<s32> button_layout{linkage, 0, "button_layout",
+                                             Settings::Category::Overlay};
+
         Settings::Setting<bool> joystick_rel_center{linkage, true, "joystick_rel_center",
                                                     Settings::Category::Overlay};
         Settings::Setting<bool> dpad_slide{linkage, true, "dpad_slide",
