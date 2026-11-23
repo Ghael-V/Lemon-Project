@@ -41,7 +41,7 @@ object LastExitReason {
         try {
             val previousLog = File(logDir, "ironlemon_log.txt.old.txt")
             if (previousLog.exists()) {
-                previousLog.appendText("\n[Lemon] $text\n")
+                previousLog.appendText("\n[Iron Lemon] $text\n")
             }
         } catch (e: Exception) {
             Log.warning("[ExitReason] Could not append to the previous log: ${e.javaClass.simpleName}")
