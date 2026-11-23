@@ -31,6 +31,10 @@
     <string name="hide_overlay_on_controller_input">Ocultar superposición al usar el mando</string>
     <string name="hide_overlay_on_controller_input_description">Automáticamente ocultar los controles táctiles superpuestos cuando un mando físico es usado. Los controles superpuestos reaparecen cuando el mando es desconectado.</string>
     <string name="invert_confirm_back_controller_buttons">Invertir los botones Confirmar/Atrás del mando</string>
+    <string name="button_layout">Distribución de botones</string>
+    <string name="button_layout_description">Nintendo intercambia A↔B y X↔Y de los mandos físicos en los juegos, para que cada botón haga lo que hace el de una Switch en esa posición.</string>
+    <string name="button_layout_standard">Según la etiqueta</string>
+    <string name="button_layout_nintendo">Nintendo</string>
     <string name="invert_confirm_back_controller_buttons_description">Intercambia los botones Confirmar y Atrás de Android para que coincidan con los estilos de Switch y Xbox mientras usas la interfaz de usuario de la aplicación.</string>
 
     <string name="input_overlay_options">Superposición de entrada</string>
@@ -583,6 +587,8 @@
     <string name="sync_memory_operations_description">Garantiza la consistencia de los datos entre las operaciones de computación y memoria. Esta opción debería solucionar problemas en algunos juegos, pero también puede reducir el rendimiento en algunos casos. Los juegos de Unreal Engine 4 a menudo ven los cambios más significativos de los mismos.</string>
     <string name="use_disk_shader_cache">Caché de sombreadores en el disco</string>
     <string name="use_disk_shader_cache_description">Reduce los tirones almacenando y cargando los sombreadores generados.</string>
+    <string name="gpu_fence_immediate">Fences de GPU inmediatas</string>
+    <string name="gpu_fence_immediate_description">Para usuarios avanzados. Le dice al juego que su trabajo de GPU ha terminado en cuanto se pone en cola, sin esperar a la GPU. Puede subir los FPS en algunos juegos, pero en otros causa parpadeos u objetos rotos. Actívalo solo para el juego que lo necesite, desde sus propios ajustes.</string>
     <string name="renderer_force_max_clock">Forzar velocidad al máximo (solo Adreno)</string>
     <string name="renderer_force_max_clock_description">Fuerza a la GPU a ejecutarse a la velocidad máxima de reloj posible (se seguirán aplicando restricciones térmicas).</string>
     <string name="renderer_asynchronous_gpu_emulation">Emulación de GPU asíncrona</string>

@@ -260,10 +260,11 @@ void QueryCacheBase<Traits>::CounterReport(GPUVAddr addr, QueryType counter_type
     };
     u8* pointer = impl->device_memory.template GetPointer<u8>(cpu_addr);
     u8* pointer_timestamp = impl->device_memory.template GetPointer<u8>(cpu_addr + 8);
-    // A fence query's value reaches the guest from the fence release thread, never on the spot.
-    const bool is_synced = false;
-    std::function<void()> operation([this, streamer, query_base = query, query_location,
-                                     pointer, pointer_timestamp] {
+    // A fence query's value reaches the guest from the fence release thread, unless the opt-in
+    // immediate fences write it on the spot (see FenceManager::SignalFence).
+    const bool is_synced = is_fence && Settings::values.gpu_fence_immediate.GetValue();
+    std::function<void()> operation([this, is_synced, streamer, query_base = query,
+                                     query_location, pointer, pointer_timestamp] {
         if (True(query_base->flags & QueryFlagBits::IsInvalidated)) {
             if (!is_synced) [[likely]] {
                 impl->pending_unregister.push_back(query_location);

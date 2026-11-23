@@ -621,6 +621,7 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.RENDERER_ASYNCHRONOUS_GPU_EMULATION.key)
             add(BooleanSetting.RENDERER_ASYNC_PRESENTATION.key)
             add(BooleanSetting.SYNC_MEMORY_OPERATIONS.key)
+            add(BooleanSetting.GPU_FENCE_IMMEDIATE.key)
             add(BooleanSetting.ENABLE_BUFFER_HISTORY.key)
             add(BooleanSetting.ENABLE_GPU_BUFFER_READBACK.key)
             add(BooleanSetting.USE_OPTIMIZED_VERTEX_BUFFERS.key)
@@ -983,6 +984,8 @@ class SettingsFragmentPresenter(
                     iconId = getConnectedIcon(7)
                 )
             )
+
+            add(IntSetting.BUTTON_LAYOUT.key)
 
             add(HeaderSetting(R.string.input_overlay_options))
             add(

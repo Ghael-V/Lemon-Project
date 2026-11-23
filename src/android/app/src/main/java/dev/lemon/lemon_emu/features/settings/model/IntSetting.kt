@@ -9,6 +9,7 @@ package dev.lemon.lemon_emu.features.settings.model
 import dev.lemon.lemon_emu.utils.NativeConfig
 
 enum class IntSetting(override val key: String) : AbstractIntSetting {
+    BUTTON_LAYOUT("button_layout"),
     CPU_BACKEND("cpu_backend"),
     CPU_ACCURACY("cpu_accuracy"),
     REGION_INDEX("region_index"),

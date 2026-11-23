@@ -73,3 +73,6 @@ vulkansdk*.exe
 
 # Build-time generated external sources
 externals/generated
+
+# Local tools, never in the repo
+/tools/

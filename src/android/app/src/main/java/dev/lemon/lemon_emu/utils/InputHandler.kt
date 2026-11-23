@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import dev.lemon.lemon_emu.features.input.NativeInput
 import dev.lemon.lemon_emu.features.input.LemonInputOverlayDevice
 import dev.lemon.lemon_emu.features.input.LemonPhysicalDevice
+import dev.lemon.lemon_emu.features.settings.model.IntSetting
 
 object InputHandler {
     var androidControllers = mapOf<Int, LemonPhysicalDevice>()
@@ -95,10 +96,32 @@ object InputHandler {
         NativeInput.onGamePadButtonEvent(
             controllerData.getGUID(),
             controllerData.getPort(),
-            getButtonIdFromEvent(event),
+            withButtonLayout(getButtonIdFromEvent(event)),
             action
         )
         return true
+    }
+
+    /** Physical controllers' face buttons as the game sees them: as labelled, or Nintendo. */
+    const val BUTTON_LAYOUT_STANDARD = 0
+    const val BUTTON_LAYOUT_NINTENDO = 1
+
+    /**
+     * With the Nintendo layout A and B, and X and Y, trade places: the button where a Switch has
+     * A presses A whatever the controller prints on it. Only in games; menus, hotkeys and button
+     * mapping get the keys as they are.
+     */
+    private fun withButtonLayout(keyCode: Int): Int {
+        if (IntSetting.BUTTON_LAYOUT.getInt() != BUTTON_LAYOUT_NINTENDO) {
+            return keyCode
+        }
+        return when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
+            KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
+            KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+            KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+            else -> keyCode
+        }
     }
 
     fun getButtonIdFromEvent(event: KeyEvent): Int {

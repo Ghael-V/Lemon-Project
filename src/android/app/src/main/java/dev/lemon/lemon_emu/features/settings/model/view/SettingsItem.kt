@@ -412,6 +412,15 @@ abstract class SettingsItem(
                 )
             )
             put(
+                SingleChoiceSetting(
+                    IntSetting.BUTTON_LAYOUT,
+                    titleId = R.string.button_layout,
+                    descriptionId = R.string.button_layout_description,
+                    choicesId = R.array.buttonLayoutNames,
+                    valuesId = R.array.buttonLayoutValues
+                )
+            )
+            put(
                 SwitchSetting(
                     BooleanSetting.INVERT_CONFIRM_BACK_CONTROLLER_BUTTONS,
                     titleId = R.string.invert_confirm_back_controller_buttons,
@@ -764,6 +773,13 @@ abstract class SettingsItem(
                     BooleanSetting.RENDERER_FORCE_MAX_CLOCK,
                     titleId = R.string.renderer_force_max_clock,
                     descriptionId = R.string.renderer_force_max_clock_description
+                )
+            )
+            put(
+                SwitchSetting(
+                    BooleanSetting.GPU_FENCE_IMMEDIATE,
+                    titleId = R.string.gpu_fence_immediate,
+                    descriptionId = R.string.gpu_fence_immediate_description
                 )
             )
             put(
