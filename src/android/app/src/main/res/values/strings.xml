@@ -1521,7 +1521,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="edit_overlay_layout">Edit on-screen controller</string>
     <string name="edit_overlay_layout_description">Move, resize and set up the on-screen controls without starting a game.</string>
     <string name="whats_new_title">What\'s new in Iron Lemon %1$s</string>
-    <string name="whats_new_body">Iron Lemon 0.2.1 lets the newest games start.\n\n• Games built with SDK 22 no longer close as they start\n• Games that use a mouse or a keyboard (SDK 21 and 22) start too\n• Splatoon 2 opens its BCAT folders again\n• A fix in copies between image formats of different sizes</string>
+    <string name="whats_new_body">Iron Lemon 0.2.1 lets the newest games start.\n\n• Games built with SDK 22 no longer close as they start\n• Games that use a mouse or a keyboard (SDK 21 and 22) start too\n• Splatoon 2 opens its BCAT folders again\n• A fix in copies between image formats of different sizes\n• Games opened from a frontend get their update and DLC\n• Mali: geometry shaders draw again, and no more format-query log spam\n• Layered textures no longer crash games like God Eater 3\n• The firmware 23.5 home menu starts, and the icon fits round masks</string>
     <string name="overlay_presets">Layout presets</string>
     <string name="overlay_preset_default">Default</string>
     <string name="overlay_preset_big">Big buttons</string>
