@@ -185,6 +185,7 @@ IHidServer::IHidServer(Core::System& system_, std::shared_ptr<ResourceManager> r
         {1003, C<&IHidServer::IsFirmwareUpdateNeededForNotification>, "IsFirmwareUpdateNeededForNotification"},
         {1004, C<&IHidServer::SetTouchScreenResolution>, "SetTouchScreenResolution"},
         {2000, nullptr, "ActivateDigitizer"},
+        {3150, C<&IHidServer::SetMouseLibraryVersion>, "SetMouseLibraryVersion"},
     };
     // clang-format on
 
@@ -1430,6 +1431,12 @@ Result IHidServer::IsFirmwareUpdateNeededForNotification(Out<bool> out_is_firmwa
                 aruid.pid);
 
     *out_is_firmware_update_needed = false;
+    R_SUCCEED();
+}
+
+Result IHidServer::SetMouseLibraryVersion(u32 version, ClientAppletResourceUserId aruid) {
+    LOG_WARNING(Service_HID, "(STUBBED) called, version={}, applet_resource_user_id={}", version,
+                aruid.pid);
     R_SUCCEED();
 }
 

@@ -101,6 +101,7 @@ ISettingsServer::ISettingsServer(Core::System& system_) : ServiceFramework{syste
         {9, C<&ISettingsServer::GetKeyCodeMap2>, "GetKeyCodeMap2"},
         {10, nullptr, "GetFirmwareVersionForDebug"},
         {11, C<&ISettingsServer::GetDeviceNickName>, "GetDeviceNickName"},
+        {12, C<&ISettingsServer::GetKeyCodeMapByPort>, "GetKeyCodeMapByPort"},
     };
     // clang-format on
 
@@ -202,6 +203,13 @@ Result ISettingsServer::GetQuestFlag(Out<bool> out_quest_flag) {
 
     *out_quest_flag = Settings::values.quest_flag.GetValue();
     R_SUCCEED();
+}
+
+Result ISettingsServer::GetKeyCodeMapByPort(
+    u32 port, OutLargeData<KeyCodeMap, BufferAttr_HipcMapAlias> out_key_code_map) {
+    LOG_DEBUG(Service_SET, "called, port={}", port);
+    // Every port gets the keyboard layout of the console's language.
+    R_RETURN(GetKeyCodeMap2(out_key_code_map));
 }
 
 Result ISettingsServer::GetKeyCodeMap2(

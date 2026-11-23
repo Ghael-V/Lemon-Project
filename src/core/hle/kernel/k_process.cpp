@@ -1025,6 +1025,7 @@ Result KProcess::Run(s32 priority, size_t stack_size) {
     // Add the thread to our handle table.
     Handle thread_handle;
     R_TRY(m_handle_table.Add(std::addressof(thread_handle), main_thread));
+    main_thread->SetThreadLocalHandle(thread_handle);
 
     // Set the thread arguments.
     main_thread->GetContext().r[0] = 0;

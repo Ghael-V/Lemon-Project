@@ -69,6 +69,9 @@ namespace Kernel {
 
 namespace {
 
+/// Where the kernel keeps the thread's own handle in its thread local region.
+constexpr std::size_t ThreadLocalHandleOffset = 0x110;
+
 struct ThreadLocalRegion {
     static constexpr std::size_t MessageBufferSize = 0x100;
     std::array<u32, MessageBufferSize / sizeof(u32)> message_buffer;
@@ -1493,6 +1496,13 @@ KScopedDisableDispatch::~KScopedDisableDispatch() {
     } else {
         GetCurrentThread(m_kernel).EnableDispatch();
     }
+}
+
+void KThread::SetThreadLocalHandle(Handle handle) {
+    if (m_parent == nullptr || m_tls_address == 0) {
+        return;
+    }
+    m_parent->GetMemory().Write32(GetInteger(m_tls_address) + ThreadLocalHandleOffset, handle);
 }
 
 } // namespace Kernel
