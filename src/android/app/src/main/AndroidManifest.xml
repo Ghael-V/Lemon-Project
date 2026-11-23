@@ -48,10 +48,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
             android:theme="@style/Theme.IronLemon.Splash">
 
             <!-- This intentfilter marks this Activity as the one that gets launched from Home screen. -->
+            <!-- GAME and Xiaomi's booster action: game boosters and launchers list the app as a game. -->
             <intent-filter>
+                <action android:name="com.miui.gamecenter.GAME_BOOSTER_LAUNCH" />
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.GAME" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
