@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "core/hle/service/cmif_types.h"
 #include "core/hle/service/ns/language.h"
 #include "core/hle/service/ns/ns_types.h"
@@ -49,6 +51,16 @@ public:
                                         u64 application_id);
     Result CheckApplicationLaunchVersion(u64 application_id);
     Result GetApplicationTerminateResult(Out<Result> out_result, u64 application_id);
+    Result GetFw23ListEvent(OutCopyHandle<Kernel::KReadableEvent> out_event);
+    Result ListFw23Entries(Out<s64> out_count, OutBuffer<BufferAttr_HipcMapAlias> out_entries);
+    Result ListFw23EntriesOf(Out<s64> out_count, OutBuffer<BufferAttr_HipcMapAlias> out_entries,
+                             u64 id);
+    Result AcceptFw23ByteAndId(u8 value, u64 id);
+    Result AcceptFw23Block(std::array<u8, 0x48> block);
+    Result AcceptFw23Id(u64 id);
+    Result AcceptFw23FlagAndId(bool flag, u64 id);
+    Result AcceptFw23Pair(bool first_flag, bool second_flag, u64 first, u64 second);
+    Result QueryFw23Flag(Out<bool> out_flag, u64 id);
 
 private:
     KernelHelpers::ServiceContext service_context;
@@ -57,6 +69,7 @@ private:
     Event gamecard_update_detection_event;
     Event gamecard_mount_status_event;
     Event gamecard_mount_failure_event;
+    Event fw23_list_event;
 };
 
 } // namespace Service::NS

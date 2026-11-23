@@ -16,7 +16,8 @@ IApplicationManagerInterface::IApplicationManagerInterface(Core::System& system_
       service_context{system, "IApplicationManagerInterface"},
       record_update_system_event{service_context}, sd_card_mount_status_event{service_context},
       gamecard_update_detection_event{service_context},
-      gamecard_mount_status_event{service_context}, gamecard_mount_failure_event{service_context} {
+      gamecard_mount_status_event{service_context}, gamecard_mount_failure_event{service_context},
+      fw23_list_event{service_context} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, D<&IApplicationManagerInterface::ListApplicationRecord>, "ListApplicationRecord"},
@@ -303,6 +304,20 @@ IApplicationManagerInterface::IApplicationManagerInterface(Core::System& system_
         {3013, nullptr, "IsGameCardEnabled"},
         {3014, nullptr, "IsLocalContentShareEnabled"},
         {3050, nullptr, "ListAssignELicenseTaskResult"},
+        // Firmware 23.5.0: QLaunch calls these at startup; their purpose is not documented.
+        {3250, D<&IApplicationManagerInterface::GetFw23ListEvent>, "Unknown3250"},
+        {3251, D<&IApplicationManagerInterface::ListFw23Entries>, "Unknown3251"},
+        {3252, nullptr, "Unknown3252"},
+        {3253, D<&IApplicationManagerInterface::ListFw23EntriesOf>, "Unknown3253"},
+        {3254, D<&IApplicationManagerInterface::ListFw23Entries>, "Unknown3254"},
+        {3255, D<&IApplicationManagerInterface::AcceptFw23ByteAndId>, "Unknown3255"},
+        {3256, D<&IApplicationManagerInterface::AcceptFw23Block>, "Unknown3256"},
+        {3257, D<&IApplicationManagerInterface::AcceptFw23Id>, "Unknown3257"},
+        {3258, D<&IApplicationManagerInterface::ListFw23EntriesOf>, "Unknown3258"},
+        {3259, D<&IApplicationManagerInterface::AcceptFw23FlagAndId>, "Unknown3259"},
+        {3260, D<&IApplicationManagerInterface::AcceptFw23Pair>, "Unknown3260"},
+        {3261, D<&IApplicationManagerInterface::QueryFw23Flag>, "Unknown3261"},
+        {3262, D<&IApplicationManagerInterface::ListFw23Entries>, "Unknown3262"},
         {9999, nullptr, "GetApplicationCertificate"},
     };
     // clang-format on
@@ -513,6 +528,63 @@ Result IApplicationManagerInterface::GetApplicationTerminateResult(Out<Result> o
                                                                    u64 application_id) {
     LOG_WARNING(Service_NS, "(STUBBED) called. application_id={:016X}", application_id);
     *out_result = ResultSuccess;
+    R_SUCCEED();
+}
+
+// Firmware 23.5.0 commands QLaunch uses. Without them the home menu stops with a fatal error.
+// Their lists are empty here, and the rest only take their arguments.
+
+Result IApplicationManagerInterface::GetFw23ListEvent(
+    OutCopyHandle<Kernel::KReadableEvent> out_event) {
+    LOG_WARNING(Service_NS, "(STUBBED) called");
+    *out_event = fw23_list_event.GetHandle();
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::ListFw23Entries(
+    Out<s64> out_count, OutBuffer<BufferAttr_HipcMapAlias> out_entries) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, buffer size {}", out_entries.size());
+    *out_count = 0;
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::ListFw23EntriesOf(
+    Out<s64> out_count, OutBuffer<BufferAttr_HipcMapAlias> out_entries, u64 id) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, id={:016X}", id);
+    *out_count = 0;
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::AcceptFw23ByteAndId(u8 value, u64 id) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, value={}, id={:016X}", value, id);
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::AcceptFw23Block(std::array<u8, 0x48> block) {
+    LOG_WARNING(Service_NS, "(STUBBED) called");
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::AcceptFw23Id(u64 id) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, id={:016X}", id);
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::AcceptFw23FlagAndId(bool flag, u64 id) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, flag={}, id={:016X}", flag, id);
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::AcceptFw23Pair(bool first_flag, bool second_flag, u64 first,
+                                                    u64 second) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, flags={}/{}, values={:016X}/{:016X}", first_flag,
+                second_flag, first, second);
+    R_SUCCEED();
+}
+
+Result IApplicationManagerInterface::QueryFw23Flag(Out<bool> out_flag, u64 id) {
+    LOG_WARNING(Service_NS, "(STUBBED) called, id={:016X}", id);
+    *out_flag = false;
     R_SUCCEED();
 }
 
