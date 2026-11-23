@@ -36,3 +36,6 @@ CMakeSettings.json
 # Windows global filetypes
 Thumbs.db
 
+
+# Local tools, never in the repo
+/tools/
