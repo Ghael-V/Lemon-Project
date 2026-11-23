@@ -4,6 +4,7 @@
 // SPDX-FileCopyrightText: Copyright 2018 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <openssl/err.h>
@@ -94,7 +95,15 @@ Crypto::AESCipher<Key>::AESCipher(Key key, Mode mode) : ctx(std::make_unique<Cip
 
     ASSERT(ctx->encryption_context && ctx->decryption_context && ctx->cipher && "OpenSSL cipher context failed init!");
     // now init ciphers
-    ASSERT(EVP_CipherInit_ex2(ctx->encryption_context, ctx->cipher, key.data(), NULL, 1, NULL));
+    const bool encryption_ready =
+        EVP_CipherInit_ex2(ctx->encryption_context, ctx->cipher, key.data(), NULL, 1, NULL);
+    // OpenSSL refuses XTS encryption keys whose two halves match, which is what a missing key
+    // (all zeros, e.g. a game-list scan before keys are installed) looks like. Decryption still
+    // initialises and nothing encrypts with such a key, so that case is not an error.
+    const bool same_xts_halves =
+        mode == Mode::XTS && std::equal(key.begin(), key.begin() + key.size() / 2,
+                                        key.begin() + key.size() / 2);
+    ASSERT(encryption_ready || same_xts_halves);
     ASSERT(EVP_CipherInit_ex2(ctx->decryption_context, ctx->cipher, key.data(), NULL, 0, NULL));
 
     EVP_CIPHER_CTX_set_padding(ctx->encryption_context, 0);
