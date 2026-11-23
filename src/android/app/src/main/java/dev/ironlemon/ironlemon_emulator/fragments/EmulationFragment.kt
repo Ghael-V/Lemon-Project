@@ -220,6 +220,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // the config is loaded for this boot.
         AdaptivePerformance.applyPending(requireContext(), game)
 
+        // Opened from another app: its update and DLC files beside it are not registered yet.
+        if (args.game == null && intentGame != null && intentUri != null) {
+            runCatching { GameHelper.registerFolderContent(intentUri) }
+        }
+
         // Always load custom settings when launching a game from an intent
         if (args.custom || intentGame != null) {
             SettingsFile.loadCustomConfig(game)

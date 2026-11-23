@@ -5,6 +5,7 @@ package dev.ironlemon.ironlemon_emulator.utils
 
 import android.content.SharedPreferences
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.preference.PreferenceManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -187,6 +188,50 @@ object GameHelper {
             }
         }
     }
+
+    /**
+     * A game opened from another app (a frontend) arrives as one document. Its update and DLC may
+     * be files in the same folder, which nothing registered yet when the app starts cold (no
+     * library scan ran). Registers them, reaching the folder through the library folder that holds
+     * it: the frontend's grant covers the game file only.
+     */
+    fun registerFolderContent(gameUri: Uri) {
+        val folder = folderOf(gameUri) ?: return
+        var registered = 0
+        FileUtil.listFiles(folder).forEach { file ->
+            if (!file.isDirectory && file.uri != gameUri &&
+                CONTENT_CONTAINERS.contains(FileUtil.getExtension(file.uri).lowercase())
+            ) {
+                NativeLibrary.addFileToFilesystemProvider(file.uri.toString())
+                registered++
+            }
+        }
+        Log.info("[GameHelper] Game opened from another app: $registered files of its folder registered")
+    }
+
+    private val CONTENT_CONTAINERS = setOf("nsp", "xci", "nsz", "xcz")
+
+    /** The folder holding [uri], as a URI this app may list, or null. */
+    private fun folderOf(uri: Uri): Uri? = runCatching {
+        if (uri.scheme != "content") {
+            return null
+        }
+        val parentId = DocumentsContract.getDocumentId(uri).substringBeforeLast('/', "")
+        if (parentId.isEmpty()) {
+            return null
+        }
+        if (DocumentsContract.isTreeUri(uri)) {
+            return DocumentsContract.buildDocumentUriUsingTree(uri, parentId)
+        }
+        val library = NativeConfig.getGameDirs().map { Uri.parse(it.uriString) }.firstOrNull { tree ->
+            tree.authority == uri.authority && DocumentsContract.isTreeUri(tree) &&
+                FileUtil.isTreeUriValid(tree) &&
+                DocumentsContract.getTreeDocumentId(tree).let { root ->
+                    parentId == root || parentId.startsWith(if (root.endsWith(":")) root else "$root/")
+                }
+        } ?: return null
+        DocumentsContract.buildDocumentUriUsingTree(library, parentId)
+    }.getOrNull()
 
     fun getGame(uri: Uri, addedToLibrary: Boolean): Game? {
         val filePath = uri.toString()
