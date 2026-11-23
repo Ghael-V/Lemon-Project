@@ -160,7 +160,12 @@ consolidated build going forward instead of splitting fixes across three branche
   from quad broadcasts become native ones (Advance Wars 1+2 on Adreno). Copies between formats of different sizes
   use the right layout and stay inside the source (Mario + Rabbids Sparks of Hope). BCAT names end at their null
   character (Splatoon 2), no GPU wait after ASTC decoding, and launching a game by title id from a frontend no
-  longer freezes the screen while the library is scanned.
+  longer freezes the screen while the library is scanned. **A game opened from a frontend gets its update and DLC**
+  (and its custom settings) from the folder beside it. **Button layout** in Controls: Nintendo swaps A↔B and X↔Y of
+  physical controllers in games. **Immediate GPU fences**, an opt-in for advanced users in Graphics → Advanced
+  (faster in some games, flickering in others). Geometry shaders run on GPUs without geometry streams (Mali), the
+  firmware 23.5 home menu starts, the launcher icon fits round masks, no crash when the window is narrower than a
+  library tile, and no AES asserts when the game list is scanned before the keys are installed.
 - **v1.5.0** — **Speed, Normal and Quality modes**, first in Settings. **Lemon Lite becomes the Speed mode** and
   Lemon Lite & Spoofed becomes **Lemon Spoofed** (package name only); the last Lite tells its users and updates to
   Lemon. **Asynchronous GPU emulation on by default**: building a shader no longer stalls the emulated CPU (BOTW on
