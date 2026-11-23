@@ -331,8 +331,11 @@ PipelineCache::PipelineCache(Tegra::MaxwellDeviceMemoryManager& device_memory_,
         .supported_spirv = device.SupportedSpirvVersion(),
         .unified_descriptor_binding = true,
         .support_descriptor_aliasing = device.IsDescriptorAliasingSupported(),
-        .support_int8 = device.IsInt8Supported(),
-        .support_int16 = device.IsShaderInt16Supported(),
+        // The shaders keep 8/16-bit values in uniform and storage buffers whenever these are on,
+        // so they also need the buffer access features (Turnip has no uniformAndStorageBuffer
+        // 8/16-bit access). Without them the values go through 32-bit words.
+        .support_int8 = device.IsInt8Supported() && device.Is8BitBufferAccessSupported(),
+        .support_int16 = device.IsShaderInt16Supported() && device.Is16BitBufferAccessSupported(),
         .support_int64 = device.IsShaderInt64Supported(),
         .support_vertex_instance_id = false,
         .support_float_controls = device.IsKhrShaderFloatControlsSupported(),

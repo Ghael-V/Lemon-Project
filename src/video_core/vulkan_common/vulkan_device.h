@@ -113,10 +113,6 @@ VK_DEFINE_HANDLE(VmaAllocator)
 
 // Define features which must be supported.
 #define FOR_EACH_VK_MANDATORY_FEATURE(FEATURE_NAME)                                                \
-    FEATURE_NAME(bit16_storage, storageBuffer16BitAccess)                                          \
-    FEATURE_NAME(bit16_storage, uniformAndStorageBuffer16BitAccess)                                \
-    FEATURE_NAME(bit8_storage, storageBuffer8BitAccess)                                            \
-    FEATURE_NAME(bit8_storage, uniformAndStorageBuffer8BitAccess)                                  \
     FEATURE_NAME(features, depthBiasClamp)                                                         \
     FEATURE_NAME(features, depthClamp)                                                             \
     FEATURE_NAME(features, drawIndirectFirstInstance)                                              \
@@ -149,6 +145,10 @@ VK_DEFINE_HANDLE(VmaAllocator)
 
 // Define features where the absence of the feature may result in a degraded experience.
 #define FOR_EACH_VK_RECOMMENDED_FEATURE(FEATURE_NAME)                                              \
+    FEATURE_NAME(bit16_storage, storageBuffer16BitAccess)                                          \
+    FEATURE_NAME(bit16_storage, uniformAndStorageBuffer16BitAccess)                                \
+    FEATURE_NAME(bit8_storage, storageBuffer8BitAccess)                                            \
+    FEATURE_NAME(bit8_storage, uniformAndStorageBuffer8BitAccess)                                  \
     FEATURE_NAME(custom_border_color, customBorderColors)                                          \
     FEATURE_NAME(depth_bias_control, depthBiasControl)                                             \
     FEATURE_NAME(depth_bias_control, leastRepresentableValueForceUnormRepresentation)              \
@@ -354,6 +354,18 @@ public:
     /// Returns true if the device supports int8 natively.
     bool IsInt8Supported() const {
         return features.shader_float16_int8.shaderInt8;
+    }
+
+    /// Returns true if 8-bit integers can be read and written in uniform and storage buffers.
+    bool Is8BitBufferAccessSupported() const {
+        return features.bit8_storage.storageBuffer8BitAccess &&
+               features.bit8_storage.uniformAndStorageBuffer8BitAccess;
+    }
+
+    /// Returns true if 16-bit integers can be read and written in uniform and storage buffers.
+    bool Is16BitBufferAccessSupported() const {
+        return features.bit16_storage.storageBuffer16BitAccess &&
+               features.bit16_storage.uniformAndStorageBuffer16BitAccess;
     }
 
     /// Returns true if the device supports binding multisample images as storage images.
