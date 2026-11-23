@@ -65,12 +65,20 @@ TextureType GetType(Type type) {
 }
 
 IR::Value MakeCoords(TranslatorVisitor& v, IR::Reg reg, Type type) {
+    // Array surfaces take the layer from the low 16 bits of the register after the coordinates.
+    const auto layer{[&](int index) {
+        return v.ir.BitFieldExtract(v.X(reg + index), v.ir.Imm32(0), v.ir.Imm32(16));
+    }};
     switch (type) {
     case Type::_1D:
     case Type::BUFFER_1D:
         return v.X(reg);
+    case Type::ARRAY_1D:
+        return v.ir.CompositeConstruct(v.X(reg), layer(1));
     case Type::_2D:
         return v.ir.CompositeConstruct(v.X(reg), v.X(reg + 1));
+    case Type::ARRAY_2D:
+        return v.ir.CompositeConstruct(v.X(reg), v.X(reg + 1), layer(2));
     case Type::_3D:
         return v.ir.CompositeConstruct(v.X(reg), v.X(reg + 1), v.X(reg + 2));
     default:
