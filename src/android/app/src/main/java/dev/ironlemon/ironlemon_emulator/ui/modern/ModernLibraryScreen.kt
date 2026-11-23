@@ -323,7 +323,9 @@ private fun LandscapeLayout(
                 // the scroll maths exact, so the selected tile always lands in the middle.
                 val slot = selectedSize * 0.76f
                 val selectedScale = selectedSize / slot
-                val sidePadding = (maxWidth - slot) / 2
+                // Never negative: a window narrower than one tile (split screen, a resize) made
+                // Compose throw "Start padding must be non-negative" and close the app.
+                val sidePadding = ((maxWidth - slot) / 2).coerceAtLeast(0.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     LazyRow(
                         state = listState,
