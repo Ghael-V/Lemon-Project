@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <mbedtls/md5.h>
@@ -12,15 +13,15 @@
 
 namespace Service::BCAT {
 
-// For a name to be valid it must be non-empty, must have a null terminating character as the final
-// char, can only contain numbers, letters, underscores and a hyphen if directory and a period if
-// file.
+// A valid name is non-empty and ends with a null character inside the buffer; up to that null it
+// holds only numbers, letters, underscores, and a hyphen for a directory or a period for a file.
+// Whatever follows the null is not part of the name: games may leave old bytes there (Splatoon 2).
 constexpr Result VerifyNameValidInternal(std::array<char, 0x20> name, char match_char) {
-    const auto null_chars = std::count(name.begin(), name.end(), 0);
-    const auto bad_chars = std::count_if(name.begin(), name.end(), [match_char](char c) {
-        return !std::isalnum(static_cast<u8>(c)) && c != '_' && c != match_char && c != '\0';
+    const auto end = std::find(name.begin(), name.end(), '\0');
+    const auto bad_chars = std::count_if(name.begin(), end, [match_char](char c) {
+        return !std::isalnum(static_cast<u8>(c)) && c != '_' && c != match_char;
     });
-    if (null_chars == 0x20 || null_chars == 0 || bad_chars != 0 || name[0x1F] != '\0') {
+    if (end == name.end() || end == name.begin() || bad_chars != 0) {
         LOG_ERROR(Service_BCAT, "Name passed was invalid!");
         return ResultInvalidArgument;
     }
