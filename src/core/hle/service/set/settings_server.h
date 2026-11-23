@@ -44,6 +44,9 @@ private:
 
     Result GetKeyCodeMap2(OutLargeData<KeyCodeMap, BufferAttr_HipcMapAlias> out_key_code_map);
 
+    Result GetKeyCodeMapByPort(u32 port,
+                               OutLargeData<KeyCodeMap, BufferAttr_HipcMapAlias> out_key_code_map);
+
     Result GetDeviceNickName(
         OutLargeData<std::array<u8, 0x80>, BufferAttr_HipcMapAlias> out_device_name);
 };

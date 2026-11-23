@@ -246,6 +246,10 @@ public:
      * Returns the Thread Local Storage address of the current thread
      * @returns Address of the thread's TLS
      */
+    /// Writes the thread's own handle into its thread local region, as the kernel does when it
+    /// creates a thread. Newer SDKs (22) use it to tell who owns an nn::os critical section.
+    void SetThreadLocalHandle(Handle handle);
+
     KProcessAddress GetTlsAddress() const {
         return m_tls_address;
     }
