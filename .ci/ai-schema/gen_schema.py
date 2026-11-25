@@ -13,7 +13,7 @@ android = root / "src/android/app/src/main"
 # ---- enums -------------------------------------------------------------
 enums_src = (common / "settings_enums.h").read_text(encoding="utf-8")
 enums = {}
-for m in re.finditer(r"ENUM\(\s*(\w+)\s*,([^;]*?)\);", enums_src, re.S):
+for m in re.finditer(r"ENUM\(\s*(\w+)\s*,([^)]*)\)", enums_src, re.S):
     vals = [v.strip() for v in m.group(2).replace("\n", " ").split(",") if v.strip()]
     enums[m.group(1)] = vals
 # explicit enum classes (enum class X : u32 { A = 0, B, ... })
@@ -126,6 +126,7 @@ for m in re.finditer(r"\b(\w+Setting\.[A-Z0-9_]+)\s*,(.{0,400}?)\)", item, re.S)
     t = re.search(r"titleId\s*=\s*R\.string\.(\w+)", m.group(2))
     d = re.search(r"descriptionId\s*=\s*R\.string\.(\w+)", m.group(2))
     ui[key] = {"title": strings.get(t.group(1)) if t else None,
+               "title_res": t.group(1) if t else None,
                "description": strings.get(d.group(1)) if d else None}
 
 for key, ent in settings.items():

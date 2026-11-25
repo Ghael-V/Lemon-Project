@@ -51,6 +51,8 @@ import dev.lemon.lemon_emu.model.GamesViewModel
 import dev.lemon.lemon_emu.model.HomeViewModel
 import dev.lemon.lemon_emu.model.InstallableProperty
 import dev.lemon.lemon_emu.model.SubMenuPropertySecondaryAction
+import dev.lemon.lemon_emu.features.aiconfig.AiConfigFlow
+import dev.lemon.lemon_emu.features.aiconfig.AiConfigStore
 import dev.lemon.lemon_emu.model.SubmenuProperty
 import dev.lemon.lemon_emu.model.TaskState
 import dev.lemon.lemon_emu.utils.DirectoryInitialization
@@ -153,6 +155,7 @@ class GamePropertiesFragment : Fragment() {
             setupModernDetail()
         }
         reloadList()
+        AiConfigFlow.showNoticeIfAny(requireContext(), args.game)
 
         homeViewModel.openImportSaves.collect(
             viewLifecycleOwner,
@@ -392,6 +395,39 @@ class GamePropertiesFragment : Fragment() {
                     }
                 )
             )
+
+            if (!args.game.isHomebrew) {
+                add(
+                    SubmenuProperty(
+                        R.string.ai_config_title,
+                        R.string.ai_config_description,
+                        R.drawable.ic_ai_config,
+                        action = {
+                            AiConfigFlow.start(this@GamePropertiesFragment, args.game) {
+                                homeViewModel.reloadPropertiesList(true)
+                            }
+                        },
+                        secondaryActions = listOf(
+                            SubMenuPropertySecondaryAction(
+                                isShown = AiConfigStore.hasActive(args.game),
+                                descriptionId = R.string.ai_config_undo,
+                                iconId = R.drawable.ic_restore,
+                                action = {
+                                    viewLifecycleOwner.lifecycleScope.launch {
+                                        withContext(Dispatchers.IO) { AiConfigStore.undo(args.game) }
+                                        Toast.makeText(
+                                            requireContext(),
+                                            R.string.ai_config_undone,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        homeViewModel.reloadPropertiesList(true)
+                                    }
+                                }
+                            )
+                        )
+                    )
+                )
+            }
 
             if (!args.game.isHomebrew) {
                 add(

@@ -7,6 +7,7 @@
 
 package dev.lemon.lemon_emu.activities
 
+import dev.lemon.lemon_emu.features.aiconfig.AiConfigStore
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.PendingIntent
@@ -945,6 +946,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
         processSessionGame?.let { game ->
             val prefs = PreferenceManager.getDefaultSharedPreferences(this)
             prefs.edit { putInt(game.keySessionCount, prefs.getInt(game.keySessionCount, 0) + 1) }
+            AiConfigStore.onGameStarted(game)
         }
     }
 
@@ -955,6 +957,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
         }
         hasEmulationSession = false
         processHasEmulationSession = false
+        AiConfigStore.onGameStopped(processSessionGame)
         if (isWaitingForRomSwapStop) {
             romSwapNativeStopped = true
             Log.info("[EmulationActivity] ROM swap native stop acknowledged")

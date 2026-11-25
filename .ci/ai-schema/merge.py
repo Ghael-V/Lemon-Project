@@ -24,6 +24,8 @@ for s in raw["settings"]:
     desc = tiers["descriptions"].get(s["key"]) or s.get("description") or s.get("title")
     if s.get("title"):
         e["ui_title"] = s["title"]
+    if s.get("title_res"):
+        e["ui_title_res"] = s["title_res"]
     e["description"] = desc
     out.append(e)
 missing = [e["key"] for e in out if not e["description"]]
