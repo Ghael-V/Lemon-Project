@@ -1,0 +1,431 @@
+{
+ "app": "ironlemon",
+ "schema_version": 1,
+ "settings": [
+  {
+   "key": "use_multi_core",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Run the emulated CPU cores on several host threads. Off is slower but fixes some timing-sensitive games."
+  },
+  {
+   "key": "memory_layout_mode",
+   "tier": "allow",
+   "type": "MemoryLayout",
+   "default": "MemoryLayout::Memory_4Gb",
+   "min": "MemoryLayout::Memory_4Gb",
+   "max": "MemoryLayout::Memory_8Gb",
+   "enum": [
+    {
+     "name": "Memory_4Gb",
+     "value": 0
+    },
+    {
+     "name": "Memory_6Gb",
+     "value": 1
+    },
+    {
+     "name": "Memory_8Gb",
+     "value": 2
+    }
+   ],
+   "description": "Emulated RAM size (4 GB retail, 6/8 GB expanded). Larger helps some mods and heavy games, costs host RAM."
+  },
+  {
+   "key": "cpu_backend",
+   "tier": "allow",
+   "type": "CpuBackend",
+   "default": "CpuBackend::Nce",
+   "min": "CpuBackend::Dynarmic",
+   "max": "CpuBackend::Nce",
+   "enum": [
+    {
+     "name": "Dynarmic",
+     "value": 0
+    },
+    {
+     "name": "Nce",
+     "value": 1
+    }
+   ],
+   "ui_title": "CPU backend",
+   "description": "CPU backend"
+  },
+  {
+   "key": "cpu_accuracy",
+   "tier": "allow",
+   "type": "CpuAccuracy",
+   "default": "CpuAccuracy::Auto",
+   "min": "CpuAccuracy::Auto",
+   "max": "CpuAccuracy::Paranoid",
+   "enum": [
+    {
+     "name": "Auto",
+     "value": 0
+    },
+    {
+     "name": "Accurate",
+     "value": 1
+    },
+    {
+     "name": "Unsafe",
+     "value": 2
+    },
+    {
+     "name": "Paranoid",
+     "value": 3
+    }
+   ],
+   "ui_title": "CPU accuracy",
+   "description": "CPU accuracy"
+  },
+  {
+   "key": "cpuopt_fastmem",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Map guest memory directly into host memory for faster access (debug CPU option; normally on)."
+  },
+  {
+   "key": "cpuopt_fastmem_exclusives",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Use fastmem for exclusive memory accesses (debug CPU option; normally on)."
+  },
+  {
+   "key": "cpuopt_unsafe_unfuse_fma",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Split fused multiply-add into two operations. Faster on some hosts; changes float rounding."
+  },
+  {
+   "key": "cpuopt_unsafe_reduce_fp_error",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Use host approximations for reciprocal/sqrt estimates. Faster; changes float results."
+  },
+  {
+   "key": "cpuopt_unsafe_ignore_standard_fpcr",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Ignore the guest floating-point control register's standard mode. Faster; changes float results."
+  },
+  {
+   "key": "cpuopt_unsafe_inaccurate_nan",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Do not emulate exact NaN payloads. Faster; can break physics in rare games."
+  },
+  {
+   "key": "cpuopt_unsafe_fastmem_check",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Skip bounds checks on fastmem accesses. Faster; out-of-range accesses can crash the game."
+  },
+  {
+   "key": "cpuopt_unsafe_ignore_global_monitor",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Skip the global exclusive monitor. Faster; can break games that rely on atomics across cores."
+  },
+  {
+   "key": "use_disk_shader_cache",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "Disk shader cache",
+   "description": "Reduces stuttering by locally storing and loading generated shaders."
+  },
+  {
+   "key": "use_asynchronous_gpu_emulation",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Run GPU emulation on its own thread."
+  },
+  {
+   "key": "accelerate_astc",
+   "tier": "allow",
+   "type": "AstcDecodeMode",
+   "default": "AstcDecodeMode::Cpu",
+   "min": "AstcDecodeMode::Cpu",
+   "max": "AstcDecodeMode::CpuAsynchronous",
+   "enum": [
+    {
+     "name": "Cpu",
+     "value": 0
+    },
+    {
+     "name": "Gpu",
+     "value": 1
+    },
+    {
+     "name": "CpuAsynchronous",
+     "value": 2
+    }
+   ],
+   "description": "Decode ASTC textures with a compute shader on the GPU."
+  },
+  {
+   "key": "nvdec_emulation",
+   "tier": "allow",
+   "type": "NvdecEmulation",
+   "default": "NvdecEmulation::Gpu",
+   "enum": [
+    {
+     "name": "Off",
+     "value": 0
+    },
+    {
+     "name": "Cpu",
+     "value": 1
+    },
+    {
+     "name": "Gpu",
+     "value": 2
+    }
+   ],
+   "description": "How in-game videos are decoded: off, CPU or GPU."
+  },
+  {
+   "key": "resolution_setup",
+   "tier": "allow",
+   "type": "ResolutionSetup",
+   "default": "ResolutionSetup::Res1X",
+   "enum": [
+    {
+     "name": "Res1_2X",
+     "value": 0
+    },
+    {
+     "name": "Res3_4X",
+     "value": 1
+    },
+    {
+     "name": "Res1X",
+     "value": 2
+    },
+    {
+     "name": "Res3_2X",
+     "value": 3
+    },
+    {
+     "name": "Res2X",
+     "value": 4
+    },
+    {
+     "name": "Res3X",
+     "value": 5
+    },
+    {
+     "name": "Res4X",
+     "value": 6
+    },
+    {
+     "name": "Res5X",
+     "value": 7
+    },
+    {
+     "name": "Res6X",
+     "value": 8
+    },
+    {
+     "name": "Res7X",
+     "value": 9
+    },
+    {
+     "name": "Res8X",
+     "value": 10
+    }
+   ],
+   "ui_title": "Resolution (Handheld/Docked)",
+   "description": "Resolution (Handheld/Docked)"
+  },
+  {
+   "key": "gpu_accuracy",
+   "tier": "allow",
+   "type": "GpuAccuracy",
+   "default": "GpuAccuracy::High",
+   "min": "GpuAccuracy::Normal",
+   "max": "GpuAccuracy::Extreme",
+   "enum": [
+    {
+     "name": "Normal",
+     "value": 0
+    },
+    {
+     "name": "High",
+     "value": 1
+    },
+    {
+     "name": "Extreme",
+     "value": 2
+    }
+   ],
+   "ui_title": "GPU accuracy",
+   "description": "GPU accuracy"
+  },
+  {
+   "key": "max_anisotropy",
+   "tier": "allow",
+   "type": "AnisotropyMode",
+   "default": "AnisotropyMode::Default",
+   "min": "AnisotropyMode::Automatic",
+   "max": "AnisotropyMode::X16",
+   "enum": [
+    {
+     "name": "Automatic",
+     "value": 0
+    },
+    {
+     "name": "Default",
+     "value": 1
+    },
+    {
+     "name": "X2",
+     "value": 2
+    },
+    {
+     "name": "X4",
+     "value": 3
+    },
+    {
+     "name": "X8",
+     "value": 4
+    },
+    {
+     "name": "X16",
+     "value": 5
+    }
+   ],
+   "ui_title": "Anisotropic filtering",
+   "description": "Improves the quality of textures when viewed at oblique angles"
+  },
+  {
+   "key": "astc_recompression",
+   "tier": "allow",
+   "type": "AstcRecompression",
+   "default": "AstcRecompression::Uncompressed",
+   "min": "AstcRecompression::Uncompressed",
+   "max": "AstcRecompression::Bc3",
+   "enum": [
+    {
+     "name": "Uncompressed",
+     "value": 0
+    },
+    {
+     "name": "Bc1",
+     "value": 1
+    },
+    {
+     "name": "Bc3",
+     "value": 2
+    }
+   ],
+   "description": "How ASTC textures are stored when the GPU cannot decode ASTC natively: Uncompressed (most VRAM, best quality), Bc1 or Bc3 (less VRAM, lower quality; needs BCn support, not on Mali)."
+  },
+  {
+   "key": "vram_usage_mode",
+   "tier": "allow",
+   "type": "VramUsageMode",
+   "default": "VramUsageMode::Conservative",
+   "min": "VramUsageMode::Conservative",
+   "max": "VramUsageMode::Aggressive",
+   "enum": [
+    {
+     "name": "Conservative",
+     "value": 0
+    },
+    {
+     "name": "Aggressive",
+     "value": 1
+    }
+   ],
+   "description": "How aggressively the emulator keeps textures in VRAM before evicting."
+  },
+  {
+   "key": "async_presentation",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Present frames from a separate thread."
+  },
+  {
+   "key": "force_max_clock",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Force maximum clocks (Adreno only)",
+   "description": "Forces the GPU to run at the maximum possible clocks (thermal constraints will still be applied)."
+  },
+  {
+   "key": "use_asynchronous_shaders",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Use asynchronous shaders",
+   "description": "Compiles shaders asynchronously, reducing stutter but may introduce glitches."
+  },
+  {
+   "key": "use_fast_gpu_time",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Report a faster GPU clock to the game so it may raise its dynamic resolution."
+  },
+  {
+   "key": "use_vulkan_driver_pipeline_cache",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Keep the Vulkan driver's own pipeline cache on disk. Shorter compile stutter on later runs; a bad driver cache can cause crashes at boot."
+  },
+  {
+   "key": "bcn_astc_recompression",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "Recompress BCn textures",
+   "description": "On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC, and BC4 and BC5 as EAC, instead of uncompressed. Uses 2 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn."
+  },
+  {
+   "key": "use_video_framerate",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "description": "While a hardware-decoded video plays, present at the video's frame rate."
+  },
+  {
+   "key": "barrier_feedback_loops",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Insert barriers when a texture is sampled while it is also a render target (feedback loop). Default on; turning off can be faster but may show corruption."
+  },
+  {
+   "key": "use_docked_mode",
+   "tier": "risky",
+   "type": "ConsoleMode",
+   "default": "ConsoleMode::Handheld",
+   "enum": [
+    {
+     "name": "Handheld",
+     "value": 0
+    },
+    {
+     "name": "Docked",
+     "value": 1
+    }
+   ],
+   "description": "Emulate the console docked (higher game resolution, more GPU load) or handheld."
+  }
+ ]
+}
