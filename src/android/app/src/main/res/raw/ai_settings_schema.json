@@ -1,0 +1,782 @@
+{
+ "app": "lemon",
+ "schema_version": 1,
+ "settings": [
+  {
+   "key": "use_multi_core",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Run the emulated CPU cores on several host threads. Off is slower but fixes some timing-sensitive games."
+  },
+  {
+   "key": "memory_layout_mode",
+   "tier": "allow",
+   "type": "MemoryLayout",
+   "default": "MemoryLayout::Memory_4Gb",
+   "ui_title": "Memory Layout",
+   "description": "Emulated RAM size (4 GB retail, 6/8 GB expanded). Larger helps some mods and heavy games, costs host RAM."
+  },
+  {
+   "key": "sync_core_speed",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Synchronize Core Speed",
+   "description": "Synchronize the core tick speed to the maximum speed percentage to improve performance without altering the game's actual speed."
+  },
+  {
+   "key": "cpu_backend",
+   "tier": "allow",
+   "type": "CpuBackend",
+   "default": "CpuBackend::Nce",
+   "min": "CpuBackend::Dynarmic",
+   "max": "CpuBackend::Nce",
+   "enum": [
+    {
+     "name": "Dynarmic",
+     "value": 0
+    },
+    {
+     "name": "Nce",
+     "value": 1
+    }
+   ],
+   "ui_title": "CPU backend",
+   "description": "CPU backend"
+  },
+  {
+   "key": "cpu_accuracy",
+   "tier": "allow",
+   "type": "CpuAccuracy",
+   "default": "CpuAccuracy::Auto",
+   "enum": [
+    {
+     "name": "Auto",
+     "value": 0
+    },
+    {
+     "name": "Accurate",
+     "value": 1
+    },
+    {
+     "name": "Unsafe",
+     "value": 2
+    },
+    {
+     "name": "Paranoid",
+     "value": 3
+    },
+    {
+     "name": "Debugging",
+     "value": 4
+    }
+   ],
+   "ui_title": "CPU accuracy",
+   "description": "CPU accuracy"
+  },
+  {
+   "key": "fast_cpu_time",
+   "tier": "risky",
+   "type": "CpuClock",
+   "default": "CpuClock::Normal",
+   "enum": [
+    {
+     "name": "Normal",
+     "value": 0
+    },
+    {
+     "name": "Boost",
+     "value": 1
+    },
+    {
+     "name": "Overclock) ENUM(MemoryLayout",
+     "value": 2
+    },
+    {
+     "name": "Memory_4Gb",
+     "value": 3
+    },
+    {
+     "name": "Memory_6Gb",
+     "value": 4
+    },
+    {
+     "name": "Memory_8Gb",
+     "value": 5
+    },
+    {
+     "name": "Memory_10Gb",
+     "value": 6
+    },
+    {
+     "name": "Memory_12Gb",
+     "value": 7
+    }
+   ],
+   "ui_title": "CPU Clocks",
+   "description": "Raises the clock the emulated CPU reports, which removes some FPS limiters. Weaker CPUs may see reduced performance, and certain games may behave improperly."
+  },
+  {
+   "key": "use_custom_cpu_ticks",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Custom CPU Ticks",
+   "description": "Set a custom value of CPU ticks. Higher values can increase performance, but may also cause the game to freeze. A range of 77–21000 is recommended."
+  },
+  {
+   "key": "cpu_ticks",
+   "tier": "allow",
+   "type": "u32",
+   "default": "16000",
+   "min": "77",
+   "max": "65535",
+   "ui_title": "Ticks",
+   "description": "Ticks"
+  },
+  {
+   "key": "cpuopt_fastmem",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Map guest memory directly into host memory for faster access (debug CPU option; normally on)."
+  },
+  {
+   "key": "cpuopt_fastmem_exclusives",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Use fastmem for exclusive memory accesses (debug CPU option; normally on)."
+  },
+  {
+   "key": "cpuopt_unsafe_host_mmu",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "Enable Host MMU Emulation",
+   "description": "This optimization speeds up memory accesses by the guest program. Enabling it causes guest memory reads/writes to be done directly into memory and make use of Host's MMU. Disabling this forces all memory accesses to use Software MMU Emulation."
+  },
+  {
+   "key": "cpuopt_unsafe_unfuse_fma",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Split fused multiply-add into two operations. Faster on some hosts; changes float rounding."
+  },
+  {
+   "key": "cpuopt_unsafe_reduce_fp_error",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Use host approximations for reciprocal/sqrt estimates. Faster; changes float results."
+  },
+  {
+   "key": "cpuopt_unsafe_ignore_standard_fpcr",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Ignore the guest floating-point control register's standard mode. Faster; changes float results."
+  },
+  {
+   "key": "cpuopt_unsafe_inaccurate_nan",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Do not emulate exact NaN payloads. Faster; can break physics in rare games."
+  },
+  {
+   "key": "cpuopt_unsafe_fastmem_check",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Skip bounds checks on fastmem accesses. Faster; out-of-range accesses can crash the game."
+  },
+  {
+   "key": "cpuopt_unsafe_ignore_global_monitor",
+   "tier": "risky",
+   "type": "bool",
+   "default": "true",
+   "description": "Skip the global exclusive monitor. Faster; can break games that rely on atomics across cores."
+  },
+  {
+   "key": "resolution_setup",
+   "tier": "allow",
+   "type": "ResolutionSetup",
+   "default": "ResolutionSetup::Res1X",
+   "enum": [
+    {
+     "name": "Res1_4X",
+     "value": 0
+    },
+    {
+     "name": "Res1_2X",
+     "value": 1
+    },
+    {
+     "name": "Res3_4X",
+     "value": 2
+    },
+    {
+     "name": "Res1X",
+     "value": 3
+    },
+    {
+     "name": "Res5_4X",
+     "value": 4
+    },
+    {
+     "name": "Res3_2X",
+     "value": 5
+    },
+    {
+     "name": "Res2X",
+     "value": 6
+    },
+    {
+     "name": "Res3X",
+     "value": 7
+    },
+    {
+     "name": "Res4X",
+     "value": 8
+    },
+    {
+     "name": "Res5X",
+     "value": 9
+    },
+    {
+     "name": "Res6X",
+     "value": 10
+    },
+    {
+     "name": "Res7X",
+     "value": 11
+    },
+    {
+     "name": "Res8X",
+     "value": 12
+    }
+   ],
+   "ui_title": "Resolution (Handheld/Docked)",
+   "description": "Resolution (Handheld/Docked)"
+  },
+  {
+   "key": "use_asynchronous_gpu_emulation",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "GPU async emulation",
+   "description": "Run GPU emulation on its own thread."
+  },
+  {
+   "key": "gpu_accuracy",
+   "tier": "allow",
+   "type": "GpuAccuracy",
+   "default": "GpuAccuracy::High",
+   "enum": [
+    {
+     "name": "Low",
+     "value": 0
+    },
+    {
+     "name": "High",
+     "value": 1
+    }
+   ],
+   "ui_title": "GPU Mode",
+   "description": "Controls the GPU emulation mode. Most games render fine with Fast, but Accurate is still required for some. Particles tend to only render correctly with Accurate mode."
+  },
+  {
+   "key": "dma_accuracy",
+   "tier": "allow",
+   "type": "DmaAccuracy",
+   "default": "DmaAccuracy::Default",
+   "enum": [
+    {
+     "name": "Default",
+     "value": 0
+    },
+    {
+     "name": "Unsafe",
+     "value": 1
+    },
+    {
+     "name": "Safe",
+     "value": 2
+    }
+   ],
+   "ui_title": "DMA Accuracy",
+   "description": "Controls the DMA precision accuracy. Safe precision can fix issues in some games, but it can also impact performance in some cases. If unsure, leave this on Default."
+  },
+  {
+   "key": "vram_usage_mode",
+   "tier": "allow",
+   "type": "VramUsageMode",
+   "default": "VramUsageMode::Conservative",
+   "enum": [
+    {
+     "name": "Conservative",
+     "value": 0
+    },
+    {
+     "name": "Aggressive",
+     "value": 1
+    }
+   ],
+   "ui_title": "VRAM Usage Mode",
+   "description": "How aggressively the emulator keeps textures in VRAM before evicting."
+  },
+  {
+   "key": "nvdec_emulation",
+   "tier": "allow",
+   "type": "NvdecEmulation",
+   "default": "NvdecEmulation::Gpu",
+   "enum": [
+    {
+     "name": "Off",
+     "value": 0
+    },
+    {
+     "name": "Cpu",
+     "value": 1
+    },
+    {
+     "name": "Gpu",
+     "value": 2
+    }
+   ],
+   "ui_title": "NVDEC Emulation",
+   "description": "How in-game videos are decoded: off, CPU or GPU."
+  },
+  {
+   "key": "max_anisotropy",
+   "tier": "allow",
+   "type": "AnisotropyMode",
+   "default": "AnisotropyMode::Default",
+   "enum": [
+    {
+     "name": "Automatic",
+     "value": 0
+    },
+    {
+     "name": "Default",
+     "value": 1
+    },
+    {
+     "name": "X2",
+     "value": 2
+    },
+    {
+     "name": "X4",
+     "value": 3
+    },
+    {
+     "name": "X8",
+     "value": 4
+    },
+    {
+     "name": "X16",
+     "value": 5
+    }
+   ],
+   "ui_title": "Anisotropic filtering",
+   "description": "Improves the quality of textures when viewed at oblique angles"
+  },
+  {
+   "key": "accelerate_astc",
+   "tier": "allow",
+   "type": "AstcDecodeMode",
+   "default": "AstcDecodeMode::Gpu",
+   "enum": [
+    {
+     "name": "Cpu",
+     "value": 0
+    },
+    {
+     "name": "Gpu",
+     "value": 1
+    },
+    {
+     "name": "CpuAsynchronous",
+     "value": 2
+    }
+   ],
+   "ui_title": "ASTC Decoding Method",
+   "description": "Decode ASTC textures with a compute shader on the GPU."
+  },
+  {
+   "key": "frame_pacing_mode",
+   "tier": "allow",
+   "type": "FramePacingMode",
+   "default": "FramePacingMode::Target_Auto",
+   "min": "FramePacingMode::Target_Auto",
+   "max": "FramePacingMode::Target_120",
+   "enum": [
+    {
+     "name": "Target_Auto",
+     "value": 0
+    },
+    {
+     "name": "Target_30",
+     "value": 1
+    },
+    {
+     "name": "Target_60",
+     "value": 2
+    },
+    {
+     "name": "Target_90",
+     "value": 3
+    },
+    {
+     "name": "Target_120",
+     "value": 4
+    }
+   ],
+   "description": "Swapchain present pacing target: Auto, 30, 60, 90 or 120 fps."
+  },
+  {
+   "key": "astc_recompression",
+   "tier": "allow",
+   "type": "AstcRecompression",
+   "default": "AstcRecompression::Uncompressed",
+   "enum": [
+    {
+     "name": "Uncompressed",
+     "value": 0
+    },
+    {
+     "name": "Bc1",
+     "value": 1
+    },
+    {
+     "name": "Bc3",
+     "value": 2
+    }
+   ],
+   "description": "How ASTC textures are stored when the GPU cannot decode ASTC natively: Uncompressed (most VRAM, best quality), Bc1 or Bc3 (less VRAM, lower quality; needs BCn support, not on Mali)."
+  },
+  {
+   "key": "sync_memory_operations",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Sync Memory Operations",
+   "description": "Ensures data consistency between compute and memory operations. This option should fix issues in some games, but may also reduce performance in some cases. Unreal Engine 4 games often see the most significant changes thereof."
+  },
+  {
+   "key": "force_max_clock",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Force maximum clocks (Adreno only)",
+   "description": "Forces the GPU to run at the maximum possible clocks (thermal constraints will still be applied)."
+  },
+  {
+   "key": "gpu_fence_immediate",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Immediate GPU fences",
+   "description": "For advanced users. Tells the game its GPU work is done as soon as it is queued, without waiting for the GPU. Can raise FPS in some games, but others flicker or show broken objects. Turn it on only for the game that needs it, from its own settings."
+  },
+  {
+   "key": "use_disk_shader_cache",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "Disk shader cache",
+   "description": "Reduces stuttering by locally storing and loading generated shaders."
+  },
+  {
+   "key": "use_vulkan_driver_pipeline_cache",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Keep the Vulkan driver's own pipeline cache on disk. Shorter compile stutter on later runs; a bad driver cache can cause crashes at boot."
+  },
+  {
+   "key": "bcn_astc_recompression",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "ui_title": "Recompress BCn textures",
+   "description": "On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC, and BC4 and BC5 as EAC, instead of uncompressed. Uses 2 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn."
+  },
+  {
+   "key": "use_video_framerate",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "description": "While a hardware-decoded video plays, present at the video's frame rate."
+  },
+  {
+   "key": "barrier_feedback_loops",
+   "tier": "allow",
+   "type": "bool",
+   "default": "true",
+   "description": "Insert barriers when a texture is sampled while it is also a render target (feedback loop). Default on; turning off can be faster but may show corruption."
+  },
+  {
+   "key": "enable_buffer_history",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Enable buffer history",
+   "description": "Enables access to previous buffer states. This option may improve rendering quality and performance consistency in some games."
+  },
+  {
+   "key": "use_optimized_vertex_buffers",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Optimized Vertex Buffers",
+   "description": "Enables optimized vertex buffer binding for improved performance. Requires Mesa 26.0+ Turnip drivers/ QCOM drivers. Will crash on older Turnip drivers (25.3 and below)."
+  },
+  {
+   "key": "fast_gpu_time",
+   "tier": "allow",
+   "type": "GpuClock",
+   "default": "GpuClock::Boost",
+   "enum": [
+    {
+     "name": "Normal",
+     "value": 0
+    },
+    {
+     "name": "Boost",
+     "value": 1
+    },
+    {
+     "name": "Overclock) ENUM(GpuUnswizzleSize",
+     "value": 2
+    },
+    {
+     "name": "VerySmall",
+     "value": 3
+    },
+    {
+     "name": "Small",
+     "value": 4
+    },
+    {
+     "name": "Normal",
+     "value": 5
+    },
+    {
+     "name": "Large",
+     "value": 6
+    },
+    {
+     "name": "VeryLarge) ENUM(GpuUnswizzle",
+     "value": 7
+    },
+    {
+     "name": "VeryLow",
+     "value": 8
+    },
+    {
+     "name": "Low",
+     "value": 9
+    },
+    {
+     "name": "Normal",
+     "value": 10
+    },
+    {
+     "name": "Medium",
+     "value": 11
+    },
+    {
+     "name": "High) ENUM(GpuUnswizzleChunk",
+     "value": 12
+    },
+    {
+     "name": "VeryLow",
+     "value": 13
+    },
+    {
+     "name": "Low",
+     "value": 14
+    },
+    {
+     "name": "Normal",
+     "value": 15
+    },
+    {
+     "name": "Medium",
+     "value": 16
+    },
+    {
+     "name": "High) ENUM(TemperatureUnits",
+     "value": 17
+    },
+    {
+     "name": "Celsius",
+     "value": 18
+    },
+    {
+     "name": "Fahrenheit) ENUM(ExtendedDynamicState",
+     "value": 19
+    },
+    {
+     "name": "Disabled",
+     "value": 20
+    },
+    {
+     "name": "EDS1",
+     "value": 21
+    },
+    {
+     "name": "EDS2",
+     "value": 22
+    },
+    {
+     "name": "EDS3",
+     "value": 23
+    }
+   ],
+   "ui_title": "GPU Clocks",
+   "description": "Makes the game believe GPU work finishes faster than it does, so it stops lowering resolution and render distance to fit the Switch's clocks."
+  },
+  {
+   "key": "skip_cpu_inner_invalidation",
+   "tier": "risky",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Skip CPU Inner Invalidation",
+   "description": "Skips certain CPU-side cache invalidations during memory updates, reducing CPU usage and improving it's performance. This may cause glitches or crashes on some games."
+  },
+  {
+   "key": "async_presentation",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Asynchronous presentation",
+   "description": "Present frames from a separate thread."
+  },
+  {
+   "key": "fix_bloom_effects",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Fix Bloom Effects",
+   "description": "Reduces bloom blur in LA/EOW (Adreno A6XX - A7XX/ Turnip), removes bloom in Burnout. Warning: may cause graphical artifacts in other games."
+  },
+  {
+   "key": "emulate_bgr565",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Emulate BGR565",
+   "description": "Fixes problems with inverted colors in games or strange artifacts or strange shadows."
+  },
+  {
+   "key": "rescale_hack",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Enable Legacy Rescale Pass",
+   "description": "Enables a legacy handling for the rescale configuration pass for games by using a quick rescale path"
+  },
+  {
+   "key": "enable_gpu_buffer_readback",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Enable GPU Buffer Readback",
+   "description": "Preserves GPU-modified buffer data by reading it back before uploads. Some games require this to render certain effects properly. May cause issues if the hardware cannot handle the additional workload."
+  },
+  {
+   "key": "use_asynchronous_shaders",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Use asynchronous shaders",
+   "description": "Compiles shaders asynchronously. This may reduce stutters but may also introduce glitches."
+  },
+  {
+   "key": "gpu_unswizzle_texture_size",
+   "tier": "allow",
+   "type": "GpuUnswizzleSize",
+   "default": "GpuUnswizzleSize::Large",
+   "ui_title": "GPU Unswizzle Max Texture Size",
+   "description": "Sets the maximum size (MB) for GPU-based texture unswizzling. While the GPU is faster for medium and large textures, the CPU may be more efficient for very small ones. Adjust this to find the balance between GPU acceleration and CPU overhead."
+  },
+  {
+   "key": "gpu_unswizzle_stream_size",
+   "tier": "allow",
+   "type": "GpuUnswizzle",
+   "default": "GpuUnswizzle::Medium",
+   "ui_title": "GPU Unswizzle Stream Size",
+   "description": "Sets the data limit per frame for unswizzling large textures. Higher values speed up texture loading at the cost of higher frame latency; lower values reduce GPU overhead but may cause visible texture pop-in."
+  },
+  {
+   "key": "gpu_unswizzle_chunk_size",
+   "tier": "allow",
+   "type": "GpuUnswizzleChunk",
+   "default": "GpuUnswizzleChunk::Medium",
+   "ui_title": "GPU Unswizzle Chunk Size",
+   "description": "Defines the number of depth slices processed per batch for 3D textures. Increasing this improves throughput efficiency on powerful GPUs but may cause stuttering or driver timeouts on weaker hardware."
+  },
+  {
+   "key": "gpu_unswizzle_enabled",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "description": "Decode block-linear 3D textures on the GPU instead of the CPU. Faster texture uploads in some games; experimental."
+  },
+  {
+   "key": "dyna_state",
+   "tier": "allow",
+   "type": "ExtendedDynamicState",
+   "default": "ExtendedDynamicState::Disabled",
+   "ui_title": "Extended Dynamic State",
+   "description": "Controls the number of features that can be used in ExtendedDynamicState (EDS). The higher value will allow to reduce the amount of pipeline compilations based on the dynamic state supported by driver."
+  },
+  {
+   "key": "sample_shading_fraction",
+   "tier": "allow",
+   "type": "u32",
+   "default": "0",
+   "min": "0",
+   "max": "100",
+   "ui_title": "Sample Shading",
+   "description": "Allows the fragment shader to execute per sample in a multi-sampled fragment instead once per fragment. Improves graphics quality at the cost of some performance."
+  },
+  {
+   "key": "vertex_input_dynamic_state",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Vertex Input Dynamic State",
+   "description": "Enabling this feature allows for more flexible vertex input handling, potentially reducing pipeline compilation time in vertex/buffer."
+  },
+  {
+   "key": "disable_buffer_reorder",
+   "tier": "allow",
+   "type": "bool",
+   "default": "false",
+   "ui_title": "Disable Buffer Reorder",
+   "description": "When checked, disables reordering of mapped memory uploads which allows to associate uploads with specific draws. May reduce performance in some cases."
+  },
+  {
+   "key": "use_docked_mode",
+   "tier": "risky",
+   "type": "ConsoleMode",
+   "default": "ConsoleMode::Handheld",
+   "enum": [
+    {
+     "name": "Handheld",
+     "value": 0
+    },
+    {
+     "name": "Docked",
+     "value": 1
+    }
+   ],
+   "description": "Emulate the console docked (higher game resolution, more GPU load) or handheld."
+  }
+ ]
+}
