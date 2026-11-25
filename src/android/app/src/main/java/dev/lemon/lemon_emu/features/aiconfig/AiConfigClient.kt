@@ -97,7 +97,8 @@ object AiConfigClient {
 
     private const val MAX_BYTES = 256L * 1024
 
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    // coerceInputValues: a null where a list or text is expected becomes the default (empty).
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; coerceInputValues = true }
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     private val client by lazy {
