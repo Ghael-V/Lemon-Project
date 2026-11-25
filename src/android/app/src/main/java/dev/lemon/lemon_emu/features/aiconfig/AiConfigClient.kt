@@ -44,6 +44,8 @@ object AiConfigClient {
         val app_version: String,
         val schema_version: Int,
         val title_id: String,
+        /** The game's name (public); the model answers far better knowing which game it is. */
+        val title_name: String,
         val game_version: String,
         /** For the reasons and notes in the answer (ISO 639-1, e.g. "es"). */
         val language: String,

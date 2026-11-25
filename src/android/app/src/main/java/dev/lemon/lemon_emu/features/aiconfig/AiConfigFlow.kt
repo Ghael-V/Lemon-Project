@@ -104,6 +104,7 @@ object AiConfigFlow {
             app_version = BuildConfig.VERSION_NAME,
             schema_version = schema.schema_version,
             title_id = titleId,
+            title_name = game.title.take(128),
             game_version = game.version,
             language = Locale.getDefault().language,
             device = device,

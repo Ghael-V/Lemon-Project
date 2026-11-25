@@ -85,7 +85,7 @@ android {
         // A test build can point it at a local mock with -PaiConfigUrl=http://...; only then is
         // cleartext HTTP allowed.
         val aiConfigUrl = (project.findProperty("aiConfigUrl") as String?)
-            ?: "https://online.lemon-emu.org/v1"
+            ?: "https://ai.lemon-emu.org/v1"
         buildConfigField("String", "AI_CONFIG_URL", "\"$aiConfigUrl\"")
         manifestPlaceholders["usesCleartextTraffic"] = aiConfigUrl.startsWith("http://").toString()
 
