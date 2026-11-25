@@ -149,16 +149,20 @@ fun IronLemonDialogCard(
     }
 }
 
-/** A dialog's message text, scrolling when long. */
+/**
+ * A dialog's message text, scrolling when long. It never takes more than 45% of the screen's
+ * height, so the title and the buttons stay on screen (a landscape handheld is ~410 dp tall).
+ */
 @Composable
 fun IronLemonDialogText(text: CharSequence) {
     val annotated = text as? androidx.compose.ui.text.AnnotatedString
         ?: androidx.compose.ui.text.AnnotatedString(text.toString())
+    val maxHeight = minOf(420f, LocalConfiguration.current.screenHeightDp * 0.45f).dp
     BasicText(
         annotated,
         style = IronLemonType.Body.copy(color = IronLemonColors.Text),
         modifier = Modifier
-            .heightIn(max = 420.dp)
+            .heightIn(max = maxHeight)
             .verticalScroll(rememberScrollState())
     )
 }

@@ -20,7 +20,9 @@ import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonDialogText
 import dev.ironlemon.ironlemon_emulator.ui.modern.IronLemonSwitchRow
 import dev.ironlemon.ironlemon_emulator.ui.modern.showIronLemonDialog
 import dev.ironlemon.ironlemon_emulator.utils.Log
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -29,24 +31,34 @@ object UpdateFlow {
     // Once per app process: recreating the activity must not ask again.
     private var checkedAtStart = false
 
+    // The main activity is often created twice as the app starts, and the first one can be gone
+    // before the servers answer. So the check at start does not belong to an activity: its answer
+    // goes to the newest one, if that one is still there.
+    private var startActivity: WeakReference<FragmentActivity>? = null
+    private val startScope = MainScope()
+
     fun checkAtStart(activity: FragmentActivity) {
-        if (checkedAtStart || !AppUpdater.canUpdate ||
-            !AppUpdater.isAutoCheckEnabled(activity)
-        ) {
+        if (!AppUpdater.canUpdate || !AppUpdater.isAutoCheckEnabled(activity)) {
+            return
+        }
+        startActivity = WeakReference(activity)
+        if (checkedAtStart) {
             return
         }
         checkedAtStart = true
-        check(activity, manual = false)
+        startScope.launch {
+            val release = withContext(Dispatchers.IO) { AppUpdater.findUpdate() }
+            val target = startActivity?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+            startActivity = null
+            if (release != null && target != null) offer(target, release)
+        }
     }
 
-    fun checkNow(activity: FragmentActivity) = check(activity, manual = true)
-
-    private fun check(activity: FragmentActivity, manual: Boolean) {
+    fun checkNow(activity: FragmentActivity) {
         activity.lifecycleScope.launch {
             val release = withContext(Dispatchers.IO) { AppUpdater.findUpdate() }
             when {
                 release != null -> offer(activity, release)
-                !manual -> Unit
                 !AppUpdater.canUpdate -> toast(activity, R.string.update_not_for_debug)
                 AppUpdater.lastCheckReachedServer -> upToDate(activity)
                 else -> toast(activity, R.string.update_check_failed)
@@ -102,7 +114,11 @@ object UpdateFlow {
                 }
             ) {
                 IronLemonDialogText(
-                    release.notes.ifBlank { stringResource(R.string.update_no_notes) }
+                    if (release.notes.isBlank()) {
+                        stringResource(R.string.update_no_notes)
+                    } else {
+                        ReleaseNotes.format(release.notes, release.version)
+                    }
                 )
             }
         }

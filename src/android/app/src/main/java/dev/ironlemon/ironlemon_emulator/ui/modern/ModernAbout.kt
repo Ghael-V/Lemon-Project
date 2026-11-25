@@ -120,6 +120,11 @@ fun ModernAbout(versionText: String, actions: AboutActions) {
                         onClick = { actions.onLink(R.string.team_link) }
                     )
                     InfoCard(
+                        title = stringResource(R.string.update_check_title),
+                        body = stringResource(R.string.update_check_description),
+                        onClick = actions.onCheckUpdates
+                    )
+                    InfoCard(
                         title = stringResource(R.string.licenses),
                         body = stringResource(R.string.licenses_description),
                         onClick = actions.onLicenses
