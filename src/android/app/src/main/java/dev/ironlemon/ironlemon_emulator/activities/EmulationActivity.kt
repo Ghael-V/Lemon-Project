@@ -4,6 +4,7 @@
 package dev.ironlemon.ironlemon_emulator.activities
 
 import android.annotation.SuppressLint
+import dev.ironlemon.ironlemon_emulator.features.aiconfig.AiConfigStore
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
@@ -633,6 +634,7 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
     }
 
     fun onEmulationStopped(status: Int) {
+        AiConfigStore.onGameStopped()
         if (status == 0 && emulationViewModel.programChanged.value == -1) {
             // Started on its own (a shortcut, the widget, a file opened from another app, or the
             // library's activity gone): leaving the game goes to the library, not out of the app.

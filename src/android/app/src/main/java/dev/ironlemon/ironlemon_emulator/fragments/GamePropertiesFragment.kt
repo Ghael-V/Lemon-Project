@@ -37,6 +37,8 @@ import dev.ironlemon.ironlemon_emulator.HomeNavigationDirections
 import dev.ironlemon.ironlemon_emulator.R
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
 import dev.ironlemon.ironlemon_emulator.adapters.GamePropertiesAdapter
+import dev.ironlemon.ironlemon_emulator.features.aiconfig.AiConfigFlow
+import dev.ironlemon.ironlemon_emulator.features.aiconfig.AiConfigStore
 import dev.ironlemon.ironlemon_emulator.features.settings.model.Settings
 import dev.ironlemon.ironlemon_emulator.model.DriverViewModel
 import dev.ironlemon.ironlemon_emulator.model.GameProperty
@@ -149,6 +151,7 @@ class GamePropertiesFragment : Fragment() {
         homeViewModel.setStatusBarShadeVisibility(false)
 
         reloadList()
+        AiConfigFlow.showNoticeIfAny(requireContext(), args.game)
 
         homeViewModel.openImportSaves.collect(
             viewLifecycleOwner,
@@ -206,6 +209,36 @@ class GamePropertiesFragment : Fragment() {
             }
 
             if (!args.game.isHomebrew) {
+                add(
+                    SubmenuProperty(
+                        R.string.ai_config_title,
+                        R.string.ai_config_description,
+                        R.drawable.ic_ai_config
+                    ) {
+                        AiConfigFlow.start(this@GamePropertiesFragment, args.game) {
+                            homeViewModel.reloadPropertiesList(true)
+                        }
+                    }
+                )
+                if (AiConfigStore.hasActive(args.game)) {
+                    add(
+                        SubmenuProperty(
+                            R.string.ai_config_undo,
+                            R.string.ai_config_undo_description,
+                            R.drawable.ic_restore
+                        ) {
+                            viewLifecycleOwner.lifecycleScope.launch {
+                                withContext(Dispatchers.IO) { AiConfigStore.undo(args.game) }
+                                Toast.makeText(
+                                    requireContext(),
+                                    R.string.ai_config_undone,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                homeViewModel.reloadPropertiesList(true)
+                            }
+                        }
+                    )
+                }
                 add(
                     SubmenuProperty(
                         R.string.add_ons,

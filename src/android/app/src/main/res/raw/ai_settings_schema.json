@@ -50,6 +50,7 @@
     }
    ],
    "ui_title": "CPU backend",
+   "ui_title_res": "cpu_backend",
    "description": "CPU backend"
   },
   {
@@ -78,6 +79,7 @@
     }
    ],
    "ui_title": "CPU accuracy",
+   "ui_title_res": "cpu_accuracy",
    "description": "CPU accuracy"
   },
   {
@@ -142,6 +144,7 @@
    "type": "bool",
    "default": "true",
    "ui_title": "Disk shader cache",
+   "ui_title_res": "use_disk_shader_cache",
    "description": "Reduces stuttering by locally storing and loading generated shaders."
   },
   {
@@ -247,6 +250,7 @@
     }
    ],
    "ui_title": "Resolution (Handheld/Docked)",
+   "ui_title_res": "renderer_resolution",
    "description": "Resolution (Handheld/Docked)"
   },
   {
@@ -271,6 +275,7 @@
     }
    ],
    "ui_title": "GPU accuracy",
+   "ui_title_res": "renderer_accuracy",
    "description": "GPU accuracy"
   },
   {
@@ -307,6 +312,7 @@
     }
    ],
    "ui_title": "Anisotropic filtering",
+   "ui_title_res": "anisotropic_filtering",
    "description": "Improves the quality of textures when viewed at oblique angles"
   },
   {
@@ -364,6 +370,7 @@
    "type": "bool",
    "default": "false",
    "ui_title": "Force maximum clocks (Adreno only)",
+   "ui_title_res": "renderer_force_max_clock",
    "description": "Forces the GPU to run at the maximum possible clocks (thermal constraints will still be applied)."
   },
   {
@@ -372,6 +379,7 @@
    "type": "bool",
    "default": "false",
    "ui_title": "Use asynchronous shaders",
+   "ui_title_res": "renderer_asynchronous_shaders",
    "description": "Compiles shaders asynchronously, reducing stutter but may introduce glitches."
   },
   {
@@ -394,6 +402,7 @@
    "type": "bool",
    "default": "true",
    "ui_title": "Recompress BCn textures",
+   "ui_title_res": "bcn_astc_recompression",
    "description": "On GPUs without BCn support (Mali, Xclipse), stores BC1, BC2, BC3 and BC7 textures as ASTC, and BC4 and BC5 as EAC, instead of uncompressed. Uses 2 to 8 times less memory in games that rely on them; fine details can look slightly softer. It does nothing on GPUs that support BCn."
   },
   {

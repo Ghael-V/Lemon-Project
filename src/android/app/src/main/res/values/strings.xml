@@ -1567,4 +1567,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="frame_generation_switch">Generate frames</string>
     <string name="frame_generation_off">Off</string>
     <string name="frame_generation_auto_summary">Auto · %1$d FPS</string>
+++ b/src/android/app/src/main/res/values/strings.xml
+    <!-- AI game config -->
+    <string name="ai_config_title">Recommended settings</string>
+    <string name="ai_config_description">Settings suggested for this game on this device</string>
+    <string name="ai_config_undo">Undo the recommended settings</string>
+    <string name="ai_config_undo_description">Puts this game\'s settings back as they were before the recommendation</string>
+    <string name="ai_config_undone">Settings put back as they were</string>
+    <string name="ai_config_asking">Asking the recommendations server for this game and device…</string>
+    <string name="ai_config_apply">Apply</string>
+    <string name="ai_config_applied">Applied to this game. If it closes while starting, they are undone on their own.</string>
+    <string name="ai_config_experimental">experimental</string>
+    <string name="ai_config_undo_hint">Only this game\'s settings change. You can undo it from the game\'s properties.</string>
+    <string name="ai_config_nothing_to_change">This game\'s settings already match the recommendation.</string>
+    <string name="ai_config_reverted_after_crash">The game closed while starting with the recommended settings, so they were undone. Its settings are as before.</string>
+    <string name="ai_config_network_error">Could not reach the recommendations server. Check the connection and try again.</string>
+    <string name="ai_config_rate_limited">Too many requests right now. Try again in a while.</string>
+    <string name="ai_config_update_app">This version no longer gets recommendations. Update the app.</string>
+    <string name="ai_config_unavailable">Recommendations are not available right now. Try again later.</string>
+    <string name="ai_config_server_error">The server could not answer (%1$s).</string>
+    <string name="ai_config_on">On</string>
+    <string name="ai_config_off">Off</string>
+    <string name="ai_setting_use_multi_core">Multi-core CPU emulation</string>
+    <string name="ai_setting_cpuopt_fastmem">Fastmem (CPU)</string>
+    <string name="ai_setting_cpuopt_fastmem_exclusives">Fastmem for exclusive accesses (CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_unfuse_fma">Unfuse FMA (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_reduce_fp_error">Faster FRSQRTE and FRECPE (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_standard_fpcr">Ignore standard FPCR (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_inaccurate_nan">Inaccurate NaN handling (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_fastmem_check">Skip fastmem bounds checks (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_global_monitor">Ignore global monitor (unsafe CPU)</string>
+    <string name="ai_setting_astc_recompression">ASTC recompression</string>
+    <string name="ai_setting_use_vulkan_driver_pipeline_cache">Driver pipeline cache</string>
+    <string name="ai_setting_use_video_framerate">Present at the video frame rate</string>
+    <string name="ai_setting_barrier_feedback_loops">Barriers on feedback loops</string>
+    <string name="ai_setting_use_docked_mode">Docked mode</string>
+    <string name="ai_setting_memory_layout_mode">Emulated RAM</string>
+    <string name="ai_setting_use_asynchronous_gpu_emulation">Asynchronous GPU emulation</string>
+    <string name="ai_setting_accelerate_astc">ASTC decoding method</string>
+    <string name="ai_setting_nvdec_emulation">Video decoding (NVDEC)</string>
+    <string name="ai_setting_vram_usage_mode">VRAM usage</string>
+    <string name="ai_setting_async_presentation">Asynchronous presentation</string>
+    <string name="ai_setting_use_fast_gpu_time">Fast GPU time</string>
 </resources>

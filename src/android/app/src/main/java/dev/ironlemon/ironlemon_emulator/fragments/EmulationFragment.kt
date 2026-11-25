@@ -3,6 +3,7 @@
 
 package dev.ironlemon.ironlemon_emulator.fragments
 
+import dev.ironlemon.ironlemon_emulator.features.aiconfig.AiConfigStore
 import dev.ironlemon.ironlemon_emulator.utils.PerGameOverlay
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -226,6 +227,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         }
 
         // Always load custom settings when launching a game from an intent
+        // An AI change can only be blamed for a crash when the game runs on its own config.
+        AiConfigStore.launchUsesCustomConfig = args.custom || intentGame != null
         if (args.custom || intentGame != null) {
             SettingsFile.loadCustomConfig(game)
             NativeConfig.unloadPerGameConfig()
@@ -539,6 +542,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 // The core is up, but the game has not drawn anything yet: the loading screen stays
                 // until its first frame (a cold shader cache can take a while).
                 startFirstFrameWatcher()
+                AiConfigStore.onGameStarted(game)
 
                 emulationState.updateSurface()
 
