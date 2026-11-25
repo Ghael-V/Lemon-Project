@@ -2281,6 +2281,7 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="ai_config_undo">Undo the recommended settings</string>
     <string name="ai_config_undone">Settings put back as they were</string>
     <string name="ai_config_asking">Asking the Lemon server for this game and device…</string>
+    <string name="ai_config_privacy">Privacy</string>
     <string name="ai_config_apply">Apply</string>
     <string name="ai_config_applied">Applied to this game. If it closes while starting, they are undone on their own.</string>
     <string name="ai_config_experimental">experimental</string>

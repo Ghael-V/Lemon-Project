@@ -1618,6 +1618,7 @@
     <string name="ai_config_undo">Deshacer la configuración recomendada</string>
     <string name="ai_config_undone">Ajustes devueltos a como estaban</string>
     <string name="ai_config_asking">Consultando al servidor de Lemon para este juego y dispositivo…</string>
+    <string name="ai_config_privacy">Privacidad</string>
     <string name="ai_config_apply">Aplicar</string>
     <string name="ai_config_applied">Aplicada a este juego. Si se cierra al arrancar, se deshace sola.</string>
     <string name="ai_config_experimental">experimental</string>

@@ -5,6 +5,8 @@ package dev.lemon.lemon_emu.features.aiconfig
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.StyleSpan
@@ -45,6 +47,8 @@ object AiConfigFlow {
             .setTitle(R.string.ai_config_title)
             .setMessage(R.string.ai_config_asking)
             .setNegativeButton(android.R.string.cancel) { _, _ -> job?.cancel() }
+            // Only closes this dialog: the answer still shows when it arrives.
+            .setNeutralButton(R.string.ai_config_privacy) { _, _ -> openPrivacy(context) }
             .setOnCancelListener { job?.cancel() }
             .show()
 
@@ -175,7 +179,20 @@ object AiConfigFlow {
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.ai_config_privacy) { _, _ -> openPrivacy(context) }
             .show()
+    }
+
+    /** What the feature sends and keeps, on the website, in Spanish or English. */
+    private fun openPrivacy(context: Context) {
+        val url = if (Locale.getDefault().language == "es") {
+            "https://lemon-emu.org/es/privacidad-ia.html"
+        } else {
+            "https://lemon-emu.org/privacy-ai.html"
+        }
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.onFailure { Toast.makeText(context, url, Toast.LENGTH_LONG).show() }
     }
 
     /**
