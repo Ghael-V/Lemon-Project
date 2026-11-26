@@ -81,6 +81,12 @@ void AndroidConfig::ReadDriverValues() {
     EndGroup();
 }
 
+double AndroidConfig::ReadControlScale() {
+    // Missing (layouts saved before sizes existed) reads as 0: the control's normal size.
+    const double scale = ReadDoubleSetting(std::string("scale"));
+    return scale > 0.0 ? scale : 1.0;
+}
+
 void AndroidConfig::ReadOverlayValues() {
     BeginGroup(Settings::TranslateCategory(Settings::Category::Overlay));
 
@@ -105,9 +111,11 @@ void AndroidConfig::ReadOverlayValues() {
             ReadDoubleSetting(std::string("foldable\\x_position"));
         control_data.foldable_position.second =
             ReadDoubleSetting(std::string("foldable\\y_position"));
-        control_data.press_mode =
-            static_cast<s32>(ReadIntegerSetting(std::string("press_mode"), 0));
-        control_data.scale = ReadDoubleSetting(std::string("scale"), 1.0);
+        // Read without a default: given one, the reader only takes the stored value when a
+        // "\default=false" flag sits next to it, which these keys never had, so every size and
+        // button mode came back as the default each time the config was read.
+        control_data.press_mode = static_cast<s32>(ReadIntegerSetting(std::string("press_mode")));
+        control_data.scale = ReadControlScale();
         AndroidSettings::values.overlay_control_data.push_back(control_data);
     }
     EndArray();
@@ -262,9 +270,11 @@ void AndroidConfig::ReadCustomOverlayValues() {
             ReadDoubleSetting(std::string("foldable\\x_position"));
         control_data.foldable_position.second =
             ReadDoubleSetting(std::string("foldable\\y_position"));
-        control_data.press_mode =
-            static_cast<s32>(ReadIntegerSetting(std::string("press_mode"), 0));
-        control_data.scale = ReadDoubleSetting(std::string("scale"), 1.0);
+        // Read without a default: given one, the reader only takes the stored value when a
+        // "\default=false" flag sits next to it, which these keys never had, so every size and
+        // button mode came back as the default each time the config was read.
+        control_data.press_mode = static_cast<s32>(ReadIntegerSetting(std::string("press_mode")));
+        control_data.scale = ReadControlScale();
         custom.push_back(control_data);
     }
     EndArray();
