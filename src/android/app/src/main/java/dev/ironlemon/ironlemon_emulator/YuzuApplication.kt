@@ -17,6 +17,8 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 fun Context.getPublicFilesDir(): File = getExternalFilesDir(null) ?: filesDir
 
@@ -77,9 +79,19 @@ class YuzuApplication : Application() {
         Log.logDeviceInfo()
 
         createNotificationChannels()
+        started.countDown()
     }
 
     companion object {
+        /**
+         * Opens once onCreate is done. Android serves a content provider (LibraryProvider) before
+         * the application has finished starting, and the native side is not ready until then.
+         */
+        private val started = CountDownLatch(1)
+
+        /** Waits for onCreate to end; false if it did not within [seconds]. */
+        fun awaitStarted(seconds: Long = 15): Boolean = started.await(seconds, TimeUnit.SECONDS)
+
         const val CRASH_LOG_FILE = "crash_log.txt"
         private const val MAX_CRASH_LOG_BYTES = 256 * 1024L
 

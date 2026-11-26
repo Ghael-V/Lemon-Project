@@ -7,6 +7,15 @@
         <item name="postSplashScreenTheme">@style/Theme.Yuzu.Main</item>
     </style>
 
+    <!-- ExternalGameActivity: only its dialogs show, over the app that asked. -->
+    <style name="Theme.IronLemon.External" parent="Theme.Yuzu.Main">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
     <style name="Theme.Yuzu.Main" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/yuzu_primary</item>
         <item name="colorOnPrimary">@color/yuzu_onPrimary</item>

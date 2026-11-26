@@ -1730,4 +1730,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="ai_setting_vram_usage_mode">VRAM usage</string>
     <string name="ai_setting_async_presentation">Asynchronous presentation</string>
     <string name="ai_setting_use_fast_gpu_time">Fast GPU time</string>
+    <!-- Frontends (ExternalGameActivity) -->
+    <string name="external_game_not_found">That game is not in Iron Lemon\'s library</string>
+    <string name="external_close_game_first">Close the game in Iron Lemon first</string>
+    <string name="external_zip_wrong_game">The file has no save data for %1$s</string>
+    <string name="external_import_saves_title">Replace the save data?</string>
+    <string name="external_import_saves_message">This replaces the save data of %1$s in Iron Lemon with the one in the file. The current save data is lost.</string>
+    <string name="external_replace">Replace</string>
+    <string name="external_no_saves">%1$s has no save data yet</string>
+    <string name="external_export_saves_title">Share the save data?</string>
+    <string name="external_export_saves_message">%1$s asks for a copy of the save data of %2$s.</string>
+    <string name="external_allow">Allow</string>
+    <string name="external_another_app">Another app</string>
 </resources>
