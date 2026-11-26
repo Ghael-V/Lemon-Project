@@ -60,6 +60,9 @@ struct SslVersion {
 
 struct SslContextSharedData {
     u32 connection_count = 0;
+    // The game brought the certificate its server is signed with (ImportServerPki). It is not
+    // used here, so that server would fail the check against the usual roots.
+    bool imported_server_pki = false;
 };
 
 class ISslConnection final : public ServiceFramework<ISslConnection> {
@@ -213,6 +216,11 @@ private:
 
     Result DoHandshakeImpl() {
         ASSERT_OR_EXECUTE(!did_handshake && socket, { return ResultNoSocket; });
+        if (shared_data->imported_server_pki) {
+            // Jackbox and others trust only a certificate they import, which is not applied:
+            // connections from such a context are not checked, as before every one was.
+            backend->SetVerifyOption(0);
+        }
         Result res = backend->DoHandshake();
         did_handshake = res.IsSuccess();
         return res;
@@ -540,6 +548,7 @@ private:
         [[maybe_unused]] const auto pkcs_12_certificates = ctx.ReadBuffer(0);
 
         constexpr u64 server_id = 0;
+        shared_data->imported_server_pki = true;
 
         LOG_WARNING(Service_SSL, "(STUBBED) called, certificate_format={}", certificate_format);
 
