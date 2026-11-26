@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.LemonApplication
+import dev.lemon.lemon_emu.features.LibraryProvider
 import dev.lemon.lemon_emu.model.Game
 import dev.lemon.lemon_emu.model.GameDir
 import dev.lemon.lemon_emu.model.MinimalDocumentFile
@@ -119,13 +120,21 @@ object GameHelper {
 
         // Cache list of games found on disk
         val serializedGames = mutableSetOf<String>()
-        games.forEach {
-            serializedGames.add(Json.encodeToString(it))
-        }
+        val now = System.currentTimeMillis()
         preferences.edit() {
+            games.forEach {
+                val entry = Json.encodeToString(it)
+                serializedGames.add(entry)
+                // Frontends asking LibraryProvider reload a game only when this time moves.
+                if (preferences.getString(it.keyLibraryEntry, null) != entry) {
+                    putString(it.keyLibraryEntry, entry)
+                    putLong(it.keyLibraryUpdatedAt, now)
+                }
+            }
             remove(KEY_GAMES)
                 .putStringSet(KEY_GAMES, serializedGames)
         }
+        LibraryProvider.notifyLibraryChanged(context)
 
         cachedGameList = games.toMutableList()
         return games.toList()
