@@ -83,6 +83,7 @@ class LibraryActions(
     val onDetails: (Game) -> Unit,
     val onToggleFavorite: (Game) -> Unit,
     val onSettings: () -> Unit,
+    val onOnline: () -> Unit,
     /** Null while Iron Lemon has no statistics screen: the button is hidden. */
     val onStatistics: (() -> Unit)?,
     val onAddGames: () -> Unit,
@@ -465,6 +466,7 @@ internal fun TopBar(
         actions.onStatistics?.let { onStatistics ->
             IronLemonIconButton(R.drawable.ic_bar_chart, stringResource(R.string.statistics), onClick = onStatistics)
         }
+        IronLemonIconButton(R.drawable.ic_multiplayer, stringResource(R.string.online_title), onClick = actions.onOnline)
         IronLemonIconButton(R.drawable.ic_settings, stringResource(R.string.preferences_settings), onClick = actions.onSettings)
     }
     val searchBar = @Composable { modifier: Modifier ->

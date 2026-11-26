@@ -33,6 +33,11 @@
         android:icon="@drawable/ic_record"
         android:title="@string/lemon_macro" />
 
+    <item
+        android:id="@+id/menu_lemon_online"
+        android:icon="@drawable/ic_multiplayer"
+        android:title="@string/online_title" />
+
 
 
 

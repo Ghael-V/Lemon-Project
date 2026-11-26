@@ -293,6 +293,20 @@ CheatEngine::~CheatEngine() {
     }
 }
 
+namespace {
+std::atomic_bool g_cheats_blocked{false};
+} // namespace
+
+void SetCheatsBlocked(bool blocked) {
+    if (g_cheats_blocked.exchange(blocked) != blocked) {
+        LOG_INFO(CheatEngine, "Cheats {} by the online room", blocked ? "blocked" : "allowed again");
+    }
+}
+
+bool AreCheatsBlocked() {
+    return g_cheats_blocked.load(std::memory_order_relaxed);
+}
+
 void CheatEngine::Initialize() {
     event = Core::Timing::CreateEvent(
         "CheatEngine::FrameCallback::" + Common::HexToString(metadata.main_nso_build_id),
@@ -339,6 +353,21 @@ void CheatEngine::Reload(std::vector<CheatEntry> reload_cheats) {
 MICROPROFILE_DEFINE(Cheat_Engine, "Add-Ons", "Cheat Engine", MP_RGB(70, 200, 70));
 
 void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {
+    // A room without cheats: put the game's code back once, then run nothing until it ends.
+    if (AreCheatsBlocked()) {
+        if (!blocked_applied) {
+            blocked_applied = true;
+            if (const std::size_t restored = code_journal.Restore(system); restored != 0) {
+                LOG_INFO(CheatEngine, "Cheats blocked: {} bytes of game code put back", restored);
+            }
+        }
+        return;
+    }
+    if (blocked_applied) {
+        blocked_applied = false;
+        is_pending_reload = true;
+    }
+
     if (is_pending_reload.exchange(false)) {
         // The list changed: put the game's code back first; the cheats still on patch it again
         // below, on this same tick.

@@ -13,6 +13,8 @@ void DefaultErrorApplet::Close() const {}
 void DefaultErrorApplet::ShowError(Result error, FinishedCallback finished) const {
     LOG_CRITICAL(Service_Fatal, "Application requested error display: {:04}-{:04} (raw={:08X})",
                  error.GetModule(), error.GetDescription(), error.raw);
+    // Nothing shows the error, so close it at once: the game waits for this before going on.
+    finished();
 }
 
 void DefaultErrorApplet::ShowErrorWithTimestamp(Result error, std::chrono::seconds time,
@@ -21,6 +23,7 @@ void DefaultErrorApplet::ShowErrorWithTimestamp(Result error, std::chrono::secon
         Service_Fatal,
         "Application requested error display: {:04X}-{:04X} (raw={:08X}) with timestamp={:016X}",
         error.GetModule(), error.GetDescription(), error.raw, time.count());
+    finished();
 }
 
 void DefaultErrorApplet::ShowCustomErrorText(Result error, std::string main_text,
@@ -31,6 +34,7 @@ void DefaultErrorApplet::ShowCustomErrorText(Result error, std::string main_text
                  error.GetModule(), error.GetDescription(), error.raw);
     LOG_CRITICAL(Service_Fatal, "    Main Text: {}", main_text);
     LOG_CRITICAL(Service_Fatal, "    Detail Text: {}", detail_text);
+    finished();
 }
 
 } // namespace Core::Frontend
