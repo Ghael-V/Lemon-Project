@@ -1766,4 +1766,16 @@
     <string name="ai_setting_barrier_feedback_loops">Barreras en bucles de realimentación</string>
     <string name="ai_setting_gpu_unswizzle_enabled">Decodificar texturas 3D en la GPU</string>
     <string name="ai_setting_use_docked_mode">Modo dock</string>
+    <!-- Frontends (ExternalGameActivity) -->
+    <string name="external_game_not_found">Ese juego no está en la biblioteca de Lemon</string>
+    <string name="external_close_game_first">Cierra antes el juego en Lemon</string>
+    <string name="external_zip_wrong_game">El archivo no tiene partida de %1$s</string>
+    <string name="external_import_saves_title">¿Sustituir la partida?</string>
+    <string name="external_import_saves_message">Esto sustituye la partida de %1$s en Lemon por la del archivo. La partida actual se pierde.</string>
+    <string name="external_replace">Sustituir</string>
+    <string name="external_no_saves">%1$s aún no tiene partida guardada</string>
+    <string name="external_export_saves_title">¿Compartir la partida?</string>
+    <string name="external_export_saves_message">%1$s pide una copia de la partida de %2$s.</string>
+    <string name="external_allow">Permitir</string>
+    <string name="external_another_app">Otra app</string>
 </resources>

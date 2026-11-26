@@ -9,6 +9,15 @@
         <item name="postSplashScreenTheme">@style/Theme.Lemon.Main</item>
     </style>
 
+    <!-- ExternalGameActivity: only its dialogs show, over the app that asked. -->
+    <style name="Theme.Lemon.External" parent="Theme.Lemon.Main">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
     <style name="Theme.Lemon.Main" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorError">@color/lemon_error</item>
         <item name="colorErrorContainer">@color/lemon_errorContainer</item>

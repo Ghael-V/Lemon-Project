@@ -8,27 +8,39 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.MatrixCursor
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import androidx.preference.PreferenceManager
+import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.model.Game
+import dev.lemon.lemon_emu.utils.DirectoryInitialization
+import dev.lemon.lemon_emu.utils.FileUtil
 import dev.lemon.lemon_emu.utils.GameHelper
 import dev.lemon.lemon_emu.utils.GameMetadata
 import dev.lemon.lemon_emu.utils.Log
+import dev.lemon.lemon_emu.model.TaskState
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import kotlinx.serialization.json.Json
 
 /**
  * Tells frontends (launchers) the name and icon of a game in Lemon's own library, which they cannot
  * read themselves: both live in the game's encrypted NCAs, and only Lemon has the user's keys.
  *
- * Read only, and only about one game at a time, asked by its document id or its program id:
- * `content://<package>.library/title?doc_id=…` or `…/title?program_id=<16 hex digits>` answer one
- * row or none, `content://<package>.library/icon/<PROGRAM_ID>` opens the icon. It never lists the
- * library, never opens a file Lemon was not given, and never exposes keys, settings or saves.
+ * Read only, and only about one game at a time, asked by its document id or its program id
+ * (`?doc_id=…` or `?program_id=<16 hex digits>`):
+ * - `title`: one row with the name, icon URI and play time, or none;
+ *   `icon/<PROGRAM_ID>` opens the icon.
+ * - `saves`: whether the game has save data; `save_zip/<PROGRAM_ID>` opens it as a ZIP, but only
+ *   for an app Lemon granted it to after the user agreed (see ExternalGameActivity).
+ * - `screenshots`: the game's screenshots; `screenshot/<name>` opens one.
+ * It never lists the library, never opens a file Lemon was not given, and never exposes keys or
+ * settings.
  */
 class LibraryProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
@@ -41,28 +53,22 @@ class LibraryProvider : ContentProvider() {
         sortOrder: String?
     ): Cursor {
         val context = requireNotNull(context)
-        val cursor = MatrixCursor(COLUMNS)
+        LemonApplication.awaitStarted()
+        val path = uri.pathSegments.singleOrNull()
+        val cursor = MatrixCursor(
+            when (path) {
+                PATH_SAVES -> SAVE_COLUMNS
+                PATH_SCREENSHOTS -> SCREENSHOT_COLUMNS
+                else -> COLUMNS
+            }
+        )
         try {
-            if (uri.pathSegments == listOf(PATH_TITLE)) {
-                val params = queryParameters(uri)
-                val docId = params[PARAM_DOC_ID]
-                val game = if (docId != null) {
-                    findByDocumentId(context, docId)
-                } else {
-                    params[PARAM_PROGRAM_ID]?.let { findByProgramId(context, Uri.decode(it)) }
-                }
-                if (game != null) {
-                    val programId = hexProgramId(game)
-                    cursor.addRow(
-                        arrayOf(
-                            programId,
-                            game.title.ifEmpty { null },
-                            game.developer.ifEmpty { null },
-                            game.version.ifEmpty { null },
-                            programId?.let { iconUri(context, it).toString() },
-                            updatedAt(context, game)
-                        )
-                    )
+            val game = if (path in QUERY_PATHS) gameOf(context, uri) else null
+            if (game != null) {
+                when (path) {
+                    PATH_TITLE -> addTitleRow(context, cursor, game)
+                    PATH_SAVES -> addSaveRow(context, cursor, game)
+                    PATH_SCREENSHOTS -> addScreenshotRows(context, cursor, game)
                 }
             }
         } catch (e: Exception) {
@@ -75,14 +81,20 @@ class LibraryProvider : ContentProvider() {
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val context = requireNotNull(context)
+        if (!LemonApplication.awaitStarted()) throw FileNotFoundException("Not ready")
         if (mode != "r") {
             throw FileNotFoundException("Read only")
         }
         val segments = uri.pathSegments
         val asked = segments.getOrNull(1)
-        if (segments.size != 2 || segments[0] != PATH_ICON || asked == null ||
-            !PROGRAM_ID_PATTERN.matches(asked)
-        ) {
+        if (segments.size != 2 || asked == null) {
+            throw FileNotFoundException("Unknown")
+        }
+        when (segments[0]) {
+            PATH_SAVE_ZIP -> return openSaveZip(context, asked)
+            PATH_SCREENSHOT -> return openScreenshot(context, asked)
+        }
+        if (segments[0] != PATH_ICON || !PROGRAM_ID_PATTERN.matches(asked)) {
             throw FileNotFoundException("Not an icon")
         }
         val programId = asked.uppercase()
@@ -98,6 +110,10 @@ class LibraryProvider : ContentProvider() {
         val segments = uri.pathSegments
         return when {
             segments == listOf(PATH_TITLE) -> "vnd.android.cursor.item/vnd.lemon.title"
+            segments == listOf(PATH_SAVES) -> "vnd.android.cursor.item/vnd.lemon.saves"
+            segments == listOf(PATH_SCREENSHOTS) -> "vnd.android.cursor.dir/vnd.lemon.screenshot"
+            segments.size == 2 && segments[0] == PATH_SAVE_ZIP -> "application/zip"
+            segments.size == 2 && segments[0] == PATH_SCREENSHOT -> "image/png"
             segments.size == 2 && segments[0] == PATH_ICON &&
                 PROGRAM_ID_PATTERN.matches(segments[1]) -> {
                 val file = iconFile(context, segments[1].uppercase())
@@ -151,15 +167,158 @@ class LibraryProvider : ContentProvider() {
         return file
     }
 
+    private fun addTitleRow(context: Context, cursor: MatrixCursor, game: Game) {
+        val programId = hexProgramId(game)
+        val preferences = PreferenceManager.getDefaultSharedPreferences(context)
+        val playSeconds = runCatching { NativeLibrary.playTimeManagerGetPlayTime(game.programId) }
+            .getOrNull()
+        val lastPlayed = preferences.getLong(game.keyLastPlayedTime, 0L)
+        val sessions = preferences.getInt(game.keySessionCount, 0)
+        cursor.addRow(
+            arrayOf(
+                programId,
+                game.title.ifEmpty { null },
+                game.developer.ifEmpty { null },
+                game.version.ifEmpty { null },
+                programId?.let { iconUri(context, it).toString() },
+                updatedAt(context, game),
+                playSeconds?.takeIf { it > 0 },
+                lastPlayed.takeIf { it > 0 },
+                sessions.takeIf { it > 0 }
+            )
+        )
+    }
+
+    /** Whether the game has save data, how big and how recent. Reading it needs a grant. */
+    private fun addSaveRow(context: Context, cursor: MatrixCursor, game: Game) {
+        val programId = hexProgramId(game) ?: return
+        val folder = saveFolder(game)
+        val files = folder?.walkTopDown()?.filter { it.isFile }?.toList().orEmpty()
+        val hasSaves = files.isNotEmpty()
+        cursor.addRow(
+            arrayOf(
+                if (hasSaves) 1 else 0,
+                files.sumOf { it.length() },
+                files.maxOfOrNull { it.lastModified() },
+                if (hasSaves) saveZipUri(context, programId).toString() else null
+            )
+        )
+    }
+
+    /** The game's screenshots, newest first. */
+    private fun addScreenshotRows(context: Context, cursor: MatrixCursor, game: Game) {
+        val programId = hexProgramId(game) ?: return
+        screenshotsOf(programId).sortedByDescending { it.lastModified() }.forEach { file ->
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.path, bounds)
+            cursor.addRow(
+                arrayOf(
+                    screenshotUri(context, file.name).toString(),
+                    file.lastModified(),
+                    bounds.outWidth.takeIf { it > 0 },
+                    bounds.outHeight.takeIf { it > 0 }
+                )
+            )
+        }
+    }
+
+    /**
+     * The game's save data as a ZIP in the format Lemon's own export writes (the save folder, named
+     * by program id, at the root), made when asked. Only for a caller Lemon granted it to after the
+     * user agreed (ExternalGameActivity's EXPORT_SAVES); the manifest guards this path.
+     */
+    private fun openSaveZip(context: Context, asked: String): ParcelFileDescriptor {
+        if (!PROGRAM_ID_PATTERN.matches(asked)) throw FileNotFoundException("Not a game")
+        val game = findByProgramId(context, asked) ?: throw FileNotFoundException("Not in the library")
+        val folder = saveFolder(game)?.takeIf { dir -> dir.walkTopDown().any { it.isFile } }
+            ?: throw FileNotFoundException("No save data")
+        val zip = File(File(context.cacheDir, SAVE_ZIP_DIR), "${asked.uppercase()}.zip")
+        zip.parentFile?.mkdirs()
+        val state = BufferedOutputStream(FileOutputStream(zip)).let { output ->
+            FileUtil.zipFromInternalStorage(
+                folder,
+                folder.path.replaceAfterLast("/", ""),
+                output,
+                compression = false
+            )
+        }
+        if (state != TaskState.Completed) {
+            zip.delete()
+            throw FileNotFoundException("Could not pack the save")
+        }
+        return ParcelFileDescriptor.open(zip, ParcelFileDescriptor.MODE_READ_ONLY)
+    }
+
+    private fun openScreenshot(context: Context, name: String): ParcelFileDescriptor {
+        val match = SCREENSHOT_PATTERN.matchEntire(name) ?: throw FileNotFoundException("Not a screenshot")
+        findByProgramId(context, match.groupValues[1]) ?: throw FileNotFoundException("Not in the library")
+        val file = screenshotsOf(match.groupValues[1].uppercase()).firstOrNull { it.name == name }
+            ?: throw FileNotFoundException("No such screenshot")
+        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    }
+
     companion object {
         private const val PATH_TITLE = "title"
         private const val PATH_ICON = "icon"
+        private const val PATH_SAVES = "saves"
+        private const val PATH_SAVE_ZIP = "save_zip"
+        private const val PATH_SCREENSHOTS = "screenshots"
+        private const val PATH_SCREENSHOT = "screenshot"
+        private const val SAVE_ZIP_DIR = "library_saves"
+        private val QUERY_PATHS = setOf(PATH_TITLE, PATH_SAVES, PATH_SCREENSHOTS)
+        private val SCREENSHOT_PATTERN = Regex("^([0-9a-f]{16})_[0-9_-]+\\.png$")
+
+        val SAVE_COLUMNS = arrayOf("has_saves", "size_bytes", "updated_at", "zip_uri")
+        val SCREENSHOT_COLUMNS = arrayOf("uri", "taken_at", "width", "height")
+
+        /** The game a query names, by doc_id (first) or program_id. */
+        private fun gameOf(context: Context, uri: Uri): Game? {
+            val params = queryParameters(uri)
+            val docId = params[PARAM_DOC_ID]
+            return if (docId != null) {
+                findByDocumentId(context, docId)
+            } else {
+                params[PARAM_PROGRAM_ID]?.let { findByProgramId(context, Uri.decode(it)) }
+            }
+        }
+
+        /** The game from an intent's extras (doc_id or program_id, plain text). */
+        fun gameFromExtras(context: Context, docId: String?, programId: String?): Game? = when {
+            !docId.isNullOrEmpty() -> findByDocumentId(context, Uri.encode(docId))
+            !programId.isNullOrEmpty() -> findByProgramId(context, programId)
+            else -> null
+        }
+
+        /** The game of the library whose program id is [programId] (16 hex digits). */
+        fun gameWithProgramId(context: Context, programId: String): Game? =
+            findByProgramId(context, programId)
+
+        fun saveZipUri(context: Context, programId: String): Uri =
+            Uri.parse("content://${authority(context)}/$PATH_SAVE_ZIP/${programId.uppercase()}")
+
+        private fun screenshotUri(context: Context, name: String): Uri =
+            Uri.parse("content://${authority(context)}/$PATH_SCREENSHOT/$name")
+
+        /** The game's save folder, or null when the emulator cannot tell where it is. */
+        fun saveFolder(game: Game): File? =
+            runCatching { File(game.saveDir) }.getOrNull()?.takeIf { it.isDirectory }
+
+        private fun screenshotsOf(programId: String): List<File> {
+            val directory = File(DirectoryInitialization.userDirectory ?: return emptyList(), "screenshots")
+            val prefix = "${programId.lowercase()}_"
+            return directory.listFiles()?.filter {
+                it.isFile && it.name.startsWith(prefix) && SCREENSHOT_PATTERN.matches(it.name)
+            }.orEmpty()
+        }
         private const val PARAM_DOC_ID = "doc_id"
         private const val PARAM_PROGRAM_ID = "program_id"
         private const val ICON_DIR = "library_icons"
         private val PROGRAM_ID_PATTERN = Regex("^[0-9A-Fa-f]{16}$")
 
-        val COLUMNS = arrayOf("program_id", "name", "developer", "version", "icon_uri", "updated_at")
+        val COLUMNS = arrayOf(
+            "program_id", "name", "developer", "version", "icon_uri", "updated_at",
+            "play_seconds", "last_played", "sessions"
+        )
 
         private fun authority(context: Context) = "${context.packageName}.library"
 

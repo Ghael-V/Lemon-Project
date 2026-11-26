@@ -2429,4 +2429,16 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="ai_setting_barrier_feedback_loops">Barriers on feedback loops</string>
     <string name="ai_setting_gpu_unswizzle_enabled">Decode 3D textures on the GPU</string>
     <string name="ai_setting_use_docked_mode">Docked mode</string>
+    <!-- Frontends (ExternalGameActivity) -->
+    <string name="external_game_not_found">That game is not in Lemon\'s library</string>
+    <string name="external_close_game_first">Close the game in Lemon first</string>
+    <string name="external_zip_wrong_game">The file has no save data for %1$s</string>
+    <string name="external_import_saves_title">Replace the save data?</string>
+    <string name="external_import_saves_message">This replaces the save data of %1$s in Lemon with the one in the file. The current save data is lost.</string>
+    <string name="external_replace">Replace</string>
+    <string name="external_no_saves">%1$s has no save data yet</string>
+    <string name="external_export_saves_title">Share the save data?</string>
+    <string name="external_export_saves_message">%1$s asks for a copy of the save data of %2$s.</string>
+    <string name="external_allow">Allow</string>
+    <string name="external_another_app">Another app</string>
 </resources>
