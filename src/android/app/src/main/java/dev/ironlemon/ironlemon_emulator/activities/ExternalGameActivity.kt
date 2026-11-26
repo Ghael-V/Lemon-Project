@@ -21,6 +21,7 @@ import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.ui.main.MainActivity
 import dev.ironlemon.ironlemon_emulator.utils.FileUtil
 import dev.ironlemon.ironlemon_emulator.utils.Log
+import dev.ironlemon.ironlemon_emulator.utils.ThemeHelper
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,8 +39,16 @@ import kotlinx.coroutines.withContext
  */
 class ExternalGameActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The app's own theme for the dialogs. The window stays see-through: it is set up from
+        // the manifest theme before the app's colours are applied over it.
+        ThemeHelper.setTheme(this)
         super.onCreate(savedInstanceState)
-        if (savedInstanceState != null) return
+        // Recreated with its dialog gone (the manifest keeps most changes from doing this): close
+        // rather than stay as an empty window. An export then answers RESULT_CANCELED.
+        if (savedInstanceState != null) {
+            finish()
+            return
+        }
         val action = intent.action.orEmpty()
         val game = LibraryProvider.gameFromExtras(
             this,

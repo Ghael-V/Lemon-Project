@@ -8,7 +8,7 @@
     </style>
 
     <!-- ExternalGameActivity: only its dialogs show, over the app that asked. -->
-    <style name="Theme.IronLemon.External" parent="Theme.Yuzu.Main">
+    <style name="Theme.IronLemon.External" parent="Theme.IronLemon">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>

@@ -141,6 +141,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
              (both confirmed by the user here). -->
         <activity
             android:name=".activities.ExternalGameActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
             android:exported="true"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.IronLemon.External">
