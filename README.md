@@ -86,7 +86,7 @@ Everything below is specific to Lemon, on top of the Switch emulation it inherit
   password) and supported games play online on Nextendo's servers; Mario Kart 8 Deluxe races work.
 - **Mali GPUs** — BCn textures, which Mali cannot sample, are recompressed to ASTC (BC4/BC5 to EAC) on the GPU instead of being
   stored uncompressed (Funko Fusion: 958 MB → 179 MB), and BC6H (HDR) textures are decoded on the GPU. The driver
-  downloader offers experimental PanVK builds for the Mali-G720 and Mali-G52, each only to its own GPU.
+  downloader offers experimental PanVK builds for the Mali-G615, Mali-G720 and Mali-G52, each only to its own GPU.
 - **Modes** — Speed, Normal and Quality, first in Settings: one choice sets resolution, filtering, anti-aliasing,
   GPU accuracy and asynchronous shaders. Speed is what Lemon Lite used to be; Normal is the default.
 - **Two builds** — Lemon and Lemon Spoofed (the same app under a benchmark app's package name, which some phones
@@ -319,8 +319,9 @@ consolidated build going forward instead of splitting fixes across three branche
 ## Scope
 
 - **Android only.** Every desktop/CLI build target from upstream has been removed.
-- **Adreno only.** Mali and PowerVR GPUs are explicitly out of scope and untested; the app may start on them,
-  but they are not supported (see the [FAQ](https://lemon-emu.org/faq.html)).
+- **Adreno and Mali GPUs.** Adreno first; Mali since 1.1 (see Mali GPUs above). PowerVR, Xclipse and other GPUs
+  are out of scope and untested; the app may start on them, but they are not supported (see the
+  [FAQ](https://lemon-emu.org/faq.html)).
 - **No keys, no firmware.** `prod.keys` and Switch firmware are not part of this repository and never will be —
   sourcing them from your own legally owned console is entirely on you. Lemon does not touch key derivation,
   decryption, or DRM in any way; it only builds the emulator app.
