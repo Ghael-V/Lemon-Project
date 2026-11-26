@@ -224,11 +224,16 @@ void EmulationSession::ConfigureFilesystemProvider(const std::string& filepath) 
         m_manual_provider->AddEntry(FileSys::TitleType::Application,
                                     FileSys::GetCRTypeFromNCAType(FileSys::NCA{file}.GetType()),
                                     program_id, file);
-    } else if (res2 == Loader::ResultStatus::Success &&
-               (file_type == Loader::FileType::XCI || file_type == Loader::FileType::NSP)) {
+    } else if (file_type == Loader::FileType::XCI || file_type == Loader::FileType::NSP) {
+        // Every title inside, whether or not there is a game to boot: an NSP holding only an
+        // update or DLC has no program of its own, so asking for its program id fails, and its
+        // content was never registered for the game it belongs to.
         const auto nsp = file_type == Loader::FileType::NSP
                              ? std::make_shared<FileSys::NSP>(file)
                              : FileSys::XCI{file}.GetSecurePartitionNSP();
+        if (!nsp) {
+            return;
+        }
         for (const auto& title : nsp->GetNCAs()) {
             for (const auto& entry : title.second) {
                 m_manual_provider->AddEntry(entry.first.first, entry.first.second, title.first,

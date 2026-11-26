@@ -75,7 +75,7 @@ object GameHelper {
             try {
                 newFiles.forEachIndexed { done, file ->
                     _scanProgress.value = ScanProgress(done, newFiles.size, file.filename)
-                    getGame(file.uri, true)?.let { games.add(it) }
+                    getGame(file.uri, true)?.let { games.add(it) } ?: registerContent(file.uri)
                 }
             } finally {
                 _scanProgress.value = null
@@ -164,7 +164,7 @@ object GameHelper {
         val gameFiles = pending.filter { Game.extensions.contains(FileUtil.getExtension(it.uri)) }
         gameFiles.forEachIndexed { done, file ->
             _scanProgress.value = ScanProgress(done, gameFiles.size, file.filename)
-            getGame(file.uri, true)?.let { games.add(it) }
+            getGame(file.uri, true)?.let { games.add(it) } ?: registerContent(file.uri)
         }
 
         // Remove all game dirs with insufficient permissions from config
@@ -222,6 +222,17 @@ object GameHelper {
     }
 
     private val CONTENT_CONTAINERS = setOf("nsp", "xci", "nsz", "xcz")
+
+    /**
+     * A file in the library folders that is not a game by itself (an update or DLC as its own NSP,
+     * NSZ or XCI): registered so the game it belongs to gets it, without listing it as a game.
+     * Not kept in the library cache, so it is read again (and registered) on every refresh.
+     */
+    private fun registerContent(uri: Uri) {
+        if (CONTENT_CONTAINERS.contains(FileUtil.getExtension(uri).lowercase())) {
+            NativeLibrary.addFileToFilesystemProvider(uri.toString())
+        }
+    }
 
     /** The folder holding [uri], as a URI this app may list, or null. */
     private fun folderOf(uri: Uri): Uri? = runCatching {
