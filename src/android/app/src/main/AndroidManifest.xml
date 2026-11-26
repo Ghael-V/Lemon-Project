@@ -146,6 +146,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </intent-filter>
         </provider>
 
+        <!-- Name and icon of a game in the library, for frontends (read only, one game per query). -->
+        <provider
+            android:name=".features.LibraryProvider"
+            android:authorities="${applicationId}.library"
+            android:exported="true" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
