@@ -11,6 +11,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.vulkan.version" android:version="0x401000" android:required="true" />
 
+    <!-- Only Iron Lemon holds it: other apps read a save ZIP through a grant, never with this. -->
+    <permission
+        android:name="${applicationId}.permission.READ_SAVES"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -120,11 +125,43 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </intent-filter>
         </provider>
 
-        <!-- Name and icon of a game in the library, for frontends (read only, one game per query). -->
+        <!-- Name, icon, play time, save info and screenshots of a game in the library, for frontends
+             (read only, one game per query). Save ZIPs only through a grant from ExternalGameActivity. -->
         <provider
             android:name=".features.LibraryProvider"
             android:authorities="${applicationId}.library"
-            android:exported="true" />
+            android:exported="true">
+            <path-permission
+                android:pathPrefix="/save_zip"
+                android:readPermission="${applicationId}.permission.READ_SAVES" />
+            <grant-uri-permission android:pathPrefix="/save_zip/" />
+        </provider>
+
+        <!-- A frontend asks for one game: open its settings, or import or export its save data
+             (both confirmed by the user here). -->
+        <activity
+            android:name=".activities.ExternalGameActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.IronLemon.External">
+            <intent-filter>
+                <action android:name="${applicationId}.OPEN_GAME_SETTINGS" />
+                <action android:name="${applicationId}.EXPORT_SAVES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="${applicationId}.IMPORT_SAVES" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="${applicationId}.IMPORT_SAVES" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+            </intent-filter>
+        </activity>
 
     </application>
 
