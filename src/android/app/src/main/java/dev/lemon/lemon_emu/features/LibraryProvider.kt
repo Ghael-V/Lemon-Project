@@ -49,7 +49,7 @@ class LibraryProvider : ContentProvider() {
                 val game = if (docId != null) {
                     findByDocumentId(context, docId)
                 } else {
-                    params[PARAM_PROGRAM_ID]?.let { findByProgramId(context, it) }
+                    params[PARAM_PROGRAM_ID]?.let { findByProgramId(context, Uri.decode(it)) }
                 }
                 if (game != null) {
                     val programId = hexProgramId(game)
@@ -186,8 +186,8 @@ class LibraryProvider : ContentProvider() {
         }
 
         /**
-         * The query's values decoded without turning '+' into a space (a file name may hold a '+').
-         * Callers that encode spaces as '+' are matched by [findByDocumentId] trying both.
+         * The query's values still encoded: a '+' may be a '+' of the file name or a space from a
+         * caller that encodes like a form, so [findByDocumentId] decodes them both ways.
          */
         private fun queryParameters(uri: Uri): Map<String, String> {
             val query = uri.encodedQuery ?: return emptyMap()
@@ -197,7 +197,7 @@ class LibraryProvider : ContentProvider() {
                 if (separator <= 0) continue
                 val key = Uri.decode(pair.substring(0, separator))
                 if (key !in result) {
-                    result[key] = Uri.decode(pair.substring(separator + 1))
+                    result[key] = pair.substring(separator + 1)
                 }
             }
             return result
@@ -213,11 +213,11 @@ class LibraryProvider : ContentProvider() {
         private fun documentIdOf(game: Game): String? =
             runCatching { DocumentsContract.getDocumentId(Uri.parse(game.path)) }.getOrNull()
 
-        private fun findByDocumentId(context: Context, docId: String): Game? {
-            if (docId.isEmpty()) return null
-            val games = library(context)
-            val byId = games.associateBy { documentIdOf(it) }
-            return byId[docId] ?: byId[docId.replace('+', ' ')]
+        private fun findByDocumentId(context: Context, encodedDocId: String): Game? {
+            if (encodedDocId.isEmpty()) return null
+            val byId = library(context).associateBy { documentIdOf(it) }
+            return byId[Uri.decode(encodedDocId)]
+                ?: byId[Uri.decode(encodedDocId.replace("+", "%20"))]
         }
 
         private fun findByProgramId(context: Context, programId: String): Game? {
