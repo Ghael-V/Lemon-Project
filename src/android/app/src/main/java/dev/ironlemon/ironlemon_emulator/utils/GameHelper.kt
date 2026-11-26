@@ -11,6 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import dev.ironlemon.ironlemon_emulator.NativeLibrary
 import dev.ironlemon.ironlemon_emulator.YuzuApplication
+import dev.ironlemon.ironlemon_emulator.features.LibraryProvider
 import dev.ironlemon.ironlemon_emulator.model.Game
 import dev.ironlemon.ironlemon_emulator.model.GameDir
 import dev.ironlemon.ironlemon_emulator.model.MinimalDocumentFile
@@ -104,10 +105,21 @@ object GameHelper {
     }
 
     private fun saveGames(games: List<Game>) {
-        preferences.edit()
-            .remove(KEY_GAMES)
-            .putStringSet(KEY_GAMES, games.map { Json.encodeToString(it) }.toSet())
+        val editor = preferences.edit()
+        val now = System.currentTimeMillis()
+        val entries = games.map { game ->
+            val entry = Json.encodeToString(game)
+            // Frontends asking LibraryProvider reload a game only when this time moves.
+            if (preferences.getString(game.keyLibraryEntry, null) != entry) {
+                editor.putString(game.keyLibraryEntry, entry)
+                editor.putLong(game.keyLibraryUpdatedAt, now)
+            }
+            entry
+        }
+        editor.remove(KEY_GAMES)
+            .putStringSet(KEY_GAMES, entries.toSet())
             .apply()
+        LibraryProvider.notifyLibraryChanged(YuzuApplication.appContext)
     }
 
     private fun scanGames(): List<Game> {
