@@ -126,6 +126,14 @@ object NativeConfig {
 
     external fun getDefaultToString(key: String): String
 
+    /** The setting's value as config.ini stores it (enums as numbers), for any setting type. */
+    @Synchronized
+    external fun getValueString(key: String, needsGlobal: Boolean): String
+
+    /** Sets a setting of any type from the text config.ini would store. False if [key] is unknown. */
+    @Synchronized
+    external fun setValueString(key: String, value: String): Boolean
+
     /**
      * Gets every [GameDir] in AndroidSettings::values.game_dirs
      */

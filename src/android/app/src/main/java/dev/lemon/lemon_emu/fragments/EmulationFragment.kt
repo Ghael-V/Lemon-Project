@@ -8,6 +8,7 @@
 package dev.lemon.lemon_emu.fragments
 
 import dev.lemon.lemon_emu.online.OnlineSession
+import dev.lemon.lemon_emu.features.aiconfig.AiConfigStore
 import dev.lemon.lemon_emu.ui.modern.PerformanceInfo
 import dev.lemon.lemon_emu.overlay.model.OverlayControlData
 import dev.lemon.lemon_emu.nextendo.NextendoAccount
@@ -402,6 +403,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // A game that runs on its custom config may have its own touch controls layout.
         // (The view may not exist yet here; the overlay reads the layout when it is laid out.)
         _binding?.surfaceInputOverlay?.post { _binding?.surfaceInputOverlay?.refreshControls() }
+        // An AI change can only be blamed for a crash when the game runs on its own config.
+        AiConfigStore.launchUsesCustomConfig = shouldUseCustom
         try {
             if (GpuDriverHelper.isAdrenoGpu()) {
                 val programIdHex = game!!.programIdHex

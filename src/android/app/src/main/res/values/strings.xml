@@ -2393,4 +2393,40 @@ along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html
     <string name="online_error_ticket">The room refused the entry. Join again.</string>
     <string name="online_error_version">This room needs a different version of the app.</string>
 
+    <!-- AI game config -->
+    <string name="ai_config_title">Recommended settings</string>
+    <string name="ai_config_description">Settings suggested for this game on this device</string>
+    <string name="ai_config_undo">Undo the recommended settings</string>
+    <string name="ai_config_undone">Settings put back as they were</string>
+    <string name="ai_config_asking">Asking the Lemon server for this game and device…</string>
+    <string name="ai_config_privacy">Privacy</string>
+    <string name="ai_config_apply">Apply</string>
+    <string name="ai_config_applied">Applied to this game. If it closes while starting, they are undone on their own.</string>
+    <string name="ai_config_experimental">experimental</string>
+    <string name="ai_config_undo_hint">Only this game\'s settings change. You can undo it from the game\'s properties.</string>
+    <string name="ai_config_nothing_to_change">This game\'s settings already match the recommendation.</string>
+    <string name="ai_config_reverted_after_crash">The game closed while starting with the recommended settings, so they were undone. Its settings are as before.</string>
+    <string name="ai_config_network_error">Could not reach the Lemon server. Check the connection and try again.</string>
+    <string name="ai_config_rate_limited">Too many requests right now. Try again in a while.</string>
+    <string name="ai_config_update_app">This version of Lemon is no longer supported for recommendations. Update Lemon.</string>
+    <string name="ai_config_unavailable">Recommendations are not available right now. Try again later.</string>
+    <string name="ai_config_server_error">The server could not answer (%1$s).</string>
+    <string name="ai_config_on">On</string>
+    <string name="ai_config_off">Off</string>
+    <string name="ai_setting_use_multi_core">Multi-core CPU emulation</string>
+    <string name="ai_setting_cpuopt_fastmem">Fastmem (CPU)</string>
+    <string name="ai_setting_cpuopt_fastmem_exclusives">Fastmem for exclusive accesses (CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_unfuse_fma">Unfuse FMA (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_reduce_fp_error">Faster FRSQRTE and FRECPE (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_standard_fpcr">Ignore standard FPCR (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_inaccurate_nan">Inaccurate NaN handling (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_fastmem_check">Skip fastmem bounds checks (unsafe CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_global_monitor">Ignore global monitor (unsafe CPU)</string>
+    <string name="ai_setting_frame_pacing_mode">Frame pacing target</string>
+    <string name="ai_setting_astc_recompression">ASTC recompression</string>
+    <string name="ai_setting_use_vulkan_driver_pipeline_cache">Driver pipeline cache</string>
+    <string name="ai_setting_use_video_framerate">Present at the video frame rate</string>
+    <string name="ai_setting_barrier_feedback_loops">Barriers on feedback loops</string>
+    <string name="ai_setting_gpu_unswizzle_enabled">Decode 3D textures on the GPU</string>
+    <string name="ai_setting_use_docked_mode">Docked mode</string>
 </resources>

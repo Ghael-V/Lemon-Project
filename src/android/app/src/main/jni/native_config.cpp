@@ -323,6 +323,32 @@ jstring Java_dev_lemon_lemon_1emu_utils_NativeConfig_getDefaultToString(JNIEnv* 
     return Common::Android::ToJString(env, "");
 }
 
+// Any setting as the text config.ini stores (enums as their number), whatever its type. Used by
+// the AI game config, which only knows a setting by its key.
+jstring Java_dev_lemon_lemon_1emu_utils_NativeConfig_getValueString(JNIEnv* env, jobject obj,
+                                                                  jstring jkey,
+                                                                  jboolean needs_global) {
+    const auto key = Common::Android::GetJString(env, jkey);
+    const auto it = Settings::values.linkage.by_key.find(key);
+    if (it == Settings::values.linkage.by_key.end() || it->second == nullptr) {
+        return Common::Android::ToJString(env, "");
+    }
+    return Common::Android::ToJString(
+        env, needs_global ? it->second->ToStringGlobal() : it->second->ToString());
+}
+
+jboolean Java_dev_lemon_lemon_1emu_utils_NativeConfig_setValueString(JNIEnv* env, jobject obj,
+                                                                   jstring jkey, jstring jvalue) {
+    const auto key = Common::Android::GetJString(env, jkey);
+    const auto it = Settings::values.linkage.by_key.find(key);
+    if (it == Settings::values.linkage.by_key.end() || it->second == nullptr) {
+        LOG_ERROR(Frontend, "[Android Native] setValueString: no setting {}", key);
+        return false;
+    }
+    it->second->LoadString(Common::Android::GetJString(env, jvalue));
+    return true;
+}
+
 jobjectArray Java_dev_lemon_lemon_1emu_utils_NativeConfig_getGameDirs(JNIEnv* env, jobject obj) {
     jclass gameDirClass = Common::Android::GetGameDirClass();
     jmethodID gameDirConstructor = Common::Android::GetGameDirConstructor();

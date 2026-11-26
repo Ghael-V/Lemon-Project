@@ -26,6 +26,9 @@ object DirectoryInitialization {
             NativeConfig.initializeGlobalConfig()
             NativeLibrary.initializeSystem(false)
             userPath?.let { LastExitReason.record(LemonApplication.appContext, java.io.File(it, "log")) }
+            userPath?.let {
+                dev.lemon.lemon_emu.features.aiconfig.AiConfigStore.recoverAfterCrash(java.io.File(it))
+            }
             NativeLibrary.reloadProfiles()
             migrateSettings()
             areDirectoriesReady = true
