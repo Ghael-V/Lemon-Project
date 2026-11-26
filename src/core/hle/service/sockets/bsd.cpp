@@ -713,10 +713,20 @@ std::pair<s32, Errno> BSD::PollImpl(std::vector<u8>& write_buffer, std::span<con
             sockets[j].events = Translate(pollfd.events);
             sockets[j].revents = Network::PollEvents{};
         }
+        // Input TLS already decrypted is not on the wire (Socket::HasHeldInput): the host poll
+        // cannot see it, so it is reported here too, as on the path without eventfds below.
+        std::vector<u8> held(sockets.size());
         s32 waited = 0;
         while (true) {
+            bool any_held = false;
+            for (size_t j = 0; j < sockets.size(); ++j) {
+                held[j] = sockets[j].socket != nullptr &&
+                          True(sockets[j].events & Network::PollEvents::In) &&
+                          sockets[j].socket->HasHeldInput();
+                any_held = any_held || held[j] != 0;
+            }
             const s32 events_ready = poll_events();
-            const bool last = events_ready > 0 || (timeout >= 0 && waited >= timeout);
+            const bool last = events_ready > 0 || any_held || (timeout >= 0 && waited >= timeout);
             const s32 slice = last ? 0 : (timeout < 0 ? SLICE_MS : std::min(SLICE_MS, timeout - waited));
             s32 sockets_ready = 0;
             if (!sockets.empty()) {
@@ -728,6 +738,17 @@ std::pair<s32, Errno> BSD::PollImpl(std::vector<u8>& write_buffer, std::span<con
                     return Translate(std::make_pair(count, error));
                 }
                 sockets_ready = count;
+                if (any_held) {
+                    sockets_ready = 0;
+                    for (size_t j = 0; j < sockets.size(); ++j) {
+                        if (held[j]) {
+                            sockets[j].revents |= Network::PollEvents::In;
+                        }
+                        if (sockets[j].revents != Network::PollEvents{}) {
+                            ++sockets_ready;
+                        }
+                    }
+                }
             } else if (slice > 0) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(slice));
             }
