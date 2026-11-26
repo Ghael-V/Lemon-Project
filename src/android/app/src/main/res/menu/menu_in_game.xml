@@ -74,9 +74,9 @@
         android:title="@string/preferences_controls" />
 
     <item
-        android:id="@+id/menu_multiplayer"
-        android:icon="@drawable/ic_two_users"
-        android:title="@string/multiplayer" />
+        android:id="@+id/menu_lemon_online"
+        android:icon="@drawable/ic_multiplayer"
+        android:title="@string/online_title" />
 
     <item
         android:id="@+id/menu_load_amiibo"

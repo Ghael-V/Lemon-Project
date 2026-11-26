@@ -159,6 +159,7 @@ class ModernGamesFragment : Fragment() {
             }
         },
         onSettings = { navigateFromLibrary(R.id.action_gamesFragment_to_homeSettingsFragment) },
+        onOnline = { navigateFromLibrary(R.id.onlineFragment) },
         onStatistics = { navigateFromLibrary(R.id.action_global_statisticsFragment) },
         onAddGames = { getGamesDirectory.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data) },
         onManageFolders = {

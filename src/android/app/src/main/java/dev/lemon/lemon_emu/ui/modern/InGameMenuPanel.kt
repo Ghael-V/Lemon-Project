@@ -370,7 +370,6 @@ private fun itemIcon(item: MenuItem): ImageBitmap? {
         R.id.menu_settings, R.id.menu_settings_per_game -> R.drawable.ic_settings
         R.id.menu_quick_settings -> R.drawable.ic_options
         R.id.menu_controls -> R.drawable.ic_controller
-        R.id.menu_multiplayer -> R.drawable.ic_multiplayer
         R.id.menu_load_amiibo -> R.drawable.ic_nfc
         else -> return null
     }

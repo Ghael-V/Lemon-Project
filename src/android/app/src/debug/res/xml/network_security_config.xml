@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: the Lemon Online dev server runs on the developer's PC over plain HTTP.
+     Only that host may use cleartext; release builds never allow it. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.17</domain>
+    </domain-config>
+</network-security-config>

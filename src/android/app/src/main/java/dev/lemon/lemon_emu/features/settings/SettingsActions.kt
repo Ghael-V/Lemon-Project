@@ -22,7 +22,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
-import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.DocumentProvider
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreen
 import dev.lemon.lemon_emu.features.settings.ui.SettingsSubscreenActivity
@@ -90,10 +89,6 @@ object SettingsActions {
             }
             .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.cancel() }
             .show()
-    }
-
-    fun openMultiplayer(activity: FragmentActivity) {
-        NetPlayDialog(activity).show()
     }
 
     fun showSystemInfo(activity: FragmentActivity) {

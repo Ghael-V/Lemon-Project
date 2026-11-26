@@ -5,6 +5,7 @@
 package dev.lemon.lemon_emu.ui.main
 
 import android.content.Intent
+import dev.lemon.lemon_emu.online.OnlineSession
 import dev.lemon.lemon_emu.utils.GameLaunchUtils
 import dev.lemon.lemon_emu.BuildConfig
 import dev.lemon.lemon_emu.HomeNavigationDirections
@@ -33,7 +34,6 @@ import java.io.File
 import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.databinding.ActivityMainBinding
-import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.settings.model.Settings
 import dev.lemon.lemon_emu.fragments.AddGameFolderDialogFragment
 import dev.lemon.lemon_emu.fragments.MessageDialogFragment
@@ -92,6 +92,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        // Lemon Online: friends see us online while the app runs (only once it is turned on).
+        OnlineSession.start()
         splashScreen.setKeepOnScreenCondition { !DirectoryInitialization.areDirectoriesReady }
 
         ThemeHelper.ThemeChangeListener(this)
@@ -378,11 +380,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         progressMessage = null
     }
 
-
-    fun displayMultiplayerDialog() {
-        val dialog = NetPlayDialog(this)
-        dialog.show()
-    }
 
     private fun checkKeys() {
         if (!NativeLibrary.areKeysPresent()) {

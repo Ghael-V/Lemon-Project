@@ -52,7 +52,6 @@ import dev.lemon.lemon_emu.NativeLibrary
 import dev.lemon.lemon_emu.R
 import dev.lemon.lemon_emu.LemonApplication
 import dev.lemon.lemon_emu.databinding.ActivityEmulationBinding
-import dev.lemon.lemon_emu.dialogs.NetPlayDialog
 import dev.lemon.lemon_emu.features.input.GamepadHotkeyTracker
 import dev.lemon.lemon_emu.features.input.GamepadHotkeys
 import dev.lemon.lemon_emu.features.input.NativeInput
@@ -834,11 +833,6 @@ class EmulationActivity : AppCompatActivity(), SensorEventListener, InputManager
             )
         }
         setPictureInPictureParams(pictureInPictureParamsBuilder.build())
-    }
-
-    fun displayMultiplayerDialog() {
-        val dialog = NetPlayDialog(this)
-        dialog.show()
     }
 
     fun addNetPlayMessages(type: Int, msg: String) {

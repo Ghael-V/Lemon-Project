@@ -309,6 +309,20 @@ CheatEngine::~CheatEngine() {
         LOG_ERROR(CheatEngine, "~CheatEngine before event was registered");
 }
 
+namespace {
+std::atomic_bool g_cheats_blocked{false};
+} // namespace
+
+void SetCheatsBlocked(bool blocked) {
+    if (g_cheats_blocked.exchange(blocked) != blocked) {
+        LOG_INFO(CheatEngine, "Cheats {} by the online room", blocked ? "blocked" : "allowed again");
+    }
+}
+
+bool AreCheatsBlocked() {
+    return g_cheats_blocked.load(std::memory_order_relaxed);
+}
+
 void CheatEngine::Initialize() {
     event = Core::Timing::CreateEvent(
         "CheatEngine::FrameCallback::" + Common::HexToString(metadata.main_nso_build_id),
@@ -353,6 +367,19 @@ void CheatEngine::Reload(std::vector<CheatEntry> reload_cheats) {
 }
 
 void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {
+    // A room without cheats: put the game's code back once, then run nothing until it ends.
+    if (AreCheatsBlocked()) {
+        if (!blocked_applied) {
+            blocked_applied = true;
+            static_cast<StandardVmCallbacks*>(vm.GetCallbacks())->RestoreOriginalCode();
+        }
+        return;
+    }
+    if (blocked_applied) {
+        blocked_applied = false;
+        is_pending_reload = true;
+    }
+
     // (Before the reload: the cheats still on write their changes again on this tick)
     if (is_pending_restore.exchange(false)) {
         static_cast<StandardVmCallbacks*>(vm.GetCallbacks())->RestoreOriginalCode();
