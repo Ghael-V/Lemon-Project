@@ -216,6 +216,15 @@ public:
             }
         }
 
+        // Nextendo's servers stand in for Nintendo's hosts with their own certificates, so only
+        // these redirected connections skip the check; every other host is verified as the game
+        // asked.
+        if (!nextendo_host.empty() && !skip_cert_verification) {
+            skip_cert_verification = true;
+            SSL_set_verify(ssl, SSL_VERIFY_NONE, nullptr);
+            SSL_set1_host(ssl, nullptr);
+        }
+
         SSL_set_verify_result(ssl, X509_V_OK);
         const int ret = SSL_do_handshake(ssl);
         if (!nextendo_host.empty()) {
@@ -225,8 +234,8 @@ public:
         if (!skip_cert_verification) {
             const long verify_result = SSL_get_verify_result(ssl);
             if (verify_result != X509_V_OK) {
-                LOG_ERROR(Service_SSL, "SSL cert verification failed because: {}",
-                          X509_verify_cert_error_string(verify_result));
+                LOG_ERROR(Service_SSL, "SSL cert verification failed for {} because: {}",
+                          PeerAddress(), X509_verify_cert_error_string(verify_result));
                 return CheckOpenSSLErrors();
             }
         }

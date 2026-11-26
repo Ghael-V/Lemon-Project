@@ -65,6 +65,9 @@ struct SslVersion {
 
 struct SslContextSharedData {
     u32 connection_count = 0;
+    // The game brought the certificate its server is signed with (ImportServerPki). It is not
+    // used here, so that server would fail the check against the usual roots.
+    bool imported_server_pki = false;
 };
 
 class ISslConnection final : public ServiceFramework<ISslConnection> {
@@ -156,7 +159,9 @@ private:
     std::shared_ptr<Network::SocketBase> socket;
     std::vector<u8> next_alpn_proto;
     bool did_handshake = false;
-    u32 verify_option = 0;
+    // Verify the peer until the game says otherwise (0 turns the check off). Connections that
+    // Nextendo Network answers for skip it in the backend.
+    u32 verify_option = 1;
 
     Result SetSocketDescriptorImpl(s32* out_fd, s32 fd) {
         LOG_DEBUG(Service_SSL, "called, fd={}", fd);
@@ -196,9 +201,9 @@ private:
 
     Result SetVerifyOptionImpl(u32 option) {
         ASSERT(!did_handshake);
-        LOG_DEBUG(Service_SSL, "called. option={} (forcing 0)", option);
-        verify_option = 0;
-        backend->SetVerifyOption(0);
+        LOG_DEBUG(Service_SSL, "called. option={}", option);
+        verify_option = option;
+        backend->SetVerifyOption(option);
         return ResultSuccess;
     }
 
@@ -223,6 +228,11 @@ private:
 
     Result DoHandshakeImpl() {
         ASSERT_OR_EXECUTE(!did_handshake && socket, { return ResultNoSocket; });
+        if (shared_data->imported_server_pki) {
+            // Jackbox and others trust only a certificate they import, which is not applied:
+            // connections from such a context are not checked, as before every one was.
+            backend->SetVerifyOption(0);
+        }
         Result res = backend->DoHandshake();
         did_handshake = res.IsSuccess();
         return res;
@@ -627,6 +637,7 @@ private:
         [[maybe_unused]] const auto pkcs_12_certificates = ctx.ReadBuffer(0);
 
         constexpr u64 server_id = 0;
+        shared_data->imported_server_pki = true;
 
         LOG_WARNING(Service_SSL, "(STUBBED) called, certificate_format={}", certificate_format);
 
