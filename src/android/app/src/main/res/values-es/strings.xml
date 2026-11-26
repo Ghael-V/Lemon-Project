@@ -1152,4 +1152,47 @@
     <string name="online_error_ticket">La sala ha rechazado la entrada. Vuelve a entrar.</string>
     <string name="online_error_version">Esta sala necesita otra versión de la app.</string>
 
+++ b/src/android/app/src/main/res/values-es/strings.xml
+    <!-- Configuración recomendada (IA) -->
+    <string name="ai_config_title">Configuración recomendada</string>
+    <string name="ai_config_description">Ajustes sugeridos para este juego en este dispositivo</string>
+    <string name="ai_config_undo">Deshacer la configuración recomendada</string>
+    <string name="ai_config_undo_description">Devuelve los ajustes de este juego a como estaban antes de la recomendación</string>
+    <string name="ai_config_undone">Ajustes devueltos a como estaban</string>
+    <string name="ai_config_asking">Consultando al servidor de recomendaciones para este juego y dispositivo…</string>
+    <string name="ai_config_privacy">Privacidad</string>
+    <string name="ai_config_apply">Aplicar</string>
+    <string name="ai_config_applied">Aplicada a este juego. Si se cierra al arrancar, se deshace sola.</string>
+    <string name="ai_config_experimental">experimental</string>
+    <string name="ai_config_undo_hint">Solo cambian los ajustes de este juego. Puedes deshacerlo desde sus propiedades.</string>
+    <string name="ai_config_nothing_to_change">Los ajustes de este juego ya coinciden con la recomendación.</string>
+    <string name="ai_config_reverted_after_crash">El juego se cerró al arrancar con la configuración recomendada, así que se ha deshecho. Sus ajustes están como antes.</string>
+    <string name="ai_config_network_error">No se pudo conectar con el servidor de recomendaciones. Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="ai_config_rate_limited">Demasiadas consultas ahora mismo. Vuelve a intentarlo en un rato.</string>
+    <string name="ai_config_update_app">Esta versión ya no recibe recomendaciones. Actualiza la app.</string>
+    <string name="ai_config_unavailable">Las recomendaciones no están disponibles ahora mismo. Inténtalo más tarde.</string>
+    <string name="ai_config_server_error">El servidor no pudo responder (%1$s).</string>
+    <string name="ai_config_on">Activado</string>
+    <string name="ai_config_off">Desactivado</string>
+    <string name="ai_setting_use_multi_core">Emulación de CPU multinúcleo</string>
+    <string name="ai_setting_cpuopt_fastmem">Fastmem (CPU)</string>
+    <string name="ai_setting_cpuopt_fastmem_exclusives">Fastmem en accesos exclusivos (CPU)</string>
+    <string name="ai_setting_cpuopt_unsafe_unfuse_fma">Separar FMA (CPU, inseguro)</string>
+    <string name="ai_setting_cpuopt_unsafe_reduce_fp_error">FRSQRTE y FRECPE más rápidos (CPU, inseguro)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_standard_fpcr">Ignorar el FPCR estándar (CPU, inseguro)</string>
+    <string name="ai_setting_cpuopt_unsafe_inaccurate_nan">NaN imprecisos (CPU, inseguro)</string>
+    <string name="ai_setting_cpuopt_unsafe_fastmem_check">Sin comprobar límites de fastmem (CPU, inseguro)</string>
+    <string name="ai_setting_cpuopt_unsafe_ignore_global_monitor">Ignorar el monitor global (CPU, inseguro)</string>
+    <string name="ai_setting_astc_recompression">Recompresión de ASTC</string>
+    <string name="ai_setting_use_vulkan_driver_pipeline_cache">Caché de pipelines del driver</string>
+    <string name="ai_setting_use_video_framerate">Mostrar al ritmo del vídeo</string>
+    <string name="ai_setting_barrier_feedback_loops">Barreras en bucles de realimentación</string>
+    <string name="ai_setting_use_docked_mode">Modo dock</string>
+    <string name="ai_setting_memory_layout_mode">RAM emulada</string>
+    <string name="ai_setting_use_asynchronous_gpu_emulation">Emulación asíncrona de la GPU</string>
+    <string name="ai_setting_accelerate_astc">Método de decodificación de ASTC</string>
+    <string name="ai_setting_nvdec_emulation">Decodificación de vídeo (NVDEC)</string>
+    <string name="ai_setting_vram_usage_mode">Uso de VRAM</string>
+    <string name="ai_setting_async_presentation">Presentación asíncrona</string>
+    <string name="ai_setting_use_fast_gpu_time">Tiempo de GPU rápido</string>
 </resources>

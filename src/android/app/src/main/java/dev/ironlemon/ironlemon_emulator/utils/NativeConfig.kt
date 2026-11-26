@@ -117,6 +117,14 @@ object NativeConfig {
 
     external fun getDefaultToString(key: String): String
 
+    /** The setting's value as config.ini stores it (enums as numbers), for any setting type. */
+    @Synchronized
+    external fun getValueString(key: String, needsGlobal: Boolean): String
+
+    /** Sets a setting of any type from the text config.ini would store. False if [key] is unknown. */
+    @Synchronized
+    external fun setValueString(key: String, value: String): Boolean
+
     /** The emulated NAND's folder, and the one it has by default (on the internal storage). */
     @Synchronized
     external fun getNandDir(): String

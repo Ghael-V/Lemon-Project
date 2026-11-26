@@ -28,6 +28,9 @@ object DirectoryInitialization {
                 LastExitReason.record(YuzuApplication.appContext, java.io.File(it, "log"))
             }
             NativeConfig.initializeGlobalConfig()
+            userPath?.let {
+                dev.ironlemon.ironlemon_emulator.features.aiconfig.AiConfigStore.recoverAfterCrash(java.io.File(it))
+            }
             migrateSettings()
             areDirectoriesReady = true
         }

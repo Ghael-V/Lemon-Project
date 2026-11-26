@@ -83,6 +83,14 @@ android {
 
         buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
         buildConfigField("String", "BRANCH", "\"${getBranch()}\"")
+
+        // Where the AI game config asks for suggestions (the Lemon AI server; it holds the AI key).
+        // A test build can point it at a local mock with -PaiConfigUrl=http://...; only then is
+        // cleartext HTTP allowed.
+        val aiConfigUrl = (project.findProperty("aiConfigUrl") as String?)
+            ?: "https://ai.lemon-emu.org/v1"
+        buildConfigField("String", "AI_CONFIG_URL", "\"$aiConfigUrl\"")
+        manifestPlaceholders["usesCleartextTraffic"] = aiConfigUrl.startsWith("http://").toString()
     }
 
     val keystoreFile = System.getenv("ANDROID_KEYSTORE_FILE")
