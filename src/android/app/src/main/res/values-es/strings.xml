@@ -1450,11 +1450,11 @@
     <string name="update_checking">Buscando actualizaciones…</string>
     <string name="update_none">No hay una versión más nueva, o no se pudo conectar con el servidor de actualizaciones.</string>
     <string name="update_open_page">Abrir la página de descarga</string>
-    <string name="whats_new_title">Novedades de Lemon 1.6</string>
-    <string name="whats_new_body">• Distribución de botones, en Controles: Nintendo intercambia A↔B y X↔Y de tu mando en los juegos, para portátiles y mandos con los botones al revés.\n• Los juegos abiertos desde un frontend cargan su actualización, sus DLC y sus ajustes propios.\n• La generación de fotogramas funciona en Mali.\n• Mali: vuelven los efectos que se dibujan con geometry shaders.\n• Fences de GPU inmediatas, para usuarios avanzados en Gráficos → Avanzado: más rápido en algunos juegos, parpadeos en otros.\n• Arranca el menú de inicio del firmware 23.5 y el icono cabe en los iconos redondos.</string>
+    <string name="whats_new_title">Novedades de Lemon 1.7</string>
+    <string name="whats_new_body">• Lemon Online: juega al modo inalámbrico local de un juego con amigos estén donde estén, por internet. Abre Online desde la biblioteca o el menú del juego, crea una sala o entra en una y elige el juego inalámbrico local. Sin cuenta: amigos, invitaciones y salas públicas.\n• Configuración recomendada, en las propiedades de un juego: pregunta qué ajustes le van mejor en tu dispositivo. Ves cada cambio antes y se deshace si el juego no arranca.\n• Bramble y otros frontends pueden mostrar el tiempo jugado y las capturas de un juego, abrir sus ajustes y copiar su partida cuando tú lo permitas.\n• Lemon-Ade 0.0.9 incluido: en portátiles Adreno 8xx con pantalla vertical, muchas menos interrupciones mientras juegas.\n• Las conexiones seguras vuelven a comprobar los certificados, salvo con los servidores a los que redirige Nextendo.</string>
     <string name="whats_new_got_it">Entendido</string>
     <string name="whats_new_read_more">Leer más</string>
-    <string name="whats_new_link">https://lemon-emu.org/es/#features</string>
+    <string name="whats_new_link">https://lemon-emu.org/es/#online</string>
     <string name="lite_farewell_title">Lemon Lite ahora es parte de Lemon</string>
     <string name="lite_farewell_body">Esta es la última versión de Lemon Lite. Sus ajustes ligeros son ahora el modo Velocidad de Lemon (Ajustes › Modo), así que ya no hace falta una app aparte.\n\nInstala Lemon con el botón de abajo y, en sus Ajustes, usa «Migrar desde otro emulador» para traer tus partidas, claves y firmware. A partir de ahora, las actualizaciones llegan como Lemon.</string>
     <string name="lite_farewell_download">Descargar Lemon</string>

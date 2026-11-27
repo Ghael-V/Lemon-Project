@@ -155,6 +155,17 @@ Full release notes (including Nightly/Experimental prereleases) are on the
 As of v0.3, Nightly and Experimental have been merged into `main` and retired as separate channels — one
 consolidated build going forward instead of splitting fixes across three branches.
 
+- **v1.7.0** — **Lemon Online**: a game's local wireless play carried over the internet through rooms, so friends
+  anywhere play as if in the same room (any game with a local wireless mode, Lemon and Iron Lemon in the same
+  rooms). No account: a friend code per device, friends with presence, invites that open the game, public rooms
+  with a lobby, passwords, report and block, and rooms that switch cheats off. Eden's multiplayer entries are
+  gone. **Recommended settings** for each game from the Lemon AI service, shown before they apply and undone if
+  the game does not start. **Frontends** (Bramble) can read a game's name, icon, play time and screenshots, open
+  its settings, and export or import its save after the user agrees. **Lemon-Ade v0.0.9** bundled (UBWC
+  swapchain on Adreno 8xx, Mesa fixes incl. the A830 private-memory workaround). TLS checks certificates again
+  except for Nextendo-redirected hosts and games that import their own certificate; held TLS input is reported
+  by poll, also with an eventfd. Proxy sockets with protocol 0 use their type's protocol, and the default error
+  applet closes at once.
 - **v1.6.0** — **Frame generation no longer crashes on Mali**: Mali gives 11 swapchain images and Lemon FG kept
   descriptor sets for 7 frames (RG 477V: MK8D 45.8 fps, 88.7 with Lemon FG). Coarse derivatives that Maxwell builds
   from quad broadcasts become native ones (Advance Wars 1+2 on Adreno). Copies between formats of different sizes
