@@ -1080,8 +1080,6 @@ add_library(core STATIC
     hle/service/ssl/ssl.cpp
     hle/service/ssl/ssl.h
     hle/service/ssl/ssl_backend.h
-    hle/service/ssl/ssl_pending_registry.cpp
-    hle/service/ssl/ssl_pending_registry.h
     hle/service/ssl/ssl_types.h
     hle/service/tma/tma.cpp
     hle/service/tma/tma.h
