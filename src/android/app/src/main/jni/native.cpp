@@ -208,33 +208,35 @@ void EmulationSession::ConfigureFilesystemProvider(const std::string& filepath) 
         return;
     }
 
-    auto loader = Loader::GetLoader(m_system, file);
-    if (!loader) {
-        return;
-    }
-
-    const auto file_type = loader->GetFileType();
-    if (file_type == Loader::FileType::Unknown || file_type == Loader::FileType::Error) {
-        return;
-    }
-
-    u64 program_id = 0;
-    const auto res2 = loader->ReadProgramId(program_id);
-    if (res2 == Loader::ResultStatus::Success && file_type == Loader::FileType::NCA) {
-        m_manual_provider->AddEntry(FileSys::TitleType::Application,
-                                    FileSys::GetCRTypeFromNCAType(FileSys::NCA{file}.GetType()),
-                                    program_id, file);
-    } else if (res2 == Loader::ResultStatus::Success &&
-               (file_type == Loader::FileType::XCI || file_type == Loader::FileType::NSP)) {
-        const auto nsp = file_type == Loader::FileType::NSP
+    // NSP and XCI go by their extension. One holding only an update or DLC has nothing to boot,
+    // so it is not identified as an NSP or XCI and has no program id of its own, yet every title
+    // in it belongs to a game: all of them are registered.
+    const auto container_type = Loader::GuessFromFilename(file->GetName());
+    if (container_type == Loader::FileType::NSP || container_type == Loader::FileType::XCI) {
+        const auto nsp = container_type == Loader::FileType::NSP
                              ? std::make_shared<FileSys::NSP>(file)
                              : FileSys::XCI{file}.GetSecurePartitionNSP();
+        if (!nsp) {
+            return;
+        }
         for (const auto& title : nsp->GetNCAs()) {
             for (const auto& entry : title.second) {
                 m_manual_provider->AddEntry(entry.first.first, entry.first.second, title.first,
                                             entry.second->GetBaseFile());
             }
         }
+        return;
+    }
+
+    auto loader = Loader::GetLoader(m_system, file);
+    if (!loader || loader->GetFileType() != Loader::FileType::NCA) {
+        return;
+    }
+    u64 program_id = 0;
+    if (loader->ReadProgramId(program_id) == Loader::ResultStatus::Success) {
+        m_manual_provider->AddEntry(FileSys::TitleType::Application,
+                                    FileSys::GetCRTypeFromNCAType(FileSys::NCA{file}.GetType()),
+                                    program_id, file);
     }
 }
 
