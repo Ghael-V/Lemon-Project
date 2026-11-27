@@ -385,27 +385,71 @@ void PresentManager::SetImageCount() {
 }
 
 void PresentManager::CopyToSwapchain(Frame* frame) {
-    bool requires_recreation = false;
-
     while (true) {
-        try {
-            // Recreate surface and swapchain if needed.
-            if (requires_recreation) {
+        // Recreate surface and swapchain if needed.
+        if (surface_lost) {
+            try {
 #ifdef __ANDROID__
                 surface = CreateSurface(instance, render_window.GetWindowInfo());
 #endif
                 RecreateSwapchain(frame);
+                surface_lost = false;
+            } catch (const vk::Exception& except) {
+                // There can be no window to draw to for a moment, while the app goes to or
+                // comes back from the background. Skip this frame and try again with the next
+                // one instead of closing the app.
+                LOG_WARNING(Render_Vulkan,
+                            "Could not recreate the lost surface ({}), skipping a frame",
+                            except.what());
+                SkipFrame(frame);
+                return;
             }
+        }
 
+        frame_submitted = false;
+        try {
             // Draw to swapchain.
             return CopyToSwapchainImpl(frame);
         } catch (const vk::Exception& except) {
             if (except.GetResult() != VK_ERROR_SURFACE_LOST_KHR) {
                 throw;
             }
-
-            requires_recreation = true;
+            surface_lost = true;
+            if (frame_submitted) {
+                // Lost while presenting: the frame's work is already submitted, the next frame
+                // recreates the surface.
+                return;
+            }
         }
+    }
+}
+
+void PresentManager::SkipFrame(Frame* frame) {
+    // Nothing is shown, but the frame still has to consume its render_ready semaphore and signal
+    // present_done, or the next use of this frame would wait forever.
+    static constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    const VkSubmitInfo submit_info{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .waitSemaphoreCount = 1U,
+        .pWaitSemaphores = frame->render_ready.address(),
+        .pWaitDstStageMask = &wait_stage,
+        .commandBufferCount = 0,
+        .pCommandBuffers = nullptr,
+        .signalSemaphoreCount = 0,
+        .pSignalSemaphores = nullptr,
+    };
+    std::scoped_lock submit_lock{scheduler.submit_mutex};
+    switch (const VkResult result =
+                device.GetGraphicsQueue().Submit(submit_info, *frame->present_done)) {
+    case VK_SUCCESS:
+        break;
+    case VK_ERROR_DEVICE_LOST:
+        device.ReportLoss();
+        [[fallthrough]];
+    default:
+        vk::Check(result);
+        break;
     }
 }
 
@@ -565,6 +609,7 @@ void PresentManager::CopyToSwapchainImpl(Frame* frame) {
             vk::Check(result);
             break;
         }
+        frame_submitted = true;
     }
 
     // Present

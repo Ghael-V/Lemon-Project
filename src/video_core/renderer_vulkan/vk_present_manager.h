@@ -75,6 +75,9 @@ private:
 
     void CopyToSwapchainImpl(Frame* frame);
 
+    /// Retires a frame without showing it: its rendering is waited for and present_done signaled.
+    void SkipFrame(Frame* frame);
+
     void RecreateSwapchain(Frame* frame);
 
     void SetImageCount();
@@ -101,6 +104,10 @@ private:
     bool storage_supported;
     bool use_present_thread;
     std::size_t image_count{};
+    /// The driver reported VK_ERROR_SURFACE_LOST_KHR: recreate surface and swapchain first.
+    bool surface_lost{};
+    /// The current frame's copy to the swapchain has been submitted.
+    bool frame_submitted{};
 };
 
 } // namespace Vulkan
