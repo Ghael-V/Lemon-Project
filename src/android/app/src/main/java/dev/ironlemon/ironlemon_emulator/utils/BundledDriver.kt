@@ -18,7 +18,8 @@ import java.io.File
  *   manager like any installed driver.
  * - It is selected automatically only once, on Adreno 8xx (the generation Lemon-Ade is built and
  *   tested for), when the user is still on the system driver. Any driver picked afterwards is left
- *   alone. Older Adreno GPUs can still pick it in the driver manager.
+ *   alone. Older Adreno GPUs can still pick it in the driver manager. Installs from v0.2.0 and
+ *   v0.2.1, whose check could not read the GPU model, get this decision once more.
  * - Until one game has rendered a frame with it, each game launch leaves a marker that the first
  *   frame clears. A marker still present at the next start means the app died before that first
  *   frame, so the global driver goes back to the system one and the user is told.
@@ -39,6 +40,7 @@ object BundledDriver {
     private const val PREF_BOOT_PENDING = "bundled_driver_boot_pending"
     private const val PREF_FAILED = "bundled_driver_failed"
     private const val PREF_INSTALLED_NAME = "bundled_driver_installed_name"
+    private const val PREF_MODEL_FIX_RETRIED = "bundled_driver_model_fix_retried"
 
     // Any custom driver, bundled or not, is watched the same way until it has run a game: the
     // driver a launch started with, and the drivers that have already worked on this device.
@@ -120,23 +122,38 @@ object BundledDriver {
         }
         preferences.edit { putString(PREF_INSTALLED_NAME, name) }
 
-        if (preferences.getBoolean(PREF_DECIDED, false)) {
+        // v0.2.0 and v0.2.1 read the GPU model from the wrong field, took every GPU for a
+        // non-Adreno one and never selected the bundled driver. Those installs decide once more,
+        // unless the bundled driver already failed on the device.
+        val decided = preferences.getBoolean(PREF_DECIDED, false)
+        val retry = decided && !preferences.getBoolean(PREF_MODEL_FIX_RETRIED, false) &&
+            !preferences.getBoolean(PREF_FAILED, false)
+        if (decided && !retry) {
             return false
         }
 
         // Never override a driver the user already chose.
         if (StringSetting.DRIVER_PATH.getString(needsGlobal = true).isNotEmpty()) {
-            preferences.edit { putBoolean(PREF_DECIDED, true) }
+            preferences.edit {
+                putBoolean(PREF_DECIDED, true)
+                putBoolean(PREF_MODEL_FIX_RETRIED, true)
+            }
             return false
         }
         val model = adrenoModel() ?: return false // No answer from the driver yet: next start.
-        preferences.edit { putBoolean(PREF_DECIDED, true) }
+        preferences.edit {
+            putBoolean(PREF_DECIDED, true)
+            putBoolean(PREF_MODEL_FIX_RETRIED, true)
+        }
         if (model < MIN_ADRENO_MODEL) {
             return false
         }
         StringSetting.DRIVER_PATH.setString(path)
         NativeConfig.saveGlobalConfig()
-        Log.info("[BundledDriver] Selected $name by default on Adreno $model")
+        Log.info(
+            "[BundledDriver] Selected $name by default on Adreno $model" +
+                if (retry) " (decided again after the GPU model fix)" else ""
+        )
         return false
     }
 
