@@ -23,6 +23,8 @@ protected:
     void ReadAndroidUIValues();
     void ReadDriverValues();
     void ReadOverlayValues();
+    // The size of the control at the current array index of the overlay layout.
+    double ReadControlScale();
     void ReadCustomOverlayValues();
     void ReadHidbusValues() override {}
     void ReadDebugControlValues() override {}
