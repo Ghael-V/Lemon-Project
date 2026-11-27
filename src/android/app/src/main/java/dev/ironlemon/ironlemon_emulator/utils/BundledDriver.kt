@@ -16,20 +16,23 @@ import java.io.File
  *
  * - Its zip is copied into the driver storage on every start, so it always shows up in the driver
  *   manager like any installed driver.
- * - It is selected automatically only once, on Snapdragon (Adreno 6xx and newer, the GPUs Turnip
- *   drives), when the user is still on the system driver. Any driver picked afterwards is left alone.
+ * - It is selected automatically only once, on Adreno 8xx (the generation Lemon-Ade is built and
+ *   tested for), when the user is still on the system driver. Any driver picked afterwards is left
+ *   alone. Older Adreno GPUs can still pick it in the driver manager.
  * - Until one game has rendered a frame with it, each game launch leaves a marker that the first
  *   frame clears. A marker still present at the next start means the app died before that first
  *   frame, so the global driver goes back to the system one and the user is told.
- * - When a newer APK ships a newer zip, users still on the previous bundled zip move to the new one.
+ * - When a newer APK ships a newer zip, users on Adreno 8xx still on the previous bundled zip move
+ *   to the new one. On older GPUs (v0.0.7 was the default from Adreno 6xx on) the previous zip stays
+ *   installed and selected: the newer one has not been tested there.
  *
  * After Lemon's BundledDriver (Lemon 15359f10a0, 79caf4832b).
  */
 object BundledDriver {
     private const val ASSET_DIR = "bundled_driver"
 
-    // Turnip drives the Adreno 6xx, 7xx and 8xx families.
-    private const val MIN_ADRENO_MODEL = 600
+    // Lemon-Ade is only built and tested for Adreno 8xx; Turnip itself also drives 6xx and 7xx.
+    private const val MIN_ADRENO_MODEL = 800
 
     private const val PREF_DECIDED = "bundled_driver_default_decided"
     private const val PREF_VERIFIED = "bundled_driver_verified"
@@ -99,13 +102,21 @@ object BundledDriver {
         // A newer APK brought a newer bundled zip: move users who were on the old one.
         val previousName = preferences.getString(PREF_INSTALLED_NAME, null)
         if (previousName != null && previousName != name) {
-            if (isSelectedGlobally(storagePath(previousName))) {
-                StringSetting.DRIVER_PATH.setString(path)
-                NativeConfig.saveGlobalConfig()
-                preferences.edit { putBoolean(PREF_VERIFIED, false) }
-                Log.info("[BundledDriver] Updated the selected bundled driver $previousName -> $name")
+            val previousPath = storagePath(previousName)
+            if (isSelectedGlobally(previousPath)) {
+                val model = adrenoModel() ?: return false // No answer from the driver yet: next start.
+                if (model >= MIN_ADRENO_MODEL) {
+                    StringSetting.DRIVER_PATH.setString(path)
+                    NativeConfig.saveGlobalConfig()
+                    preferences.edit { putBoolean(PREF_VERIFIED, false) }
+                    File(previousPath).delete()
+                    Log.info("[BundledDriver] Updated the selected bundled driver $previousName -> $name")
+                } else {
+                    Log.info("[BundledDriver] Kept $previousName on Adreno $model; $name is not tested there")
+                }
+            } else {
+                File(previousPath).delete()
             }
-            File(storagePath(previousName)).delete()
         }
         preferences.edit { putString(PREF_INSTALLED_NAME, name) }
 
