@@ -181,11 +181,13 @@ object BundledDriver {
     }
 
     /**
-     * The Adreno model number from the system driver's device name ("Adreno (TM) 830"): 0 for a
+     * The Adreno model number from the system driver's GPU model ("Adreno (TM) 830"): 0 for a
      * GPU that is not an Adreno, null when the driver could not be asked.
      */
     private fun adrenoModel(): Int? {
-        val name = GpuDriverHelper.querySystemDriverInfo()?.getOrNull(1) ?: return null
+        // [version, driver name, GPU model]. The driver name ("Qualcomm Technologies Inc. Adreno
+        // Vulkan Driver") carries no model number.
+        val name = GpuDriverHelper.querySystemDriverInfo()?.getOrNull(2) ?: return null
         val match = Regex("""Adreno\D*(\d{3})""").find(name) ?: return 0
         return match.groupValues[1].toIntOrNull() ?: 0
     }
