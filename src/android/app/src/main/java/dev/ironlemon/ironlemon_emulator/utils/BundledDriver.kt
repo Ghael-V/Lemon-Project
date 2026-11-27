@@ -16,26 +16,31 @@ import java.io.File
  *
  * - Its zip is copied into the driver storage on every start, so it always shows up in the driver
  *   manager like any installed driver.
- * - It is selected automatically only once, on Snapdragon (Adreno 6xx and newer, the GPUs Turnip
- *   drives), when the user is still on the system driver. Any driver picked afterwards is left alone.
+ * - It is selected automatically only once, on Adreno 8xx (the generation Lemon-Ade is built and
+ *   tested for), when the user is still on the system driver. Any driver picked afterwards is left
+ *   alone. Older Adreno GPUs can still pick it in the driver manager. Installs from v0.2.0 and
+ *   v0.2.1, whose check could not read the GPU model, get this decision once more.
  * - Until one game has rendered a frame with it, each game launch leaves a marker that the first
  *   frame clears. A marker still present at the next start means the app died before that first
  *   frame, so the global driver goes back to the system one and the user is told.
- * - When a newer APK ships a newer zip, users still on the previous bundled zip move to the new one.
+ * - When a newer APK ships a newer zip, users on Adreno 8xx still on the previous bundled zip move
+ *   to the new one. On older GPUs (v0.0.7 was the default from Adreno 6xx on) the previous zip stays
+ *   installed and selected: the newer one has not been tested there.
  *
  * After Lemon's BundledDriver (Lemon 15359f10a0, 79caf4832b).
  */
 object BundledDriver {
     private const val ASSET_DIR = "bundled_driver"
 
-    // Turnip drives the Adreno 6xx, 7xx and 8xx families.
-    private const val MIN_ADRENO_MODEL = 600
+    // Lemon-Ade is only built and tested for Adreno 8xx; Turnip itself also drives 6xx and 7xx.
+    private const val MIN_ADRENO_MODEL = 800
 
     private const val PREF_DECIDED = "bundled_driver_default_decided"
     private const val PREF_VERIFIED = "bundled_driver_verified"
     private const val PREF_BOOT_PENDING = "bundled_driver_boot_pending"
     private const val PREF_FAILED = "bundled_driver_failed"
     private const val PREF_INSTALLED_NAME = "bundled_driver_installed_name"
+    private const val PREF_MODEL_FIX_RETRIED = "bundled_driver_model_fix_retried"
 
     // Any custom driver, bundled or not, is watched the same way until it has run a game: the
     // driver a launch started with, and the drivers that have already worked on this device.
@@ -99,33 +104,56 @@ object BundledDriver {
         // A newer APK brought a newer bundled zip: move users who were on the old one.
         val previousName = preferences.getString(PREF_INSTALLED_NAME, null)
         if (previousName != null && previousName != name) {
-            if (isSelectedGlobally(storagePath(previousName))) {
-                StringSetting.DRIVER_PATH.setString(path)
-                NativeConfig.saveGlobalConfig()
-                preferences.edit { putBoolean(PREF_VERIFIED, false) }
-                Log.info("[BundledDriver] Updated the selected bundled driver $previousName -> $name")
+            val previousPath = storagePath(previousName)
+            if (isSelectedGlobally(previousPath)) {
+                val model = adrenoModel() ?: return false // No answer from the driver yet: next start.
+                if (model >= MIN_ADRENO_MODEL) {
+                    StringSetting.DRIVER_PATH.setString(path)
+                    NativeConfig.saveGlobalConfig()
+                    preferences.edit { putBoolean(PREF_VERIFIED, false) }
+                    File(previousPath).delete()
+                    Log.info("[BundledDriver] Updated the selected bundled driver $previousName -> $name")
+                } else {
+                    Log.info("[BundledDriver] Kept $previousName on Adreno $model; $name is not tested there")
+                }
+            } else {
+                File(previousPath).delete()
             }
-            File(storagePath(previousName)).delete()
         }
         preferences.edit { putString(PREF_INSTALLED_NAME, name) }
 
-        if (preferences.getBoolean(PREF_DECIDED, false)) {
+        // v0.2.0 and v0.2.1 read the GPU model from the wrong field, took every GPU for a
+        // non-Adreno one and never selected the bundled driver. Those installs decide once more,
+        // unless the bundled driver already failed on the device.
+        val decided = preferences.getBoolean(PREF_DECIDED, false)
+        val retry = decided && !preferences.getBoolean(PREF_MODEL_FIX_RETRIED, false) &&
+            !preferences.getBoolean(PREF_FAILED, false)
+        if (decided && !retry) {
             return false
         }
 
         // Never override a driver the user already chose.
         if (StringSetting.DRIVER_PATH.getString(needsGlobal = true).isNotEmpty()) {
-            preferences.edit { putBoolean(PREF_DECIDED, true) }
+            preferences.edit {
+                putBoolean(PREF_DECIDED, true)
+                putBoolean(PREF_MODEL_FIX_RETRIED, true)
+            }
             return false
         }
         val model = adrenoModel() ?: return false // No answer from the driver yet: next start.
-        preferences.edit { putBoolean(PREF_DECIDED, true) }
+        preferences.edit {
+            putBoolean(PREF_DECIDED, true)
+            putBoolean(PREF_MODEL_FIX_RETRIED, true)
+        }
         if (model < MIN_ADRENO_MODEL) {
             return false
         }
         StringSetting.DRIVER_PATH.setString(path)
         NativeConfig.saveGlobalConfig()
-        Log.info("[BundledDriver] Selected $name by default on Adreno $model")
+        Log.info(
+            "[BundledDriver] Selected $name by default on Adreno $model" +
+                if (retry) " (decided again after the GPU model fix)" else ""
+        )
         return false
     }
 
@@ -181,11 +209,13 @@ object BundledDriver {
     }
 
     /**
-     * The Adreno model number from the system driver's device name ("Adreno (TM) 830"): 0 for a
+     * The Adreno model number from the system driver's GPU model ("Adreno (TM) 830"): 0 for a
      * GPU that is not an Adreno, null when the driver could not be asked.
      */
     private fun adrenoModel(): Int? {
-        val name = GpuDriverHelper.querySystemDriverInfo()?.getOrNull(1) ?: return null
+        // [version, driver name, GPU model]. The driver name ("Qualcomm Technologies Inc. Adreno
+        // Vulkan Driver") carries no model number.
+        val name = GpuDriverHelper.querySystemDriverInfo()?.getOrNull(2) ?: return null
         val match = Regex("""Adreno\D*(\d{3})""").find(name) ?: return 0
         return match.groupValues[1].toIntOrNull() ?: 0
     }
